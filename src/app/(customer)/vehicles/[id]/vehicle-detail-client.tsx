@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { DetailPageHeader } from "@/components/customer/detail-page-header";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
+import { useGoToBooking } from "@/hooks/use-go-to-booking";
 import { Calendar, Check, Fuel, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RatingStars } from "@/components/customer/rating-stars";
-import { useAppStore, useBookingCart } from "@/store/app-store";
+import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Vehicle } from "@/types";
 
 export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const { locale } = useAppStore();
-  const setCart = useBookingCart((s) => s.setCart);
+  const goToBooking = useGoToBooking();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [guests, setGuests] = useState("1");
@@ -36,7 +36,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const total = vehicle.pricePerDay * days;
 
   const handleBook = () => {
-    setCart({
+    goToBooking({
       serviceType: "vehicle",
       serviceId: vehicle.id,
       serviceName: localizedText(vehicle.name, locale),
@@ -48,16 +48,20 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   };
 
   return (
-    <section className="container mx-auto px-4 py-10">
+    <>
+      <DetailPageHeader
+        title={localizedText(vehicle.name, locale)}
+        backHref="/vehicles"
+        backLabel="Back to Vehicles"
+      />
+      <section className="container mx-auto px-4 py-10">
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
-            <Image
-              src={vehicle.images[0]}
+            <ImageAutoSlider
+              images={vehicle.images}
               alt={localizedText(vehicle.name, locale)}
-              fill
-              className="object-cover"
-              priority
+              sizes="100vw"
             />
           </div>
 
@@ -164,20 +168,20 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                 </div>
               </div>
 
-              <Link href="/booking" onClick={handleBook}>
-                <Button className="w-full" size="lg" disabled={!startDate || !endDate}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {t(locale, "common", "bookNow")}
-                </Button>
-              </Link>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={!startDate || !endDate}
+                onClick={handleBook}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {t(locale, "common", "bookNow")}
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
-}
-
-export function VehicleNotFound() {
-  notFound();
 }

@@ -14,9 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Safar Sathi | AI Powered Travel Platform",
+  title: "Safar Sathi | Travel | Comfort | Trust",
   description:
     "Discover incredible destinations across India with intelligent recommendations, instant booking, and 24/7 AI support.",
+  icons: {
+    icon: [
+      { url: "/images/favicon.svg", type: "image/svg+xml" },
+      { url: "/images/favicon.png", type: "image/png" },
+    ],
+    apple: "/images/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {

@@ -14,7 +14,6 @@ import {
   Megaphone,
   Package,
   Shield,
-  Sparkles,
   User,
   Users,
 } from "lucide-react";
@@ -33,7 +32,6 @@ export const CUSTOMER_NAV_ITEMS: NavMenuItem[] = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Building2 },
   { href: "/bus-booking", label: "bus", icon: Bus },
-  { href: "/ai-assistant", label: "aiAssistant", icon: Sparkles },
   { href: "/my-bookings", label: "myBookings", icon: CalendarCheck },
 ];
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { SafeImage } from "@/components/ui/safe-image";
-import Link from "next/link";
+import { DetailPageHeader } from "@/components/customer/detail-page-header";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
+import { useGoToBooking } from "@/hooks/use-go-to-booking";
 import { Calendar, Check, Clock, MapPin, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,19 +12,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from "@/components/customer/rating-stars";
-import { useAppStore, useBookingCart } from "@/store/app-store";
+import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { TourPackage } from "@/types";
 
 export function PackageDetailClient({ pkg }: { pkg: TourPackage }) {
   const { locale } = useAppStore();
-  const setCart = useBookingCart((s) => s.setCart);
+  const goToBooking = useGoToBooking();
   const [startDate, setStartDate] = useState("");
   const [guests, setGuests] = useState("2");
   const total = pkg.price * Number(guests || 1);
 
   const handleBook = () => {
-    setCart({
+    goToBooking({
       serviceType: "package",
       serviceId: pkg.id,
       serviceName: localizedText(pkg.title, locale),
@@ -35,16 +36,20 @@ export function PackageDetailClient({ pkg }: { pkg: TourPackage }) {
   };
 
   return (
-    <section className="container mx-auto px-4 py-10">
+    <>
+      <DetailPageHeader
+        title={localizedText(pkg.title, locale)}
+        backHref="/packages"
+        backLabel="Back to Packages"
+      />
+      <section className="container mx-auto px-4 py-10">
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
-            <SafeImage
-              src={pkg.images[0]}
+            <ImageAutoSlider
+              images={pkg.images}
               alt={localizedText(pkg.title, locale)}
-              fill
-              className="object-cover"
-              priority
+              sizes="100vw"
             />
             {pkg.featured && (
               <Badge className="absolute left-4 top-4">Featured</Badge>
@@ -203,16 +208,20 @@ export function PackageDetailClient({ pkg }: { pkg: TourPackage }) {
                   <span className="text-primary">{formatCurrency(total, locale)}</span>
                 </div>
               </div>
-              <Link href="/booking" onClick={handleBook}>
-                <Button className="w-full" size="lg" disabled={!startDate}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {t(locale, "common", "bookNow")}
-                </Button>
-              </Link>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={!startDate}
+                onClick={handleBook}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {t(locale, "common", "bookNow")}
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }

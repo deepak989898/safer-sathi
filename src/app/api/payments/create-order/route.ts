@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createOrder, getRazorpayKeyId } from "@/lib/payments/razorpay";
+import { createOrder, getPublicRazorpayKeyId } from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const order = await createOrder(parsed.data);
     return apiSuccess({
       ...order,
-      keyId: getRazorpayKeyId(),
+      keyId: getPublicRazorpayKeyId(),
     });
   } catch (err) {
     console.error("Create order error:", err);

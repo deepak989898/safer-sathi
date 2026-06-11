@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, CreditCard, MapPin, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, CreditCard, Loader2, MapPin, ShieldCheck, User } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/auth-context";
 import { useAppStore, useBookingCart } from "@/store/app-store";
 import { formatCurrency } from "@/lib/i18n";
+import {
+  isDemoPaymentMode,
+  openRazorpayCheckout,
+} from "@/lib/payments/razorpay-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -22,24 +28,27 @@ const steps = [
 ];
 
 export default function BookingPage() {
+  const router = useRouter();
   const { locale } = useAppStore();
+  const { user } = useAuth();
   const cart = useBookingCart();
   const clearCart = useBookingCart((s) => s.clearCart);
   const [step, setStep] = useState(1);
+  const [paying, setPaying] = useState(false);
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? "",
   });
 
   const progress = (step / steps.length) * 100;
 
-  const handleConfirm = async () => {
+  const handlePay = async () => {
+    if (!cart.serviceId || !form.name || !form.email || !form.phone) return;
+
+    setPaying(true);
     try {
-      const res = await fetch("/api/bookings", {
+      const bookingRes = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,16 +62,72 @@ export default function BookingPage() {
           endDate: cart.endDate || undefined,
           guests: cart.guests,
           amount: cart.amount,
+          userId: user?.id,
         }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      const bookingJson = await bookingRes.json();
+      if (!bookingJson.success) {
+        throw new Error(bookingJson.error ?? "Failed to create booking");
+      }
 
-      toast.success(`Booking confirmed! Reference: ${json.data.bookingNumber}`);
+      const booking = bookingJson.data;
+      const orderRes = await fetch("/api/payments/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: cart.amount,
+          receipt: booking.bookingNumber,
+          notes: {
+            bookingId: booking.id,
+            serviceType: cart.serviceType,
+          },
+        }),
+      });
+      const orderJson = await orderRes.json();
+      if (!orderJson.success) {
+        throw new Error(orderJson.error ?? "Failed to create payment order");
+      }
+
+      const order = orderJson.data;
+      const payment = await openRazorpayCheckout({
+        keyId: order.keyId,
+        orderId: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Safar Sathi",
+        description: cart.serviceName,
+        customerName: form.name,
+        customerEmail: form.email,
+        customerPhone: form.phone,
+        demo: order.demo,
+      });
+
+      const verifyRes = await fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          razorpayOrderId: payment.razorpayOrderId,
+          razorpayPaymentId: payment.razorpayPaymentId,
+          razorpaySignature: payment.razorpaySignature,
+          bookingId: booking.id,
+          amount: cart.amount,
+        }),
+      });
+      const verifyJson = await verifyRes.json();
+      if (!verifyJson.success) {
+        throw new Error(verifyJson.error ?? "Payment verification failed");
+      }
+
       clearCart();
       setStep(1);
-    } catch {
-      toast.error("Booking failed. Please try again.");
+      toast.success(`Booking confirmed! Reference: ${booking.bookingNumber}`);
+      router.push("/my-bookings");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Booking failed. Please try again.";
+      toast.error(message);
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -79,6 +144,8 @@ export default function BookingPage() {
       </>
     );
   }
+
+  const demoMode = isDemoPaymentMode(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
 
   return (
     <>
@@ -197,45 +264,44 @@ export default function BookingPage() {
             )}
 
             {step === 3 && (
-              <>
-                <div>
-                  <Label>Card Number</Label>
-                  <Input
-                    placeholder="4242 4242 4242 4242"
-                    value={form.cardNumber}
-                    onChange={(e) => setForm({ ...form, cardNumber: e.target.value })}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Expiry</Label>
-                    <Input
-                      placeholder="MM/YY"
-                      value={form.expiry}
-                      onChange={(e) => setForm({ ...form, expiry: e.target.value })}
-                      className="mt-1.5"
-                    />
-                  </div>
-                  <div>
-                    <Label>CVV</Label>
-                    <Input
-                      placeholder="123"
-                      value={form.cvv}
-                      onChange={(e) => setForm({ ...form, cvv: e.target.value })}
-                      className="mt-1.5"
-                    />
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Secure payment via Razorpay</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {demoMode
+                          ? "Demo mode is active. Payment will be simulated until you add Razorpay keys in Vercel."
+                          : "You will be redirected to Razorpay checkout to complete payment safely."}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Secure payment powered by Razorpay. Your payment details are encrypted.
-                </p>
-              </>
+                <div className="rounded-lg bg-muted/50 p-4">
+                  <div className="flex justify-between font-bold">
+                    <span>Amount to pay</span>
+                    <span className="text-primary">
+                      {formatCurrency(cart.amount, locale)}
+                    </span>
+                  </div>
+                </div>
+                {demoMode && (
+                  <p className="text-xs text-muted-foreground">
+                    Set `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, and
+                    `RAZORPAY_KEY_SECRET` in Vercel for live payments.
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="flex gap-3 pt-4">
               {step > 1 && (
-                <Button variant="outline" onClick={() => setStep(step - 1)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  disabled={paying}
+                >
                   Back
                 </Button>
               )}
@@ -248,8 +314,15 @@ export default function BookingPage() {
                   Continue
                 </Button>
               ) : (
-                <Button className="flex-1" onClick={handleConfirm}>
-                  Confirm & Pay {formatCurrency(cart.amount, locale)}
+                <Button className="flex-1" onClick={handlePay} disabled={paying}>
+                  {paying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>Pay {formatCurrency(cart.amount, locale)} with Razorpay</>
+                  )}
                 </Button>
               )}
             </div>

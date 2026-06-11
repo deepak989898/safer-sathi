@@ -85,3 +85,7 @@ export function verifyPayment(input: VerifyPaymentInput): boolean {
 export function getRazorpayKeyId(): string | null {
   return process.env.RAZORPAY_KEY_ID ?? null;
 }
+
+export function getPublicRazorpayKeyId(): string | null {
+  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? process.env.RAZORPAY_KEY_ID ?? null;
+}

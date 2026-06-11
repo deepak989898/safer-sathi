@@ -50,8 +50,13 @@ const initialCart = {
   amount: 0,
 };
 
-export const useBookingCart = create<BookingCartState>()((set) => ({
-  ...initialCart,
-  setCart: (data) => set((state) => ({ ...state, ...data })),
-  clearCart: () => set(initialCart),
-}));
+export const useBookingCart = create<BookingCartState>()(
+  persist(
+    (set) => ({
+      ...initialCart,
+      setCart: (data) => set((state) => ({ ...state, ...data })),
+      clearCart: () => set(initialCart),
+    }),
+    { name: "safar-sathi-cart" }
+  )
+);

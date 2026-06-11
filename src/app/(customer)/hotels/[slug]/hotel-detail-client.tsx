@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { SafeImage } from "@/components/ui/safe-image";
-import Link from "next/link";
+import { DetailPageHeader } from "@/components/customer/detail-page-header";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
+import { useGoToBooking } from "@/hooks/use-go-to-booking";
 import { Calendar, MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,13 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RatingStars } from "@/components/customer/rating-stars";
-import { useAppStore, useBookingCart } from "@/store/app-store";
+import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel } from "@/types";
 
 export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   const { locale } = useAppStore();
-  const setCart = useBookingCart((s) => s.setCart);
+  const goToBooking = useGoToBooking();
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState("2");
@@ -35,7 +36,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   const total = hotel.priceFrom * nights;
 
   const handleBook = () => {
-    setCart({
+    goToBooking({
       serviceType: "hotel",
       serviceId: hotel.id,
       serviceName: localizedText(hotel.name, locale),
@@ -47,16 +48,20 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   };
 
   return (
-    <section className="container mx-auto px-4 py-10">
+    <>
+      <DetailPageHeader
+        title={localizedText(hotel.name, locale)}
+        backHref="/hotels"
+        backLabel="Back to Hotels"
+      />
+      <section className="container mx-auto px-4 py-10">
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
-            <SafeImage
-              src={hotel.images[0]}
+            <ImageAutoSlider
+              images={hotel.images}
               alt={localizedText(hotel.name, locale)}
-              fill
-              className="object-cover"
-              priority
+              sizes="100vw"
             />
           </div>
 
@@ -168,16 +173,20 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                   <span className="text-primary">{formatCurrency(total, locale)}</span>
                 </div>
               </div>
-              <Link href="/booking" onClick={handleBook}>
-                <Button className="w-full" size="lg" disabled={!checkIn || !checkOut}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {t(locale, "common", "bookNow")}
-                </Button>
-              </Link>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={!checkIn || !checkOut}
+                onClick={handleBook}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {t(locale, "common", "bookNow")}
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }

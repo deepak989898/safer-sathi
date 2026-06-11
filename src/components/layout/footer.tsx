@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Globe, Mail, MapPin, Phone, Share2 } from "lucide-react";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 
@@ -13,8 +14,8 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <h3 className="mb-4 text-lg font-bold text-primary">Safar Sathi</h3>
-            <p className="text-sm text-muted-foreground">
+            <BrandLogo href="/" imageClassName="h-14" />
+            <p className="mt-4 text-sm text-muted-foreground">
               {t(locale, "footer", "tagline")}
             </p>
             <div className="mt-4 flex gap-3">

@@ -2,18 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  LogOut,
-  Map,
-  Menu,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Menu } from "lucide-react";
+import { BrandLogo } from "@/components/layout/brand-logo";
+import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAuth } from "@/contexts/auth-context";
 import type { User } from "@/types";
 import { ROLE_LABELS } from "@/lib/auth/constants";
-import {
-  getAdminNavItems,
-} from "@/lib/navigation/role-menus";
+import { getAdminNavItems } from "@/lib/navigation/role-menus";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +18,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -98,14 +92,9 @@ function SidebarContent({
   return (
     <>
       {!compact && (
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Map className="size-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight">Safar Sathi</p>
-            <p className="text-xs text-sidebar-foreground/60">Admin Panel</p>
-          </div>
+        <div className="border-b border-sidebar-border px-6 py-4">
+          <BrandLogo href="/" imageClassName="h-10" />
+          <p className="mt-1 text-xs text-sidebar-foreground/60">Admin Panel</p>
         </div>
       )}
 

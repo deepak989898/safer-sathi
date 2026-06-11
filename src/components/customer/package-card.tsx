@@ -16,14 +16,15 @@ export function PackageCard({
   locale: Locale;
 }) {
   return (
-    <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <ImageAutoSlider
-          images={pkg.images}
-          alt={localizedText(pkg.title, locale)}
-          sizes="(max-width: 768px) 100vw, 33vw"
-          imageClassName="transition-transform duration-300 group-hover/card:scale-105"
-        />
+    <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
+      <Link href={`/packages/${pkg.slug}`} className="block">
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <ImageAutoSlider
+            images={pkg.images}
+            alt={localizedText(pkg.title, locale)}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            imageClassName="transition-transform duration-300 group-hover/card:scale-105"
+          />
         {pkg.featured && (
           <Badge className="absolute left-3 top-3 z-10 bg-primary">Featured</Badge>
         )}
@@ -32,12 +33,15 @@ export function PackageCard({
             Save {formatCurrency(pkg.originalPrice - pkg.price, locale)}
           </Badge>
         )}
-      </div>
+        </div>
+      </Link>
       <CardContent className="space-y-2 pt-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 font-semibold leading-snug">
-            {localizedText(pkg.title, locale)}
-          </h3>
+          <Link href={`/packages/${pkg.slug}`} className="hover:text-primary">
+            <h3 className="line-clamp-2 font-semibold leading-snug">
+              {localizedText(pkg.title, locale)}
+            </h3>
+          </Link>
           <RatingStars rating={pkg.rating} />
         </div>
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -61,7 +65,7 @@ export function PackageCard({
             {formatCurrency(pkg.price, locale)}
           </p>
         </div>
-        <Link href={`/packages/${pkg.slug}`}>
+        <Link href={`/packages/${pkg.slug}`} className="inline-flex">
           <Button>{t(locale, "common", "viewDetails")}</Button>
         </Link>
       </CardFooter>

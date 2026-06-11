@@ -16,23 +16,27 @@ export function VehicleCard({
   locale: Locale;
 }) {
   return (
-    <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[16/10] overflow-hidden">
-        <ImageAutoSlider
-          images={vehicle.images}
-          alt={localizedText(vehicle.name, locale)}
-          sizes="(max-width: 768px) 100vw, 33vw"
-        />
-        <Badge
-          className="absolute left-3 top-3 z-10 capitalize"
-          variant={vehicle.available ? "default" : "secondary"}
-        >
-          {vehicle.available ? "Available" : "Booked"}
-        </Badge>
-      </div>
+    <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
+      <Link href={`/vehicles/${vehicle.id}`} className="block">
+        <div className="relative aspect-[16/10] overflow-hidden">
+          <ImageAutoSlider
+            images={vehicle.images}
+            alt={localizedText(vehicle.name, locale)}
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
+          <Badge
+            className="absolute left-3 top-3 z-10 capitalize"
+            variant={vehicle.available ? "default" : "secondary"}
+          >
+            {vehicle.available ? "Available" : "Booked"}
+          </Badge>
+        </div>
+      </Link>
       <CardContent className="space-y-2 pt-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold">{localizedText(vehicle.name, locale)}</h3>
+          <Link href={`/vehicles/${vehicle.id}`} className="hover:text-primary">
+            <h3 className="font-semibold">{localizedText(vehicle.name, locale)}</h3>
+          </Link>
           <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
         </div>
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -57,7 +61,7 @@ export function VehicleCard({
           </p>
           <p className="text-xs text-muted-foreground">{t(locale, "common", "perDay")}</p>
         </div>
-        <Link href={`/vehicles/${vehicle.id}`}>
+        <Link href={`/vehicles/${vehicle.id}`} className="inline-flex">
           <Button>{t(locale, "common", "viewDetails")}</Button>
         </Link>
       </CardFooter>

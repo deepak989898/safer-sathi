@@ -10,12 +10,12 @@ import {
   LayoutDashboard,
   Moon,
   Package,
-  Plane,
-  Sparkles,
   Sun,
   User,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { BrandLogo } from "@/components/layout/brand-logo";
+import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,7 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAppStore } from "@/store/app-store";
 import { useAuth } from "@/contexts/auth-context";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
@@ -37,8 +36,12 @@ const navLinks = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },
   { href: "/bus-booking", label: "bus", icon: Bus },
-  { href: "/ai-assistant", label: "aiAssistant", icon: Sparkles },
 ];
+
+function isNavActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Header() {
   const pathname = usePathname();
@@ -52,20 +55,10 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95">
       <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <RoleNavigationDrawer showLabel triggerClassName="hidden sm:inline-flex" />
           <RoleNavigationDrawer triggerClassName="sm:hidden" />
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Plane className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-lg font-bold text-primary">Safar Sathi</span>
-              <span className="hidden text-xs text-muted-foreground sm:block">
-                AI Travel Platform
-              </span>
-            </div>
-          </Link>
+          <BrandLogo priority className="min-w-0" imageClassName="h-10 sm:h-12" />
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -75,7 +68,7 @@ export function Header() {
               href={link.href}
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                pathname === link.href && "bg-primary/10 text-primary"
+                isNavActive(pathname, link.href) && "bg-primary/10 text-primary"
               )}
             >
               {t(locale, "nav", link.label)}

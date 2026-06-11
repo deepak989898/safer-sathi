@@ -10,21 +10,25 @@ import { formatCurrency, localizedText, t } from "@/lib/i18n";
 
 export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
   return (
-    <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <ImageAutoSlider
-          images={hotel.images}
-          alt={localizedText(hotel.name, locale)}
-          sizes="(max-width: 768px) 100vw, 33vw"
-        />
-        <Badge className="absolute left-3 top-3 z-10">
-          <Star className="mr-1 h-3 w-3 fill-current" />
-          {hotel.starRating} Star
-        </Badge>
-      </div>
+    <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
+      <Link href={`/hotels/${hotel.slug}`} className="block">
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <ImageAutoSlider
+            images={hotel.images}
+            alt={localizedText(hotel.name, locale)}
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
+          <Badge className="absolute left-3 top-3 z-10">
+            <Star className="mr-1 h-3 w-3 fill-current" />
+            {hotel.starRating} Star
+          </Badge>
+        </div>
+      </Link>
       <CardContent className="space-y-2 pt-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold">{localizedText(hotel.name, locale)}</h3>
+          <Link href={`/hotels/${hotel.slug}`} className="hover:text-primary">
+            <h3 className="font-semibold">{localizedText(hotel.name, locale)}</h3>
+          </Link>
           <RatingStars rating={hotel.rating} reviewCount={hotel.reviewCount} />
         </div>
         <p className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -50,7 +54,7 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
             </span>
           </p>
         </div>
-        <Link href={`/hotels/${hotel.slug}`}>
+        <Link href={`/hotels/${hotel.slug}`} className="inline-flex">
           <Button>{t(locale, "common", "viewDetails")}</Button>
         </Link>
       </CardFooter>
