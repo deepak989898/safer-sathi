@@ -26,54 +26,53 @@ export function HeroSlider({
   compact = false,
 }: HeroSliderProps) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const activeSlide = slides[index] ?? slides[0];
 
   useEffect(() => {
-    if (slides.length <= 1 || paused) return;
+    if (slides.length <= 1) return;
 
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % slides.length);
     }, interval);
 
-    return () => clearInterval(timer);
-  }, [slides.length, interval, paused]);
+    return () => window.clearInterval(timer);
+  }, [slides.length, interval]);
 
   if (!activeSlide) return null;
 
   return (
     <section
       className={cn(
-        "relative flex items-center justify-center overflow-hidden",
-        "relative flex items-center justify-center overflow-hidden md:min-h-[560px]",
-        compact ? "min-h-[340px] sm:min-h-[400px]" : "min-h-[480px] sm:min-h-[520px]",
+        "relative flex items-center justify-center overflow-hidden md:min-h-[580px]",
+        compact ? "min-h-[420px] sm:min-h-[480px]" : "min-h-[520px] sm:min-h-[560px]",
         className
       )}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
     >
       {slides.map((slide, slideIndex) => (
         <div
           key={slide.image}
           className={cn(
-            "absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out",
+            "absolute inset-0 transition-opacity duration-1000 ease-in-out",
             slideIndex === index ? "opacity-100" : "opacity-0"
           )}
-          style={{
-            backgroundImage: `linear-gradient(135deg, oklch(0.22 0.08 264 / 0.88), oklch(0.52 0.19 264 / 0.65)), url(${slide.image})`,
-          }}
           aria-hidden={slideIndex !== index}
-        />
+        >
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${slide.image})` }}
+          />
+          <div className="hero-slider-overlay absolute inset-0" />
+        </div>
       ))}
 
       <div className="container relative z-10 mx-auto px-4 py-10 text-center md:py-20">
         {activeSlide.title && (
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
+          <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-4xl md:text-5xl lg:text-6xl">
             {activeSlide.title}
           </h1>
         )}
         {activeSlide.subtitle && (
-          <p className="mx-auto mt-3 max-w-2xl text-base text-white/90 sm:mt-4 sm:text-lg">
+          <p className="mx-auto mt-3 max-w-2xl text-base text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)] sm:mt-4 sm:text-lg md:text-white/95">
             {activeSlide.subtitle}
           </p>
         )}
