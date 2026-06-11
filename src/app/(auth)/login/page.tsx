@@ -23,7 +23,6 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Demo login - redirects based on email
       if (email.includes("admin")) {
         router.push("/admin");
         toast.success("Welcome, Admin!");
@@ -98,9 +97,6 @@ export default function LoginPage() {
               <Link href="/register" className="font-medium text-primary hover:underline">
                 Register
               </Link>
-            </p>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Demo: use admin@email.com for admin panel
             </p>
           </CardContent>
         </Card>

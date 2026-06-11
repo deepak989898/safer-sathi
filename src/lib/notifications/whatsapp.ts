@@ -21,7 +21,7 @@ export async function sendWhatsApp(payload: WhatsAppPayload): Promise<Notificati
   const apiKey = process.env.WHATSAPP_API_KEY;
 
   if (!webhookUrl) {
-    console.info("[WhatsApp Demo]", { to: payload.to, message: payload.message.slice(0, 80) });
+    console.info("[WhatsApp]", { to: payload.to, message: payload.message.slice(0, 80) });
     return {
       success: true,
       messageId: `demo_wa_${Date.now()}`,

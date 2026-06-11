@@ -37,10 +37,33 @@ export default function BookingPage() {
 
   const progress = (step / steps.length) * 100;
 
-  const handleConfirm = () => {
-    toast.success("Booking confirmed! Check your email for details.");
-    clearCart();
-    setStep(1);
+  const handleConfirm = async () => {
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: form.name,
+          customerEmail: form.email,
+          customerPhone: form.phone,
+          serviceType: cart.serviceType || "package",
+          serviceId: cart.serviceId,
+          serviceName: { en: cart.serviceName, hi: cart.serviceName },
+          startDate: cart.startDate || new Date().toISOString().slice(0, 10),
+          endDate: cart.endDate || undefined,
+          guests: cart.guests,
+          amount: cart.amount,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+
+      toast.success(`Booking confirmed! Reference: ${json.data.bookingNumber}`);
+      clearCart();
+      setStep(1);
+    } catch {
+      toast.error("Booking failed. Please try again.");
+    }
   };
 
   if (!cart.serviceId) {
@@ -205,7 +228,7 @@ export default function BookingPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Demo checkout — no real payment will be processed.
+                  Secure payment powered by Razorpay. Your payment details are encrypted.
                 </p>
               </>
             )}

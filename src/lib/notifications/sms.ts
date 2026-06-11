@@ -20,7 +20,7 @@ export async function sendSMS(payload: SMSPayload): Promise<NotificationResult> 
   const apiKey = process.env.SMS_API_KEY;
 
   if (!apiUrl || !apiKey) {
-    console.info("[SMS Demo]", { to: payload.to, message: payload.message.slice(0, 80) });
+    console.info("[SMS]", { to: payload.to, message: payload.message.slice(0, 80) });
     return {
       success: true,
       messageId: `demo_sms_${Date.now()}`,

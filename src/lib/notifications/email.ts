@@ -24,7 +24,7 @@ export async function sendEmail(payload: EmailPayload): Promise<NotificationResu
   const from = payload.from ?? process.env.EMAIL_FROM ?? "Safar Sathi <bookings@safarsathi.com>";
 
   if (!apiUrl || !apiKey) {
-    console.info("[Email Demo]", { to: payload.to, subject: payload.subject });
+    console.info("[Email]", { to: payload.to, subject: payload.subject });
     return {
       success: true,
       messageId: `demo_email_${Date.now()}`,

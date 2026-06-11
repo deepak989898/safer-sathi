@@ -19,6 +19,12 @@ export const metadata: Metadata = {
     "Discover incredible destinations across India with intelligent recommendations, instant booking, and 24/7 AI support.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

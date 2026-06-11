@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useRef, useState } from "react";
 import { Bot, Send, Sparkles, User } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
@@ -8,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAppStore } from "@/store/app-store";
+import { formatCurrency, localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/types";
+import { toast } from "sonner";
+import type { ChatMessage, TourPackage, Vehicle } from "@/types";
 
 const suggestions = [
   "Plan a 5-day trip to Rajasthan",
@@ -29,13 +34,14 @@ const initialMessages: ChatMessage[] = [
 ];
 
 export default function AIAssistantPage() {
+  const { locale } = useAppStore();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || loading) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -48,16 +54,48 @@ export default function AIAssistantPage() {
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const history = [...messages, userMsg]
+        .filter((m) => m.role !== "system")
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const res = await fetch("/api/ai/travel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, locale, history }),
+      });
+
+      const json = await res.json();
+
+      if (!json.success) {
+        throw new Error(json.error ?? "Failed to get response");
+      }
+
       const reply: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: getAIResponse(text),
+        content: json.data.reply,
+        packages: json.data.recommendations?.packages ?? [],
+        vehicles: json.data.recommendations?.vehicles ?? [],
         timestamp: new Date().toISOString(),
       };
+
       setMessages((prev) => [...prev, reply]);
+    } catch {
+      toast.error("Could not reach AI assistant. Please try again.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content:
+            "Sorry, I'm having trouble connecting right now. Please try again or browse our packages and vehicles directly.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -67,28 +105,28 @@ export default function AIAssistantPage() {
         subtitle="Get personalized recommendations powered by intelligent AI"
       />
 
-      <section className="container mx-auto px-4 py-10">
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-          <div className="space-y-4">
+      <section className="container mx-auto px-4 py-6 sm:py-10">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,320px)_1fr]">
+          <div className="order-2 space-y-4 lg:order-1">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Sparkles className="h-6 w-6" />
                   </div>
                   <div>
                     <p className="font-semibold">Safar AI</p>
-                    <p className="text-xs text-muted-foreground">Always online</p>
+                    <p className="text-xs text-muted-foreground">Always online · EN / HI</p>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Ask me anything about travel in India — destinations, packages,
-                  vehicles, hotels, and more.
+                  Ask about destinations, packages, vehicles, hotels, budgets, and
+                  itineraries across India.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="hidden sm:block">
               <CardContent className="pt-6">
                 <p className="mb-3 text-sm font-medium">Quick Suggestions</p>
                 <div className="space-y-2">
@@ -107,42 +145,59 @@ export default function AIAssistantPage() {
             </Card>
           </div>
 
-          <Card className="flex h-[600px] flex-col">
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <Card className="order-1 flex min-h-[420px] flex-col sm:min-h-[500px] lg:h-[600px] lg:min-h-0">
+            <ScrollArea className="flex-1 p-3 sm:p-4" ref={scrollRef}>
               <div className="space-y-4">
                 {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex gap-3",
-                      msg.role === "user" ? "flex-row-reverse" : ""
-                    )}
-                  >
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback
-                        className={
-                          msg.role === "assistant"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }
-                      >
-                        {msg.role === "assistant" ? (
-                          <Bot className="h-4 w-4" />
-                        ) : (
-                          <User className="h-4 w-4" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+                  <div key={msg.id} className="space-y-3">
                     <div
                       className={cn(
-                        "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
+                        "flex gap-2 sm:gap-3",
+                        msg.role === "user" ? "flex-row-reverse" : ""
                       )}
                     >
-                      {msg.content}
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarFallback
+                          className={
+                            msg.role === "assistant"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }
+                        >
+                          {msg.role === "assistant" ? (
+                            <Bot className="h-4 w-4" />
+                          ) : (
+                            <User className="h-4 w-4" />
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-3 py-2.5 text-sm sm:max-w-[80%] sm:px-4",
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        )}
+                      >
+                        {msg.content}
+                      </div>
                     </div>
+
+                    {msg.role === "assistant" && msg.packages && msg.packages.length > 0 && (
+                      <div className="ml-10 grid gap-2 sm:grid-cols-2">
+                        {msg.packages.map((pkg) => (
+                          <ChatPackageCard key={pkg.id} pkg={pkg} locale={locale} />
+                        ))}
+                      </div>
+                    )}
+
+                    {msg.role === "assistant" && msg.vehicles && msg.vehicles.length > 0 && (
+                      <div className="ml-10 space-y-2">
+                        {msg.vehicles.map((v) => (
+                          <ChatVehicleCard key={v.id} vehicle={v} locale={locale} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {loading && (
@@ -160,7 +215,7 @@ export default function AIAssistantPage() {
               </div>
             </ScrollArea>
 
-            <div className="border-t p-4">
+            <div className="border-t p-3 sm:p-4">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -173,8 +228,14 @@ export default function AIAssistantPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}
+                  className="min-h-10"
                 />
-                <Button type="submit" size="icon" disabled={loading || !input.trim()}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  disabled={loading || !input.trim()}
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
@@ -186,19 +247,61 @@ export default function AIAssistantPage() {
   );
 }
 
-function getAIResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("rajasthan") || lower.includes("5-day")) {
-    return "Great choice! I'd recommend our Golden Triangle Tour covering Delhi, Agra, and Jaipur — 5 nights/6 days starting at ₹24,999. Would you like me to show available dates or suggest hotels?";
-  }
-  if (lower.includes("honeymoon")) {
-    return "For honeymoons, our Kerala Backwaters package is perfect — houseboat stay, Munnar hills, and candlelight dinner from ₹35,999. Shall I check availability for your dates?";
-  }
-  if (lower.includes("tempo") || lower.includes("group")) {
-    return "We have a Force Tempo Traveller 17-seater available in Agra at ₹5,500/day with driver included. Perfect for group tours! Want me to help you book it?";
-  }
-  if (lower.includes("goa") || lower.includes("hotel") || lower.includes("budget")) {
-    return "Goa Beach Paradise starts from ₹5,500/night with beach access, pool, and water sports. I can also filter 3-star options under ₹5,000. What's your travel date?";
-  }
-  return "I'd be happy to help with that! You can browse our tour packages, hotels, and vehicles on the platform, or tell me more about your destination, dates, and budget for personalized recommendations.";
+function ChatPackageCard({
+  pkg,
+  locale,
+}: {
+  pkg: TourPackage;
+  locale: "en" | "hi";
+}) {
+  return (
+    <Link
+      href={`/packages/${pkg.slug}`}
+      className="flex gap-3 rounded-lg border bg-card p-2 transition-colors hover:border-primary"
+    >
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md">
+        <Image
+          src={pkg.images[0]}
+          alt={localizedText(pkg.title, locale)}
+          fill
+          className="object-cover"
+          sizes="64px"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-1 text-sm font-medium">
+          {localizedText(pkg.title, locale)}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {localizedText(pkg.durationLabel, locale)}
+        </p>
+        <p className="text-sm font-semibold text-primary">
+          {formatCurrency(pkg.price, locale)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function ChatVehicleCard({
+  vehicle,
+  locale,
+}: {
+  vehicle: Vehicle;
+  locale: "en" | "hi";
+}) {
+  return (
+    <Link
+      href={`/vehicles/${vehicle.id}`}
+      className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 transition-colors hover:border-primary"
+    >
+      <div>
+        <p className="text-sm font-medium">{localizedText(vehicle.name, locale)}</p>
+        <p className="text-xs text-muted-foreground">{vehicle.seats} seats</p>
+      </div>
+      <p className="text-sm font-semibold text-primary">
+        {formatCurrency(vehicle.pricePerDay, locale)}/day
+      </p>
+    </Link>
+  );
 }
