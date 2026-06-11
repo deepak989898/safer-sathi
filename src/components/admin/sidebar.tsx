@@ -12,13 +12,17 @@ import {
   GitBranch,
   Headphones,
   LayoutDashboard,
+  LogOut,
   Map,
   Megaphone,
   Package,
   Shield,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { ROLE_LABELS } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -38,6 +42,7 @@ const navItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -77,11 +82,22 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4">
-        <div className="rounded-lg bg-sidebar-accent px-3 py-2.5">
-          <p className="text-xs font-medium text-sidebar-accent-foreground">AI-Powered Platform</p>
-          <p className="mt-0.5 text-xs text-sidebar-foreground/50">6 agents active</p>
-        </div>
+      <div className="border-t border-sidebar-border p-4 space-y-3">
+        {user && (
+          <div className="rounded-lg bg-sidebar-accent px-3 py-2.5">
+            <p className="text-sm font-medium text-sidebar-accent-foreground">{user.name}</p>
+            <p className="text-xs text-sidebar-foreground/60">{ROLE_LABELS[user.role]}</p>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-sidebar-foreground/80"
+          onClick={() => logout()}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
       </div>
     </aside>
   );

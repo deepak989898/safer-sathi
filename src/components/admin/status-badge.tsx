@@ -7,6 +7,7 @@ type StatusVariant =
   | "completed"
   | "cancelled"
   | "pending"
+  | "suspended"
   | "refunded"
   | "paid"
   | "partial"
@@ -34,6 +35,7 @@ const variantStyles: Record<StatusVariant, string> = {
   completed: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   cancelled: "bg-destructive/15 text-destructive border-destructive/20",
   pending: "bg-amber-500/15 text-amber-600 border-amber-500/20 dark:text-amber-400",
+  suspended: "bg-destructive/15 text-destructive border-destructive/20",
   refunded: "bg-muted text-muted-foreground border-border",
   paid: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   partial: "bg-amber-500/15 text-amber-600 border-amber-500/20 dark:text-amber-400",
@@ -62,6 +64,7 @@ const labelMap: Record<StatusVariant, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
   pending: "Pending",
+  suspended: "Suspended",
   refunded: "Refunded",
   paid: "Paid",
   partial: "Partial",

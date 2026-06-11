@@ -3,22 +3,32 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Plane, Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react";
+import { Briefcase, Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/auth-context";
+import { ROLE_LABELS, STAFF_ROLES } from "@/lib/auth/constants";
+import type { UserRole } from "@/types";
 import { toast } from "sonner";
 
-export default function RegisterPage() {
+export default function StaffRegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { registerStaffMember } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<UserRole>("sales_agent");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,11 +37,6 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -39,9 +44,9 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const redirect = await register({ name, email, phone, password });
-      toast.success("Account created! You are now signed in.");
-      router.push(redirect);
+      await registerStaffMember({ name, email, phone, password, role });
+      toast.success("Application submitted! Wait for admin approval before signing in.");
+      router.push("/pending-approval");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Registration failed");
     } finally {
@@ -56,22 +61,36 @@ export default function RegisterPage() {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Plane className="h-7 w-7" />
+              <Briefcase className="h-7 w-7" />
             </div>
-            <CardTitle className="text-2xl">Create Customer Account</CardTitle>
+            <CardTitle className="text-2xl">Staff Registration</CardTitle>
             <CardDescription>
-              Register to book packages, vehicles, hotels and manage your trips
+              Apply for a staff role. An admin must approve your account before you can sign in.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Requested Role</Label>
+                <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAFF_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="name"
-                    placeholder="Your name"
                     className="pl-10"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -80,13 +99,12 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Work Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -101,7 +119,6 @@ export default function RegisterPage() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+91 98765 43210"
                     className="pl-10"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -116,7 +133,6 @@ export default function RegisterPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Min. 6 characters"
                     className="pl-10 pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -137,7 +153,6 @@ export default function RegisterPage() {
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -145,11 +160,11 @@ export default function RegisterPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating account..." : "Create Account"}
+                {loading ? "Submitting..." : "Submit Application"}
               </Button>
             </form>
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Already registered?{" "}
+              Already approved?{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">
                 Sign In
               </Link>

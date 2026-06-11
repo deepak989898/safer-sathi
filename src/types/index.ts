@@ -62,12 +62,16 @@ export interface LocalizedString {
   hi: string;
 }
 
+export type UserStatus = "active" | "pending" | "suspended";
+
 export interface User {
   id: string;
   email: string;
   name: string;
   phone?: string;
   role: UserRole;
+  status: UserStatus;
+  approved: boolean;
   avatar?: string;
   locale: Locale;
   createdAt: string;

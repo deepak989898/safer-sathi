@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAppStore } from "@/store/app-store";
+import { useAuth } from "@/contexts/auth-context";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
@@ -40,6 +41,7 @@ const navLinks = [
 export function Header() {
   const pathname = usePathname();
   const { locale, setLocale } = useAppStore();
+  const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
 
@@ -107,18 +109,37 @@ export function Header() {
             )}
           </Button>
 
-          <Link href="/my-bookings" className="hidden sm:block">
-            <Button variant="ghost" size="sm">
-              {t(locale, "nav", "myBookings")}
-            </Button>
-          </Link>
-
-          <Link href="/login" className="hidden sm:block">
-            <Button variant="outline" size="sm">
-              <User className="mr-1 h-4 w-4" />
-              {t(locale, "nav", "login")}
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <Link href="/my-bookings" className="hidden sm:block">
+                <Button variant="ghost" size="sm">
+                  {t(locale, "nav", "myBookings")}
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:inline-flex"
+                onClick={() => logout()}
+              >
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/my-bookings" className="hidden sm:block">
+                <Button variant="ghost" size="sm">
+                  {t(locale, "nav", "myBookings")}
+                </Button>
+              </Link>
+              <Link href="/login" className="hidden sm:block">
+                <Button variant="outline" size="sm">
+                  <User className="mr-1 h-4 w-4" />
+                  {t(locale, "nav", "login")}
+                </Button>
+              </Link>
+            </>
+          )}
 
           <Sheet>
             <SheetTrigger
@@ -143,9 +164,19 @@ export function Header() {
                 <Link href="/my-bookings" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent">
                   {t(locale, "nav", "myBookings")}
                 </Link>
-                <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent">
-                  {t(locale, "nav", "login")}
-                </Link>
+                {user ? (
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-accent"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent">
+                    {t(locale, "nav", "login")}
+                  </Link>
+                )}
               </nav>
             </SheetContent>
           </Sheet>

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/contexts/auth-context";
 import { useAppStore } from "@/store/app-store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -18,8 +19,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableColorScheme={false}
       disableTransitionOnChange
     >
-      {children}
-      <Toaster position="top-right" richColors />
+      <AuthProvider>
+        {children}
+        <Toaster position="top-right" richColors />
+      </AuthProvider>
     </NextThemesProvider>
   );
 }
