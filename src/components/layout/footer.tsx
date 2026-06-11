@@ -14,7 +14,7 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <BrandLogo href="/" imageClassName="h-14" />
+            <BrandLogo href="/" size="footer" />
             <p className="mt-4 text-sm text-muted-foreground">
               {t(locale, "footer", "tagline")}
             </p>

@@ -9,6 +9,7 @@ import {
   Shield,
   UserPlus,
 } from "lucide-react";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -63,11 +64,13 @@ export function RoleNavigationDrawer({
           </Button>
         }
       />
-      <SheetContent side="left" className="flex w-80 flex-col p-0">
-        <SheetHeader className="border-b px-6 py-5 text-left">
-          <SheetTitle className="text-base">Safar Sathi</SheetTitle>
+      <SheetContent side="left" className="flex w-80 flex-col p-0 sm:w-96">
+        <SheetHeader className="border-b px-6 py-6 text-left">
+          <SheetTitle className="sr-only">Safar Sathi Navigation</SheetTitle>
+          <BrandLogo href="/" size="drawer" centered priority />
+          <Separator className="my-4" />
           {user ? (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2">
               <p className="text-sm font-medium">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
               <Badge variant="secondary" className="gap-1">
@@ -76,7 +79,7 @@ export function RoleNavigationDrawer({
               </Badge>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-center text-sm text-muted-foreground">
               Sign in to access bookings and admin tools
             </p>
           )}

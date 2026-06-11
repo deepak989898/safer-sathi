@@ -54,11 +54,11 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95">
-      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="container mx-auto flex h-20 items-center justify-between gap-3 px-4 md:h-[5.25rem]">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <RoleNavigationDrawer showLabel triggerClassName="hidden sm:inline-flex" />
           <RoleNavigationDrawer triggerClassName="sm:hidden" />
-          <BrandLogo priority className="min-w-0" imageClassName="h-10 sm:h-12" />
+          <BrandLogo priority size="header" className="min-w-0" />
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
