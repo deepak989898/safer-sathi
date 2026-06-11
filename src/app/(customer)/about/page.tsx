@@ -15,7 +15,7 @@ export default function AboutPage() {
     <>
       <PageHero
         title="About Safar Sathi"
-        subtitle="Your trusted AI-powered travel companion across India"
+        subtitle="Your trusted travel companion across India"
         image={HERO_IMAGES.about}
       />
 
@@ -24,14 +24,14 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold text-primary">Our Story</h2>
           <p className="text-muted-foreground leading-relaxed">
             Safar Sathi was founded with a vision to make travel in India seamless,
-            affordable, and intelligent. We combine cutting-edge AI technology with
-            deep local expertise to deliver personalized travel experiences — from
+            affordable, and memorable. We combine deep local expertise with
+            modern booking tools to deliver personalized travel experiences — from
             curated tour packages and luxury hotels to reliable vehicle rentals and
             bus bookings.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             Whether you&apos;re planning a family vacation, a romantic honeymoon,
-            a spiritual pilgrimage, or a corporate retreat, our platform and AI
+            a spiritual pilgrimage, or a corporate retreat, our platform and travel
             assistant are here to guide you every step of the way.
           </p>
         </div>
@@ -60,7 +60,7 @@ export default function AboutPage() {
           <div className="rounded-xl border bg-card p-8">
             <h3 className="text-xl font-semibold text-primary">Our Vision</h3>
             <p className="mt-4 text-muted-foreground">
-              To become India&apos;s most trusted AI-powered travel platform,
+              To become India&apos;s most trusted travel platform,
               known for innovation, reliability, and customer delight.
             </p>
           </div>

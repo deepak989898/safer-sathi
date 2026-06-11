@@ -8,11 +8,11 @@ const faqData = {
   general: [
     {
       q: "What is Safar Sathi?",
-      a: "Safar Sathi is an AI-powered travel platform offering tour packages, hotel bookings, vehicle rentals, and bus tickets across India.",
+      a: "Safar Sathi is a travel platform offering tour packages, hotel bookings, vehicle rentals, and bus tickets across India.",
     },
     {
       q: "How do I book a trip?",
-      a: "Browse our packages or services, select your dates, and proceed to checkout. You can also use our AI Assistant for personalized recommendations.",
+      a: "Browse our packages or services, select your dates, and proceed to checkout. You can also use our Assistant for personalized recommendations.",
     },
     {
       q: "Is my payment secure?",
@@ -43,14 +43,14 @@ const faqData = {
       a: "Selected packages support partial payment with the balance due before travel.",
     },
   ],
-  ai: [
+  assistant: [
     {
-      q: "How does the AI Assistant work?",
-      a: "Our AI Assistant uses advanced language models to understand your preferences and suggest tailored travel options in real-time.",
+      q: "How does the Assistant work?",
+      a: "Our Assistant understands your preferences and suggests tailored travel options in real time.",
     },
     {
-      q: "Is the AI Assistant available 24/7?",
-      a: "Yes, the AI Assistant is available round the clock for trip planning and support queries.",
+      q: "Is the Assistant available 24/7?",
+      a: "Yes, the Assistant is available round the clock for trip planning and support queries.",
     },
   ],
 };
@@ -90,7 +90,7 @@ export default function FAQPage() {
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
             <TabsTrigger value="payment">Payment</TabsTrigger>
-            <TabsTrigger value="ai">AI Assistant</TabsTrigger>
+            <TabsTrigger value="assistant">Assistant</TabsTrigger>
           </TabsList>
 
           {Object.entries(faqData).map(([key, items]) => (

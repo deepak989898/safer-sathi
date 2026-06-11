@@ -532,7 +532,7 @@ export const demoBlogPosts: BlogPost[] = [
 export const demoAIAgents = [
   {
     id: "travel" as const,
-    name: { en: "AI Travel Agent", hi: "AI यात्रा एजेंट" },
+    name: { en: "Travel Agent", hi: "यात्रा एजेंट" },
     description: {
       en: "Conversational travel planning and package recommendations.",
       hi: "संवादात्मक यात्रा योजना और पैकेज सिफारिशें।",
@@ -556,7 +556,7 @@ export const demoAIAgents = [
   },
   {
     id: "support" as const,
-    name: { en: "AI Support Agent", hi: "AI सपोर्ट एजेंट" },
+    name: { en: "Support Agent", hi: "सपोर्ट एजेंट" },
     description: {
       en: "24/7 customer support with intelligent ticket escalation.",
       hi: "बुद्धिमान टिकट एस्केलेशन के साथ 24/7 ग्राहक सहायता।",

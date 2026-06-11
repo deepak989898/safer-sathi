@@ -1,11 +1,10 @@
 import Link from "next/link";
 import {
-  Bot,
   HeadphonesIcon,
   ShieldCheck,
-  Sparkles,
   Tag,
 } from "lucide-react";
+import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { Button } from "@/components/ui/button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
 import { HomeClient } from "./home-client";
@@ -33,7 +32,7 @@ export default async function HomePage() {
       <section className="container mx-auto px-4 py-16">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <FeatureCard
-            icon={Sparkles}
+            icon={AssistantIcon}
             titleKey="aiAssistant"
             descKey="aiAssistantDesc"
           />
@@ -45,18 +44,18 @@ export default async function HomePage() {
 
       <section className="bg-primary py-16 text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
-          <Bot className="mx-auto mb-4 h-12 w-12" />
+          <AssistantIcon className="mx-auto mb-4 h-12 w-12" />
           <h2 className="text-2xl font-bold md:text-3xl">
             Ready for Your Next Adventure?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/90">
-            Let our AI assistant plan the perfect trip for you, or browse our
+            Let our travel assistant plan the perfect trip for you, or browse our
             curated packages and book instantly.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/ai-assistant">
               <Button size="lg" variant="secondary">
-                Try AI Assistant
+                Try Assistant
               </Button>
             </Link>
             <Link href="/packages">

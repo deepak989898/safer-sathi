@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Safar Sathi | Travel | Comfort | Trust",
   description:
-    "Discover incredible destinations across India with intelligent recommendations, instant booking, and 24/7 AI support.",
+    "Discover incredible destinations across India with curated packages, instant booking, and 24/7 support.",
   icons: {
     icon: [
       { url: "/images/favicon.svg", type: "image/svg+xml" },

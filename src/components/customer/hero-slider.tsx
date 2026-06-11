@@ -14,6 +14,8 @@ interface HeroSliderProps {
   interval?: number;
   children?: React.ReactNode;
   className?: string;
+  /** Shorter hero on mobile when search is collapsed */
+  compact?: boolean;
 }
 
 export function HeroSlider({
@@ -21,6 +23,7 @@ export function HeroSlider({
   interval = 5000,
   children,
   className,
+  compact = false,
 }: HeroSliderProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -41,7 +44,9 @@ export function HeroSlider({
   return (
     <section
       className={cn(
-        "relative flex min-h-[560px] items-center justify-center overflow-hidden",
+        "relative flex items-center justify-center overflow-hidden",
+        "relative flex items-center justify-center overflow-hidden md:min-h-[560px]",
+        compact ? "min-h-[340px] sm:min-h-[400px]" : "min-h-[480px] sm:min-h-[520px]",
         className
       )}
       onMouseEnter={() => setPaused(true)}
@@ -61,18 +66,18 @@ export function HeroSlider({
         />
       ))}
 
-      <div className="container relative z-10 mx-auto px-4 py-20 text-center">
+      <div className="container relative z-10 mx-auto px-4 py-10 text-center md:py-20">
         {activeSlide.title && (
-          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
             {activeSlide.title}
           </h1>
         )}
         {activeSlide.subtitle && (
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-white/90">
+          <p className="mx-auto mt-3 max-w-2xl text-base text-white/90 sm:mt-4 sm:text-lg">
             {activeSlide.subtitle}
           </p>
         )}
-        {children && <div className="mt-10">{children}</div>}
+        {children && <div className="mt-5 md:mt-10">{children}</div>}
       </div>
 
       {slides.length > 1 && (

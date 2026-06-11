@@ -12,7 +12,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-slate-50 dark:bg-card">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 lg:grid-cols-4">
           <div>
             <BrandLogo href="/" size="footer" />
             <p className="mt-4 text-sm text-muted-foreground">
@@ -31,28 +31,66 @@ export function Footer() {
             </div>
           </div>
 
-          <div>
-            <h4 className="mb-4 font-semibold">{t(locale, "footer", "quickLinks")}</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/about" className="hover:text-primary">{t(locale, "nav", "about")}</Link></li>
-              <li><Link href="/packages" className="hover:text-primary">{t(locale, "nav", "packages")}</Link></li>
-              <li><Link href="/blog" className="hover:text-primary">{t(locale, "nav", "blog")}</Link></li>
-              <li><Link href="/faq" className="hover:text-primary">{t(locale, "nav", "faq")}</Link></li>
-            </ul>
+          <div className="grid grid-cols-2 gap-6 lg:contents">
+            <div>
+              <h4 className="mb-3 font-semibold md:mb-4">
+                {t(locale, "footer", "quickLinks")}
+              </h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/about" className="hover:text-primary">
+                    {t(locale, "nav", "about")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/packages" className="hover:text-primary">
+                    {t(locale, "nav", "packages")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog" className="hover:text-primary">
+                    {t(locale, "nav", "blog")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/faq" className="hover:text-primary">
+                    {t(locale, "nav", "faq")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="mb-3 font-semibold md:mb-4">
+                {t(locale, "footer", "services")}
+              </h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/vehicles" className="hover:text-primary">
+                    {t(locale, "nav", "vehicles")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/hotels" className="hover:text-primary">
+                    {t(locale, "nav", "hotels")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/car-rental" className="hover:text-primary">
+                    {t(locale, "nav", "carRental")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/airport-pickup" className="hover:text-primary">
+                    {t(locale, "nav", "airport")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div>
-            <h4 className="mb-4 font-semibold">{t(locale, "footer", "services")}</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/vehicles" className="hover:text-primary">{t(locale, "nav", "vehicles")}</Link></li>
-              <li><Link href="/hotels" className="hover:text-primary">{t(locale, "nav", "hotels")}</Link></li>
-              <li><Link href="/car-rental" className="hover:text-primary">{t(locale, "nav", "carRental")}</Link></li>
-              <li><Link href="/airport-pickup" className="hover:text-primary">{t(locale, "nav", "airport")}</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="mb-4 font-semibold">{t(locale, "footer", "contact")}</h4>
+            <h4 className="mb-3 font-semibold md:mb-4">{t(locale, "footer", "contact")}</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
@@ -71,10 +109,16 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t pt-8 text-sm text-muted-foreground sm:flex-row">
-          <p>© {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}</p>
+          <p>
+            © {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}
+          </p>
           <div className="flex gap-4">
-            <Link href="/terms" className="hover:text-primary">Terms</Link>
-            <Link href="/privacy" className="hover:text-primary">Privacy</Link>
+            <Link href="/terms" className="hover:text-primary">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-primary">
+              Privacy
+            </Link>
           </div>
         </div>
       </div>

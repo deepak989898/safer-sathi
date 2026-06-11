@@ -20,7 +20,7 @@ export default function PrivacyPage() {
 
         <h2>3. AI & Personalization</h2>
         <p>
-          Our AI Assistant may analyze your queries and booking history to provide
+          Our Assistant may analyze your queries and booking history to provide
           personalized travel recommendations. You can opt out of AI personalization in
           your account settings.
         </p>

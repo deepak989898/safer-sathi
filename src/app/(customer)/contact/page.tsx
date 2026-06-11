@@ -31,7 +31,7 @@ const contactInfo = [
   {
     icon: Clock,
     title: "Support Hours",
-    detail: "24/7 AI Assistant",
+    detail: "24/7 Assistant",
     sub: "Human support: 9 AM - 8 PM IST",
   },
 ];

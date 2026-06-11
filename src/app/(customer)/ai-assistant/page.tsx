@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRef, useState } from "react";
-import { Bot, Send, Sparkles, User } from "lucide-react";
+import { Send, User } from "lucide-react";
+import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { PageHero } from "@/components/customer/page-hero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ const initialMessages: ChatMessage[] = [
     id: "1",
     role: "assistant",
     content:
-      "Hello! I'm your Safar Sathi AI travel assistant. I can help you plan trips, find packages, book vehicles, and answer travel questions. How can I help you today?",
+      "Hello! I'm your Safar Sathi travel assistant. I can help you plan trips, find packages, book vehicles, and answer travel questions. How can I help you today?",
     timestamp: new Date().toISOString(),
   },
 ];
@@ -82,7 +83,7 @@ export default function AIAssistantPage() {
 
       setMessages((prev) => [...prev, reply]);
     } catch {
-      toast.error("Could not reach AI assistant. Please try again.");
+      toast.error("Could not reach assistant. Please try again.");
       setMessages((prev) => [
         ...prev,
         {
@@ -101,8 +102,8 @@ export default function AIAssistantPage() {
   return (
     <>
       <PageHero
-        title="AI Travel Assistant"
-        subtitle="Get personalized recommendations powered by intelligent AI"
+        title="Travel Assistant"
+        subtitle="Get personalized recommendations for your next journey"
       />
 
       <section className="container mx-auto px-4 py-6 sm:py-10">
@@ -112,10 +113,10 @@ export default function AIAssistantPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Sparkles className="h-6 w-6" />
+                    <AssistantIcon className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="font-semibold">Safar AI</p>
+                    <p className="font-semibold">Safar Sathi Assistant</p>
                     <p className="text-xs text-muted-foreground">Always online · EN / HI</p>
                   </div>
                 </div>
@@ -165,7 +166,7 @@ export default function AIAssistantPage() {
                           }
                         >
                           {msg.role === "assistant" ? (
-                            <Bot className="h-4 w-4" />
+                            <AssistantIcon className="h-4 w-4" />
                           ) : (
                             <User className="h-4 w-4" />
                           )}
@@ -204,7 +205,7 @@ export default function AIAssistantPage() {
                   <div className="flex gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        <Bot className="h-4 w-4" />
+                        <AssistantIcon className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm">

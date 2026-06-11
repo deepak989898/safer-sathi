@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { cn } from "@/lib/utils";
 
 export function AiAssistantFab() {
@@ -20,7 +20,7 @@ export function AiAssistantFab() {
   return (
     <Link
       href="/ai-assistant"
-      aria-label="Open AI Travel Assistant"
+      aria-label="Open travel assistant"
       className={cn(
         "group fixed bottom-6 right-6 z-50 flex items-center gap-3",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -32,7 +32,7 @@ export function AiAssistantFab() {
           "opacity-0 transition-all group-hover:opacity-100 sm:inline-block"
         )}
       >
-        AI Assistant
+        Assistant
       </span>
       <span
         className={cn(
@@ -41,7 +41,7 @@ export function AiAssistantFab() {
           "transition-transform hover:scale-105 active:scale-95"
         )}
       >
-        <Sparkles className="h-6 w-6" />
+        <AssistantIcon className="h-7 w-7" />
       </span>
     </Link>
   );

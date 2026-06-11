@@ -17,7 +17,7 @@ interface BrandLogoProps {
 const sizeClasses: Record<BrandLogoSize, string> = {
   header:
     "h-16 w-auto max-w-[200px] sm:h-[4.5rem] sm:max-w-[240px] md:h-20 md:max-w-[280px]",
-  drawer: "h-32 w-auto max-w-[260px] sm:h-36",
+  drawer: "h-20 w-auto max-w-[220px] sm:h-24 sm:max-w-[240px]",
   footer: "h-20 w-auto max-w-[240px]",
   admin: "h-14 w-auto max-w-[180px]",
   compact: "h-12 w-auto max-w-[160px]",
@@ -25,7 +25,7 @@ const sizeClasses: Record<BrandLogoSize, string> = {
 
 const imageDimensions: Record<BrandLogoSize, { width: number; height: number }> = {
   header: { width: 320, height: 128 },
-  drawer: { width: 360, height: 144 },
+  drawer: { width: 280, height: 112 },
   footer: { width: 280, height: 112 },
   admin: { width: 220, height: 88 },
   compact: { width: 180, height: 72 },

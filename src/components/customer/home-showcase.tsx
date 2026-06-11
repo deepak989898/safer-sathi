@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { HotelCard } from "@/components/customer/hotel-card";
@@ -24,6 +25,7 @@ export function HomeShowcase({
   featuredVehicles,
 }: HomeHeroProps) {
   const { locale } = useAppStore();
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   const heroSlides = HOME_HERO_SLIDES.map((slide) => ({
     image: slide.image,
@@ -33,8 +35,8 @@ export function HomeShowcase({
 
   return (
     <>
-      <HeroSlider slides={heroSlides}>
-        <SearchWidget />
+      <HeroSlider slides={heroSlides} compact={!searchExpanded}>
+        <SearchWidget onExpandChange={setSearchExpanded} />
       </HeroSlider>
 
       <section className="bg-muted/50 py-16">

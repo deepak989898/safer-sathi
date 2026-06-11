@@ -65,12 +65,12 @@ export function RoleNavigationDrawer({
         }
       />
       <SheetContent side="left" className="flex w-80 flex-col p-0 sm:w-96">
-        <SheetHeader className="border-b px-6 py-6 text-left">
+        <SheetHeader className="border-b px-4 py-3 text-left">
           <SheetTitle className="sr-only">Safar Sathi Navigation</SheetTitle>
           <BrandLogo href="/" size="drawer" centered priority />
-          <Separator className="my-4" />
+          <Separator className="my-2" />
           {user ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <p className="text-sm font-medium">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
               <Badge variant="secondary" className="gap-1">
@@ -79,13 +79,13 @@ export function RoleNavigationDrawer({
               </Badge>
             </div>
           ) : (
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-xs leading-snug text-muted-foreground">
               Sign in to access bookings and admin tools
             </p>
           )}
         </SheetHeader>
 
-        <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
+        <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
           {isStaff && (
             <section className="space-y-2">
               <p className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
