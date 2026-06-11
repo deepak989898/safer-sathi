@@ -1,6 +1,15 @@
 import { notFound } from "next/navigation";
-import { getBlogPostBySlug } from "@/lib/data-service";
+import {
+  getAllBlogSlugs,
+  getBlogPostBySlug,
+} from "@/lib/catalog-service";
 import { BlogDetailClient } from "./blog-detail-client";
+
+export function generateStaticParams() {
+  return getAllBlogSlugs().map((slug) => ({ slug }));
+}
+
+export const dynamicParams = true;
 
 export default async function BlogDetailPage({
   params,

@@ -3,8 +3,27 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Briefcase, Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react";
+import {
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +41,8 @@ import { ROLE_LABELS, STAFF_ROLES } from "@/lib/auth/constants";
 import type { UserRole } from "@/types";
 import { toast } from "sonner";
 
+const REGISTRATION_TIMEOUT_MS = 20000;
+
 export default function StaffRegisterPage() {
   const router = useRouter();
   const { registerStaffMember } = useAuth();
@@ -33,6 +54,8 @@ export default function StaffRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [submittedRole, setSubmittedRole] = useState<UserRole>("sales_agent");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,9 +67,18 @@ export default function StaffRegisterPage() {
 
     setLoading(true);
     try {
-      await registerStaffMember({ name, email, phone, password, role });
-      toast.success("Application submitted! Wait for admin approval before signing in.");
-      router.push("/pending-approval");
+      await Promise.race([
+        registerStaffMember({ name, email, phone, password, role }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Request timed out. Please check your connection and try again.")),
+            REGISTRATION_TIMEOUT_MS
+          )
+        ),
+      ]);
+
+      setSubmittedRole(role);
+      setSuccessOpen(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Registration failed");
     } finally {
@@ -72,7 +104,7 @@ export default function StaffRegisterPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Requested Role</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
+                <Select value={role} onValueChange={(v) => setRole(v as UserRole)} disabled={loading}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -95,6 +127,7 @@ export default function StaffRegisterPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -109,6 +142,7 @@ export default function StaffRegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -123,6 +157,7 @@ export default function StaffRegisterPage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -138,11 +173,13 @@ export default function StaffRegisterPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -157,10 +194,18 @@ export default function StaffRegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={6}
+                  disabled={loading}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Submitting..." : "Submit Application"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting application...
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </Button>
             </form>
             <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -173,6 +218,50 @@ export default function StaffRegisterPage() {
         </Card>
       </main>
       <Footer />
+
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader className="items-center text-center">
+            <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <CheckCircle2 className="h-9 w-9" />
+            </div>
+            <DialogTitle className="text-xl">Application Submitted</DialogTitle>
+            <DialogDescription className="text-base leading-relaxed">
+              Your staff registration has been received successfully.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 rounded-lg border bg-muted/40 p-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <p>
+                Please <strong>wait for admin approval</strong> before signing in. A Super
+                Admin or Manager will review your {ROLE_LABELS[submittedRole]} application.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <p>
+                Once approved, sign in with{" "}
+                <strong>{email.trim().toLowerCase()}</strong> and the password you set.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button className="w-full" onClick={() => router.push("/login")}>
+              Back to Sign In
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push("/pending-approval")}
+            >
+              View Approval Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

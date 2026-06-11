@@ -1,6 +1,15 @@
 import { notFound } from "next/navigation";
-import { getVehicleById } from "@/lib/data-service";
+import {
+  getAllVehicleIds,
+  getVehicleById,
+} from "@/lib/catalog-service";
 import { VehicleDetailClient } from "./vehicle-detail-client";
+
+export function generateStaticParams() {
+  return getAllVehicleIds().map((id) => ({ id }));
+}
+
+export const dynamicParams = true;
 
 export default async function VehicleDetailPage({
   params,

@@ -1,6 +1,15 @@
 import { notFound } from "next/navigation";
-import { getPackageBySlug } from "@/lib/data-service";
+import {
+  getAllPackageSlugs,
+  getPackageBySlug,
+} from "@/lib/catalog-service";
 import { PackageDetailClient } from "./package-detail-client";
+
+export function generateStaticParams() {
+  return getAllPackageSlugs().map((slug) => ({ slug }));
+}
+
+export const dynamicParams = true;
 
 export default async function PackageDetailPage({
   params,

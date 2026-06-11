@@ -1,119 +1,33 @@
 import {
   demoAnalytics,
-  demoBlogPosts,
   demoBookings as initialDemoBookings,
-  demoBusRoutes,
-  demoHotels,
-  demoPackages,
-  demoReviews,
   demoUsers,
-  demoVehicles,
 } from "@/data/demo-data";
-import { isAdminConfigured, getAdminDb } from "@/lib/firebase/admin";
-import type {
-  Booking,
-  BusRoute,
-  Hotel,
-  Review,
-  SearchFilters,
-  TourPackage,
-  User,
-  Vehicle,
-} from "@/types";
+import type { Booking, User } from "@/types";
+
+export {
+  getBlogPostBySlug,
+  getBlogPosts,
+  getBusRoutes,
+  getHotelBySlug,
+  getHotels,
+  getPackageById,
+  getPackageBySlug,
+  getPackages,
+  getReviews,
+  getVehicleById,
+  getVehicles,
+} from "@/lib/catalog-service";
 
 let demoBookingsStore: Booking[] = [...initialDemoBookings];
 
-export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
-  let results = [...demoVehicles];
-  if (filters?.vehicleType) {
-    results = results.filter((v) => v.type === filters.vehicleType);
-  }
-  if (filters?.minPrice) {
-    results = results.filter((v) => v.pricePerDay >= filters.minPrice!);
-  }
-  if (filters?.maxPrice) {
-    results = results.filter((v) => v.pricePerDay <= filters.maxPrice!);
-  }
-  if (filters?.query) {
-    const q = filters.query.toLowerCase();
-    results = results.filter(
-      (v) =>
-        v.name.en.toLowerCase().includes(q) ||
-        v.name.hi.includes(q) ||
-        v.location.toLowerCase().includes(q)
-    );
-  }
-  return results;
-}
-
-export async function getVehicleById(id: string): Promise<Vehicle | null> {
-  return demoVehicles.find((v) => v.id === id) ?? null;
-}
-
-export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
-  let results = [...demoPackages];
-  if (filters?.packageCategory) {
-    results = results.filter((p) => p.category === filters.packageCategory);
-  }
-  if (filters?.minPrice) {
-    results = results.filter((p) => p.price >= filters.minPrice!);
-  }
-  if (filters?.maxPrice) {
-    results = results.filter((p) => p.price <= filters.maxPrice!);
-  }
-  if (filters?.query) {
-    const q = filters.query.toLowerCase();
-    results = results.filter(
-      (p) =>
-        p.title.en.toLowerCase().includes(q) ||
-        p.cities.some((c) => c.toLowerCase().includes(q))
-    );
-  }
-  return results;
-}
-
-export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
-  return demoPackages.find((p) => p.slug === slug) ?? null;
-}
-
-export async function getPackageById(id: string): Promise<TourPackage | null> {
-  return demoPackages.find((p) => p.id === id) ?? null;
-}
-
-export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
-  let results = [...demoHotels];
-  if (filters?.starRating) {
-    results = results.filter((h) => h.starRating >= filters.starRating!);
-  }
-  if (filters?.minPrice) {
-    results = results.filter((h) => h.priceFrom >= filters.minPrice!);
-  }
-  if (filters?.maxPrice) {
-    results = results.filter((h) => h.priceFrom <= filters.maxPrice!);
-  }
-  if (filters?.location) {
-    const loc = filters.location.toLowerCase();
-    results = results.filter(
-      (h) =>
-        h.city.toLowerCase().includes(loc) ||
-        h.location.toLowerCase().includes(loc)
-    );
-  }
-  return results;
-}
-
-export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
-  return demoHotels.find((h) => h.slug === slug) ?? null;
-}
-
-export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute[]> {
-  let results = [...demoBusRoutes];
-  if (from) results = results.filter((b) => b.from.toLowerCase().includes(from.toLowerCase()));
-  if (to) results = results.filter((b) => b.to.toLowerCase().includes(to.toLowerCase()));
-  return results;
+async function getFirebaseAdmin() {
+  return import("@/lib/firebase/admin");
 }
 
 export async function getBookings(userId?: string): Promise<Booking[]> {
+  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
+
   if (isAdminConfigured()) {
     try {
       const db = getAdminDb();
@@ -131,6 +45,8 @@ export async function getBookings(userId?: string): Promise<Booking[]> {
 }
 
 export async function getBookingById(id: string): Promise<Booking | null> {
+  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
+
   if (isAdminConfigured()) {
     try {
       const db = getAdminDb();
@@ -151,6 +67,8 @@ export async function createBooking(
     ...booking,
     id: booking.id ?? `bk_${Date.now()}`,
   };
+
+  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
 
   if (isAdminConfigured()) {
     try {
@@ -175,6 +93,8 @@ export async function updateBooking(
 
   const updated: Booking = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
 
+  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
+
   if (isAdminConfigured()) {
     try {
       const db = getAdminDb();
@@ -195,20 +115,8 @@ export function resetDemoBookings(): void {
   demoBookingsStore = [...initialDemoBookings];
 }
 
-export async function getReviews(): Promise<Review[]> {
-  return demoReviews;
-}
-
 export async function getUsers(): Promise<User[]> {
   return demoUsers;
-}
-
-export async function getBlogPosts() {
-  return demoBlogPosts;
-}
-
-export async function getBlogPostBySlug(slug: string) {
-  return demoBlogPosts.find((p) => p.slug === slug) ?? null;
 }
 
 export async function getAnalytics() {

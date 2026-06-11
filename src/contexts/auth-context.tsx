@@ -13,6 +13,7 @@ import {
   approveUserAccount,
   AuthError,
   getFirebaseAuthErrorMessage,
+  isStaffRegistrationInProgress,
   listAllUsers,
   loginUser,
   logoutUser,
@@ -64,6 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (isStaffRegistrationInProgress()) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const profile = await resolveAuthUser(firebaseUser);
         if (profile && firebaseUser) {

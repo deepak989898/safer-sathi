@@ -33,6 +33,12 @@ export class AuthError extends Error {
   }
 }
 
+let staffRegistrationInProgress = false;
+
+export function isStaffRegistrationInProgress(): boolean {
+  return staffRegistrationInProgress;
+}
+
 function validateLoginProfile(profile: User): void {
   if (profile.status === "suspended") {
     throw new AuthError("Your account has been suspended. Contact support.");
@@ -149,30 +155,44 @@ export async function registerStaff(input: {
     return { user, requiresApproval: true };
   }
 
+  staffRegistrationInProgress = true;
   const auth = getFirebaseAuth();
   const email = input.email.toLowerCase().trim();
   const now = new Date().toISOString();
 
-  const credential = await createUserWithEmailAndPassword(
-    auth,
-    email,
-    input.password
-  );
+  try {
+    const credential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      input.password
+    );
 
-  const user = await createFirestoreProfile(credential.user.uid, {
-    email,
-    name: input.name.trim(),
-    phone: input.phone.trim(),
-    role: input.role,
-    status: "pending",
-    approved: false,
-    locale: "en",
-    createdAt: now,
-    updatedAt: now,
-  });
+    const user = await createFirestoreProfile(credential.user.uid, {
+      email,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      role: input.role,
+      status: "pending",
+      approved: false,
+      locale: "en",
+      createdAt: now,
+      updatedAt: now,
+    });
 
-  await signOut(auth);
-  return { user, requiresApproval: true };
+    await signOut(auth);
+    return { user, requiresApproval: true };
+  } catch (error) {
+    try {
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+    } catch {
+      // Ignore sign-out errors during cleanup.
+    }
+    throw error;
+  } finally {
+    staffRegistrationInProgress = false;
+  }
 }
 
 export async function loginUser(
