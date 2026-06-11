@@ -1,4 +1,4 @@
-import { SafeImage } from "@/components/ui/safe-image";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
 import Link from "next/link";
 import { MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +12,12 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
   return (
     <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden">
-        <SafeImage
-          src={hotel.images[0]}
+        <ImageAutoSlider
+          images={hotel.images}
           alt={localizedText(hotel.name, locale)}
-          fill
-          className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
-        <Badge className="absolute left-3 top-3">
+        <Badge className="absolute left-3 top-3 z-10">
           <Star className="mr-1 h-3 w-3 fill-current" />
           {hotel.starRating} Star
         </Badge>

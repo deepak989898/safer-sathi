@@ -1,4 +1,4 @@
-import { SafeImage } from "@/components/ui/safe-image";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
 import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +18,17 @@ export function PackageCard({
   return (
     <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden">
-        <SafeImage
-          src={pkg.images[0]}
+        <ImageAutoSlider
+          images={pkg.images}
           alt={localizedText(pkg.title, locale)}
-          fill
-          className="object-cover transition-transform duration-300 group-hover/card:scale-105"
           sizes="(max-width: 768px) 100vw, 33vw"
+          imageClassName="transition-transform duration-300 group-hover/card:scale-105"
         />
         {pkg.featured && (
-          <Badge className="absolute left-3 top-3 bg-primary">Featured</Badge>
+          <Badge className="absolute left-3 top-3 z-10 bg-primary">Featured</Badge>
         )}
         {pkg.originalPrice && (
-          <Badge variant="secondary" className="absolute right-3 top-3">
+          <Badge variant="secondary" className="absolute right-3 top-3 z-10">
             Save {formatCurrency(pkg.originalPrice - pkg.price, locale)}
           </Badge>
         )}

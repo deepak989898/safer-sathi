@@ -1,4 +1,4 @@
-import { SafeImage } from "@/components/ui/safe-image";
+import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
 import Link from "next/link";
 import { Fuel, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,15 +18,13 @@ export function VehicleCard({
   return (
     <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[16/10] overflow-hidden">
-        <SafeImage
-          src={vehicle.images[0]}
+        <ImageAutoSlider
+          images={vehicle.images}
           alt={localizedText(vehicle.name, locale)}
-          fill
-          className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
         <Badge
-          className="absolute left-3 top-3 capitalize"
+          className="absolute left-3 top-3 z-10 capitalize"
           variant={vehicle.available ? "default" : "secondary"}
         >
           {vehicle.available ? "Available" : "Booked"}

@@ -20,7 +20,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 7,
     pricePerDay: 3500,
     pricePerKm: 14,
-    images: [TRAVEL_IMAGES.suv],
+    images: [TRAVEL_IMAGES.suv, TRAVEL_IMAGES.sedan],
     available: true,
     fuelType: "Diesel",
     driverIncluded: true,
@@ -42,9 +42,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 6,
     pricePerDay: 2500,
     pricePerKm: 12,
-    images: [
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.sedan, TRAVEL_IMAGES.sportsCar],
     available: true,
     fuelType: "Petrol",
     driverIncluded: true,
@@ -66,9 +64,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 4,
     pricePerDay: 8000,
     pricePerKm: 25,
-    images: [
-      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.luxuryCar, TRAVEL_IMAGES.sedan],
     available: true,
     fuelType: "Petrol",
     driverIncluded: true,
@@ -90,9 +86,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 17,
     pricePerDay: 5500,
     pricePerKm: 18,
-    images: [
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.bus, TRAVEL_IMAGES.tempo],
     available: true,
     fuelType: "Diesel",
     driverIncluded: true,
@@ -114,9 +108,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 45,
     pricePerDay: 15000,
     pricePerKm: 35,
-    images: [
-      "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.tempo, TRAVEL_IMAGES.bus],
     available: true,
     fuelType: "Diesel",
     driverIncluded: true,
@@ -138,9 +130,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 4,
     pricePerDay: 2000,
     pricePerKm: 10,
-    images: [
-      "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.sportsCar, TRAVEL_IMAGES.sedan],
     available: true,
     fuelType: "Petrol",
     driverIncluded: false,
@@ -171,7 +161,7 @@ export const demoPackages: TourPackage[] = [
     activities: ["Taj Mahal Visit", "Amber Fort", "City Palace"],
     price: 24999,
     originalPrice: 29999,
-    images: [TRAVEL_IMAGES.goldenTriangle],
+    images: [TRAVEL_IMAGES.goldenTriangle, TRAVEL_IMAGES.hotelLuxury],
     description: {
       en: "Explore India's most iconic heritage circuit covering Delhi, Agra, and Jaipur.",
       hi: "दिल्ली, आगरा और जयपुर को कवर करने वाला भारत का सबसे प्रतिष्ठित विरासत सर्किट।",
@@ -216,7 +206,7 @@ export const demoPackages: TourPackage[] = [
     activities: ["Houseboat Cruise", "Tea Plantation", "Spa"],
     price: 35999,
     originalPrice: 42999,
-    images: [TRAVEL_IMAGES.keralaBackwaters],
+    images: [TRAVEL_IMAGES.keralaBackwaters, TRAVEL_IMAGES.beachResort],
     description: {
       en: "Romantic Kerala escape with houseboat stay and hill station retreat.",
       hi: "हाउसबोट रहने और हिल स्टेशन रिट्रीट के साथ रोमांटिक केरल पलायन।",
@@ -242,7 +232,7 @@ export const demoPackages: TourPackage[] = [
     meals: ["Breakfast", "Dinner"],
     activities: ["Temple Darshan", "Ganga Aarti"],
     price: 45999,
-    images: [TRAVEL_IMAGES.charDham],
+    images: [TRAVEL_IMAGES.charDham, TRAVEL_IMAGES.manaliAdventure],
     description: {
       en: "Sacred pilgrimage to the four holy shrines of Uttarakhand.",
       hi: "उत्तराखंड के चार पवित्र मंदिरों की पवित्र तीर्थयात्रा।",
@@ -268,7 +258,7 @@ export const demoPackages: TourPackage[] = [
     meals: ["Breakfast", "Packed Lunch"],
     activities: ["Paragliding", "River Rafting", "Trekking"],
     price: 18999,
-    images: [TRAVEL_IMAGES.manaliAdventure],
+    images: [TRAVEL_IMAGES.manaliAdventure, TRAVEL_IMAGES.charDham],
     description: {
       en: "Thrilling adventure package in the Himalayas with expert guides.",
       hi: "विशेषज्ञ गाइडों के साथ हिमालय में रोमांचक एडवेंचर पैकेज।",
@@ -292,7 +282,7 @@ export const demoHotels: Hotel[] = [
     starRating: 5,
     location: "Sardar Patel Marg, New Delhi",
     city: "Delhi",
-    images: [TRAVEL_IMAGES.hotelLuxury],
+    images: [TRAVEL_IMAGES.hotelLuxury, TRAVEL_IMAGES.hotelLake],
     amenities: ["Pool", "Spa", "WiFi", "Restaurant", "Gym"],
     description: {
       en: "Luxury 5-star hotel in the heart of Delhi with world-class amenities.",
@@ -324,7 +314,7 @@ export const demoHotels: Hotel[] = [
     starRating: 4,
     location: "Lake Pichola, Udaipur",
     city: "Udaipur",
-    images: [TRAVEL_IMAGES.hotelLake],
+    images: [TRAVEL_IMAGES.hotelLake, TRAVEL_IMAGES.goldenTriangle],
     amenities: ["Lake View", "Restaurant", "WiFi", "Boat Ride"],
     description: {
       en: "Scenic lakeside resort with traditional Rajasthani hospitality.",
@@ -345,7 +335,7 @@ export const demoHotels: Hotel[] = [
     starRating: 4,
     location: "Calangute Beach, Goa",
     city: "Goa",
-    images: [TRAVEL_IMAGES.beachResort],
+    images: [TRAVEL_IMAGES.beachResort, TRAVEL_IMAGES.keralaBackwaters],
     amenities: ["Beach Access", "Pool", "Bar", "Water Sports"],
     description: {
       en: "Beachfront resort perfect for family vacations and honeymoons.",

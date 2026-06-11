@@ -53,3 +53,11 @@ export const GALLERY_IMAGES = [
   TRAVEL_IMAGES.bus,
   TRAVEL_IMAGES.tempo,
 ] as const;
+
+export const HOME_HERO_SLIDES = [
+  { image: hero(TRAVEL_IMAGES.hotelLuxury) },
+  { image: hero(TRAVEL_IMAGES.keralaBackwaters) },
+  { image: hero(TRAVEL_IMAGES.goldenTriangle) },
+  { image: hero(TRAVEL_IMAGES.charDham) },
+  { image: hero(TRAVEL_IMAGES.beachResort) },
+] as const;
