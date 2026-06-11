@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager'];
+    }
+
+    function isStaff() {
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent'];
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isStaff();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /hotels/{hotelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isStaff() || (isAuthenticated() && getUserRole() == 'driver');
+      allow write: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow write: if isStaff();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /analytics/{docId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    match /aiTasks/{taskId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /workflows/{workflowId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+  }
+}
