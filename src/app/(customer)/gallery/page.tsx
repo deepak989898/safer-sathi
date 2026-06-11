@@ -1,33 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { PageHero } from "@/components/customer/page-hero";
+import { SafeImage } from "@/components/ui/safe-image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HERO_IMAGES, TRAVEL_IMAGES } from "@/lib/media/travel-images";
 
 const galleryImages = {
   all: [
-    { src: "https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=600&q=80", alt: "Taj Mahal" },
-    { src: "https://images.unsplash.com/photo-1602216057656-f1031b5a934f?w=600&q=80", alt: "Kerala Backwaters" },
-    { src: "https://images.unsplash.com/photo-1626621341517-bbf3d69bfc9b?w=600&q=80", alt: "Mountains" },
-    { src: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80", alt: "Luxury Hotel" },
-    { src: "https://images.unsplash.com/photo-1571003123894-1f0594d2b493?w=600&q=80", alt: "Goa Beach" },
-    { src: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&q=80", alt: "Udaipur Lake" },
-    { src: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80", alt: "Himalayas" },
-    { src: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=80", alt: "Travel" },
+    { src: TRAVEL_IMAGES.goldenTriangle, alt: "Heritage Tour" },
+    { src: TRAVEL_IMAGES.keralaBackwaters, alt: "Kerala Backwaters" },
+    { src: TRAVEL_IMAGES.charDham, alt: "Mountains" },
+    { src: TRAVEL_IMAGES.hotelLuxury, alt: "Luxury Hotel" },
+    { src: TRAVEL_IMAGES.beachResort, alt: "Goa Beach" },
+    { src: TRAVEL_IMAGES.hotelLake, alt: "Udaipur Lake" },
+    { src: TRAVEL_IMAGES.manaliAdventure, alt: "Adventure SUV" },
+    { src: TRAVEL_IMAGES.bus, alt: "Travel Bus" },
   ],
   destinations: [
-    { src: "https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=600&q=80", alt: "Taj Mahal" },
-    { src: "https://images.unsplash.com/photo-1602216057656-f1031b5a934f?w=600&q=80", alt: "Kerala" },
-    { src: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80", alt: "Himalayas" },
+    { src: TRAVEL_IMAGES.goldenTriangle, alt: "Heritage Tour" },
+    { src: TRAVEL_IMAGES.keralaBackwaters, alt: "Kerala" },
+    { src: TRAVEL_IMAGES.charDham, alt: "Himalayas" },
   ],
   hotels: [
-    { src: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80", alt: "Luxury Hotel" },
-    { src: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&q=80", alt: "Udaipur" },
+    { src: TRAVEL_IMAGES.hotelLuxury, alt: "Luxury Hotel" },
+    { src: TRAVEL_IMAGES.hotelLake, alt: "Udaipur" },
   ],
   experiences: [
-    { src: "https://images.unsplash.com/photo-1571003123894-1f0594d2b493?w=600&q=80", alt: "Goa Beach" },
-    { src: "https://images.unsplash.com/photo-1626621341517-bbf3d69bfc9b?w=600&q=80", alt: "Adventure" },
+    { src: TRAVEL_IMAGES.beachResort, alt: "Goa Beach" },
+    { src: TRAVEL_IMAGES.manaliAdventure, alt: "Adventure" },
   ],
 };
 
@@ -40,7 +41,7 @@ export default function GalleryPage() {
       <PageHero
         title="Gallery"
         subtitle="Moments captured from journeys across India"
-        image="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=80"
+        image={HERO_IMAGES.gallery}
       />
 
       <section className="container mx-auto px-4 py-10">
@@ -57,12 +58,12 @@ export default function GalleryPage() {
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {galleryImages[tab as keyof typeof galleryImages].map((img) => (
                   <button
-                    key={img.src}
+                    key={`${tab}-${img.alt}`}
                     type="button"
                     onClick={() => setLightbox(img.src)}
                     className="group relative aspect-square overflow-hidden rounded-xl"
                   >
-                    <Image
+                    <SafeImage
                       src={img.src}
                       alt={img.alt}
                       fill

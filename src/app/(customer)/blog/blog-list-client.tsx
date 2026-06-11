@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { Calendar, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ export default function BlogListClient({ posts }: { posts: BlogPost[] }) {
         <Link key={post.id} href={`/blog/${post.slug}`}>
           <Card className="h-full overflow-hidden pt-0 transition-shadow hover:shadow-lg">
             <div className="relative aspect-[16/10] overflow-hidden">
-              <Image
+              <SafeImage
                 src={post.image}
                 alt={localizedText(post.title, locale)}
                 fill

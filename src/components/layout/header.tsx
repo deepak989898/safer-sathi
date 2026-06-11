@@ -7,7 +7,7 @@ import {
   Car,
   Globe,
   Hotel,
-  Menu,
+  LayoutDashboard,
   Moon,
   Package,
   Plane,
@@ -23,9 +23,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAppStore } from "@/store/app-store";
 import { useAuth } from "@/contexts/auth-context";
+import { canShowAdminNav } from "@/lib/navigation/role-menus";
+import { getLoginRedirect } from "@/lib/auth/constants";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
@@ -44,21 +46,27 @@ export function Header() {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
+  const isStaff = user ? canShowAdminNav(user.role) : false;
+  const adminHome = user ? getLoginRedirect(user.role) : "/admin";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Plane className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-lg font-bold text-primary">Safar Sathi</span>
-            <span className="hidden text-xs text-muted-foreground sm:block">
-              AI Travel Platform
-            </span>
-          </div>
-        </Link>
+      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4">
+        <div className="flex items-center gap-2">
+          <RoleNavigationDrawer showLabel triggerClassName="hidden sm:inline-flex" />
+          <RoleNavigationDrawer triggerClassName="sm:hidden" />
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Plane className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-lg font-bold text-primary">Safar Sathi</span>
+              <span className="hidden text-xs text-muted-foreground sm:block">
+                AI Travel Platform
+              </span>
+            </div>
+          </Link>
+        </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
           {navLinks.map((link) => (
@@ -73,6 +81,20 @@ export function Header() {
               {t(locale, "nav", link.label)}
             </Link>
           ))}
+          {isStaff && (
+            <Link
+              href={adminHome}
+              className={cn(
+                "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                pathname.startsWith("/admin") && "bg-primary text-primary-foreground"
+              )}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <LayoutDashboard className="h-4 w-4" />
+                Admin Panel
+              </span>
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -111,6 +133,14 @@ export function Header() {
 
           {user ? (
             <>
+              {isStaff && (
+                <Link href={adminHome} className="hidden md:block lg:hidden">
+                  <Button size="sm">
+                    <LayoutDashboard className="mr-1 h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <Link href="/my-bookings" className="hidden sm:block">
                 <Button variant="ghost" size="sm">
                   {t(locale, "nav", "myBookings")}
@@ -140,46 +170,6 @@ export function Header() {
               </Link>
             </>
           )}
-
-          <Sheet>
-            <SheetTrigger
-              render={
-                <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9" />
-              }
-            >
-              <Menu className="h-5 w-5" />
-            </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <nav className="mt-8 flex flex-col gap-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
-                  >
-                    <link.icon className="h-4 w-4" />
-                    {t(locale, "nav", link.label)}
-                  </Link>
-                ))}
-                <Link href="/my-bookings" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent">
-                  {t(locale, "nav", "myBookings")}
-                </Link>
-                {user ? (
-                  <button
-                    type="button"
-                    onClick={() => logout()}
-                    className="rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-accent"
-                  >
-                    Sign Out
-                  </button>
-                ) : (
-                  <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent">
-                    {t(locale, "nav", "login")}
-                  </Link>
-                )}
-              </nav>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>

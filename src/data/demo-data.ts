@@ -10,6 +10,7 @@ import type {
   User,
   Vehicle,
 } from "@/types";
+import { GALLERY_IMAGES, TRAVEL_IMAGES } from "@/lib/media/travel-images";
 
 export const demoVehicles: Vehicle[] = [
   {
@@ -19,9 +20,7 @@ export const demoVehicles: Vehicle[] = [
     seats: 7,
     pricePerDay: 3500,
     pricePerKm: 14,
-    images: [
-      "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.suv],
     available: true,
     fuelType: "Diesel",
     driverIncluded: true,
@@ -172,9 +171,7 @@ export const demoPackages: TourPackage[] = [
     activities: ["Taj Mahal Visit", "Amber Fort", "City Palace"],
     price: 24999,
     originalPrice: 29999,
-    images: [
-      "https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.goldenTriangle],
     description: {
       en: "Explore India's most iconic heritage circuit covering Delhi, Agra, and Jaipur.",
       hi: "दिल्ली, आगरा और जयपुर को कवर करने वाला भारत का सबसे प्रतिष्ठित विरासत सर्किट।",
@@ -219,9 +216,7 @@ export const demoPackages: TourPackage[] = [
     activities: ["Houseboat Cruise", "Tea Plantation", "Spa"],
     price: 35999,
     originalPrice: 42999,
-    images: [
-      "https://images.unsplash.com/photo-1602216057656-f1031b5a934f?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.keralaBackwaters],
     description: {
       en: "Romantic Kerala escape with houseboat stay and hill station retreat.",
       hi: "हाउसबोट रहने और हिल स्टेशन रिट्रीट के साथ रोमांटिक केरल पलायन।",
@@ -247,9 +242,7 @@ export const demoPackages: TourPackage[] = [
     meals: ["Breakfast", "Dinner"],
     activities: ["Temple Darshan", "Ganga Aarti"],
     price: 45999,
-    images: [
-      "https://images.unsplash.com/photo-1626621341517-bbf3d69bfc9b?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.charDham],
     description: {
       en: "Sacred pilgrimage to the four holy shrines of Uttarakhand.",
       hi: "उत्तराखंड के चार पवित्र मंदिरों की पवित्र तीर्थयात्रा।",
@@ -275,9 +268,7 @@ export const demoPackages: TourPackage[] = [
     meals: ["Breakfast", "Packed Lunch"],
     activities: ["Paragliding", "River Rafting", "Trekking"],
     price: 18999,
-    images: [
-      "https://images.unsplash.com/photo-1626621341517-bbf3d69bfc9b?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.manaliAdventure],
     description: {
       en: "Thrilling adventure package in the Himalayas with expert guides.",
       hi: "विशेषज्ञ गाइडों के साथ हिमालय में रोमांचक एडवेंचर पैकेज।",
@@ -301,9 +292,7 @@ export const demoHotels: Hotel[] = [
     starRating: 5,
     location: "Sardar Patel Marg, New Delhi",
     city: "Delhi",
-    images: [
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.hotelLuxury],
     amenities: ["Pool", "Spa", "WiFi", "Restaurant", "Gym"],
     description: {
       en: "Luxury 5-star hotel in the heart of Delhi with world-class amenities.",
@@ -335,9 +324,7 @@ export const demoHotels: Hotel[] = [
     starRating: 4,
     location: "Lake Pichola, Udaipur",
     city: "Udaipur",
-    images: [
-      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.hotelLake],
     amenities: ["Lake View", "Restaurant", "WiFi", "Boat Ride"],
     description: {
       en: "Scenic lakeside resort with traditional Rajasthani hospitality.",
@@ -358,9 +345,7 @@ export const demoHotels: Hotel[] = [
     starRating: 4,
     location: "Calangute Beach, Goa",
     city: "Goa",
-    images: [
-      "https://images.unsplash.com/photo-1571003123894-1f0594d2b493?w=800&q=80",
-    ],
+    images: [TRAVEL_IMAGES.beachResort],
     amenities: ["Beach Access", "Pool", "Bar", "Water Sports"],
     description: {
       en: "Beachfront resort perfect for family vacations and honeymoons.",
@@ -545,7 +530,7 @@ export const demoBlogPosts: BlogPost[] = [
       en: "India offers diverse travel experiences from beaches to mountains...",
       hi: "भारत समुद्र तटों से पहाड़ों तक विविध यात्रा अनुभव प्रदान करता है...",
     },
-    image: "https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=800&q=80",
+    image: TRAVEL_IMAGES.goldenTriangle,
     author: "Safar Sathi Team",
     tags: ["travel", "india", "destinations"],
     published: true,
@@ -660,13 +645,4 @@ export const demoAnalytics: AnalyticsSnapshot = {
   ],
 };
 
-export const galleryImages = [
-  "https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=600&q=80",
-  "https://images.unsplash.com/photo-1602216057656-f1031b5a934f?w=600&q=80",
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80",
-  "https://images.unsplash.com/photo-1571003123894-1f0594d2b493?w=600&q=80",
-  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&q=80",
-  "https://images.unsplash.com/photo-1626621341517-bbf3d69bfc9b?w=600&q=80",
-  "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&q=80",
-  "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=600&q=80",
-];
+export const galleryImages = [...GALLERY_IMAGES];

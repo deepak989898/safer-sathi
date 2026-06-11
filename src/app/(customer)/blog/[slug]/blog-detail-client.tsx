@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ export function BlogDetailClient({ post }: { post: BlogPost }) {
       </Link>
 
       <div className="relative mb-8 aspect-[21/9] overflow-hidden rounded-xl">
-        <Image
+        <SafeImage
           src={post.image}
           alt={localizedText(post.title, locale)}
           fill

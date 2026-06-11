@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { Calendar, MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +51,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
-            <Image
+            <SafeImage
               src={hotel.images[0]}
               alt={localizedText(hotel.name, locale)}
               fill

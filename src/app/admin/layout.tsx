@@ -11,7 +11,7 @@ export default function AdminLayout({
       <div className="min-h-screen bg-muted/30">
         <AdminSidebar />
         <div className="pl-0 md:pl-64">
-          <main className="min-h-screen">{children}</main>
+          <main className="min-h-screen pt-14 md:pt-0">{children}</main>
         </div>
       </div>
     </AdminAuthGuard>

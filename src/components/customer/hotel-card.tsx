@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
   return (
     <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden">
-        <Image
+        <SafeImage
           src={hotel.images[0]}
           alt={localizedText(hotel.name, locale)}
           fill

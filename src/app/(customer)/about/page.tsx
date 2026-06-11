@@ -1,6 +1,7 @@
 import { Award, Globe, Heart, Users } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
 import { Card, CardContent } from "@/components/ui/card";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 
 const stats = [
   { label: "Happy Travelers", value: "50,000+", icon: Users },
@@ -15,7 +16,7 @@ export default function AboutPage() {
       <PageHero
         title="About Safar Sathi"
         subtitle="Your trusted AI-powered travel companion across India"
-        image="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1920&q=80"
+        image={HERO_IMAGES.about}
       />
 
       <section className="container mx-auto px-4 py-16">

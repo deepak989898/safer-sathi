@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ export function PackageCard({
   return (
     <Card className="overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden">
-        <Image
+        <SafeImage
           src={pkg.images[0]}
           alt={localizedText(pkg.title, locale)}
           fill

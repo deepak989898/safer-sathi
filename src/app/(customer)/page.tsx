@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { SearchWidget } from "@/components/customer/search-widget";
 import { PackageCard } from "@/components/customer/package-card";
 import { getPackages } from "@/lib/data-service";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { HomeClient } from "./home-client";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=80";
+const HERO_IMAGE = HERO_IMAGES.home;
 
 export default async function HomePage() {
   const packages = await getPackages();

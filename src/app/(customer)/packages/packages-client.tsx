@@ -6,6 +6,7 @@ import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar
 import { PackageCard } from "@/components/customer/package-card";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { TourPackage } from "@/types";
 
 const CATEGORIES = [
@@ -55,7 +56,7 @@ export default function PackagesClient({
       <PageHero
         title="Tour Packages"
         subtitle="Curated experiences across India's most beautiful destinations"
-        image="https://images.unsplash.com/photo-1524492412937-280b457d55e8?w=1920&q=80"
+        image={HERO_IMAGES.packages}
       />
       <section className="container mx-auto px-4 py-10">
         <div className="mb-6">
