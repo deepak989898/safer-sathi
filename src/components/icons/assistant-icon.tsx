@@ -4,7 +4,7 @@ interface AssistantIconProps {
   className?: string;
 }
 
-/** Travel assistant mark: compass ring + map pin + chat bubble */
+/** Travel assistant: message bubble with location pin */
 export function AssistantIcon({ className }: AssistantIconProps) {
   return (
     <svg
@@ -14,35 +14,21 @@ export function AssistantIcon({ className }: AssistantIconProps) {
       aria-hidden
       className={cn("h-6 w-6", className)}
     >
-      <circle
-        cx="11"
-        cy="11"
-        r="6.75"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
       <path
-        d="M11 6.25v2.1M11 13.65v2.1M6.25 11h2.1M13.65 11h2.1"
+        d="M5.25 4.5h13.5A1.75 1.75 0 0120.5 6.25v6.75A1.75 1.75 0 0118.75 14.75H15.5l-3.25 2.75V14.75H5.25A1.75 1.75 0 013.5 13V6.25A1.75 1.75 0 015.25 4.5Z"
         stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M11 8.35l.85 1.75 1.95.2-1.45 1.25.45 1.9L11 12.35l-1.8.95.45-1.9-1.45-1.25 1.95-.2L11 8.35z"
-        fill="currentColor"
-      />
-      <path
-        d="M15.5 15.5c1.35 1.05 2.25 2.65 2.25 4.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M17.75 18.75h3.5l-1.75 1.75V17"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeWidth="0.4"
+        strokeWidth="1.75"
         strokeLinejoin="round"
+      />
+      <path
+        d="M12 7.25a2 2 0 110 4 2 2 0 010-4Z"
+        fill="currentColor"
+      />
+      <path
+        d="M12 11.25v2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   );

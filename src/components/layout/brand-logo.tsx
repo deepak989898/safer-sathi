@@ -23,14 +23,6 @@ const sizeClasses: Record<BrandLogoSize, string> = {
   compact: "h-12 w-auto max-w-[160px]",
 };
 
-const shellClasses: Record<BrandLogoSize, string> = {
-  header: "rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2",
-  drawer: "rounded-xl px-3 py-2",
-  footer: "rounded-xl px-3 py-2",
-  admin: "rounded-lg px-2 py-1.5",
-  compact: "rounded-lg px-2 py-1",
-};
-
 const imageDimensions: Record<BrandLogoSize, { width: number; height: number }> = {
   header: { width: 320, height: 128 },
   drawer: { width: 280, height: 112 },
@@ -58,23 +50,14 @@ export function BrandLogo({
         className
       )}
     >
-      <span
-        className={cn(
-          "inline-flex shrink-0 items-center justify-center",
-          "bg-white shadow-sm ring-1 ring-black/5",
-          "dark:bg-slate-950 dark:shadow-none dark:ring-white/10",
-          shellClasses[size]
-        )}
-      >
-        <Image
-          src="/images/logo.png"
-          alt="Safar Sathi - Travel | Comfort | Trust"
-          width={dims.width}
-          height={dims.height}
-          priority={priority}
-          className={cn("object-contain", sizeClasses[size], imageClassName)}
-        />
-      </span>
+      <Image
+        src="/images/logo.png"
+        alt="Safar Sathi - Travel | Comfort | Trust"
+        width={dims.width}
+        height={dims.height}
+        priority={priority}
+        className={cn("object-contain", sizeClasses[size], imageClassName)}
+      />
       {showTagline && (
         <div className="hidden sm:block">
           <p className="text-sm font-semibold text-primary">Safar Sathi</p>
@@ -87,10 +70,7 @@ export function BrandLogo({
   if (!href) return content;
 
   return (
-    <Link
-      href={href}
-      className={cn("inline-flex shrink-0 items-center", centered && "w-full justify-center")}
-    >
+    <Link href={href} className={cn("inline-flex shrink-0 items-center", centered && "w-full justify-center")}>
       {content}
     </Link>
   );
