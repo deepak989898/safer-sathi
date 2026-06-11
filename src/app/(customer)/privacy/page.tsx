@@ -1,9 +1,14 @@
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 
 export default function PrivacyPage() {
   return (
     <>
-      <PageHero title="Privacy Policy" subtitle="Last updated: June 2025" />
+      <PageHero
+        title="Privacy Policy"
+        subtitle="Last updated: June 2025"
+        image={HERO_IMAGES.privacy}
+      />
       <section className="container mx-auto max-w-3xl px-4 py-10 prose prose-slate dark:prose-invert">
         <h2>1. Information We Collect</h2>
         <p>

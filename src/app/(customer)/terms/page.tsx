@@ -1,9 +1,14 @@
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 
 export default function TermsPage() {
   return (
     <>
-      <PageHero title="Terms of Service" subtitle="Last updated: June 2025" />
+      <PageHero
+        title="Terms of Service"
+        subtitle="Last updated: June 2025"
+        image={HERO_IMAGES.terms}
+      />
       <section className="container mx-auto max-w-3xl px-4 py-10 prose prose-slate dark:prose-invert">
         <h2>1. Acceptance of Terms</h2>
         <p>

@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const faqData = {
@@ -82,6 +83,7 @@ export default function FAQPage() {
       <PageHero
         title="Frequently Asked Questions"
         subtitle="Find answers to common questions about booking and travel"
+        image={HERO_IMAGES.faq}
       />
 
       <section className="container mx-auto max-w-3xl px-4 py-10">

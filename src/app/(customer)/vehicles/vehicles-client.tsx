@@ -6,6 +6,7 @@ import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { Vehicle } from "@/types";
 
 const TYPE_OPTIONS = [
@@ -60,7 +61,7 @@ export default function VehiclesPage({
       <PageHero
         title="Vehicles"
         subtitle="Premium cars, SUVs, tempo travellers and buses for every journey"
-        image="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=1920&q=80"
+        image={HERO_IMAGES.vehicles}
       />
       <section className="container mx-auto px-4 py-10">
         <div className="mb-6">

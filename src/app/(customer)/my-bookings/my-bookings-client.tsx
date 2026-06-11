@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, Users } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +56,7 @@ export default function MyBookingsClient({
       <PageHero
         title="My Bookings"
         subtitle="Manage and track all your travel reservations"
+        image={HERO_IMAGES.myBookings}
       />
 
       <section className="container mx-auto px-4 py-10">

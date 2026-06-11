@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { BusRoute } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +48,7 @@ export default function BusBookingClient({
       <PageHero
         title="Bus Booking"
         subtitle="Comfortable AC and sleeper buses across India"
-        image="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1920&q=80"
+        image={HERO_IMAGES.bus}
       />
 
       <section className="container mx-auto px-4 py-10">

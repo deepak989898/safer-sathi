@@ -6,6 +6,7 @@ import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { Vehicle, VehicleType } from "@/types";
 
 const CAR_TYPES: { id: VehicleType; label: string }[] = [
@@ -52,7 +53,7 @@ export default function CarRentalClient({
       <PageHero
         title="Car Rental"
         subtitle="Self-drive and chauffeur-driven cars for every occasion"
-        image="https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=1920&q=80"
+        image={HERO_IMAGES.carRental}
       />
       <section className="container mx-auto px-4 py-10">
         <div className="mb-6">

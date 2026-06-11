@@ -4,6 +4,7 @@ import { PageHero } from "@/components/customer/page-hero";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { Vehicle } from "@/types";
 
 export default function TempoTravellerClient({
@@ -18,7 +19,7 @@ export default function TempoTravellerClient({
       <PageHero
         title="Tempo Traveller"
         subtitle="Spacious group travel for tours, pilgrimages and corporate trips"
-        image="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1920&q=80"
+        image={HERO_IMAGES.tempo}
       />
       <section className="container mx-auto px-4 py-10">
         {initialVehicles.length === 0 ? (

@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Send, User } from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -104,6 +105,7 @@ export default function AIAssistantPage() {
       <PageHero
         title="Travel Assistant"
         subtitle="Get personalized recommendations for your next journey"
+        image={HERO_IMAGES.assistant}
       />
 
       <section className="container mx-auto px-4 py-6 sm:py-10">

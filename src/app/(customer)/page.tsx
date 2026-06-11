@@ -7,8 +7,10 @@ import {
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { Button } from "@/components/ui/button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
+import { ImageBannerSection } from "@/components/customer/page-hero";
 import { HomeClient } from "./home-client";
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 
 export default async function HomePage() {
   const [packages, hotels, vehicles] = await Promise.all([
@@ -42,7 +44,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-primary py-16 text-primary-foreground">
+      <ImageBannerSection className="py-16" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">
           <AssistantIcon className="mx-auto mb-4 h-12 w-12" />
           <h2 className="text-2xl font-bold md:text-3xl">
@@ -69,7 +71,7 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
+      </ImageBannerSection>
     </>
   );
 }

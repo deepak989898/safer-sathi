@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import {
   Select,
   SelectContent,
@@ -36,7 +37,7 @@ export default function AirportPickupClient({
       <PageHero
         title="Airport Pickup"
         subtitle="Reliable transfers to and from all major airports"
-        image="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1920&q=80"
+        image={HERO_IMAGES.airport}
       />
 
       <section className="container mx-auto px-4 py-10">

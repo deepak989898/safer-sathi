@@ -34,13 +34,40 @@ function hero(url: string) {
   return url.replace("w=800", "w=1920");
 }
 
+export const HERO_GRADIENT =
+  "linear-gradient(135deg, oklch(0.22 0.08 264 / 0.92), oklch(0.52 0.19 264 / 0.75))";
+
+export function heroBackgroundStyle(image: string) {
+  return {
+    backgroundImage: `${HERO_GRADIENT}, url(${image})`,
+    backgroundSize: "cover" as const,
+    backgroundPosition: "center" as const,
+  };
+}
+
 export const HERO_IMAGES = {
+  default: hero(TRAVEL_IMAGES.hotelLuxury),
+  home: hero(TRAVEL_IMAGES.hotelLuxury),
   packages: hero(TRAVEL_IMAGES.goldenTriangle),
   holidays: hero(TRAVEL_IMAGES.keralaBackwaters),
   gallery: hero(TRAVEL_IMAGES.charDham),
-  home: hero(TRAVEL_IMAGES.hotelLuxury),
   blog: hero(TRAVEL_IMAGES.hotelLake),
   about: hero(TRAVEL_IMAGES.beachResort),
+  checkout: hero(TRAVEL_IMAGES.hotelLuxury),
+  assistant: hero(TRAVEL_IMAGES.keralaBackwaters),
+  contact: hero(TRAVEL_IMAGES.beachResort),
+  faq: hero(TRAVEL_IMAGES.goldenTriangle),
+  privacy: hero(TRAVEL_IMAGES.charDham),
+  terms: hero(TRAVEL_IMAGES.manaliAdventure),
+  reviews: hero(TRAVEL_IMAGES.beachResort),
+  myBookings: hero(TRAVEL_IMAGES.goldenTriangle),
+  vehicles: hero(TRAVEL_IMAGES.luxuryCar),
+  hotels: hero(TRAVEL_IMAGES.hotelLuxury),
+  carRental: hero(TRAVEL_IMAGES.sportsCar),
+  tempo: hero(TRAVEL_IMAGES.bus),
+  bus: hero(TRAVEL_IMAGES.bus),
+  airport: hero("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1920&q=80"),
+  cta: hero(TRAVEL_IMAGES.charDham),
 } as const;
 
 export const GALLERY_IMAGES = [

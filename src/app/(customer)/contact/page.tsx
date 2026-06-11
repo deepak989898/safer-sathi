@@ -2,6 +2,7 @@
 
 import { Mail, MapPin, Phone, Clock } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +48,7 @@ export default function ContactPage() {
       <PageHero
         title="Contact Us"
         subtitle="We'd love to hear from you. Reach out anytime."
+        image={HERO_IMAGES.contact}
       />
 
       <section className="container mx-auto px-4 py-16">

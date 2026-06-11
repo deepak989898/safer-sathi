@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, CreditCard, Loader2, MapPin, ShieldCheck, User } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,11 @@ export default function BookingPage() {
   if (!cart.serviceId) {
     return (
       <>
-        <PageHero title="Checkout" subtitle="Complete your booking" />
+        <PageHero
+          title="Checkout"
+          subtitle="Complete your booking"
+          image={HERO_IMAGES.checkout}
+        />
         <section className="container mx-auto px-4 py-20 text-center">
           <p className="text-muted-foreground">Your cart is empty.</p>
           <Link href="/packages">
@@ -149,7 +154,11 @@ export default function BookingPage() {
 
   return (
     <>
-      <PageHero title="Checkout" subtitle="Complete your booking in 3 easy steps" />
+      <PageHero
+        title="Checkout"
+        subtitle="Complete your booking in 3 easy steps"
+        image={HERO_IMAGES.checkout}
+      />
 
       <section className="container mx-auto max-w-2xl px-4 py-10">
         <Progress value={progress} className="mb-8" />

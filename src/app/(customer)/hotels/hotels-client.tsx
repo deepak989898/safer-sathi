@@ -7,6 +7,7 @@ import { HotelCard } from "@/components/customer/hotel-card";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { Hotel } from "@/types";
 
 const STAR_OPTIONS = [
@@ -54,7 +55,7 @@ export default function HotelsClient({
       <PageHero
         title="Hotels"
         subtitle="Handpicked stays from budget-friendly to luxury resorts"
-        image="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=80"
+        image={HERO_IMAGES.hotels}
       />
       <section className="container mx-auto px-4 py-10">
         <div className="mb-6">
