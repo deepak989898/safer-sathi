@@ -60,6 +60,7 @@ export type AIAgentStatus = "active" | "paused" | "error";
 
 export type PackagePublishStatus =
   | "draft"
+  | "manager_review"
   | "pending_approval"
   | "published"
   | "rejected";

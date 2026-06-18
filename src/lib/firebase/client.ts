@@ -67,4 +67,9 @@ export const COLLECTIONS = {
   auditLogs: "auditLogs",
   aiTasks: "aiTasks",
   workflows: "workflows",
+  aiCompetitorData: "ai_competitor_data",
+  aiPackageDrafts: "ai_package_drafts",
+  aiVehicleDrafts: "ai_vehicle_drafts",
+  aiHotelDrafts: "ai_hotel_drafts",
+  aiGeneratedImages: "ai_generated_images",
 } as const;

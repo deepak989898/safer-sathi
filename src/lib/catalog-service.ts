@@ -1,20 +1,28 @@
 import {
   demoBlogPosts,
   demoBusRoutes,
-  demoHotels,
   demoReviews,
-  demoVehicles,
 } from "@/data/demo-data";
+import {
+  getAllPublishedHotelSlugs,
+  getHotelBySlugPublished,
+  getPublishedHotels,
+} from "@/lib/hotel-store";
 import {
   getAllPublishedPackageSlugs,
   getPublishedPackageById,
   getPublishedPackageBySlug,
   getPublishedPackages,
 } from "@/lib/package-store";
+import {
+  getAllPublishedVehicleIds,
+  getPublishedVehicles,
+  getVehicleByIdPublished,
+} from "@/lib/vehicle-store";
 import type { BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
-  let results = [...demoVehicles];
+  let results = getPublishedVehicles();
   if (filters?.vehicleType) {
     results = results.filter((v) => v.type === filters.vehicleType);
   }
@@ -37,7 +45,7 @@ export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
 }
 
 export async function getVehicleById(id: string): Promise<Vehicle | null> {
-  return demoVehicles.find((v) => v.id === id) ?? null;
+  return getVehicleByIdPublished(id);
 }
 
 export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
@@ -71,7 +79,7 @@ export async function getPackageById(id: string): Promise<TourPackage | null> {
 }
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
-  let results = [...demoHotels];
+  let results = getPublishedHotels();
   if (filters?.starRating) {
     results = results.filter((h) => h.starRating >= filters.starRating!);
   }
@@ -93,7 +101,7 @@ export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
 }
 
 export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
-  return demoHotels.find((h) => h.slug === slug) ?? null;
+  return getHotelBySlugPublished(slug);
 }
 
 export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute[]> {
@@ -120,11 +128,11 @@ export function getAllPackageSlugs() {
 }
 
 export function getAllVehicleIds() {
-  return demoVehicles.map((v) => v.id);
+  return getAllPublishedVehicleIds();
 }
 
 export function getAllHotelSlugs() {
-  return demoHotels.map((h) => h.slug);
+  return getAllPublishedHotelSlugs();
 }
 
 export function getAllBlogSlugs() {

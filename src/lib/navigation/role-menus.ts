@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Bot,
+  Brain,
   Building2,
   Bus,
   CalendarCheck,
@@ -65,6 +66,12 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     label: "Hotels",
     icon: Building2,
     roles: ["super_admin", "manager"],
+  },
+  {
+    href: "/admin/ai-travel-manager",
+    label: "AI Travel Manager",
+    icon: Brain,
+    roles: ["super_admin", "manager", "sales_agent"],
   },
   {
     href: "/admin/ai-agents",
