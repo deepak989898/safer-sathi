@@ -12,6 +12,8 @@ import { HomeClient } from "./home-client";
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const [packages, hotels, vehicles] = await Promise.all([
     getPackages(),

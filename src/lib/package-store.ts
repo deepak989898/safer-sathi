@@ -1,11 +1,71 @@
 import { demoPackages } from "@/data/demo-data";
+import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import type { PackagePublishStatus, TourPackage } from "@/types";
+
+const PACKAGES_COLLECTION = "packages";
 
 let packagesStore: TourPackage[] = demoPackages.map((pkg) => ({
   ...pkg,
   publishStatus: "published" as PackagePublishStatus,
   proposedBy: "admin",
 }));
+
+let hydratePromise: Promise<void> | null = null;
+
+function sanitizeForFirestore<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function upsertInMemory(pkg: TourPackage): TourPackage {
+  packagesStore = [pkg, ...packagesStore.filter((p) => p.id !== pkg.id)];
+  return pkg;
+}
+
+async function persistPublishedPackage(pkg: TourPackage): Promise<void> {
+  if (pkg.publishStatus !== "published") return;
+  if (!isAdminEnvConfigured()) return;
+
+  try {
+    const db = await getSafeAdminDb();
+    if (!db) return;
+    await db
+      .collection(PACKAGES_COLLECTION)
+      .doc(pkg.id)
+      .set(sanitizeForFirestore(pkg));
+  } catch (error) {
+    console.warn("Firebase persist published package failed:", error);
+  }
+}
+
+async function loadPublishedFromFirestore(): Promise<TourPackage[]> {
+  if (!isAdminEnvConfigured()) return [];
+
+  try {
+    const db = await getSafeAdminDb();
+    if (!db) return [];
+
+    const snap = await db.collection(PACKAGES_COLLECTION).limit(500).get();
+    return snap.docs
+      .map((doc) => doc.data() as TourPackage)
+      .filter((pkg) => pkg.publishStatus === "published");
+  } catch (error) {
+    console.warn("Firebase load published packages failed:", error);
+    return [];
+  }
+}
+
+export async function hydratePackagesStore(): Promise<void> {
+  if (hydratePromise) return hydratePromise;
+
+  hydratePromise = (async () => {
+    const remotePublished = await loadPublishedFromFirestore();
+    for (const pkg of remotePublished) {
+      upsertInMemory(pkg);
+    }
+  })();
+
+  return hydratePromise;
+}
 
 export function getPublishedPackages(): TourPackage[] {
   return packagesStore.filter((p) => p.publishStatus === "published");
@@ -40,13 +100,15 @@ export function getAllPublishedPackageSlugs(): string[] {
 }
 
 export function addPackageDraft(pkg: TourPackage): TourPackage {
-  packagesStore = [pkg, ...packagesStore];
-  return pkg;
+  return upsertPackageInStore(pkg);
 }
 
 export function upsertPackageInStore(pkg: TourPackage): TourPackage {
-  packagesStore = [pkg, ...packagesStore.filter((p) => p.id !== pkg.id)];
-  return pkg;
+  const saved = upsertInMemory(pkg);
+  if (saved.publishStatus === "published") {
+    void persistPublishedPackage(saved);
+  }
+  return saved;
 }
 
 export function updatePackageInStore(
@@ -62,7 +124,12 @@ export function updatePackageInStore(
     id: packagesStore[index].id,
     updatedAt: new Date().toISOString(),
   };
-  return packagesStore[index];
+
+  const updated = packagesStore[index];
+  if (updated.publishStatus === "published") {
+    void persistPublishedPackage(updated);
+  }
+  return updated;
 }
 
 export function approvePackageInStore(
@@ -97,4 +164,16 @@ export function resetPackagesStore(): void {
     publishStatus: "published" as PackagePublishStatus,
     proposedBy: "admin",
   }));
+  hydratePromise = null;
+}
+
+export async function publishPackageToWebsite(pkg: TourPackage): Promise<TourPackage> {
+  const published: TourPackage = {
+    ...pkg,
+    publishStatus: "published",
+    updatedAt: new Date().toISOString(),
+  };
+  const saved = upsertInMemory(published);
+  await persistPublishedPackage(saved);
+  return saved;
 }

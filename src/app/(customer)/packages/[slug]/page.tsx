@@ -5,10 +5,12 @@ import {
 } from "@/lib/catalog-service";
 import { PackageDetailClient } from "./package-detail-client";
 
-export function generateStaticParams() {
-  return getAllPackageSlugs().map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllPackageSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
 export default async function PackageDetailPage({

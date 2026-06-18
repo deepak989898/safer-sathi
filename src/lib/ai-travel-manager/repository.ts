@@ -1,6 +1,8 @@
 import {
   addPackageDraft,
   getAdminPackages,
+  hydratePackagesStore,
+  publishPackageToWebsite,
   upsertPackageInStore,
 } from "@/lib/package-store";
 import { publishHotel } from "@/lib/hotel-store";
@@ -229,7 +231,7 @@ export async function publishPackageDraft(
     updatedAt: new Date().toISOString(),
   };
 
-  addPackageDraft({
+  await publishPackageToWebsite({
     ...published,
     publishStatus: "published",
     proposedBy: "ai_market_agent",

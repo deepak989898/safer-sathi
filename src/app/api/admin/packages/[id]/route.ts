@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   approvePackageInStore,
   getPackageByIdAdmin,
+  hydratePackagesStore,
   rejectPackageInStore,
   updatePackageInStore,
 } from "@/lib/package-store";
@@ -40,6 +41,7 @@ export async function PATCH(
       return apiError("Only managers and super admins can edit packages", 403);
     }
 
+    await hydratePackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     const updated = updatePackageInStore(id, parsed.data.updates as never);
@@ -77,6 +79,7 @@ export async function POST(
       return apiError("Only super admin can approve or reject packages", 403);
     }
 
+    await hydratePackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     if (action === "approve") {

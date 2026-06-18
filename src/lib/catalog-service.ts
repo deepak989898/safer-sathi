@@ -13,6 +13,7 @@ import {
   getPublishedPackageById,
   getPublishedPackageBySlug,
   getPublishedPackages,
+  hydratePackagesStore,
 } from "@/lib/package-store";
 import {
   getAllPublishedVehicleIds,
@@ -49,6 +50,7 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 }
 
 export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
+  await hydratePackagesStore();
   let results = getPublishedPackages();
   if (filters?.packageCategory) {
     results = results.filter((p) => p.category === filters.packageCategory);
@@ -71,10 +73,12 @@ export async function getPackages(filters?: SearchFilters): Promise<TourPackage[
 }
 
 export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
+  await hydratePackagesStore();
   return getPublishedPackageBySlug(slug);
 }
 
 export async function getPackageById(id: string): Promise<TourPackage | null> {
+  await hydratePackagesStore();
   return getPublishedPackageById(id);
 }
 
@@ -123,7 +127,8 @@ export async function getReviews() {
   return demoReviews;
 }
 
-export function getAllPackageSlugs() {
+export async function getAllPackageSlugs() {
+  await hydratePackagesStore();
   return getAllPublishedPackageSlugs();
 }
 
