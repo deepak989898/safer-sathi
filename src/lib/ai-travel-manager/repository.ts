@@ -29,9 +29,7 @@ let hotelDrafts: AIHotelDraft[] = [];
 let generatedImages: AIGeneratedImage[] = [];
 let aiUsageCounter = 0;
 
-async function getFirebaseAdmin() {
-  return import("@/lib/firebase/admin");
-}
+import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 
 function sanitizeForFirestore<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -41,10 +39,10 @@ async function persistCollection<T extends { id: string }>(
   collection: string,
   item: T
 ): Promise<void> {
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
-  if (!isAdminConfigured()) return;
+  if (!isAdminEnvConfigured()) return;
   try {
-    const db = getAdminDb();
+    const db = await getSafeAdminDb();
+    if (!db) return;
     await db.collection(collection).doc(item.id).set(sanitizeForFirestore(item));
   } catch (error) {
     console.warn(`Firebase persist ${collection} failed:`, error);
@@ -52,28 +50,33 @@ async function persistCollection<T extends { id: string }>(
 }
 
 async function loadCollection<T>(collection: string): Promise<T[]> {
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
-  if (!isAdminConfigured()) return [];
+  if (!isAdminEnvConfigured()) return [];
   try {
-    const db = getAdminDb();
+    const db = await getSafeAdminDb();
+    if (!db) return [];
     const snap = await db.collection(collection).orderBy("createdAt", "desc").limit(200).get();
     return snap.docs.map((d) => d.data() as T);
-  } catch {
+  } catch (error) {
+    console.warn(`Firebase load ${collection} failed:`, error);
     return [];
   }
 }
 
 export async function hydrateAITravelManagerStore(): Promise<void> {
-  const [c, p, v, h] = await Promise.all([
-    loadCollection<AICompetitorData>(AI_COLLECTIONS.competitors),
-    loadCollection<AIPackageDraft>(AI_COLLECTIONS.packageDrafts),
-    loadCollection<AIVehicleDraft>(AI_COLLECTIONS.vehicleDrafts),
-    loadCollection<AIHotelDraft>(AI_COLLECTIONS.hotelDrafts),
-  ]);
-  if (c.length) competitors = c;
-  if (p.length) packageDrafts = p;
-  if (v.length) vehicleDrafts = v;
-  if (h.length) hotelDrafts = h;
+  try {
+    const [c, p, v, h] = await Promise.all([
+      loadCollection<AICompetitorData>(AI_COLLECTIONS.competitors),
+      loadCollection<AIPackageDraft>(AI_COLLECTIONS.packageDrafts),
+      loadCollection<AIVehicleDraft>(AI_COLLECTIONS.vehicleDrafts),
+      loadCollection<AIHotelDraft>(AI_COLLECTIONS.hotelDrafts),
+    ]);
+    if (c.length) competitors = c;
+    if (p.length) packageDrafts = p;
+    if (v.length) vehicleDrafts = v;
+    if (h.length) hotelDrafts = h;
+  } catch (error) {
+    console.warn("AI Travel Manager hydrate failed, using in-memory store:", error);
+  }
 }
 
 export function trackAIUsage(): void {

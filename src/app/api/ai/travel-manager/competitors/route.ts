@@ -5,6 +5,7 @@ import {
   requireAnalyze,
   requireAITravelManagerAccess,
 } from "@/lib/ai-travel-manager/api-auth";
+import { canViewCompetitorData } from "@/lib/ai-travel-manager/permissions";
 import {
   hydrateAITravelManagerStore,
   listCompetitorData,
@@ -18,6 +19,9 @@ export async function GET(request: Request) {
     if (!roleParsed.success) return apiError("actorRole required", 400);
     const denied = requireAITravelManagerAccess(roleParsed.data);
     if (denied) return denied;
+    if (!canViewCompetitorData(roleParsed.data)) {
+      return apiError("You cannot view competitor data", 403);
+    }
 
     await hydrateAITravelManagerStore();
     return apiSuccess(listCompetitorData());

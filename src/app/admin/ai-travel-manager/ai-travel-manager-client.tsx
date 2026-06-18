@@ -32,6 +32,7 @@ import {
   canRecommendApproval,
   canRejectAIDraft,
   canUseAIChatCommands,
+  canViewCompetitorData,
 } from "@/lib/ai-travel-manager/permissions";
 import type {
   AICompetitorData,
@@ -67,6 +68,8 @@ export default function AITravelManagerClient() {
   const [pkgDestination, setPkgDestination] = useState("Goa");
   const [pkgDays, setPkgDays] = useState("6");
   const [selectedCompetitorId, setSelectedCompetitorId] = useState("");
+  const [inlineCompetitorUrl, setInlineCompetitorUrl] = useState("");
+  const [inlineCompetitorName, setInlineCompetitorName] = useState("");
 
   const [vehicleName, setVehicleName] = useState("Toyota Innova Crysta");
   const [hotelCity, setHotelCity] = useState("Goa");
@@ -83,10 +86,18 @@ export default function AITravelManagerClient() {
       ]);
       const statsJson = await statsRes.json();
       const draftsJson = await draftsRes.json();
-      if (statsJson.success) setStats(statsJson.data);
-      if (draftsJson.success) setDrafts(draftsJson.data);
-    } catch {
-      toast.error("Failed to load AI Travel Manager data");
+      if (!statsJson.success) {
+        throw new Error(statsJson.error ?? "Failed to load dashboard");
+      }
+      if (!draftsJson.success) {
+        throw new Error(draftsJson.error ?? "Failed to load drafts");
+      }
+      setStats(statsJson.data);
+      setDrafts(draftsJson.data);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load AI Travel Manager data"
+      );
     } finally {
       setLoading(false);
     }
@@ -153,6 +164,37 @@ export default function AITravelManagerClient() {
     if (!canGenerateAIContent(actorRole)) return;
     setBusy(true);
     try {
+      let competitorId = selectedCompetitorId || undefined;
+
+      if (
+        canAnalyzeCompetitors(actorRole) &&
+        inlineCompetitorUrl.trim() &&
+        !competitorId
+      ) {
+        const analyzeRes = await fetch("/api/ai/travel-manager/competitors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actorRole,
+            websiteUrl: inlineCompetitorUrl.trim(),
+            websiteName:
+              inlineCompetitorName.trim() ||
+              new URL(
+                inlineCompetitorUrl.trim().startsWith("http")
+                  ? inlineCompetitorUrl.trim()
+                  : `https://${inlineCompetitorUrl.trim()}`
+              ).hostname,
+            destinationHint: pkgDestination,
+            analyzedBy: actorId,
+          }),
+        });
+        const analyzeJson = await analyzeRes.json();
+        if (!analyzeJson.success) {
+          throw new Error(analyzeJson.error ?? "Competitor analysis failed");
+        }
+        competitorId = analyzeJson.data.id;
+      }
+
       const res = await fetch("/api/ai/travel-manager/packages/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,7 +202,7 @@ export default function AITravelManagerClient() {
           actorRole,
           destination: pkgDestination,
           durationDays: Number(pkgDays) || 6,
-          competitorId: selectedCompetitorId || undefined,
+          competitorId,
           createdBy: actorId,
         }),
       });
@@ -175,6 +217,8 @@ export default function AITravelManagerClient() {
         );
       }
       toast.success("Package draft created — awaiting manager review");
+      setInlineCompetitorUrl("");
+      setInlineCompetitorName("");
       loadAll();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Generation failed");
@@ -351,7 +395,7 @@ export default function AITravelManagerClient() {
         <Tabs defaultValue="dashboard">
           <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            {canAnalyzeCompetitors(actorRole) && (
+            {canViewCompetitorData(actorRole) && (
               <TabsTrigger value="competitors">Competitors</TabsTrigger>
             )}
             <TabsTrigger value="packages">Packages</TabsTrigger>
@@ -396,58 +440,83 @@ export default function AITravelManagerClient() {
             </Card>
           </TabsContent>
 
-          {canAnalyzeCompetitors(actorRole) && (
+          {canViewCompetitorData(actorRole) && (
             <TabsContent value="competitors" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Analyze Competitor Website</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Website URL</Label>
-                    <Input
-                      placeholder="https://competitor.com"
-                      value={competitorUrl}
-                      onChange={(e) => setCompetitorUrl(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Website Name</Label>
-                    <Input
-                      placeholder="Competitor name"
-                      value={competitorName}
-                      onChange={(e) => setCompetitorName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Destination Hint</Label>
-                    <Input
-                      value={destinationHint}
-                      onChange={(e) => setDestinationHint(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={analyzeCompetitor} disabled={busy}>
-                      {busy ? <Loader2 className="size-4 animate-spin" /> : <Globe className="size-4" />}
-                      Analyze Website
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {canAnalyzeCompetitors(actorRole) ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Analyze Competitor Website</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Website URL</Label>
+                      <Input
+                        placeholder="https://competitor.com"
+                        value={competitorUrl}
+                        onChange={(e) => setCompetitorUrl(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Website Name</Label>
+                      <Input
+                        placeholder="Competitor name"
+                        value={competitorName}
+                        onChange={(e) => setCompetitorName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Destination Hint</Label>
+                      <Input
+                        value={destinationHint}
+                        onChange={(e) => setDestinationHint(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button onClick={analyzeCompetitor} disabled={busy}>
+                        {busy ? <Loader2 className="size-4 animate-spin" /> : <Globe className="size-4" />}
+                        Analyze Website
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="pt-6 text-sm text-muted-foreground">
+                    Competitor websites are analyzed by Super Admin. Once added, you can
+                    select them when generating packages.
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="space-y-3">
-                {drafts?.competitors.map((c) => (
-                  <Card key={c.id}>
-                    <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-                      <div>
-                        <p className="font-medium">{c.websiteName}</p>
-                        <p className="text-sm text-muted-foreground">{c.packageName} — {c.destination}</p>
-                        <p className="text-sm">{formatCurrency(c.price)} · {c.duration}</p>
-                      </div>
-                      <Badge variant="outline">{c.destination}</Badge>
+                {drafts?.competitors.length ? (
+                  drafts.competitors.map((c) => (
+                    <Card key={c.id}>
+                      <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                        <div>
+                          <p className="font-medium">{c.websiteName}</p>
+                          <p className="text-sm text-muted-foreground break-all">{c.websiteUrl}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {c.packageName} — {c.destination}
+                          </p>
+                          <p className="text-sm">
+                            {formatCurrency(c.price)} · {c.duration}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{c.destination}</Badge>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="pt-6 text-sm text-muted-foreground">
+                      No competitor websites analyzed yet.
+                      {canAnalyzeCompetitors(actorRole)
+                        ? " Add a URL above to extract package intelligence."
+                        : " Ask your Super Admin to analyze competitor URLs first."}
                     </CardContent>
                   </Card>
-                ))}
+                )}
               </div>
             </TabsContent>
           )}
@@ -458,7 +527,7 @@ export default function AITravelManagerClient() {
                 <CardHeader>
                   <CardTitle className="text-base">Auto Package Generator</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-4">
+                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Destination</Label>
                     <Input value={pkgDestination} onChange={(e) => setPkgDestination(e.target.value)} />
@@ -468,7 +537,7 @@ export default function AITravelManagerClient() {
                     <Input value={pkgDays} onChange={(e) => setPkgDays(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Competitor (optional)</Label>
+                    <Label>Analyzed Competitor (optional)</Label>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={selectedCompetitorId}
@@ -481,13 +550,40 @@ export default function AITravelManagerClient() {
                         </option>
                       ))}
                     </select>
+                    {!drafts?.competitors.length && (
+                      <p className="text-xs text-muted-foreground">
+                        {canAnalyzeCompetitors(actorRole)
+                          ? "Add competitor URLs in the Competitors tab or below."
+                          : "No competitors yet — Super Admin must analyze URLs in the Competitors tab."}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-end">
                     <Button onClick={generatePackage} disabled={busy}>
-                      <Sparkles className="size-4" />
+                      {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                       Generate Package
                     </Button>
                   </div>
+                  {canAnalyzeCompetitors(actorRole) && (
+                    <>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Or analyze new competitor URL</Label>
+                        <Input
+                          placeholder="https://competitor.com/package-page"
+                          value={inlineCompetitorUrl}
+                          onChange={(e) => setInlineCompetitorUrl(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Competitor name (optional)</Label>
+                        <Input
+                          placeholder="Competitor website name"
+                          value={inlineCompetitorName}
+                          onChange={(e) => setInlineCompetitorName(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
