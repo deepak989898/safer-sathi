@@ -63,6 +63,8 @@ export default function BookingPage() {
           endDate: cart.endDate || undefined,
           guests: cart.guests,
           amount: cart.amount,
+          bookingMode: cart.bookingMode,
+          distanceKm: cart.bookingMode === "km" ? cart.distanceKm : undefined,
           userId: user?.id,
         }),
       });
@@ -252,10 +254,18 @@ export default function BookingPage() {
                         <span>{cart.endDate}</span>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span>Guests</span>
-                      <span>{cart.guests}</span>
-                    </div>
+                    {cart.bookingMode === "km" && cart.distanceKm > 0 && (
+                      <div className="flex justify-between">
+                        <span>Distance</span>
+                        <span>{cart.distanceKm} km</span>
+                      </div>
+                    )}
+                    {cart.bookingMode === "km" && (
+                      <div className="flex justify-between">
+                        <span>Billing</span>
+                        <span>Per kilometer</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold">
                       <span>Total</span>
                       <span className="text-primary">

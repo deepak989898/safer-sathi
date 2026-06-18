@@ -592,7 +592,7 @@ export const demoAIAgents = [
   },
   {
     id: "analytics" as const,
-    name: { en: "AI Analytics Agent", hi: "AI एनालिटिक्स एजेंट" },
+    name: { en: "Analytics Agent", hi: "एनालिटिक्स एजेंट" },
     description: {
       en: "Revenue forecasting and demand trend analysis.",
       hi: "राजस्व पूर्वानुमान और मांग प्रवृत्ति विश्लेषण।",
@@ -601,6 +601,18 @@ export const demoAIAgents = [
     successRate: 97,
     tasksHandled: 234,
     lastRun: "2025-06-11T06:00:00Z",
+  },
+  {
+    id: "market_packages" as const,
+    name: { en: "Market Package Agent", hi: "मार्केट पैकेज एजेंट" },
+    description: {
+      en: "Analyzes market prices, builds full tour packages with images and itinerary, and submits for Super Admin approval.",
+      hi: "बाजार भाव का विश्लेषण, पूर्ण पैकेज बनाना और सुपर एडमिन अनुमोदन के लिए भेजना।",
+    },
+    status: "active" as const,
+    successRate: 95,
+    tasksHandled: 128,
+    lastRun: "2025-06-11T11:00:00Z",
   },
 ] satisfies AIAgent[];
 

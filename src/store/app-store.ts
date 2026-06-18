@@ -36,6 +36,8 @@ interface BookingCartState {
   endDate: string;
   guests: number;
   amount: number;
+  bookingMode: "day" | "km";
+  distanceKm: number;
   setCart: (data: Partial<BookingCartState>) => void;
   clearCart: () => void;
 }
@@ -48,6 +50,8 @@ const initialCart = {
   endDate: "",
   guests: 1,
   amount: 0,
+  bookingMode: "day" as const,
+  distanceKm: 0,
 };
 
 export const useBookingCart = create<BookingCartState>()(

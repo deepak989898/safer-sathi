@@ -2,10 +2,15 @@ import {
   demoBlogPosts,
   demoBusRoutes,
   demoHotels,
-  demoPackages,
   demoReviews,
   demoVehicles,
 } from "@/data/demo-data";
+import {
+  getAllPublishedPackageSlugs,
+  getPublishedPackageById,
+  getPublishedPackageBySlug,
+  getPublishedPackages,
+} from "@/lib/package-store";
 import type { BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
@@ -36,7 +41,7 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 }
 
 export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
-  let results = [...demoPackages];
+  let results = getPublishedPackages();
   if (filters?.packageCategory) {
     results = results.filter((p) => p.category === filters.packageCategory);
   }
@@ -58,11 +63,11 @@ export async function getPackages(filters?: SearchFilters): Promise<TourPackage[
 }
 
 export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
-  return demoPackages.find((p) => p.slug === slug) ?? null;
+  return getPublishedPackageBySlug(slug);
 }
 
 export async function getPackageById(id: string): Promise<TourPackage | null> {
-  return demoPackages.find((p) => p.id === id) ?? null;
+  return getPublishedPackageById(id);
 }
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
@@ -111,7 +116,7 @@ export async function getReviews() {
 }
 
 export function getAllPackageSlugs() {
-  return demoPackages.map((p) => p.slug);
+  return getAllPublishedPackageSlugs();
 }
 
 export function getAllVehicleIds() {

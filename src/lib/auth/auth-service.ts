@@ -15,6 +15,7 @@ import {
 import { COLLECTIONS, getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { User, UserRole } from "@/types";
 import { isStaffRole } from "./constants";
+import { canManageUser } from "./permissions";
 import {
   localApproveUser,
   localClearSession,
@@ -250,7 +251,19 @@ export async function listAllUsers(): Promise<User[]> {
   return snap.docs.map((d) => mapFirestoreUser(d.id, d.data() as Record<string, unknown>));
 }
 
-export async function approveUserAccount(userId: string): Promise<User> {
+export async function approveUserAccount(
+  userId: string,
+  actorRole: UserRole
+): Promise<User> {
+  const target = isFirebaseConfigured()
+    ? await getUserProfile(userId)
+    : localGetUserByIdLocal(userId);
+
+  if (!target) throw new AuthError("User not found.");
+  if (!canManageUser(actorRole, target.role)) {
+    throw new AuthError("You do not have permission to approve this user.");
+  }
+
   if (!isFirebaseConfigured()) {
     return localApproveUser(userId);
   }
@@ -266,7 +279,19 @@ export async function approveUserAccount(userId: string): Promise<User> {
   return updated;
 }
 
-export async function suspendUserAccount(userId: string): Promise<User> {
+export async function suspendUserAccount(
+  userId: string,
+  actorRole: UserRole
+): Promise<User> {
+  const target = isFirebaseConfigured()
+    ? await getUserProfile(userId)
+    : localGetUserByIdLocal(userId);
+
+  if (!target) throw new AuthError("User not found.");
+  if (!canManageUser(actorRole, target.role)) {
+    throw new AuthError("You do not have permission to suspend this user.");
+  }
+
   if (!isFirebaseConfigured()) {
     return localSuspendUser(userId);
   }

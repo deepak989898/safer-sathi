@@ -45,6 +45,7 @@ export default function VehiclesPage() {
     type: "suv" as VehicleType,
     seats: "",
     pricePerDay: "",
+    pricePerKm: "",
     location: "",
   });
 
@@ -57,6 +58,7 @@ export default function VehiclesPage() {
       type: form.type,
       seats: Number(form.seats),
       pricePerDay: Number(form.pricePerDay),
+      pricePerKm: Number(form.pricePerKm) || Math.round(Number(form.pricePerDay) / 200),
       images: [],
       available: true,
       fuelType: "Petrol",
@@ -71,7 +73,7 @@ export default function VehiclesPage() {
     };
 
     setVehicles((prev) => [...prev, newVehicle]);
-    setForm({ name: "", type: "suv", seats: "", pricePerDay: "", location: "" });
+    setForm({ name: "", type: "suv", seats: "", pricePerDay: "", pricePerKm: "", location: "" });
     setOpen(false);
   };
 
@@ -97,6 +99,14 @@ export default function VehiclesPage() {
       accessorKey: "pricePerDay",
       header: "Price/Day",
       cell: ({ row }) => formatCurrency(row.original.pricePerDay),
+    },
+    {
+      accessorKey: "pricePerKm",
+      header: "Price/KM",
+      cell: ({ row }) =>
+        row.original.pricePerKm
+          ? formatCurrency(row.original.pricePerKm)
+          : "—",
     },
     { accessorKey: "location", header: "Location" },
     {
@@ -194,6 +204,16 @@ export default function VehiclesPage() {
                       onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="priceKm">Price/KM (₹)</Label>
+                  <Input
+                    id="priceKm"
+                    type="number"
+                    value={form.pricePerKm}
+                    onChange={(e) => setForm({ ...form, pricePerKm: e.target.value })}
+                    placeholder="Auto-calculated if empty"
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="location">Location</Label>

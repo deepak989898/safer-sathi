@@ -26,6 +26,8 @@ const createSchema = z.object({
   endDate: z.string().optional(),
   guests: z.number().int().positive(),
   amount: z.number().positive(),
+  bookingMode: z.enum(["day", "km"]).optional(),
+  distanceKm: z.number().positive().optional(),
   userId: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -66,6 +68,8 @@ export async function POST(request: Request) {
       endDate: parsed.data.endDate,
       guests: parsed.data.guests,
       amount: parsed.data.amount,
+      bookingMode: parsed.data.bookingMode,
+      distanceKm: parsed.data.distanceKm,
       depositAmount: Math.round(parsed.data.amount * 0.2),
       paidAmount: 0,
       status: "pending",

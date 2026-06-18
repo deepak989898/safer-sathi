@@ -53,9 +53,16 @@ export type AIAgentType =
   | "seo"
   | "social"
   | "analytics"
-  | "fraud";
+  | "fraud"
+  | "market_packages";
 
 export type AIAgentStatus = "active" | "paused" | "error";
+
+export type PackagePublishStatus =
+  | "draft"
+  | "pending_approval"
+  | "published"
+  | "rejected";
 
 export interface LocalizedString {
   en: string;
@@ -129,6 +136,12 @@ export interface TourPackage {
   rating: number;
   reviewCount: number;
   featured: boolean;
+  publishStatus?: PackagePublishStatus;
+  marketAnalysis?: LocalizedString;
+  proposedBy?: "ai_market_agent" | "admin" | "manager";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -192,6 +205,8 @@ export interface Booking {
   endDate?: string;
   guests: number;
   amount: number;
+  bookingMode?: "day" | "km";
+  distanceKm?: number;
   depositAmount?: number;
   paidAmount: number;
   status: BookingStatus;

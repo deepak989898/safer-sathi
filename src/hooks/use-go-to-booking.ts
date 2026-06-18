@@ -11,6 +11,8 @@ interface BookingCartData {
   endDate?: string;
   guests: number;
   amount: number;
+  bookingMode?: "day" | "km";
+  distanceKm?: number;
 }
 
 export function useGoToBooking() {
@@ -26,6 +28,8 @@ export function useGoToBooking() {
       endDate: data.endDate ?? "",
       guests: data.guests,
       amount: data.amount,
+      bookingMode: data.bookingMode ?? "day",
+      distanceKm: data.distanceKm ?? 0,
     });
     router.push("/booking");
   };

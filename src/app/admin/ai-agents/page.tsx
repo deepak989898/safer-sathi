@@ -9,6 +9,7 @@ import {
   Megaphone,
   Settings2,
   ShoppingBag,
+  TrendingUp,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -29,6 +30,7 @@ const agentIcons: Record<AIAgentType, ElementType> = {
   seo: Megaphone,
   social: Megaphone,
   fraud: Settings2,
+  market_packages: TrendingUp,
 };
 
 export default function AIAgentsPage() {

@@ -59,7 +59,12 @@ export function VehicleCard({
           <p className="text-lg font-bold text-primary">
             {formatCurrency(vehicle.pricePerDay, locale)}
           </p>
-          <p className="text-xs text-muted-foreground">{t(locale, "common", "perDay")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "common", "perDay")}
+            {vehicle.pricePerKm
+              ? ` · ${formatCurrency(vehicle.pricePerKm, locale)} ${t(locale, "common", "perKm")}`
+              : ""}
+          </p>
         </div>
         <Link href={`/vehicles/${vehicle.id}`} className="inline-flex">
           <Button>{t(locale, "common", "viewDetails")}</Button>

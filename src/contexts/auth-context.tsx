@@ -140,13 +140,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUsers = useCallback(async () => listAllUsers(), []);
 
-  const approveUser = useCallback(async (userId: string) => {
-    await approveUserAccount(userId);
-  }, []);
+  const approveUser = useCallback(
+    async (userId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      await approveUserAccount(userId, user.role);
+    },
+    [user]
+  );
 
-  const suspendUser = useCallback(async (userId: string) => {
-    await suspendUserAccount(userId);
-  }, []);
+  const suspendUser = useCallback(
+    async (userId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      await suspendUserAccount(userId, user.role);
+    },
+    [user]
+  );
 
   const value = useMemo(
     () => ({

@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
-import { canApproveUsers, ROLE_LABELS } from "@/lib/auth/constants";
+import { canManageUser, ROLE_LABELS } from "@/lib/auth/constants";
 import { formatCurrency } from "@/lib/i18n";
 import type { User } from "@/types";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ export default function CustomersPage() {
   const { user, refreshUsers, approveUser, suspendUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const actorRole = user?.role ?? "customer";
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -34,28 +36,49 @@ export default function CustomersPage() {
     loadUsers();
   }, [loadUsers]);
 
-  const handleApprove = async (userId: string) => {
+  const handleApprove = async (target: User) => {
+    if (!canManageUser(actorRole, target.role)) {
+      toast.error("You cannot approve this user role");
+      return;
+    }
     try {
-      await approveUser(userId);
+      await approveUser(target.id);
       toast.success("User approved successfully");
       loadUsers();
-    } catch {
-      toast.error("Failed to approve user");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve user");
     }
   };
 
-  const handleSuspend = async (userId: string) => {
+  const handleSuspend = async (target: User) => {
+    if (!canManageUser(actorRole, target.role)) {
+      toast.error("You cannot suspend this user role");
+      return;
+    }
     try {
-      await suspendUser(userId);
+      await suspendUser(target.id);
       toast.success("User suspended");
       loadUsers();
-    } catch {
-      toast.error("Failed to suspend user");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to suspend user");
     }
   };
 
-  const pendingUsers = users.filter((u) => u.status === "pending" || !u.approved);
-  const activeUsers = users.filter((u) => u.status === "active" && u.approved);
+  const pendingUsers = users.filter(
+    (u) =>
+      (u.status === "pending" || !u.approved) &&
+      u.role !== "customer" &&
+      canManageUser(actorRole, u.role)
+  );
+
+  const activeUsers = users.filter((u) => {
+    if (u.status !== "active" || !u.approved) return false;
+    if (actorRole === "super_admin") return true;
+    if (actorRole === "manager") {
+      return canManageUser(actorRole, u.role);
+    }
+    return u.role === "customer";
+  });
 
   const baseColumns: ColumnDef<User>[] = [
     {
@@ -105,6 +128,22 @@ export default function CustomersPage() {
       cell: ({ row }) =>
         row.original.totalSpent ? formatCurrency(row.original.totalSpent) : "—",
     },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) =>
+        canManageUser(actorRole, row.original.role) ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleSuspend(row.original)}
+          >
+            Suspend
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Protected</span>
+        ),
+    },
   ];
 
   const pendingColumns: ColumnDef<User>[] = [
@@ -113,21 +152,23 @@ export default function CustomersPage() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) =>
-        canApproveUsers(user?.role ?? "customer") ? (
+        canManageUser(actorRole, row.original.role) ? (
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => handleApprove(row.original.id)}>
+            <Button size="sm" onClick={() => handleApprove(row.original)}>
               Approve
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleSuspend(row.original.id)}
+              onClick={() => handleSuspend(row.original)}
             >
               Reject
             </Button>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">No permission</span>
+          <span className="text-xs text-muted-foreground">
+            Super Admin only
+          </span>
         ),
     },
   ];
@@ -136,10 +177,20 @@ export default function CustomersPage() {
     <>
       <AdminHeader
         title="Users & Customers"
-        description="Manage customers and approve staff accounts"
+        description={
+          actorRole === "manager"
+            ? "Manage sales agents, drivers, and customers"
+            : "Manage customers and approve staff accounts"
+        }
         adminName={user?.name ?? "Admin"}
       />
       <div className="p-4 sm:p-6">
+        {actorRole === "manager" && (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+            Managers can approve sales agents, drivers, and customers only.
+            Super Admin and Support Agent accounts require Super Admin approval.
+          </p>
+        )}
         <Tabs defaultValue="customers">
           <TabsList>
             <TabsTrigger value="customers">
@@ -166,7 +217,7 @@ export default function CustomersPage() {
           <TabsContent value="pending" className="mt-4">
             {pendingUsers.length === 0 ? (
               <p className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
-                No pending staff applications
+                No pending applications in your approval scope
               </p>
             ) : (
               <DataTable

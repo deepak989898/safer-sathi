@@ -46,3 +46,11 @@ export function getLoginRedirect(role: UserRole): string {
 export function canApproveUsers(role: UserRole): boolean {
   return role === "super_admin" || role === "manager";
 }
+
+export {
+  canApprovePackages,
+  canEditPackageDrafts,
+  canGenerateMarketPackages,
+  canManageUser,
+  MANAGER_MANAGEABLE_ROLES,
+} from "./permissions";
