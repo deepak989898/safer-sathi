@@ -34,6 +34,12 @@ import {
   canUseAIChatCommands,
   canViewCompetitorData,
 } from "@/lib/ai-travel-manager/permissions";
+import {
+  loadLocalPackageDrafts,
+  mergePackageDrafts,
+  saveLocalPackageDraft,
+  syncLocalPackageDrafts,
+} from "@/lib/ai-travel-manager/client-cache";
 import type {
   AICompetitorData,
   AIHotelDraft,
@@ -93,7 +99,15 @@ export default function AITravelManagerClient() {
         throw new Error(draftsJson.error ?? "Failed to load drafts");
       }
       setStats(statsJson.data);
-      setDrafts(draftsJson.data);
+      const mergedPackages = mergePackageDrafts(
+        draftsJson.data.packages ?? [],
+        loadLocalPackageDrafts()
+      );
+      setDrafts({
+        ...draftsJson.data,
+        packages: mergedPackages,
+      });
+      syncLocalPackageDrafts(mergedPackages);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to load AI Travel Manager data"
@@ -216,7 +230,18 @@ export default function AITravelManagerClient() {
           [json.error, detail].filter(Boolean).join(" — ") || "Generation failed"
         );
       }
-      toast.success("Package draft created — awaiting manager review");
+      toast.success("Package draft created — scroll down to review it");
+      const created = json.data as AIPackageDraft;
+      saveLocalPackageDraft(created);
+      setDrafts((prev) => ({
+        competitors: prev?.competitors ?? [],
+        vehicles: prev?.vehicles ?? [],
+        hotels: prev?.hotels ?? [],
+        packages: mergePackageDrafts(
+          [created],
+          prev?.packages ?? loadLocalPackageDrafts()
+        ),
+      }));
       setInlineCompetitorUrl("");
       setInlineCompetitorName("");
       loadAll();
@@ -589,7 +614,34 @@ export default function AITravelManagerClient() {
             )}
 
             <div className="space-y-4">
-              {drafts?.packages.map((pkg) => (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">
+                  Created Package Drafts ({drafts?.packages.length ?? 0})
+                </h3>
+                <a
+                  href="/admin/packages"
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-accent"
+                >
+                  Also view in Admin → Packages
+                </a>
+              </div>
+
+              {!drafts?.packages.length ? (
+                <Card>
+                  <CardContent className="pt-6 text-sm text-muted-foreground space-y-2">
+                    <p>No package drafts yet.</p>
+                    <p>
+                      After you click <strong>Generate Package</strong>, drafts appear
+                      here with status <strong>draft</strong>. They are also listed under{" "}
+                      <a href="/admin/packages" className="text-primary underline">
+                        Admin → Packages
+                      </a>{" "}
+                      until Super Admin publishes them to the customer website.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                drafts.packages.map((pkg) => (
                 <Card key={pkg.id}>
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -611,7 +663,8 @@ export default function AITravelManagerClient() {
                     {renderDraftActions("package", pkg.id, pkg.approvalStatus)}
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           </TabsContent>
 

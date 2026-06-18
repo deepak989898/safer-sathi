@@ -1,8 +1,11 @@
 import {
   addPackageDraft,
+  getAdminPackages,
+  upsertPackageInStore,
 } from "@/lib/package-store";
 import { publishHotel } from "@/lib/hotel-store";
 import { publishVehicle } from "@/lib/vehicle-store";
+import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import type { Hotel, HotelRoom } from "@/types";
 import type {
   AICompetitorData,
@@ -29,8 +32,6 @@ let hotelDrafts: AIHotelDraft[] = [];
 let generatedImages: AIGeneratedImage[] = [];
 let aiUsageCounter = 0;
 
-import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-
 function sanitizeForFirestore<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -49,17 +50,40 @@ async function persistCollection<T extends { id: string }>(
   }
 }
 
-async function loadCollection<T>(collection: string): Promise<T[]> {
+async function loadCollection<T extends { id: string; createdAt?: string }>(
+  collection: string
+): Promise<T[]> {
   if (!isAdminEnvConfigured()) return [];
   try {
     const db = await getSafeAdminDb();
     if (!db) return [];
-    const snap = await db.collection(collection).orderBy("createdAt", "desc").limit(200).get();
-    return snap.docs.map((d) => d.data() as T);
+    const snap = await db.collection(collection).limit(200).get();
+    return snap.docs
+      .map((d) => d.data() as T)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime()
+      );
   } catch (error) {
     console.warn(`Firebase load ${collection} failed:`, error);
     return [];
   }
+}
+
+function mergeById<T extends { id: string; createdAt?: string }>(
+  existing: T[],
+  incoming: T[]
+): T[] {
+  const map = new Map<string, T>();
+  for (const item of [...existing, ...incoming]) {
+    map.set(item.id, item);
+  }
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(b.createdAt ?? 0).getTime() -
+      new Date(a.createdAt ?? 0).getTime()
+  );
 }
 
 export async function hydrateAITravelManagerStore(): Promise<void> {
@@ -70,13 +94,32 @@ export async function hydrateAITravelManagerStore(): Promise<void> {
       loadCollection<AIVehicleDraft>(AI_COLLECTIONS.vehicleDrafts),
       loadCollection<AIHotelDraft>(AI_COLLECTIONS.hotelDrafts),
     ]);
-    if (c.length) competitors = c;
-    if (p.length) packageDrafts = p;
-    if (v.length) vehicleDrafts = v;
-    if (h.length) hotelDrafts = h;
+    competitors = mergeById(competitors, c);
+    packageDrafts = mergeById(packageDrafts, p);
+    vehicleDrafts = mergeById(vehicleDrafts, v);
+    hotelDrafts = mergeById(hotelDrafts, h);
   } catch (error) {
     console.warn("AI Travel Manager hydrate failed, using in-memory store:", error);
   }
+}
+
+function mapApprovalToPublishStatus(
+  status: AIApprovalStatus
+): "draft" | "pending_approval" | "published" | "rejected" {
+  if (status === "published") return "published";
+  if (status === "pending_approval" || status === "manager_review") {
+    return "pending_approval";
+  }
+  if (status === "rejected") return "rejected";
+  return "draft";
+}
+
+function syncPackageDraftToAdminStore(draft: AIPackageDraft): void {
+  upsertPackageInStore({
+    ...draft,
+    publishStatus: mapApprovalToPublishStatus(draft.approvalStatus),
+    proposedBy: "ai_market_agent",
+  });
 }
 
 export function trackAIUsage(): void {
@@ -104,14 +147,39 @@ export function getCompetitorById(id: string): AICompetitorData | null {
 // --- Package drafts ---
 export async function savePackageDraft(draft: AIPackageDraft): Promise<AIPackageDraft> {
   packageDrafts = [draft, ...packageDrafts.filter((p) => p.id !== draft.id)];
+  syncPackageDraftToAdminStore(draft);
   await persistCollection(AI_COLLECTIONS.packageDrafts, draft);
   trackAIUsage();
   return draft;
 }
 
 export function listPackageDrafts(status?: AIApprovalStatus): AIPackageDraft[] {
-  if (!status) return [...packageDrafts];
-  return packageDrafts.filter((p) => p.approvalStatus === status);
+  const fromStore = getAdminPackages().filter(
+    (p) => p.proposedBy === "ai_market_agent" && p.publishStatus !== "published"
+  ) as AIPackageDraft[];
+
+  const merged = mergeById(
+    packageDrafts,
+    fromStore.map((p) => ({
+      ...p,
+      approvalStatus:
+        p.publishStatus === "pending_approval"
+          ? ("pending_approval" as const)
+          : p.publishStatus === "rejected"
+            ? ("rejected" as const)
+            : ("draft" as const),
+      seoSlug: p.slug,
+      termsAndConditions: { en: "", hi: "" },
+      cancellationPolicy: { en: "", hi: "" },
+      faqs: [],
+      tourHighlights: [],
+      bestSeason: { en: "", hi: "" },
+      tags: [],
+    }))
+  );
+
+  if (!status) return merged;
+  return merged.filter((p) => p.approvalStatus === status);
 }
 
 export function getPackageDraftById(id: string): AIPackageDraft | null {

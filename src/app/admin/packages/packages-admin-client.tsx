@@ -57,6 +57,7 @@ export default function PackagesAdminClient() {
     loadPackages();
   }, [loadPackages]);
 
+  const drafts = packages.filter((p) => p.publishStatus === "draft");
   const pending = packages.filter((p) => p.publishStatus === "pending_approval");
   const published = packages.filter((p) => p.publishStatus === "published");
   const rejected = packages.filter((p) => p.publishStatus === "rejected");
@@ -275,15 +276,16 @@ export default function PackagesAdminClient() {
           </p>
         )}
 
-        <Tabs defaultValue="pending">
+        <Tabs defaultValue="drafts">
           <TabsList>
+            <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
             <TabsTrigger value="published">Published ({published.length})</TabsTrigger>
             <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
             <TabsTrigger value="all">All ({packages.length})</TabsTrigger>
           </TabsList>
 
-          {["pending", "published", "rejected", "all"].map((tab) => (
+          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-4">
               {loading ? (
                 <p className="text-sm text-muted-foreground">Loading...</p>
@@ -293,7 +295,9 @@ export default function PackagesAdminClient() {
                   data={
                     tab === "all"
                       ? packages
-                      : tab === "pending"
+                      : tab === "drafts"
+                        ? drafts
+                        : tab === "pending"
                         ? pending
                         : tab === "published"
                           ? published

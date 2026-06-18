@@ -44,6 +44,11 @@ export function addPackageDraft(pkg: TourPackage): TourPackage {
   return pkg;
 }
 
+export function upsertPackageInStore(pkg: TourPackage): TourPackage {
+  packagesStore = [pkg, ...packagesStore.filter((p) => p.id !== pkg.id)];
+  return pkg;
+}
+
 export function updatePackageInStore(
   id: string,
   updates: Partial<TourPackage>
