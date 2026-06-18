@@ -12,6 +12,7 @@ import {
 import { nextStatusAfterManagerReview } from "@/lib/ai-travel-manager/permissions";
 import type { DraftEntityType } from "@/lib/ai-travel-manager/types";
 import {
+  ensurePackageDraft,
   getHotelDraftById,
   getPackageDraftById,
   getVehicleDraftById,
@@ -31,6 +32,7 @@ const actionSchema = z.object({
   reason: z.string().optional(),
   managerNotes: z.string().optional(),
   updates: z.record(z.string(), z.unknown()).optional(),
+  fallbackDraft: z.record(z.string(), z.unknown()).optional(),
 });
 
 function getDraft(type: DraftEntityType, id: string) {
@@ -61,7 +63,12 @@ export async function PATCH(
     if (denied) return denied;
 
     await hydrateAITravelManagerStore();
-    const draft = getDraft(type as DraftEntityType, id);
+    let draft = getDraft(type as DraftEntityType, id);
+
+    if (!draft && type === "package" && parsed.data.fallbackDraft) {
+      draft = await ensurePackageDraft(parsed.data.fallbackDraft as never);
+    }
+
     if (!draft) return apiError("Draft not found", 404);
 
     if (type === "package") {
@@ -103,7 +110,12 @@ export async function POST(
 
     await hydrateAITravelManagerStore();
     const draftType = type as DraftEntityType;
-    const draft = getDraft(draftType, id);
+    let draft = getDraft(draftType, id);
+
+    if (!draft && draftType === "package" && parsed.data.fallbackDraft) {
+      draft = await ensurePackageDraft(parsed.data.fallbackDraft as never);
+    }
+
     if (!draft) return apiError("Draft not found", 404);
 
     if (action === "recommend") {
@@ -131,8 +143,12 @@ export async function POST(
       const denied = requireApprove(parsed.data.actorRole);
       if (denied) return denied;
 
-      if (draft.approvalStatus !== "pending_approval" && draft.approvalStatus !== "manager_review") {
-        return apiError("Draft must be in pending approval before publishing", 400);
+      if (
+        !["draft", "manager_review", "pending_approval"].includes(
+          draft.approvalStatus
+        )
+      ) {
+        return apiError("Draft is not eligible for approval", 400);
       }
 
       if (draftType === "package") {

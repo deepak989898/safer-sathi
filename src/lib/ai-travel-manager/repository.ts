@@ -16,6 +16,7 @@ import type {
   AIVehicleDraft,
   AIApprovalStatus,
 } from "./types";
+import { normalizePackageDraft, resolveApprovalStatus } from "./draft-utils";
 
 const AI_COLLECTIONS = {
   competitors: "ai_competitor_data",
@@ -160,30 +161,41 @@ export function listPackageDrafts(status?: AIApprovalStatus): AIPackageDraft[] {
 
   const merged = mergeById(
     packageDrafts,
-    fromStore.map((p) => ({
-      ...p,
-      approvalStatus:
-        p.publishStatus === "pending_approval"
-          ? ("pending_approval" as const)
-          : p.publishStatus === "rejected"
-            ? ("rejected" as const)
-            : ("draft" as const),
-      seoSlug: p.slug,
-      termsAndConditions: { en: "", hi: "" },
-      cancellationPolicy: { en: "", hi: "" },
-      faqs: [],
-      tourHighlights: [],
-      bestSeason: { en: "", hi: "" },
-      tags: [],
-    }))
-  );
+    fromStore.map((p) =>
+      normalizePackageDraft({
+        ...(p as AIPackageDraft),
+        approvalStatus: resolveApprovalStatus(p),
+        seoSlug: p.slug,
+        termsAndConditions: (p as AIPackageDraft).termsAndConditions ?? {
+          en: "",
+          hi: "",
+        },
+        cancellationPolicy: (p as AIPackageDraft).cancellationPolicy ?? {
+          en: "",
+          hi: "",
+        },
+        faqs: (p as AIPackageDraft).faqs ?? [],
+        tourHighlights: (p as AIPackageDraft).tourHighlights ?? [],
+        bestSeason: (p as AIPackageDraft).bestSeason ?? { en: "", hi: "" },
+        tags: (p as AIPackageDraft).tags ?? [],
+      })
+    )
+  ).map(normalizePackageDraft);
 
   if (!status) return merged;
   return merged.filter((p) => p.approvalStatus === status);
 }
 
 export function getPackageDraftById(id: string): AIPackageDraft | null {
-  return packageDrafts.find((p) => p.id === id) ?? null;
+  return listPackageDrafts().find((p) => p.id === id) ?? null;
+}
+
+export async function ensurePackageDraft(
+  draft: AIPackageDraft
+): Promise<AIPackageDraft> {
+  const existing = getPackageDraftById(draft.id);
+  if (existing) return existing;
+  return savePackageDraft(normalizePackageDraft(draft));
 }
 
 export async function updatePackageDraft(

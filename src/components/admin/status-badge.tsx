@@ -27,7 +27,12 @@ type StatusVariant =
   | "medium"
   | "low"
   | "success"
-  | "default";
+  | "default"
+  | "draft"
+  | "pending_approval"
+  | "manager_review"
+  | "published"
+  | "rejected";
 
 const variantStyles: Record<StatusVariant, string> = {
   confirmed: "bg-primary/15 text-primary border-primary/20",
@@ -56,6 +61,11 @@ const variantStyles: Record<StatusVariant, string> = {
   low: "bg-muted text-muted-foreground border-border",
   success: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   default: "bg-muted text-muted-foreground border-border",
+  draft: "bg-slate-500/15 text-slate-700 border-slate-500/20 dark:text-slate-300",
+  pending_approval: "bg-amber-500/15 text-amber-600 border-amber-500/20 dark:text-amber-400",
+  manager_review: "bg-blue-500/15 text-blue-600 border-blue-500/20 dark:text-blue-400",
+  published: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
+  rejected: "bg-destructive/15 text-destructive border-destructive/20",
 };
 
 const labelMap: Record<StatusVariant, string> = {
@@ -85,6 +95,11 @@ const labelMap: Record<StatusVariant, string> = {
   low: "Low",
   success: "AI Processed",
   default: "Unknown",
+  draft: "Draft",
+  pending_approval: "Pending Approval",
+  manager_review: "Manager Review",
+  published: "Published",
+  rejected: "Rejected",
 };
 
 interface StatusBadgeProps {
@@ -94,9 +109,12 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, label, className }: StatusBadgeProps) {
-  const variant = (status in variantStyles ? status : "default") as StatusVariant;
+  const safeStatus = status || "draft";
+  const variant = (safeStatus in variantStyles ? safeStatus : "default") as StatusVariant;
   const displayLabel =
-    label ?? labelMap[variant] ?? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    label ??
+    labelMap[variant] ??
+    safeStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <Badge

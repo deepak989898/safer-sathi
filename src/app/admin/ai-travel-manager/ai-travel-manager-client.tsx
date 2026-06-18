@@ -10,6 +10,7 @@ import {
   Loader2,
   MessageSquare,
   Package,
+  Pencil,
   RefreshCw,
   Send,
   Sparkles,
@@ -20,14 +21,23 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
+import { normalizePackageDraft, resolveApprovalStatus } from "@/lib/ai-travel-manager/draft-utils";
 import {
   canAnalyzeCompetitors,
   canApproveAIContent,
+  canEditAIDraft,
   canGenerateAIContent,
   canRecommendApproval,
   canRejectAIDraft,
@@ -83,6 +93,12 @@ export default function AITravelManagerClient() {
   const [chatInput, setChatInput] = useState("");
   const [chatReply, setChatReply] = useState("");
 
+  const [editingPackage, setEditingPackage] = useState<AIPackageDraft | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -102,7 +118,7 @@ export default function AITravelManagerClient() {
       const mergedPackages = mergePackageDrafts(
         draftsJson.data.packages ?? [],
         loadLocalPackageDrafts()
-      );
+      ).map(normalizePackageDraft);
       setDrafts({
         ...draftsJson.data,
         packages: mergedPackages,
@@ -121,10 +137,24 @@ export default function AITravelManagerClient() {
     loadAll();
   }, [loadAll]);
 
+  const updateLocalPackage = (pkg: AIPackageDraft) => {
+    const normalized = normalizePackageDraft(pkg);
+    saveLocalPackageDraft(normalized);
+    setDrafts((prev) => ({
+      competitors: prev?.competitors ?? [],
+      vehicles: prev?.vehicles ?? [],
+      hotels: prev?.hotels ?? [],
+      packages: mergePackageDrafts([normalized], prev?.packages ?? []).map(
+        normalizePackageDraft
+      ),
+    }));
+  };
+
   const draftAction = async (
     type: "package" | "vehicle" | "hotel",
     id: string,
-    action: "recommend" | "approve" | "reject" | "regenerate"
+    action: "recommend" | "approve" | "reject" | "regenerate",
+    fallbackDraft?: AIPackageDraft
   ) => {
     setBusy(true);
     try {
@@ -133,15 +163,76 @@ export default function AITravelManagerClient() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actorRole, actorId }),
+          body: JSON.stringify({
+            actorRole,
+            actorId,
+            ...(type === "package" && fallbackDraft
+              ? { fallbackDraft }
+              : {}),
+          }),
         }
       );
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Action failed");
-      toast.success(`Draft ${action} successful`);
+      if (type === "package" && json.data) {
+        updateLocalPackage(json.data as AIPackageDraft);
+      }
+      toast.success(
+        action === "approve"
+          ? "Package approved and published on website"
+          : `Draft ${action} successful`
+      );
       loadAll();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openPackageEdit = (pkg: AIPackageDraft) => {
+    setEditingPackage(normalizePackageDraft(pkg));
+    setEditTitle(localizedText(pkg.title, "en"));
+    setEditPrice(String(pkg.price));
+    setEditDescription(localizedText(pkg.description, "en"));
+    setEditDuration(String(pkg.duration));
+  };
+
+  const savePackageEdit = async () => {
+    if (!editingPackage) return;
+    setBusy(true);
+    try {
+      const updates = {
+        title: { en: editTitle, hi: editTitle },
+        price: Number(editPrice) || editingPackage.price,
+        duration: Number(editDuration) || editingPackage.duration,
+        description: { en: editDescription, hi: editDescription },
+        durationLabel: {
+          en: `${Math.max(Number(editDuration) - 1, 0)} Nights / ${editDuration} Days`,
+          hi: `${Math.max(Number(editDuration) - 1, 0)} रात / ${editDuration} दिन`,
+        },
+      };
+      const res = await fetch(
+        `/api/ai/travel-manager/drafts/package/${editingPackage.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actorRole,
+            actorId,
+            updates,
+            fallbackDraft: editingPackage,
+          }),
+        }
+      );
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Update failed");
+      updateLocalPackage(json.data as AIPackageDraft);
+      toast.success("Package draft updated");
+      setEditingPackage(null);
+      loadAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
     } finally {
       setBusy(false);
     }
@@ -356,8 +447,73 @@ export default function AITravelManagerClient() {
       ]
     : [];
 
+  const renderPackageActions = (pkg: AIPackageDraft) => {
+    const status = resolveApprovalStatus(pkg);
+    return (
+      <div className="flex flex-wrap gap-2">
+        {canEditAIDraft(actorRole, status) && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => openPackageEdit(pkg)}
+          >
+            <Pencil className="size-4" />
+            Edit
+          </Button>
+        )}
+        {canRecommendApproval(actorRole) &&
+          (status === "draft" || status === "manager_review") && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => draftAction("package", pkg.id, "recommend", pkg)}
+            >
+              Recommend Approval
+            </Button>
+          )}
+        {canApproveAIContent(actorRole) &&
+          ["draft", "manager_review", "pending_approval"].includes(status) && (
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => draftAction("package", pkg.id, "approve", pkg)}
+            >
+              <Check className="size-4" />
+              Approve & Publish
+            </Button>
+          )}
+        {canRejectAIDraft(actorRole) &&
+          status !== "published" &&
+          status !== "rejected" && (
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => draftAction("package", pkg.id, "reject", pkg)}
+            >
+              <X className="size-4" />
+              Reject
+            </Button>
+          )}
+        {canGenerateAIContent(actorRole) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => draftAction("package", pkg.id, "regenerate", pkg)}
+          >
+            <RefreshCw className="size-4" />
+            Regenerate
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   const renderDraftActions = (
-    type: "package" | "vehicle" | "hotel",
+    type: "vehicle" | "hotel",
     id: string,
     status: string
   ) => (
@@ -373,7 +529,8 @@ export default function AITravelManagerClient() {
             Recommend Approval
           </Button>
         )}
-      {canApproveAIContent(actorRole) && status === "pending_approval" && (
+      {canApproveAIContent(actorRole) &&
+        ["draft", "manager_review", "pending_approval"].includes(status) && (
         <Button
           size="sm"
           disabled={busy}
@@ -548,6 +705,17 @@ export default function AITravelManagerClient() {
 
           <TabsContent value="packages" className="space-y-6">
             {canGenerateAIContent(actorRole) && (
+              <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
+                <CardContent className="pt-6 text-sm text-muted-foreground">
+                  <strong className="text-foreground">Workflow:</strong> Generate →{" "}
+                  <strong>Edit</strong> price/details → Manager{" "}
+                  <strong>Recommend Approval</strong> → Super Admin{" "}
+                  <strong>Approve & Publish</strong> to customer website.
+                </CardContent>
+              </Card>
+            )}
+
+            {canGenerateAIContent(actorRole) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Auto Package Generator</CardTitle>
@@ -641,7 +809,9 @@ export default function AITravelManagerClient() {
                   </CardContent>
                 </Card>
               ) : (
-                drafts.packages.map((pkg) => (
+                drafts.packages.map((pkg) => {
+                  const status = resolveApprovalStatus(pkg);
+                  return (
                 <Card key={pkg.id}>
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -658,12 +828,13 @@ export default function AITravelManagerClient() {
                           </p>
                         )}
                       </div>
-                      <StatusBadge status={pkg.approvalStatus} />
+                      <StatusBadge status={status} />
                     </div>
-                    {renderDraftActions("package", pkg.id, pkg.approvalStatus)}
+                    {renderPackageActions(normalizePackageDraft(pkg))}
                   </CardContent>
                 </Card>
-                ))
+                  );
+                })
               )}
             </div>
           </TabsContent>
@@ -702,7 +873,7 @@ export default function AITravelManagerClient() {
                       </div>
                       <StatusBadge status={veh.approvalStatus} />
                     </div>
-                    {renderDraftActions("vehicle", veh.id, veh.approvalStatus)}
+                    {renderDraftActions("vehicle", veh.id, resolveApprovalStatus(veh))}
                   </CardContent>
                 </Card>
               ))}
@@ -743,7 +914,7 @@ export default function AITravelManagerClient() {
                       </div>
                       <StatusBadge status={hotel.approvalStatus} />
                     </div>
-                    {renderDraftActions("hotel", hotel.id, hotel.approvalStatus)}
+                    {renderDraftActions("hotel", hotel.id, resolveApprovalStatus(hotel))}
                   </CardContent>
                 </Card>
               ))}
@@ -783,6 +954,50 @@ export default function AITravelManagerClient() {
           )}
         </Tabs>
       </div>
+
+      <Dialog
+        open={!!editingPackage}
+        onOpenChange={(open) => !open && setEditingPackage(null)}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Package Draft</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Package Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Price (₹)</Label>
+                <Input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Duration (days)</Label>
+                <Input value={editDuration} onChange={(e) => setEditDuration(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPackage(null)}>
+              Cancel
+            </Button>
+            <Button onClick={savePackageEdit} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
