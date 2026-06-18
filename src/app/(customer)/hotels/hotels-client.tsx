@@ -21,10 +21,18 @@ export default function HotelsClient({
 }: {
   initialHotels: Hotel[];
 }) {
-  const { locale } = useAppStore();
+  const { locale, searchFilters } = useAppStore();
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [minStars, setMinStars] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchFilters.searchTab === "hotels") {
+      if (searchFilters.query || searchFilters.location) {
+        setQuery(searchFilters.query ?? searchFilters.location ?? "");
+      }
+    }
+  }, [searchFilters]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialHotels.map((h) => h.priceFrom), 20000),

@@ -23,10 +23,19 @@ export default function PackagesClient({
 }: {
   initialPackages: TourPackage[];
 }) {
-  const { locale } = useAppStore();
+  const { locale, searchFilters } = useAppStore();
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchFilters.searchTab === "packages" || searchFilters.searchTab === "flights") {
+      if (searchFilters.query) setQuery(searchFilters.query);
+      if (searchFilters.packageCategory) {
+        setSelectedCategories([searchFilters.packageCategory]);
+      }
+    }
+  }, [searchFilters]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialPackages.map((p) => p.price), 50000),

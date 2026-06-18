@@ -22,10 +22,21 @@ export default function VehiclesPage({
 }: {
   initialVehicles: Vehicle[];
 }) {
-  const { locale } = useAppStore();
+  const { locale, searchFilters } = useAppStore();
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchFilters.searchTab === "vehicles") {
+      if (searchFilters.query || searchFilters.location) {
+        setQuery(searchFilters.query ?? searchFilters.location ?? "");
+      }
+      if (searchFilters.vehicleType) {
+        setSelectedTypes([searchFilters.vehicleType]);
+      }
+    }
+  }, [searchFilters]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialVehicles.map((v) => v.pricePerDay), 20000),

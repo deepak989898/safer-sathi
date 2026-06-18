@@ -361,6 +361,15 @@ export interface SearchFilters {
   vehicleType?: VehicleType;
   packageCategory?: PackageCategory;
   starRating?: number;
+  searchTab?: "packages" | "hotels" | "vehicles" | "flights";
+  distanceKm?: number;
+  vehicleBookingMode?: "day" | "km";
+  fromCity?: string;
+  toCity?: string;
+  rooms?: number;
+  travelers?: number;
+  durationDays?: number;
+  flightClass?: "economy" | "premium" | "business";
 }
 
 export interface ChatMessage {
