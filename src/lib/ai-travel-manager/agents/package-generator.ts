@@ -76,7 +76,8 @@ export async function generatePackageDraft(
     `Write a compelling 2-sentence SEO travel package description for India.`,
     [{ role: "user", content: `${titleEn}, ${days} days, ₹${priceBreakdown.finalSellingPrice}` }],
     async () =>
-      `Discover ${destination} on this ${days}-day curated journey with hotels, transport, and guided sightseeing included.`
+      `Discover ${destination} on this ${days}-day curated journey with hotels, transport, and guided sightseeing included.`,
+    { timeoutMs: 4000, maxTokens: 200 }
   );
 
   const images = [

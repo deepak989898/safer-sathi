@@ -33,6 +33,10 @@ async function getFirebaseAdmin() {
   return import("@/lib/firebase/admin");
 }
 
+function sanitizeForFirestore<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 async function persistCollection<T extends { id: string }>(
   collection: string,
   item: T
@@ -41,7 +45,7 @@ async function persistCollection<T extends { id: string }>(
   if (!isAdminConfigured()) return;
   try {
     const db = getAdminDb();
-    await db.collection(collection).doc(item.id).set(item);
+    await db.collection(collection).doc(item.id).set(sanitizeForFirestore(item));
   } catch (error) {
     console.warn(`Firebase persist ${collection} failed:`, error);
   }

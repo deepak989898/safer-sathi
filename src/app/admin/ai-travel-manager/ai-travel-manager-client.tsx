@@ -53,7 +53,7 @@ interface DraftsData {
 export default function AITravelManagerClient() {
   const { user } = useAuth();
   const actorRole = user?.role ?? "customer";
-  const actorId = user?.id ?? user?.email ?? "admin";
+  const actorId = user?.id || user?.email || "admin";
 
   const [stats, setStats] = useState<AITravelManagerStats | null>(null);
   const [drafts, setDrafts] = useState<DraftsData | null>(null);
@@ -165,7 +165,15 @@ export default function AITravelManagerClient() {
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Generation failed");
+      if (!json.success) {
+        const detail =
+          typeof json.details === "object"
+            ? JSON.stringify(json.details)
+            : json.details;
+        throw new Error(
+          [json.error, detail].filter(Boolean).join(" — ") || "Generation failed"
+        );
+      }
       toast.success("Package draft created — awaiting manager review");
       loadAll();
     } catch (error) {
@@ -189,7 +197,15 @@ export default function AITravelManagerClient() {
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Generation failed");
+      if (!json.success) {
+        const detail =
+          typeof json.details === "object"
+            ? JSON.stringify(json.details)
+            : json.details;
+        throw new Error(
+          [json.error, detail].filter(Boolean).join(" — ") || "Generation failed"
+        );
+      }
       toast.success("Vehicle draft created");
       loadAll();
     } catch (error) {
@@ -213,7 +229,15 @@ export default function AITravelManagerClient() {
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Generation failed");
+      if (!json.success) {
+        const detail =
+          typeof json.details === "object"
+            ? JSON.stringify(json.details)
+            : json.details;
+        throw new Error(
+          [json.error, detail].filter(Boolean).join(" — ") || "Generation failed"
+        );
+      }
       toast.success("Hotel draft created");
       loadAll();
     } catch (error) {

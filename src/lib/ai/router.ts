@@ -12,14 +12,32 @@ export interface CompletionResult {
   provider: AIProvider;
 }
 
+const DEFAULT_AI_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error("AI request timed out")), ms);
+    }),
+  ]);
+}
+
 export async function routeCompletion(
   systemPrompt: string,
   messages: ChatMessage[],
-  ruleBasedFallback: () => string | Promise<string>
+  ruleBasedFallback: () => string | Promise<string>,
+  options?: { timeoutMs?: number; maxTokens?: number }
 ): Promise<CompletionResult> {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS;
+  const maxTokens = options?.maxTokens ?? 512;
+
   if (isOpenAIConfigured()) {
     try {
-      const content = await openaiChat(systemPrompt, messages);
+      const content = await withTimeout(
+        openaiChat(systemPrompt, messages, { maxTokens }),
+        timeoutMs
+      );
       return { content, provider: "openai" };
     } catch (error) {
       console.warn("OpenAI completion failed, trying fallback:", error);
@@ -28,7 +46,10 @@ export async function routeCompletion(
 
   if (isGeminiConfigured()) {
     try {
-      const content = await geminiChat(systemPrompt, messages);
+      const content = await withTimeout(
+        geminiChat(systemPrompt, messages),
+        timeoutMs
+      );
       return { content, provider: "gemini" };
     } catch (error) {
       console.warn("Gemini completion failed, using rule-based fallback:", error);

@@ -7,6 +7,8 @@ import {
 import { hydrateAITravelManagerStore } from "@/lib/ai-travel-manager/repository";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
+export const maxDuration = 30;
+
 const schema = z.object({
   actorRole: actorRoleSchema,
   destination: z.string().min(2),
@@ -44,6 +46,8 @@ export async function POST(request: Request) {
     return apiSuccess(draft, 201);
   } catch (err) {
     console.error("Generate package draft error:", err);
-    return apiError("Failed to generate package draft", 500);
+    const message =
+      err instanceof Error ? err.message : "Failed to generate package draft";
+    return apiError(message, 500);
   }
 }
