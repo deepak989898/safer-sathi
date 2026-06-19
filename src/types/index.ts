@@ -191,6 +191,19 @@ export interface Hotel {
   updatedAt: string;
 }
 
+export interface Activity {
+  id: string;
+  name: LocalizedString;
+  destination: string;
+  category: string;
+  price: number;
+  durationHours?: number;
+  available: boolean;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BusRoute {
   id: string;
   operator: string;
@@ -393,5 +406,6 @@ export interface ChatMessage {
   content: string;
   packages?: TourPackage[];
   vehicles?: Vehicle[];
+  hotels?: Hotel[];
   timestamp: string;
 }

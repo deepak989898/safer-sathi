@@ -30,6 +30,7 @@ const createSchema = z.object({
   distanceKm: z.number().positive().optional(),
   userId: z.string().optional(),
   notes: z.string().optional(),
+  aiProcessed: z.boolean().optional(),
 });
 
 export async function GET(request: Request) {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       paidAmount: 0,
       status: "pending",
       paymentStatus: "pending",
-      aiProcessed: false,
+      aiProcessed: parsed.data.aiProcessed ?? false,
       notes: parsed.data.notes,
       createdAt: now,
       updatedAt: now,

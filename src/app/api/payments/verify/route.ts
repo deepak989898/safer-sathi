@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { updateBooking } from "@/lib/data-service";
+import { sendEmail } from "@/lib/notifications/email";
+import { sendSMS } from "@/lib/notifications/sms";
+import { sendWhatsApp } from "@/lib/notifications/whatsapp";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -9,6 +12,9 @@ const schema = z.object({
   razorpaySignature: z.string().min(1),
   bookingId: z.string().optional(),
   amount: z.number().positive().optional(),
+  customerName: z.string().optional(),
+  customerEmail: z.string().optional(),
+  customerPhone: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -37,6 +43,27 @@ export async function POST(request: Request) {
         paidAmount: parsed.data.amount,
         status: "confirmed",
       });
+
+      const { customerEmail, customerPhone, customerName, bookingId, amount } = parsed.data;
+      if (customerEmail || customerPhone) {
+        const msg = `Safar Sathi: Booking confirmed! Amount paid: ₹${(amount ?? 0).toLocaleString("en-IN")}. Thank you ${customerName ?? ""}!`;
+        const notifyTasks = [];
+        if (customerEmail) {
+          notifyTasks.push(
+            sendEmail({
+              to: customerEmail,
+              subject: "Safar Sathi — Booking Confirmed",
+              text: msg,
+              html: `<p>${msg}</p><p>Your invoice will be shared shortly.</p>`,
+            })
+          );
+        }
+        if (customerPhone) {
+          notifyTasks.push(sendSMS({ to: customerPhone, message: msg }));
+          notifyTasks.push(sendWhatsApp({ to: customerPhone, message: msg }));
+        }
+        await Promise.allSettled(notifyTasks);
+      }
     }
 
     return apiSuccess({
