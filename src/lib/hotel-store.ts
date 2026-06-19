@@ -1,7 +1,7 @@
 import {
   deleteCatalogItem,
-  loadCatalogCollection,
   persistCatalogItem,
+  persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedHotels } from "@/data/seed-catalog";
@@ -9,6 +9,7 @@ import { getHotelsSeed } from "@/data/hotels-seed";
 import type { Hotel } from "@/types";
 
 const HOTELS_COLLECTION = "hotels";
+const LEGACY_DEMO_HOTEL_IDS = ["h1", "h2", "h3"];
 
 let hotelsStore: Hotel[] = [];
 let hydratePromise: Promise<void> | null = null;
@@ -88,13 +89,23 @@ export function resetHotelsStore(): void {
   hydratePromise = null;
 }
 
+export async function reloadHotelsStore(): Promise<void> {
+  resetHotelsStore();
+  await hydrateHotelsStore();
+}
+
 /** Upsert all 60 professional hotels into Firestore (admin seed action). */
 export async function seedHotels(): Promise<Hotel[]> {
-  await hydrateHotelsStore();
   const hotels = getHotelsSeed();
-  const saved: Hotel[] = [];
-  for (const hotel of hotels) {
-    saved.push(await upsertHotelInStore(hotel));
+  await persistCatalogItemsBatch(HOTELS_COLLECTION, hotels);
+  await reloadHotelsStore();
+
+  for (const id of LEGACY_DEMO_HOTEL_IDS) {
+    const existing = getHotelByIdAdmin(id);
+    if (existing?.available) {
+      await upsertHotelInStore({ ...existing, available: false, status: "inactive" });
+    }
   }
-  return saved;
+
+  return getAdminHotels();
 }

@@ -44,9 +44,11 @@ export async function POST(request: Request) {
         return apiError("Only admin and manager can seed packages", 403);
       }
       const saved = await seedTourPackages();
+      const published = saved.filter((p) => p.publishStatus === "published").length;
       return apiSuccess({
-        message: `Seeded ${saved.length} tour packages`,
+        message: `Seeded ${saved.length} packages (${published} published on website)`,
         count: saved.length,
+        published,
         expected: TOUR_PACKAGES_COUNT,
       });
     }

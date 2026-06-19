@@ -41,9 +41,11 @@ export async function POST(request: Request) {
         return apiError("Only admin and manager can seed vehicles", 403);
       }
       const saved = await seedVehicles();
+      const published = saved.filter((v) => v.available).length;
       return apiSuccess({
-        message: `Seeded ${saved.length} vehicles`,
+        message: `Seeded ${saved.length} vehicles (${published} active on website)`,
         count: saved.length,
+        published,
         expected: VEHICLES_SEED_COUNT,
       });
     }

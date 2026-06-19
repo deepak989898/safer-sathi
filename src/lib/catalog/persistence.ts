@@ -33,6 +33,29 @@ export async function persistCatalogItem<T extends { id: string }>(
     await db.collection(collection).doc(item.id).set(sanitizeForFirestore(item));
   } catch (error) {
     console.warn(`Firebase persist ${collection} failed:`, error);
+    throw error;
+  }
+}
+
+/** Batch-write catalog items (used by admin seed actions). */
+export async function persistCatalogItemsBatch<T extends { id: string }>(
+  collection: string,
+  items: T[]
+): Promise<void> {
+  if (!isAdminEnvConfigured()) return;
+
+  const db = await getSafeAdminDb();
+  if (!db) return;
+
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = items.slice(i, i + BATCH_SIZE);
+    for (const item of chunk) {
+      const ref = db.collection(collection).doc(item.id);
+      batch.set(ref, sanitizeForFirestore(item));
+    }
+    await batch.commit();
   }
 }
 

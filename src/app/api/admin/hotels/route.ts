@@ -41,9 +41,11 @@ export async function POST(request: Request) {
         return apiError("Only admin and manager can seed hotels", 403);
       }
       const saved = await seedHotels();
+      const published = saved.filter((h) => h.available).length;
       return apiSuccess({
-        message: `Seeded ${saved.length} hotels`,
+        message: `Seeded ${saved.length} hotels (${published} active on website)`,
         count: saved.length,
+        published,
         expected: HOTELS_SEED_COUNT,
       });
     }

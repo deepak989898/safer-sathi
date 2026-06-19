@@ -1,6 +1,7 @@
 import {
   deleteCatalogItem,
   persistCatalogItem,
+  persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedPackages } from "@/data/seed-catalog";
@@ -8,6 +9,7 @@ import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { PackagePublishStatus, TourPackage } from "@/types";
 
 const PACKAGES_COLLECTION = "packages";
+const LEGACY_DEMO_PACKAGE_IDS = ["p1", "p2", "p3", "p4"];
 
 let packagesStore: TourPackage[] = [];
 let hydratePromise: Promise<void> | null = null;
@@ -135,13 +137,23 @@ export async function publishPackageToWebsite(pkg: TourPackage): Promise<TourPac
   });
 }
 
+export async function reloadPackagesStore(): Promise<void> {
+  resetPackagesStore();
+  await hydratePackagesStore();
+}
+
 /** Upsert all 20 professional tour packages into Firestore (admin seed action). */
 export async function seedTourPackages(): Promise<TourPackage[]> {
-  await hydratePackagesStore();
   const packages = getTourPackagesSeed();
-  const saved: TourPackage[] = [];
-  for (const pkg of packages) {
-    saved.push(await upsertPackageInStore(pkg));
+  await persistCatalogItemsBatch(PACKAGES_COLLECTION, packages);
+  await reloadPackagesStore();
+
+  for (const id of LEGACY_DEMO_PACKAGE_IDS) {
+    const existing = getPackageByIdAdmin(id);
+    if (existing && existing.publishStatus === "published") {
+      await upsertPackageInStore({ ...existing, publishStatus: "draft" });
+    }
   }
-  return saved;
+
+  return getAdminPackages();
 }

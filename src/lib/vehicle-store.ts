@@ -1,6 +1,7 @@
 import {
   deleteCatalogItem,
   persistCatalogItem,
+  persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedVehicles } from "@/data/seed-catalog";
@@ -8,6 +9,7 @@ import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
 
 const VEHICLES_COLLECTION = "vehicles";
+const LEGACY_DEMO_VEHICLE_IDS = ["v1", "v2", "v3", "v4", "v5", "v6"];
 
 let vehiclesStore: Vehicle[] = [];
 let hydratePromise: Promise<void> | null = null;
@@ -88,13 +90,23 @@ export function resetVehiclesStore(): void {
   hydratePromise = null;
 }
 
+export async function reloadVehiclesStore(): Promise<void> {
+  resetVehiclesStore();
+  await hydrateVehiclesStore();
+}
+
 /** Upsert all 30 professional vehicles into Firestore (admin seed action). */
 export async function seedVehicles(): Promise<Vehicle[]> {
-  await hydrateVehiclesStore();
   const vehicles = getVehiclesSeed();
-  const saved: Vehicle[] = [];
-  for (const vehicle of vehicles) {
-    saved.push(await upsertVehicleInStore(vehicle));
+  await persistCatalogItemsBatch(VEHICLES_COLLECTION, vehicles);
+  await reloadVehiclesStore();
+
+  for (const id of LEGACY_DEMO_VEHICLE_IDS) {
+    const existing = getVehicleByIdAdmin(id);
+    if (existing?.available) {
+      await upsertVehicleInStore({ ...existing, available: false, status: "inactive" });
+    }
   }
-  return saved;
+
+  return getAdminVehicles();
 }
