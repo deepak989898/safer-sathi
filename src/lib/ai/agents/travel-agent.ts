@@ -1,5 +1,4 @@
-import { demoPackages, demoVehicles } from "@/data/demo-data";
-import { getPackages, getVehicles } from "@/lib/data-service";
+import { getBookings, getPackages, getVehicles } from "@/lib/data-service";
 import type { TourPackage, Vehicle } from "@/types";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
@@ -62,32 +61,36 @@ function ruleBasedTravelReply(
     : `Welcome to Safar Sathi! I can help plan your trip. Popular packages: ${featured.map((p) => p.title.en).join(", ")}. Tell me your budget and destination preferences.`;
 }
 
-function getRecommendations(message: string): TravelRecommendation {
+function getRecommendations(
+  message: string,
+  packages: TourPackage[],
+  vehicles: Vehicle[]
+): TravelRecommendation {
   const q = message.toLowerCase();
-  let packages = [...demoPackages];
-  let vehicles = [...demoVehicles];
+  let filteredPackages = [...packages];
+  let filteredVehicles = [...vehicles];
 
   if (q.includes("honeymoon")) {
-    packages = packages.filter((p) => p.category === "honeymoon");
+    filteredPackages = filteredPackages.filter((p) => p.category === "honeymoon");
   } else if (q.includes("adventure") || q.includes("trek")) {
-    packages = packages.filter((p) => p.category === "adventure");
+    filteredPackages = filteredPackages.filter((p) => p.category === "adventure");
   } else if (q.includes("religious") || q.includes("pilgrim") || q.includes("dharam")) {
-    packages = packages.filter((p) => p.category === "religious");
+    filteredPackages = filteredPackages.filter((p) => p.category === "religious");
   } else if (q.includes("vehicle") || q.includes("car") || q.includes("suv")) {
-    packages = [];
-    vehicles = vehicles.filter((v) => v.type === "suv" || v.type === "car");
+    filteredPackages = [];
+    filteredVehicles = filteredVehicles.filter((v) => v.type === "suv" || v.type === "car");
   }
 
   return {
-    packages: packages.slice(0, 3),
-    vehicles: vehicles.slice(0, 3),
+    packages: filteredPackages.slice(0, 3),
+    vehicles: filteredVehicles.slice(0, 3),
   };
 }
 
 export async function runTravelAgent(input: TravelAgentInput): Promise<TravelAgentResult> {
   const locale = input.locale ?? "en";
   const [packages, vehicles] = await Promise.all([getPackages(), getVehicles()]);
-  const recommendations = getRecommendations(input.message);
+  const recommendations = getRecommendations(input.message, packages, vehicles);
 
   const contextNote = `Available packages: ${packages.map((p) => `${p.title.en} (₹${p.price})`).join("; ")}. Vehicles: ${vehicles.map((v) => `${v.name.en} (₹${v.pricePerDay}/day)`).join("; ")}.`;
 

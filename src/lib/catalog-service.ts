@@ -1,12 +1,8 @@
 import {
-  demoBlogPosts,
-  demoBusRoutes,
-  demoReviews,
-} from "@/data/demo-data";
-import {
   getAllPublishedHotelSlugs,
   getHotelBySlugPublished,
   getPublishedHotels,
+  hydrateHotelsStore,
 } from "@/lib/hotel-store";
 import {
   getAllPublishedPackageSlugs,
@@ -19,10 +15,12 @@ import {
   getAllPublishedVehicleIds,
   getPublishedVehicles,
   getVehicleByIdPublished,
+  hydrateVehiclesStore,
 } from "@/lib/vehicle-store";
-import type { BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
+import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
+  await hydrateVehiclesStore();
   let results = getPublishedVehicles();
   if (filters?.vehicleType) {
     results = results.filter((v) => v.type === filters.vehicleType);
@@ -46,6 +44,7 @@ export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
 }
 
 export async function getVehicleById(id: string): Promise<Vehicle | null> {
+  await hydrateVehiclesStore();
   return getVehicleByIdPublished(id);
 }
 
@@ -83,6 +82,7 @@ export async function getPackageById(id: string): Promise<TourPackage | null> {
 }
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
+  await hydrateHotelsStore();
   let results = getPublishedHotels();
   if (filters?.starRating) {
     results = results.filter((h) => h.starRating >= filters.starRating!);
@@ -105,26 +105,24 @@ export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
 }
 
 export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
+  await hydrateHotelsStore();
   return getHotelBySlugPublished(slug);
 }
 
 export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute[]> {
-  let results = [...demoBusRoutes];
-  if (from) results = results.filter((b) => b.from.toLowerCase().includes(from.toLowerCase()));
-  if (to) results = results.filter((b) => b.to.toLowerCase().includes(to.toLowerCase()));
-  return results;
+  return [];
 }
 
-export async function getBlogPosts() {
-  return demoBlogPosts;
+export async function getBlogPosts(): Promise<BlogPost[]> {
+  return [];
 }
 
-export async function getBlogPostBySlug(slug: string) {
-  return demoBlogPosts.find((p) => p.slug === slug) ?? null;
+export async function getBlogPostBySlug(_slug: string): Promise<BlogPost | null> {
+  return null;
 }
 
 export async function getReviews() {
-  return demoReviews;
+  return [];
 }
 
 export async function getAllPackageSlugs() {
@@ -132,14 +130,16 @@ export async function getAllPackageSlugs() {
   return getAllPublishedPackageSlugs();
 }
 
-export function getAllVehicleIds() {
+export async function getAllVehicleIds() {
+  await hydrateVehiclesStore();
   return getAllPublishedVehicleIds();
 }
 
-export function getAllHotelSlugs() {
+export async function getAllHotelSlugs() {
+  await hydrateHotelsStore();
   return getAllPublishedHotelSlugs();
 }
 
 export function getAllBlogSlugs() {
-  return demoBlogPosts.map((p) => p.slug);
+  return [];
 }

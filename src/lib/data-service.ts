@@ -1,8 +1,5 @@
-import {
-  demoAnalytics,
-  demoBookings as initialDemoBookings,
-  demoUsers,
-} from "@/data/demo-data";
+import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { listAllUsers } from "@/lib/auth/auth-service";
 import type { Booking, User } from "@/types";
 
 export {
@@ -19,45 +16,50 @@ export {
   getVehicles,
 } from "@/lib/catalog-service";
 
-let demoBookingsStore: Booking[] = [...initialDemoBookings];
-
-async function getFirebaseAdmin() {
-  return import("@/lib/firebase/admin");
+async function getAdminDb() {
+  if (!isAdminEnvConfigured()) return null;
+  return getSafeAdminDb();
 }
 
 export async function getBookings(userId?: string): Promise<Booking[]> {
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
+  const db = await getAdminDb();
+  if (!db) return [];
 
-  if (isAdminConfigured()) {
+  try {
+    let query = db.collection("bookings").orderBy("createdAt", "desc").limit(500);
+    if (userId) {
+      query = db
+        .collection("bookings")
+        .where("userId", "==", userId)
+        .limit(500) as typeof query;
+    }
+    const snapshot = await query.get();
+    return snapshot.docs.map((doc) => doc.data() as Booking);
+  } catch (error) {
+    console.warn("Firebase getBookings failed:", error);
     try {
-      const db = getAdminDb();
-      let query = db.collection("bookings").orderBy("createdAt", "desc");
-      if (userId) query = query.where("userId", "==", userId) as typeof query;
-      const snapshot = await query.get();
-      return snapshot.docs.map((doc) => doc.data() as Booking);
-    } catch (error) {
-      console.warn("Firebase getBookings failed, using demo data:", error);
+      const db2 = await getAdminDb();
+      if (!db2) return [];
+      const snap = await db2.collection("bookings").limit(500).get();
+      const all = snap.docs.map((doc) => doc.data() as Booking);
+      return userId ? all.filter((b) => b.userId === userId) : all;
+    } catch {
+      return [];
     }
   }
-
-  if (userId) return demoBookingsStore.filter((b) => b.userId === userId);
-  return demoBookingsStore;
 }
 
 export async function getBookingById(id: string): Promise<Booking | null> {
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
+  const db = await getAdminDb();
+  if (!db) return null;
 
-  if (isAdminConfigured()) {
-    try {
-      const db = getAdminDb();
-      const doc = await db.collection("bookings").doc(id).get();
-      if (doc.exists) return doc.data() as Booking;
-    } catch (error) {
-      console.warn("Firebase getBookingById failed, using demo data:", error);
-    }
+  try {
+    const doc = await db.collection("bookings").doc(id).get();
+    if (doc.exists) return doc.data() as Booking;
+  } catch (error) {
+    console.warn("Firebase getBookingById failed:", error);
   }
-
-  return demoBookingsStore.find((b) => b.id === id) ?? null;
+  return null;
 }
 
 export async function createBooking(
@@ -68,19 +70,16 @@ export async function createBooking(
     id: booking.id ?? `bk_${Date.now()}`,
   };
 
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
-
-  if (isAdminConfigured()) {
+  const db = await getAdminDb();
+  if (db) {
     try {
-      const db = getAdminDb();
       await db.collection("bookings").doc(entry.id).set(entry);
       return entry;
     } catch (error) {
-      console.warn("Firebase createBooking failed, using demo store:", error);
+      console.warn("Firebase createBooking failed:", error);
     }
   }
 
-  demoBookingsStore.unshift(entry);
   return entry;
 }
 
@@ -91,36 +90,29 @@ export async function updateBooking(
   const existing = await getBookingById(id);
   if (!existing) return null;
 
-  const updated: Booking = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
+  const updated: Booking = {
+    ...existing,
+    ...updates,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
 
-  const { isAdminConfigured, getAdminDb } = await getFirebaseAdmin();
-
-  if (isAdminConfigured()) {
+  const db = await getAdminDb();
+  if (db) {
     try {
-      const db = getAdminDb();
       const { id: _id, ...updateFields } = updated;
-      await db.collection("bookings").doc(id).update(updateFields);
+      await db.collection("bookings").doc(id).set(updated);
       return updated;
     } catch (error) {
-      console.warn("Firebase updateBooking failed, using demo store:", error);
+      console.warn("Firebase updateBooking failed:", error);
     }
   }
 
-  const index = demoBookingsStore.findIndex((b) => b.id === id);
-  if (index >= 0) demoBookingsStore[index] = updated;
   return updated;
 }
 
-export function resetDemoBookings(): void {
-  demoBookingsStore = [...initialDemoBookings];
-}
-
 export async function getUsers(): Promise<User[]> {
-  return demoUsers;
-}
-
-export async function getAnalytics() {
-  return demoAnalytics;
+  return listAllUsers();
 }
 
 export function generateBookingNumber(): string {

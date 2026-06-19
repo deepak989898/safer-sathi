@@ -1,4 +1,4 @@
-import { demoPackages } from "@/data/demo-data";
+import { getPackages } from "@/lib/data-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -35,10 +35,26 @@ export interface SEOAgentResult {
   provider: AIProvider;
 }
 
-function ruleBasedSEO(input: SEOAgentInput): { meta: SEOMetaTags; schema: SEOSchema } {
+async function ruleBasedSEO(input: SEOAgentInput): Promise<{ meta: SEOMetaTags; schema: SEOSchema }> {
+  const packages = await getPackages();
   const pkg = input.slug
-    ? demoPackages.find((p) => p.slug === input.slug) ?? demoPackages[0]
-    : demoPackages[0];
+    ? packages.find((p) => p.slug === input.slug) ?? packages[0]
+    : packages[0];
+
+  if (!pkg) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://safarsathi.com";
+    return {
+      meta: {
+        title: input.title ?? "Safar Sathi Travel",
+        description: input.description ?? "Book tours across India with Safar Sathi.",
+        keywords: ["travel india", "safar sathi"],
+        ogTitle: input.title ?? "Safar Sathi",
+        ogDescription: input.description ?? "Book tours across India",
+        canonicalUrl: baseUrl,
+      },
+      schema: { "@context": "https://schema.org", "@type": "WebPage", name: "Safar Sathi" },
+    };
+  }
 
   const title = input.title ?? pkg.title.en;
   const description =
@@ -100,11 +116,11 @@ export async function runSEOAgent(input: SEOAgentInput): Promise<SEOAgentResult>
     { role: "user", content: JSON.stringify(input) },
   ];
 
-  const fallback = ruleBasedSEO(input);
+  const fallback = await ruleBasedSEO(input);
   const { content: raw, provider } = await routeCompletion(
     SYSTEM_PROMPT,
     messages,
-    () => JSON.stringify(fallback)
+    async () => JSON.stringify(await ruleBasedSEO(input))
   );
 
   if (provider === "rule-based") {

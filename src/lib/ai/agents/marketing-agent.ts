@@ -1,4 +1,4 @@
-import { demoBlogPosts, demoPackages } from "@/data/demo-data";
+import { getPackages } from "@/lib/data-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -24,10 +24,19 @@ export interface MarketingAgentResult {
   provider: AIProvider;
 }
 
-function ruleBasedMarketing(input: MarketingAgentInput): MarketingContent {
+async function ruleBasedMarketing(input: MarketingAgentInput): Promise<MarketingContent> {
   const isHi = input.locale === "hi";
-  const featured = demoPackages.find((p) => p.featured) ?? demoPackages[0];
-  const existingBlog = demoBlogPosts[0];
+  const packages = await getPackages();
+  const featured = packages.find((p) => p.featured) ?? packages[0];
+  if (!featured) {
+    return {
+      title: input.topic,
+      body: `Discover ${input.topic} with Safar Sathi.`,
+      hashtags: ["#SafarSathi", "#TravelIndia"],
+      callToAction: "Book your journey today!",
+    };
+  }
+  const existingBlog = { title: { en: "Travel tips", hi: "यात्रा सुझाव" } };
 
   if (input.contentType === "blog") {
     return {
@@ -67,11 +76,11 @@ export async function runMarketingAgent(input: MarketingAgentInput): Promise<Mar
     { role: "user", content: JSON.stringify(input) },
   ];
 
-  const fallback = ruleBasedMarketing(input);
+  const fallback = await ruleBasedMarketing(input);
   const { content: raw, provider } = await routeCompletion(
     SYSTEM_PROMPT,
     messages,
-    () => JSON.stringify(fallback)
+    async () => JSON.stringify(await ruleBasedMarketing(input))
   );
 
   if (provider === "rule-based") {

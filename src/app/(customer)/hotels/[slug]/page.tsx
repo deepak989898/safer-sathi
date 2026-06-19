@@ -5,8 +5,9 @@ import {
 } from "@/lib/catalog-service";
 import { HotelDetailClient } from "./hotel-detail-client";
 
-export function generateStaticParams() {
-  return getAllHotelSlugs().map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllHotelSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export const dynamicParams = true;

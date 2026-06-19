@@ -44,7 +44,7 @@ export async function PATCH(
     await hydratePackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
-    const updated = updatePackageInStore(id, parsed.data.updates as never);
+    const updated = await updatePackageInStore(id, parsed.data.updates as never);
     return apiSuccess(updated);
   } catch (err) {
     console.error("Update package error:", err);
@@ -83,7 +83,7 @@ export async function POST(
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     if (action === "approve") {
-      const approved = approvePackageInStore(
+      const approved = await approvePackageInStore(
         id,
         parsed.data.approvedBy ?? "super_admin"
       );
@@ -91,7 +91,7 @@ export async function POST(
     }
 
     if (action === "reject") {
-      const rejected = rejectPackageInStore(id, parsed.data.reason);
+      const rejected = await rejectPackageInStore(id, parsed.data.reason);
       return apiSuccess(rejected);
     }
 

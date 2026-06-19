@@ -1,40 +1,25 @@
-import { resetDemoBookings } from "@/lib/data-service";
-import { resetDemoAuditLogs } from "@/lib/automation/audit-log";
-import {
-  demoAnalytics,
-  demoBookings,
-  demoPackages,
-  demoUsers,
-  demoVehicles,
-} from "@/data/demo-data";
+import { hydrateHotelsStore } from "@/lib/hotel-store";
+import { hydratePackagesStore } from "@/lib/package-store";
+import { hydrateVehiclesStore } from "@/lib/vehicle-store";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
-export async function POST(request: Request) {
+export async function POST() {
   if (process.env.NODE_ENV === "production") {
     return apiError("Seed endpoint is disabled in production", 403);
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const reset = searchParams.get("reset") !== "false";
-
-    if (reset) {
-      resetDemoBookings();
-      resetDemoAuditLogs();
-    }
+    await Promise.all([
+      hydratePackagesStore(),
+      hydrateVehiclesStore(),
+      hydrateHotelsStore(),
+    ]);
 
     return apiSuccess({
-      message: "Demo data seeded successfully",
-      counts: {
-        vehicles: demoVehicles.length,
-        packages: demoPackages.length,
-        bookings: demoBookings.length,
-        users: demoUsers.length,
-      },
-      analytics: demoAnalytics,
+      message: "Catalog hydrated from Firestore (seed data applied if collections were empty)",
     });
   } catch (err) {
     console.error("Seed error:", err);
-    return apiError("Failed to seed demo data", 500);
+    return apiError("Failed to seed catalog", 500);
   }
 }

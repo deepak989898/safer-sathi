@@ -16,9 +16,67 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { demoAIAgents } from "@/data/demo-data";
 import { localizedText } from "@/lib/i18n";
-import type { AIAgentType } from "@/types";
+import type { AIAgent, AIAgentType } from "@/types";
+
+const agentCatalog: AIAgent[] = [
+  {
+    id: "travel",
+    name: { en: "Travel Agent", hi: "यात्रा एजेंट" },
+    description: { en: "Trip planning and package recommendations", hi: "यात्रा योजना" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "support",
+    name: { en: "Support Agent", hi: "सहायता एजेंट" },
+    description: { en: "Customer support and booking help", hi: "ग्राहक सहायता" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "sales",
+    name: { en: "Sales Agent", hi: "बिक्री एजेंट" },
+    description: { en: "Lead follow-ups and conversions", hi: "लीड फॉलो-अप" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "marketing",
+    name: { en: "Marketing Agent", hi: "मार्केटिंग एजेंट" },
+    description: { en: "Blog and social content generation", hi: "कंटेंट जनरेशन" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "analytics",
+    name: { en: "Analytics Agent", hi: "एनालिटिक्स एजेंट" },
+    description: { en: "Business insights from live data", hi: "व्यापार विश्लेषण" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "fraud",
+    name: { en: "Fraud Agent", hi: "धोखाधड़ी एजेंट" },
+    description: { en: "Booking risk checks", hi: "बुकिंग जोखिम जांच" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+  {
+    id: "market_packages",
+    name: { en: "Market Packages", hi: "मार्केट पैकेज" },
+    description: { en: "AI package drafts from market research", hi: "AI पैकेज ड्राफ्ट" },
+    status: "active",
+    successRate: 0,
+    tasksHandled: 0,
+  },
+];
 
 const agentIcons: Record<AIAgentType, ElementType> = {
   travel: Bot,
@@ -42,7 +100,7 @@ export default function AIAgentsPage() {
         adminName="Rajesh Kumar"
       />
       <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
-        {demoAIAgents.map((agent) => {
+        {agentCatalog.map((agent) => {
           const Icon = agentIcons[agent.id] ?? Bot;
           return (
             <Card key={agent.id} className="shadow-sm">
@@ -65,26 +123,14 @@ export default function AIAgentsPage() {
                 </p>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Success Rate</span>
-                    <span className="font-medium">{agent.successRate}%</span>
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="font-medium">Ready</span>
                   </div>
-                  <Progress value={agent.successRate} className="h-2" />
+                  <Progress value={100} className="h-2" />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tasks Handled</span>
-                  <span className="font-medium">{agent.tasksHandled.toLocaleString("en-IN")}</span>
-                </div>
-                {agent.lastRun && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Last Run</span>
-                    <span className="font-medium">
-                      {new Date(agent.lastRun).toLocaleString("en-IN", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </span>
-                  </div>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Metrics will populate as agents handle real tasks.
+                </p>
               </CardContent>
               <CardFooter>
                 <Button variant="outline" className="w-full">

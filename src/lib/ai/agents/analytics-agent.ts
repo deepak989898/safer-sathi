@@ -1,5 +1,4 @@
-import { demoAnalytics, demoBookings, demoPackages } from "@/data/demo-data";
-import { getAnalytics } from "@/lib/data-service";
+import { getAdminAnalytics } from "@/lib/analytics-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -15,61 +14,62 @@ export interface AnalyticsInsight {
 }
 
 export interface AnalyticsAgentResult {
-  snapshot: typeof demoAnalytics;
+  snapshot: Awaited<ReturnType<typeof getAdminAnalytics>>;
   insights: AnalyticsInsight[];
   summary: string;
   provider: AIProvider;
 }
 
-function ruleBasedInsights(): AnalyticsInsight[] {
-  const analytics = demoAnalytics;
-  const topDest = analytics.topDestinations[0];
-  const latestRevenue = analytics.revenueByMonth[analytics.revenueByMonth.length - 1];
-  const prevRevenue = analytics.revenueByMonth[analytics.revenueByMonth.length - 2];
-  const revenueChange = ((latestRevenue.revenue - prevRevenue.revenue) / prevRevenue.revenue) * 100;
+function ruleBasedInsights(
+  snapshot: Awaited<ReturnType<typeof getAdminAnalytics>>
+): AnalyticsInsight[] {
+  const topDest = snapshot.topDestinations[0];
+  const latestRevenue = snapshot.revenueByMonth[snapshot.revenueByMonth.length - 1];
+  const prevRevenue = snapshot.revenueByMonth[snapshot.revenueByMonth.length - 2] ?? latestRevenue;
+  const revenueChange =
+    prevRevenue.revenue > 0
+      ? ((latestRevenue.revenue - prevRevenue.revenue) / prevRevenue.revenue) * 100
+      : 0;
 
-  const pendingBookings = demoBookings.filter((b) => b.paymentStatus === "partial").length;
-  const topPackage = demoPackages.find((p) => p.featured);
+  const pendingBookings = snapshot.recentBookings.filter(
+    (b) => b.paymentStatus === "partial"
+  ).length;
 
   return [
     {
       category: "revenue",
       title: "Monthly Revenue Trend",
-      insight: `June revenue ₹${latestRevenue.revenue.toLocaleString("en-IN")} (${revenueChange >= 0 ? "+" : ""}${revenueChange.toFixed(1)}% vs May). Total YTD: ₹${analytics.totalRevenue.toLocaleString("en-IN")}.`,
+      insight: `Latest month revenue ₹${latestRevenue.revenue.toLocaleString("en-IN")} (${revenueChange >= 0 ? "+" : ""}${revenueChange.toFixed(1)}% vs prior month). Total: ₹${snapshot.totalRevenue.toLocaleString("en-IN")}.`,
       impact: "high",
-      recommendation: revenueChange < 0
-        ? "Launch monsoon promotions for Kerala and Goa packages to boost June-July bookings."
-        : "Maintain momentum with early-bird discounts on top destinations.",
+      recommendation:
+        revenueChange < 0
+          ? "Launch promotions on top destinations to boost bookings."
+          : "Maintain momentum with early-bird discounts.",
     },
     {
       category: "demand",
       title: "Top Destination Demand",
-      insight: `${topDest.name} leads with ${topDest.count} bookings, followed by Goa (${analytics.topDestinations[1].count}).`,
+      insight: topDest
+        ? `${topDest.name} leads with ${topDest.count} packages.`
+        : "Add more destination packages to track demand.",
       impact: "high",
-      recommendation: `Increase vehicle inventory and hotel partnerships in ${topDest.name}.`,
+      recommendation: topDest
+        ? `Increase inventory and partnerships in ${topDest.name}.`
+        : "Publish packages for Goa, Kerala, and Rajasthan.",
     },
     {
       category: "bookings",
-      title: "Conversion & Pipeline",
-      insight: `Conversion rate ${analytics.conversionRate}%. ${pendingBookings} bookings with partial payment awaiting completion.`,
+      title: "Booking Pipeline",
+      insight: `${snapshot.totalBookings} total bookings. ${pendingBookings} with partial payment.`,
       impact: "medium",
-      recommendation: "Trigger automated WhatsApp reminders for partial-payment bookings within 24 hours.",
-    },
-    {
-      category: "marketing",
-      title: "Featured Package Performance",
-      insight: topPackage
-        ? `"${topPackage.title.en}" is featured with ${topPackage.reviewCount} reviews and ${topPackage.rating}★ rating.`
-        : "No featured package data available.",
-      impact: "medium",
-      recommendation: "Promote Golden Triangle and Kerala honeymoon packages in social campaigns.",
+      recommendation: "Send payment reminders for partial bookings within 24 hours.",
     },
     {
       category: "operations",
       title: "Fleet Utilization",
-      insight: `${analytics.activeVehicles} active vehicles serving ${analytics.totalCustomers} customers across ${analytics.totalBookings} bookings.`,
+      insight: `${snapshot.activeVehicles} active vehicles serving ${snapshot.totalCustomers} customers.`,
       impact: "low",
-      recommendation: "Review tempo traveller demand for group tours in peak season (Oct–Mar).",
+      recommendation: "Review vehicle availability before peak season.",
     },
   ];
 }
@@ -82,13 +82,16 @@ function ruleBasedSummary(insights: AnalyticsInsight[]): string {
 }
 
 export async function runAnalyticsAgent(): Promise<AnalyticsAgentResult> {
-  const snapshot = await getAnalytics();
-  const insights = ruleBasedInsights();
+  const snapshot = await getAdminAnalytics();
+  const insights = ruleBasedInsights(snapshot);
 
   const messages: ChatMessage[] = [
     {
       role: "user",
-      content: JSON.stringify({ snapshot, recentBookings: demoBookings.length }),
+      content: JSON.stringify({
+        snapshot,
+        recentBookings: snapshot.recentBookings.length,
+      }),
     },
   ];
 

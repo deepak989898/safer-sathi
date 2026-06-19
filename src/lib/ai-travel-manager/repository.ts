@@ -117,8 +117,8 @@ function mapApprovalToPublishStatus(
   return "draft";
 }
 
-function syncPackageDraftToAdminStore(draft: AIPackageDraft): void {
-  upsertPackageInStore({
+async function syncPackageDraftToAdminStore(draft: AIPackageDraft): Promise<void> {
+  await upsertPackageInStore({
     ...draft,
     publishStatus: mapApprovalToPublishStatus(draft.approvalStatus),
     proposedBy: "ai_market_agent",
@@ -150,7 +150,7 @@ export function getCompetitorById(id: string): AICompetitorData | null {
 // --- Package drafts ---
 export async function savePackageDraft(draft: AIPackageDraft): Promise<AIPackageDraft> {
   packageDrafts = [draft, ...packageDrafts.filter((p) => p.id !== draft.id)];
-  syncPackageDraftToAdminStore(draft);
+  await syncPackageDraftToAdminStore(draft);
   await persistCollection(AI_COLLECTIONS.packageDrafts, draft);
   trackAIUsage();
   return draft;
@@ -278,7 +278,7 @@ export async function publishVehicleDraft(
   const draft = getVehicleDraftById(id);
   if (!draft) return null;
 
-  publishVehicle({
+  await publishVehicle({
     id: draft.id.replace("ai_veh_", "veh_"),
     name: draft.name,
     type: draft.type,
@@ -375,7 +375,7 @@ export async function publishHotelDraft(
     updatedAt: new Date().toISOString(),
   };
 
-  publishHotel(hotel);
+  await publishHotel(hotel);
 
   return saveHotelDraft({
     ...draft,

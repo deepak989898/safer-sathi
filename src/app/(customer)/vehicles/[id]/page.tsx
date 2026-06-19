@@ -5,8 +5,9 @@ import {
 } from "@/lib/catalog-service";
 import { VehicleDetailClient } from "./vehicle-detail-client";
 
-export function generateStaticParams() {
-  return getAllVehicleIds().map((id) => ({ id }));
+export async function generateStaticParams() {
+  const ids = await getAllVehicleIds();
+  return ids.map((id) => ({ id }));
 }
 
 export const dynamicParams = true;

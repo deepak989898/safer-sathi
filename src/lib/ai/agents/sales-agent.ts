@@ -1,4 +1,4 @@
-import { demoUsers } from "@/data/demo-data";
+import { listAllUsers } from "@/lib/auth/auth-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -57,7 +57,8 @@ function ruleBasedFollowUps(input: SalesAgentInput): SalesFollowUp[] {
 }
 
 export async function runSalesAgent(input: SalesAgentInput): Promise<SalesAgentResult> {
-  const existingUser = demoUsers.find(
+  const users = await listAllUsers();
+  const existingUser = users.find(
     (u) => u.email === input.leadEmail || u.name === input.leadName
   );
 

@@ -1,4 +1,5 @@
-import { demoBookings, demoUsers } from "@/data/demo-data";
+import { getBookings } from "@/lib/data-service";
+import { listAllUsers } from "@/lib/auth/auth-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -30,11 +31,14 @@ export interface FraudAgentResult {
   approved: boolean;
 }
 
-function ruleBasedFraudCheck(input: FraudCheckInput): Omit<FraudAgentResult, "provider"> {
+async function ruleBasedFraudCheck(
+  input: FraudCheckInput
+): Promise<Omit<FraudAgentResult, "provider">> {
   const signals: FraudSignal[] = [];
   let riskScore = 0;
 
-  const user = demoUsers.find(
+  const users = await listAllUsers();
+  const user = users.find(
     (u) => u.email === input.customerEmail || u.phone === input.customerPhone
   );
 
@@ -54,7 +58,8 @@ function ruleBasedFraudCheck(input: FraudCheckInput): Omit<FraudAgentResult, "pr
     riskScore += 15;
   }
 
-  const recentFromEmail = demoBookings.filter((b) => b.customerEmail === input.customerEmail).length;
+  const bookings = await getBookings();
+  const recentFromEmail = bookings.filter((b) => b.customerEmail === input.customerEmail).length;
   if (recentFromEmail > 5) {
     signals.push({ signal: "High booking frequency from email", severity: "medium", score: 20 });
     riskScore += 20;
@@ -98,7 +103,7 @@ function ruleBasedFraudCheck(input: FraudCheckInput): Omit<FraudAgentResult, "pr
 }
 
 export async function runFraudAgent(input: FraudCheckInput): Promise<FraudAgentResult> {
-  const fallback = ruleBasedFraudCheck(input);
+  const fallback = await ruleBasedFraudCheck(input);
 
   const messages: ChatMessage[] = [
     { role: "user", content: JSON.stringify(input) },

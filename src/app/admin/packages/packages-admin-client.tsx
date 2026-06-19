@@ -39,6 +39,9 @@ export default function PackagesAdminClient() {
   const [selected, setSelected] = useState<TourPackage | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editCities, setEditCities] = useState("");
+  const [editImages, setEditImages] = useState("");
 
   const loadPackages = useCallback(async () => {
     setLoading(true);
@@ -132,6 +135,18 @@ export default function PackagesAdminClient() {
           actorRole,
           updates: {
             price: Number(editPrice) || selected.price,
+            title: {
+              en: editTitle,
+              hi: editTitle,
+            },
+            cities: editCities
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+            images: editImages
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean),
             description: {
               en: editDescription,
               hi: editDescription,
@@ -153,6 +168,9 @@ export default function PackagesAdminClient() {
     setSelected(pkg);
     setEditPrice(String(pkg.price));
     setEditDescription(localizedText(pkg.description, "en"));
+    setEditTitle(localizedText(pkg.title, "en"));
+    setEditCities(pkg.cities.join(", "));
+    setEditImages(pkg.images.join("\n"));
   };
 
   const columns: ColumnDef<TourPackage>[] = [
@@ -330,6 +348,14 @@ export default function PackagesAdminClient() {
                 )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
+                    <Label>Title</Label>
+                    <Input
+                      className="mt-1"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                    />
+                  </div>
+                  <div>
                     <Label>Price (₹)</Label>
                     <Input
                       className="mt-1"
@@ -338,14 +364,14 @@ export default function PackagesAdminClient() {
                       disabled={!canApprovePackages(actorRole) && selected.publishStatus === "published"}
                     />
                   </div>
-                  <div>
-                    <Label>Original price</Label>
-                    <p className="mt-2 font-medium">
-                      {selected.originalPrice
-                        ? formatCurrency(selected.originalPrice)
-                        : "—"}
-                    </p>
-                  </div>
+                </div>
+                <div>
+                  <Label>Cities (comma-separated)</Label>
+                  <Input
+                    className="mt-1"
+                    value={editCities}
+                    onChange={(e) => setEditCities(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Description</Label>
@@ -356,8 +382,22 @@ export default function PackagesAdminClient() {
                   />
                 </div>
                 <div>
-                  <p className="font-medium">Cities</p>
-                  <p className="text-muted-foreground">{selected.cities.join(", ")}</p>
+                  <Label>Image URLs (one per line)</Label>
+                  <Textarea
+                    className="mt-1 min-h-[80px]"
+                    value={editImages}
+                    onChange={(e) => setEditImages(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Original price</Label>
+                    <p className="mt-2 font-medium">
+                      {selected.originalPrice
+                        ? formatCurrency(selected.originalPrice)
+                        : "—"}
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <p className="font-medium">Inclusions</p>

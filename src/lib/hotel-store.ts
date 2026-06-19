@@ -1,21 +1,88 @@
-import { demoHotels } from "@/data/demo-data";
+import {
+  deleteCatalogItem,
+  loadCatalogCollection,
+  persistCatalogItem,
+  seedCatalogIfEmpty,
+} from "@/lib/catalog/persistence";
+import { getSeedHotels } from "@/data/seed-catalog";
 import type { Hotel } from "@/types";
 
-let hotelsStore: Hotel[] = [...demoHotels];
+const HOTELS_COLLECTION = "hotels";
 
-export function getPublishedHotels(): Hotel[] {
-  return [...hotelsStore];
-}
+let hotelsStore: Hotel[] = [];
+let hydratePromise: Promise<void> | null = null;
 
-export function publishHotel(hotel: Hotel): Hotel {
+function upsertInMemory(hotel: Hotel): Hotel {
   hotelsStore = [hotel, ...hotelsStore.filter((h) => h.id !== hotel.id)];
   return hotel;
 }
 
+export async function hydrateHotelsStore(): Promise<void> {
+  if (hydratePromise) return hydratePromise;
+
+  hydratePromise = (async () => {
+    const items = await seedCatalogIfEmpty(HOTELS_COLLECTION, getSeedHotels());
+    hotelsStore = items;
+  })();
+
+  return hydratePromise;
+}
+
+export function getPublishedHotels(): Hotel[] {
+  return hotelsStore.filter((h) => h.available);
+}
+
+export function getAdminHotels(): Hotel[] {
+  return [...hotelsStore];
+}
+
+export function getHotelByIdAdmin(id: string): Hotel | null {
+  return hotelsStore.find((h) => h.id === id) ?? null;
+}
+
 export function getHotelBySlugPublished(slug: string): Hotel | null {
-  return hotelsStore.find((h) => h.slug === slug) ?? null;
+  return hotelsStore.find((h) => h.slug === slug && h.available) ?? null;
 }
 
 export function getAllPublishedHotelSlugs(): string[] {
-  return hotelsStore.map((h) => h.slug);
+  return getPublishedHotels().map((h) => h.slug);
+}
+
+export async function upsertHotelInStore(hotel: Hotel): Promise<Hotel> {
+  const saved = upsertInMemory({
+    ...hotel,
+    updatedAt: new Date().toISOString(),
+  });
+  await persistCatalogItem(HOTELS_COLLECTION, saved);
+  return saved;
+}
+
+export async function updateHotelInStore(
+  id: string,
+  updates: Partial<Hotel>
+): Promise<Hotel | null> {
+  const existing = getHotelByIdAdmin(id);
+  if (!existing) return null;
+  return upsertHotelInStore({
+    ...existing,
+    ...updates,
+    id: existing.id,
+  });
+}
+
+export async function deleteHotelFromStore(id: string): Promise<boolean> {
+  const exists = getHotelByIdAdmin(id);
+  if (!exists) return false;
+  hotelsStore = hotelsStore.filter((h) => h.id !== id);
+  await deleteCatalogItem(HOTELS_COLLECTION, id);
+  return true;
+}
+
+export async function publishHotel(hotel: Hotel): Promise<Hotel> {
+  return upsertHotelInStore({ ...hotel, available: true });
+}
+
+export function resetHotelsStore(): void {
+  hotelsStore = [];
+  hydratePromise = null;
 }

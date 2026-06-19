@@ -1,4 +1,4 @@
-import { demoBookings } from "@/data/demo-data";
+import { getBookings } from "@/lib/data-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -49,11 +49,12 @@ export interface SupportAgentResult {
   relatedBooking?: string;
 }
 
-function ruleBasedSupport(query: string, bookingNumber?: string): { answer: string; confidence: number } {
+async function ruleBasedSupport(query: string, bookingNumber?: string): Promise<{ answer: string; confidence: number }> {
   const q = query.toLowerCase();
 
   if (bookingNumber) {
-    const booking = demoBookings.find((b) => b.bookingNumber === bookingNumber);
+    const bookings = await getBookings();
+    const booking = bookings.find((b) => b.bookingNumber === bookingNumber);
     if (booking) {
       return {
         answer: `Booking ${booking.bookingNumber} for ${booking.serviceName.en} is ${booking.status} with payment status ${booking.paymentStatus}. Amount: ₹${booking.amount.toLocaleString("en-IN")}.`,
@@ -92,7 +93,7 @@ export async function runSupportAgent(input: SupportAgentInput): Promise<Support
     },
   ];
 
-  const fallback = ruleBasedSupport(input.query, input.bookingNumber);
+  const fallback = await ruleBasedSupport(input.query, input.bookingNumber);
   const { content, provider } = await routeCompletion(SYSTEM_PROMPT, messages, () => fallback.answer);
 
   const confidence =
