@@ -1,16 +1,9 @@
-import {
-  demoHotels,
-  demoPackages,
-  demoVehicles,
-} from "@/data/demo-data";
-import type { Hotel, PackagePublishStatus, TourPackage, Vehicle } from "@/types";
+import { getTourPackagesSeed } from "@/data/tour-packages-seed";
+import { demoHotels, demoVehicles } from "@/data/demo-data";
+import type { Hotel, TourPackage, Vehicle } from "@/types";
 
 export function getSeedPackages(): TourPackage[] {
-  return demoPackages.map((pkg) => ({
-    ...pkg,
-    publishStatus: "published" as PackagePublishStatus,
-    proposedBy: "admin" as const,
-  }));
+  return getTourPackagesSeed();
 }
 
 export function getSeedVehicles(): Vehicle[] {

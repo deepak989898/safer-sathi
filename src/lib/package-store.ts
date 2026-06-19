@@ -4,6 +4,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedPackages } from "@/data/seed-catalog";
+import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { PackagePublishStatus, TourPackage } from "@/types";
 
 const PACKAGES_COLLECTION = "packages";
@@ -132,4 +133,15 @@ export async function publishPackageToWebsite(pkg: TourPackage): Promise<TourPac
     publishStatus: "published",
     updatedAt: new Date().toISOString(),
   });
+}
+
+/** Upsert all 20 professional tour packages into Firestore (admin seed action). */
+export async function seedTourPackages(): Promise<TourPackage[]> {
+  await hydratePackagesStore();
+  const packages = getTourPackagesSeed();
+  const saved: TourPackage[] = [];
+  for (const pkg of packages) {
+    saved.push(await upsertPackageInStore(pkg));
+  }
+  return saved;
 }

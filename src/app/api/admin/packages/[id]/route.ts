@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   approvePackageInStore,
+  deletePackageFromStore,
   getPackageByIdAdmin,
   hydratePackagesStore,
   rejectPackageInStore,
@@ -99,5 +100,28 @@ export async function POST(
   } catch (err) {
     console.error("Package action error:", err);
     return apiError("Failed to process package action", 500);
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const actorRole = actorRoleSchema.safeParse(searchParams.get("actorRole"));
+    if (!actorRole.success) return apiError("actorRole required", 400);
+    if (!["super_admin", "manager"].includes(actorRole.data)) {
+      return apiError("Only managers and super admins can delete packages", 403);
+    }
+
+    await hydratePackagesStore();
+    const deleted = await deletePackageFromStore(id);
+    if (!deleted) return apiError("Package not found", 404);
+    return apiSuccess({ id });
+  } catch (err) {
+    console.error("Delete package error:", err);
+    return apiError("Failed to delete package", 500);
   }
 }

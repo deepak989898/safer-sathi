@@ -137,6 +137,7 @@ export interface TourPackage {
   rating: number;
   reviewCount: number;
   featured: boolean;
+  transport?: LocalizedString;
   publishStatus?: PackagePublishStatus;
   marketAnalysis?: LocalizedString;
   proposedBy?: "ai_market_agent" | "admin" | "manager";

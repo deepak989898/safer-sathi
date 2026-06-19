@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Check, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Database, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -19,13 +19,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth-context";
 import {
   canApprovePackages,
   canGenerateMarketPackages,
 } from "@/lib/auth/constants";
 import { formatCurrency, localizedText } from "@/lib/i18n";
-import type { TourPackage } from "@/types";
+import type { PackageCategory, PackagePublishStatus, TourPackage } from "@/types";
 import { toast } from "sonner";
 
 export default function PackagesAdminClient() {
@@ -34,6 +41,8 @@ export default function PackagesAdminClient() {
   const [packages, setPackages] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [destination, setDestination] = useState("Goa");
   const [durationDays, setDurationDays] = useState("5");
   const [selected, setSelected] = useState<TourPackage | null>(null);
@@ -42,6 +51,20 @@ export default function PackagesAdminClient() {
   const [editTitle, setEditTitle] = useState("");
   const [editCities, setEditCities] = useState("");
   const [editImages, setEditImages] = useState("");
+  const [editOriginalPrice, setEditOriginalPrice] = useState("");
+  const [editTransport, setEditTransport] = useState("");
+  const [editInclusions, setEditInclusions] = useState("");
+  const [editExclusions, setEditExclusions] = useState("");
+  const [editActivities, setEditActivities] = useState("");
+  const [editHotels, setEditHotels] = useState("");
+  const [editStatus, setEditStatus] = useState<PackagePublishStatus>("published");
+  const [editFeatured, setEditFeatured] = useState(false);
+  const [editSlug, setEditSlug] = useState("");
+  const [editDurationLabel, setEditDurationLabel] = useState("");
+  const [editCategory, setEditCategory] = useState<PackageCategory>("domestic");
+  const [editItineraryJson, setEditItineraryJson] = useState("");
+
+  const isStaff = actorRole === "super_admin" || actorRole === "manager";
 
   const loadPackages = useCallback(async () => {
     setLoading(true);
@@ -64,6 +87,45 @@ export default function PackagesAdminClient() {
   const pending = packages.filter((p) => p.publishStatus === "pending_approval");
   const published = packages.filter((p) => p.publishStatus === "published");
   const rejected = packages.filter((p) => p.publishStatus === "rejected");
+
+  const handleSeedPackages = async () => {
+    if (!isStaff) return;
+    if (!confirm("Insert or update all 20 professional tour packages in Firebase?")) return;
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/admin/packages?action=seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Seed failed");
+      toast.success(json.data.message ?? "20 tour packages seeded");
+      loadPackages();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to seed packages");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleDelete = async (pkg: TourPackage) => {
+    if (!isStaff) return;
+    if (!confirm(`Delete "${localizedText(pkg.title, "en")}"?`)) return;
+    try {
+      const res = await fetch(
+        `/api/admin/packages/${pkg.id}?actorRole=${encodeURIComponent(actorRole)}`,
+        { method: "DELETE" }
+      );
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Delete failed");
+      toast.success("Package deleted");
+      setSelected(null);
+      loadPackages();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
+    }
+  };
 
   const handleGenerate = async () => {
     if (!canGenerateMarketPackages(actorRole)) return;
@@ -127,30 +189,48 @@ export default function PackagesAdminClient() {
 
   const handleSaveEdit = async () => {
     if (!selected) return;
+    setSaving(true);
     try {
+      let itinerary = selected.itinerary;
+      if (editItineraryJson.trim()) {
+        try {
+          itinerary = JSON.parse(editItineraryJson);
+        } catch {
+          throw new Error("Invalid itinerary JSON");
+        }
+      }
+
       const res = await fetch(`/api/admin/packages/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           actorRole,
           updates: {
+            slug: editSlug,
+            category: editCategory,
             price: Number(editPrice) || selected.price,
-            title: {
-              en: editTitle,
-              hi: editTitle,
-            },
-            cities: editCities
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-            images: editImages
+            originalPrice: editOriginalPrice ? Number(editOriginalPrice) : undefined,
+            featured: editFeatured,
+            publishStatus: editStatus,
+            title: { en: editTitle, hi: editTitle },
+            durationLabel: { en: editDurationLabel, hi: editDurationLabel },
+            cities: editCities.split(",").map((s) => s.trim()).filter(Boolean),
+            images: editImages.split("\n").map((s) => s.trim()).filter(Boolean),
+            description: { en: editDescription, hi: editDescription },
+            transport: { en: editTransport, hi: editTransport },
+            activities: editActivities.split(",").map((s) => s.trim()).filter(Boolean),
+            hotels: editHotels.split(",").map((s) => s.trim()).filter(Boolean),
+            inclusions: editInclusions
               .split("\n")
               .map((s) => s.trim())
-              .filter(Boolean),
-            description: {
-              en: editDescription,
-              hi: editDescription,
-            },
+              .filter(Boolean)
+              .map((s) => ({ en: s, hi: s })),
+            exclusions: editExclusions
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map((s) => ({ en: s, hi: s })),
+            itinerary,
           },
         }),
       });
@@ -161,16 +241,30 @@ export default function PackagesAdminClient() {
       loadPackages();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");
+    } finally {
+      setSaving(false);
     }
   };
 
   const openReview = (pkg: TourPackage) => {
     setSelected(pkg);
     setEditPrice(String(pkg.price));
+    setEditOriginalPrice(pkg.originalPrice ? String(pkg.originalPrice) : "");
     setEditDescription(localizedText(pkg.description, "en"));
     setEditTitle(localizedText(pkg.title, "en"));
     setEditCities(pkg.cities.join(", "));
     setEditImages(pkg.images.join("\n"));
+    setEditTransport(pkg.transport ? localizedText(pkg.transport, "en") : "");
+    setEditInclusions(pkg.inclusions.map((i) => localizedText(i, "en")).join("\n"));
+    setEditExclusions(pkg.exclusions.map((i) => localizedText(i, "en")).join("\n"));
+    setEditActivities(pkg.activities.join(", "));
+    setEditHotels(pkg.hotels.join(", "));
+    setEditStatus(pkg.publishStatus ?? "published");
+    setEditFeatured(pkg.featured);
+    setEditSlug(pkg.slug);
+    setEditDurationLabel(localizedText(pkg.durationLabel, "en"));
+    setEditCategory(pkg.category);
+    setEditItineraryJson(JSON.stringify(pkg.itinerary, null, 2));
   };
 
   const columns: ColumnDef<TourPackage>[] = [
@@ -237,11 +331,24 @@ export default function PackagesAdminClient() {
   return (
     <>
       <AdminHeader
-        title="Packages"
-        description="AI market packages — Super Admin approves before website publish"
+        title="Tour Packages"
+        description="Manage 20+ professional packages — seed, edit, publish to website"
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-4 sm:p-6">
+        {isStaff && (
+          <div className="flex flex-wrap gap-3">
+            <Button variant="default" onClick={handleSeedPackages} disabled={seeding}>
+              {seeding ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              Seed Tour Packages (20)
+            </Button>
+          </div>
+        )}
+
         {canGenerateMarketPackages(actorRole) && (
           <div className="rounded-xl border bg-card p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
@@ -348,6 +455,53 @@ export default function PackagesAdminClient() {
                 )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
+                    <Label>Slug</Label>
+                    <Input className="mt-1" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Duration label</Label>
+                    <Input
+                      className="mt-1"
+                      value={editDurationLabel}
+                      onChange={(e) => setEditDurationLabel(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Category</Label>
+                    <Select value={editCategory} onValueChange={(v) => setEditCategory(v as PackageCategory)}>
+                      <SelectTrigger className="mt-1 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["domestic", "international", "religious", "adventure", "family", "honeymoon"] as const).map(
+                          (c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={editStatus} onValueChange={(v) => setEditStatus(v as PackagePublishStatus)}>
+                      <SelectTrigger className="mt-1 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="published">Active (published)</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="pending_approval">Pending approval</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
                     <Label>Title</Label>
                     <Input
                       className="mt-1"
@@ -361,8 +515,26 @@ export default function PackagesAdminClient() {
                       className="mt-1"
                       value={editPrice}
                       onChange={(e) => setEditPrice(e.target.value)}
-                      disabled={!canApprovePackages(actorRole) && selected.publishStatus === "published"}
                     />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Original price (₹)</Label>
+                    <Input
+                      className="mt-1"
+                      value={editOriginalPrice}
+                      onChange={(e) => setEditOriginalPrice(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end gap-2 pb-2">
+                    <input
+                      id="featured"
+                      type="checkbox"
+                      checked={editFeatured}
+                      onChange={(e) => setEditFeatured(e.target.checked)}
+                    />
+                    <Label htmlFor="featured">Featured on homepage</Label>
                   </div>
                 </div>
                 <div>
@@ -389,38 +561,61 @@ export default function PackagesAdminClient() {
                     onChange={(e) => setEditImages(e.target.value)}
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label>Original price</Label>
-                    <p className="mt-2 font-medium">
-                      {selected.originalPrice
-                        ? formatCurrency(selected.originalPrice)
-                        : "—"}
-                    </p>
-                  </div>
+                <div>
+                  <Label>Transport</Label>
+                  <Input
+                    className="mt-1"
+                    value={editTransport}
+                    onChange={(e) => setEditTransport(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <p className="font-medium">Inclusions</p>
-                  <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-                    {selected.inclusions.map((inc, i) => (
-                      <li key={i}>{localizedText(inc, "en")}</li>
-                    ))}
-                  </ul>
+                  <Label>Activities (comma-separated)</Label>
+                  <Input
+                    className="mt-1"
+                    value={editActivities}
+                    onChange={(e) => setEditActivities(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <p className="font-medium">Itinerary ({selected.itinerary.length} days)</p>
-                  <ul className="mt-1 space-y-1 text-muted-foreground">
-                    {selected.itinerary.map((day) => (
-                      <li key={day.day}>
-                        Day {day.day}: {localizedText(day.title, "en")}
-                      </li>
-                    ))}
-                  </ul>
+                  <Label>Hotels (comma-separated)</Label>
+                  <Input className="mt-1" value={editHotels} onChange={(e) => setEditHotels(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Inclusions (one per line)</Label>
+                  <Textarea
+                    className="mt-1 min-h-[80px]"
+                    value={editInclusions}
+                    onChange={(e) => setEditInclusions(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Exclusions (one per line)</Label>
+                  <Textarea
+                    className="mt-1 min-h-[80px]"
+                    value={editExclusions}
+                    onChange={(e) => setEditExclusions(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Itinerary (JSON)</Label>
+                  <Textarea
+                    className="mt-1 min-h-[120px] font-mono text-xs"
+                    value={editItineraryJson}
+                    onChange={(e) => setEditItineraryJson(e.target.value)}
+                  />
                 </div>
               </div>
               <DialogFooter className="flex-col gap-2 sm:flex-row">
-                {(actorRole === "super_admin" || actorRole === "manager") && (
-                  <Button variant="outline" onClick={handleSaveEdit}>
+                {isStaff && (
+                  <Button variant="destructive" onClick={() => handleDelete(selected)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
+                {isStaff && (
+                  <Button variant="outline" onClick={handleSaveEdit} disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save edits
                   </Button>
                 )}

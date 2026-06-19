@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import {
   getAllPackageSlugs,
   getPackageBySlug,
+  getPackages,
 } from "@/lib/catalog-service";
 import { PackageDetailClient } from "./package-detail-client";
 
@@ -21,5 +22,11 @@ export default async function PackageDetailPage({
   const { slug } = await params;
   const pkg = await getPackageBySlug(slug);
   if (!pkg) notFound();
-  return <PackageDetailClient pkg={pkg} />;
+
+  const allPackages = await getPackages();
+  const relatedPackages = allPackages
+    .filter((p) => p.id !== pkg.id && p.category === pkg.category)
+    .slice(0, 3);
+
+  return <PackageDetailClient pkg={pkg} relatedPackages={relatedPackages} />;
 }
