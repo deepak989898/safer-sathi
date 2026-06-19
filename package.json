@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "download:package-images": "node scripts/download-package-images.mjs"
+    "download:package-images": "node scripts/download-package-images.mjs",
+    "download:vehicle-images": "node scripts/download-vehicle-images.mjs",
+    "download:hotel-images": "node scripts/download-hotel-images.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

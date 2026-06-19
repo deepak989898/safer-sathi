@@ -4,6 +4,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedVehicles } from "@/data/seed-catalog";
+import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
 
 const VEHICLES_COLLECTION = "vehicles";
@@ -85,4 +86,15 @@ export async function publishVehicle(vehicle: Vehicle): Promise<Vehicle> {
 export function resetVehiclesStore(): void {
   vehiclesStore = [];
   hydratePromise = null;
+}
+
+/** Upsert all 30 professional vehicles into Firestore (admin seed action). */
+export async function seedVehicles(): Promise<Vehicle[]> {
+  await hydrateVehiclesStore();
+  const vehicles = getVehiclesSeed();
+  const saved: Vehicle[] = [];
+  for (const vehicle of vehicles) {
+    saved.push(await upsertVehicleInStore(vehicle));
+  }
+  return saved;
 }

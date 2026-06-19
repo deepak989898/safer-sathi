@@ -89,15 +89,21 @@ export interface User {
   totalSpent?: number;
 }
 
+export type VehicleStatus = "active" | "inactive" | "maintenance";
+
 export interface Vehicle {
   id: string;
+  slug?: string;
   name: LocalizedString;
+  brand?: string;
+  category?: string;
   type: VehicleType;
   seats: number;
   pricePerDay: number;
   pricePerKm?: number;
   images: string[];
   available: boolean;
+  status?: VehicleStatus;
   fuelType: string;
   driverIncluded: boolean;
   description: LocalizedString;
@@ -159,13 +165,18 @@ export interface HotelRoom {
   images: string[];
 }
 
+export type HotelStatus = "active" | "inactive";
+
 export interface Hotel {
   id: string;
   name: LocalizedString;
   slug: string;
   starRating: number;
   location: string;
+  address?: string;
   city: string;
+  state?: string;
+  country?: string;
   images: string[];
   amenities: string[];
   description: LocalizedString;
@@ -173,6 +184,8 @@ export interface Hotel {
   rooms: HotelRoom[];
   rating: number;
   reviewCount: number;
+  featured?: boolean;
+  status?: HotelStatus;
   available: boolean;
   createdAt: string;
   updatedAt: string;

@@ -5,6 +5,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { getSeedHotels } from "@/data/seed-catalog";
+import { getHotelsSeed } from "@/data/hotels-seed";
 import type { Hotel } from "@/types";
 
 const HOTELS_COLLECTION = "hotels";
@@ -85,4 +86,15 @@ export async function publishHotel(hotel: Hotel): Promise<Hotel> {
 export function resetHotelsStore(): void {
   hotelsStore = [];
   hydratePromise = null;
+}
+
+/** Upsert all 60 professional hotels into Firestore (admin seed action). */
+export async function seedHotels(): Promise<Hotel[]> {
+  await hydrateHotelsStore();
+  const hotels = getHotelsSeed();
+  const saved: Hotel[] = [];
+  for (const hotel of hotels) {
+    saved.push(await upsertHotelInStore(hotel));
+  }
+  return saved;
 }

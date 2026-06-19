@@ -1,5 +1,6 @@
+import { getHotelsSeed } from "@/data/hotels-seed";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
-import { demoHotels, demoVehicles } from "@/data/demo-data";
+import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
 
 export function getSeedPackages(): TourPackage[] {
@@ -7,9 +8,9 @@ export function getSeedPackages(): TourPackage[] {
 }
 
 export function getSeedVehicles(): Vehicle[] {
-  return [...demoVehicles];
+  return getVehiclesSeed();
 }
 
 export function getSeedHotels(): Hotel[] {
-  return [...demoHotels];
+  return getHotelsSeed();
 }
