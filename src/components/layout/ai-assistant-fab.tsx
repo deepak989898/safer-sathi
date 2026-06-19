@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { TravelManagerPopup } from "@/components/ai/travel-manager-popup";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
@@ -39,13 +39,13 @@ export function AiAssistantFab() {
           aria-label={t(locale, "features", "aiAssistant")}
           onClick={() => setOpen(true)}
           className={cn(
-            "relative flex h-14 w-14 items-center justify-center rounded-full text-white",
-            "bg-gradient-to-br from-primary via-sky-500 to-cyan-400",
-            "shadow-lg shadow-primary/40 ring-4 ring-background",
-            "transition-transform hover:scale-105 active:scale-95"
+            "relative flex h-14 w-14 items-center justify-center rounded-full",
+            "bg-white shadow-lg shadow-primary/25 ring-4 ring-background",
+            "transition-transform hover:scale-105 active:scale-95",
+            "dark:bg-white dark:shadow-black/30"
           )}
         >
-          <Sparkles className="h-7 w-7 drop-shadow-sm" strokeWidth={2} />
+          <AiAssistantIcon size={36} className="h-9 w-9" priority />
         </button>
       </div>
       <TravelManagerPopup open={open} onOpenChange={setOpen} />

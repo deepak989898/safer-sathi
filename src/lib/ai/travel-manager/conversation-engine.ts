@@ -1,3 +1,9 @@
+import {
+  getLocationSuggestions,
+  getSmartGreeting,
+  type AITravelPreferences,
+  type UserLocationInfo,
+} from "@/lib/ai/travel-manager/geo-language";
 import type { Locale } from "@/types";
 import type {
   QuickReply,
@@ -19,7 +25,12 @@ const DESTINATIONS: Record<string, string> = {
   agra: "Agra",
   shimla: "Shimla",
   udaipur: "Udaipur",
-  darjeeling: "Darjeeling",
+  rishikesh: "Rishikesh",
+  ooty: "Ooty",
+  coorg: "Coorg",
+  munnar: "Munnar",
+  kodaikanal: "Kodaikanal",
+  andaman: "Andaman",
 };
 
 const TRIP_TYPES = [
@@ -46,16 +57,8 @@ function t(en: string, hi: string, locale: Locale) {
   return locale === "hi" ? hi : en;
 }
 
-function welcomeReplies(locale: Locale): QuickReply[] {
-  return [
-    { id: "dest-manali", label: "🏔 Manali", value: "Manali" },
-    { id: "dest-goa", label: "🌴 Goa", value: "Goa" },
-    { id: "dest-kashmir", label: "🏔 Kashmir", value: "Kashmir" },
-    { id: "dest-kerala", label: "🌿 Kerala", value: "Kerala" },
-    { id: "dest-gt", label: "🕌 Golden Triangle", value: "Golden Triangle" },
-    { id: "dest-intl", label: "✈ International", value: "International" },
-    { id: "dest-custom", label: "🎒 Custom Trip", value: "Custom" },
-  ];
+function welcomeReplies(locale: Locale, location?: UserLocationInfo): QuickReply[] {
+  return getLocationSuggestions(location, locale);
 }
 
 function parseDestination(text: string): string | null {
@@ -67,13 +70,21 @@ function parseDestination(text: string): string | null {
   if (/goa|गोवा/.test(q)) return "Goa";
   if (/kashmir|कश्मीर/.test(q)) return "Kashmir";
   if (/kerala|केरल/.test(q)) return "Kerala";
+  if (/shimla|शिमला/.test(q)) return "Shimla";
+  if (/rishikesh|ऋषिकेश/.test(q)) return "Rishikesh";
+  if (/ooty|ऊटी/.test(q)) return "Ooty";
+  if (/coorg|कोर्ग/.test(q)) return "Coorg";
+  if (/munnar|मुन्नार/.test(q)) return "Munnar";
+  if (/andaman|अंडमान/.test(q)) return "Andaman";
+  if (/udaipur|उदयपुर/.test(q)) return "Udaipur";
   return null;
 }
 
-function parseIntent(text: string): "hotel_only" | "vehicle_only" | "custom_package" | null {
+function parseIntent(text: string, parsedDest?: string | null): "hotel_only" | "vehicle_only" | "custom_package" | null {
   const q = text.toLowerCase();
-  if (/hotel|होटल|stay|रुक/.test(q) && /suggest|recommend|find|चाह|बताओ/.test(q)) {
-    return "hotel_only";
+  if (/hotel|होटल|stay|रुक/.test(q)) {
+    if (parsedDest || /in\s+\w+|में/.test(q)) return "hotel_only";
+    if (/suggest|recommend|find|चाह|बताओ/.test(q)) return "hotel_only";
   }
   if (/vehicle|car|innova|वाहन|गाड़ी|tempo/.test(q) && /\d+\s*people|guests|लोग/.test(q)) {
     return "vehicle_only";
@@ -122,7 +133,7 @@ export function processConversationInput(
 
   // Free-text intent override
   const parsedDest = parseDestination(text);
-  const parsedIntent = parseIntent(text);
+  const parsedIntent = parseIntent(text, parsedDest);
   const parsedBudget = parseBudget(text);
   const parsedGuests = parseGuests(text);
 
@@ -376,20 +387,37 @@ export function processConversationInput(
           "नमस्ते! मैं Safar Sathi AI Travel Manager हूं। आप कहाँ जाना चाहते हैं?",
           locale
         ),
-        quickReplies: welcomeReplies(locale),
+        quickReplies: welcomeReplies(locale, state.userLocation),
         nextStep: "welcome",
       };
   }
 }
 
-export function getWelcomeMessage(locale: Locale): { reply: string; quickReplies: QuickReply[] } {
+export function getWelcomeMessage(
+  locale: Locale,
+  location?: UserLocationInfo,
+  preferences?: AITravelPreferences
+): { reply: string; quickReplies: QuickReply[] } {
+  let reply = getSmartGreeting(location, locale);
+
+  if (preferences?.favouriteDestinations?.length) {
+    const fav = preferences.favouriteDestinations.slice(-2).join(", ");
+    reply +=
+      locale === "hi"
+        ? `\n\nपिछली बार आपने ${fav} पसंद किया था — फिर से वही योजना बनाएं?`
+        : `\n\nLast time you liked ${fav} — plan something similar?`;
+  }
+
+  if (preferences?.preferredBudget) {
+    reply +=
+      locale === "hi"
+        ? `\n\nआपका पसंदीदा बजट: ₹${preferences.preferredBudget.toLocaleString("en-IN")}`
+        : `\n\nYour preferred budget: ₹${preferences.preferredBudget.toLocaleString("en-IN")}`;
+  }
+
   return {
-    reply: t(
-      "👋 Hello! I am Safar Sathi AI Travel Manager.\n\nI can help you plan your journey.\n\nWhere do you want to go?",
-      "👋 नमस्ते! मैं Safar Sathi AI Travel Manager हूं।\n\nमैं आपकी यात्रा की योजना बनाने में मदद कर सकता हूं।\n\nआप कहाँ जाना चाहते हैं?",
-      locale
-    ),
-    quickReplies: welcomeReplies(locale),
+    reply,
+    quickReplies: getLocationSuggestions(location, locale),
   };
 }
 

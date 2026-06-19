@@ -93,7 +93,7 @@ function SidebarContent({
     <>
       {!compact && (
         <div className="border-b border-sidebar-border px-6 py-4">
-            <BrandLogo href="/" size="admin" />
+            <BrandLogo href="/" size="admin" onDarkSurface />
           <p className="mt-1 text-xs text-sidebar-foreground/60">Admin Panel</p>
         </div>
       )}

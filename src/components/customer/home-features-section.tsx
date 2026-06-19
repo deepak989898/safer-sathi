@@ -8,7 +8,7 @@ import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
-  { icon: AssistantIcon, titleKey: "aiAssistant", descKey: "aiAssistantDesc" },
+  { icon: AssistantIcon, titleKey: "aiAssistant", descKey: "aiAssistantDesc", brandedIcon: true },
   { icon: Tag, titleKey: "bestPrice", descKey: "bestPriceDesc" },
   { icon: HeadphonesIcon, titleKey: "support", descKey: "supportDesc" },
   { icon: ShieldCheck, titleKey: "secure", descKey: "secureDesc" },
@@ -20,11 +20,13 @@ function FeatureCard({
   icon: Icon,
   titleKey,
   descKey,
+  brandedIcon = false,
   className,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   titleKey: string;
   descKey: string;
+  brandedIcon?: boolean;
   className?: string;
 }) {
   const { locale } = useAppStore();
@@ -36,8 +38,15 @@ function FeatureCard({
         className
       )}
     >
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-6 w-6" />
+      <div
+        className={cn(
+          "mb-4 flex h-12 w-12 items-center justify-center rounded-lg",
+          brandedIcon
+            ? "bg-white p-1.5 shadow-sm ring-1 ring-border dark:bg-white"
+            : "bg-primary/10 text-primary"
+        )}
+      >
+        <Icon className={brandedIcon ? "h-full w-full" : "h-6 w-6"} />
       </div>
       <h3 className="font-semibold">{t(locale, "features", titleKey)}</h3>
       <p className="mt-2 text-sm text-muted-foreground">

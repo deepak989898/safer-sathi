@@ -139,8 +139,8 @@ export default function AIAssistantPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <AssistantIcon className="h-7 w-7" />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white p-2 shadow-sm ring-1 ring-border">
+                    <AssistantIcon className="h-full w-full" />
                   </div>
                   <div>
                     <p className="font-semibold">
@@ -195,12 +195,12 @@ export default function AIAssistantPage() {
                         <AvatarFallback
                           className={
                             msg.role === "assistant"
-                              ? "bg-primary text-primary-foreground"
+                              ? "bg-white p-0.5"
                               : "bg-muted"
                           }
                         >
                           {msg.role === "assistant" ? (
-                            <AssistantIcon className="h-4 w-4" />
+                            <AssistantIcon className="h-full w-full" />
                           ) : (
                             <User className="h-4 w-4" />
                           )}
@@ -238,8 +238,8 @@ export default function AIAssistantPage() {
                 {loading && (
                   <div className="flex gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        <AssistantIcon className="h-4 w-4" />
+                      <AvatarFallback className="bg-white p-0.5">
+                        <AssistantIcon className="h-full w-full" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm">

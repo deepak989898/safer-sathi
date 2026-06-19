@@ -12,15 +12,19 @@ interface BrandLogoProps {
   showTagline?: boolean;
   priority?: boolean;
   centered?: boolean;
+  /** Always show light backdrop (e.g. admin sidebar on dark background) */
+  onDarkSurface?: boolean;
 }
+
+const LOGO_SRC = "/images/safarsathilogo.png";
 
 const sizeClasses: Record<BrandLogoSize, string> = {
   header:
-    "h-16 w-auto max-w-[200px] sm:h-[4.5rem] sm:max-w-[240px] md:h-20 md:max-w-[280px]",
-  drawer: "h-20 w-auto max-w-[220px] sm:h-24 sm:max-w-[240px]",
-  footer: "h-20 w-auto max-w-[240px]",
-  admin: "h-14 w-auto max-w-[180px]",
-  compact: "h-12 w-auto max-w-[160px]",
+    "h-14 w-auto max-w-[180px] sm:h-16 sm:max-w-[210px] md:h-[4.5rem] md:max-w-[240px]",
+  drawer: "h-16 w-auto max-w-[200px] sm:h-[4.5rem] sm:max-w-[220px]",
+  footer: "h-16 w-auto max-w-[220px] sm:h-[4.5rem] sm:max-w-[240px]",
+  admin: "h-12 w-auto max-w-[160px]",
+  compact: "h-10 w-auto max-w-[140px]",
 };
 
 const imageDimensions: Record<BrandLogoSize, { width: number; height: number }> = {
@@ -39,6 +43,7 @@ export function BrandLogo({
   showTagline = false,
   priority = false,
   centered = false,
+  onDarkSurface = false,
 }: BrandLogoProps) {
   const dims = imageDimensions[size];
 
@@ -50,14 +55,23 @@ export function BrandLogo({
         className
       )}
     >
-      <Image
-        src="/images/logo.png"
-        alt="Safar Sathi - Travel | Comfort | Trust"
-        width={dims.width}
-        height={dims.height}
-        priority={priority}
-        className={cn("object-contain", sizeClasses[size], imageClassName)}
-      />
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center rounded-lg",
+          onDarkSurface
+            ? "bg-white px-2 py-1 shadow-sm ring-1 ring-black/5"
+            : "dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm dark:ring-1 dark:ring-black/5"
+        )}
+      >
+        <Image
+          src={LOGO_SRC}
+          alt="Safar Sathi — Travel | Comfort | Trust"
+          width={dims.width}
+          height={dims.height}
+          priority={priority}
+          className={cn("object-contain", sizeClasses[size], imageClassName)}
+        />
+      </span>
       {showTagline && (
         <div className="hidden sm:block">
           <p className="text-sm font-semibold text-primary">Safar Sathi</p>
@@ -75,3 +89,5 @@ export function BrandLogo({
     </Link>
   );
 }
+
+export { LOGO_SRC };

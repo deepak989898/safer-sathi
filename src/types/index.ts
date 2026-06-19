@@ -84,6 +84,7 @@ export interface User {
   locale: Locale;
   createdAt: string;
   updatedAt: string;
+  aiPreferences?: import("@/types/travel-manager").AITravelPreferences;
   segment?: "vip" | "regular" | "new" | "at_risk";
   totalBookings?: number;
   totalSpent?: number;

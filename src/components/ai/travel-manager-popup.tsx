@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, Mic, MicOff, Send, Sparkles, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, X } from "lucide-react";
+import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/auth-context";
+import { mergePreferences, memoryFromState } from "@/lib/ai/travel-manager/geo-language";
+import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText } from "@/lib/i18n";
@@ -23,6 +26,7 @@ import type {
   CustomPackageQuote,
   QuickReply,
   TravelManagerState,
+  UserLocationInfo,
 } from "@/types/travel-manager";
 import { toast } from "sonner";
 
@@ -38,14 +42,16 @@ interface TravelManagerPopupProps {
 }
 
 export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupProps) {
-  const { locale } = useAppStore();
+  const { locale, setLocale } = useAppStore();
   const { user } = useAuth();
+  const { buildClientContext, saveLanguagePreference } = useAiTravelContext(user?.id);
   const { completeBooking, paying } = useTravelCheckout();
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [tmState, setTmState] = useState<TravelManagerState | undefined>();
+  const [userLocation, setUserLocation] = useState<UserLocationInfo | undefined>();
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [packageQuote, setPackageQuote] = useState<CustomPackageQuote | undefined>();
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -62,29 +68,60 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const initChat = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/ai/manager", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "__init__", locale }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setMessages([{ id: "1", role: "assistant", content: json.data.reply }]);
-        setQuickReplies(json.data.quickReplies ?? []);
-        setTmState(json.data.state);
-        setPackageQuote(undefined);
-        setHotels([]);
-        setVehicles([]);
+  const initChat = useCallback(
+    async (forceLocale?: "en" | "hi", reset = false) => {
+      setLoading(true);
+      try {
+        const activeLocale = forceLocale ?? locale;
+        const res = await fetch("/api/ai/manager", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "__init__",
+            locale: activeLocale,
+            forceLocale: forceLocale,
+            context: buildClientContext(),
+          }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          if (reset || messages.length === 0) {
+            setMessages([{ id: "1", role: "assistant", content: json.data.reply }]);
+          } else {
+            setMessages((prev) => [
+              ...prev,
+              { id: Date.now().toString(), role: "assistant", content: json.data.reply },
+            ]);
+          }
+          setQuickReplies(json.data.quickReplies ?? []);
+          setTmState(json.data.state);
+          setUserLocation(json.data.location ?? json.data.state?.userLocation);
+          if (json.data.locale) {
+            setLocale(json.data.locale);
+            saveLanguagePreference(json.data.locale);
+          }
+          setPackageQuote(undefined);
+          setHotels([]);
+          setVehicles([]);
+          if (forceLocale) setLocale(forceLocale);
+        }
+      } catch {
+        toast.error("Could not start AI Travel Manager");
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast.error("Could not start AI Travel Manager");
-    } finally {
-      setLoading(false);
-    }
-  }, [locale]);
+    },
+    [locale, buildClientContext, messages.length, setLocale, saveLanguagePreference]
+  );
+
+  const switchLanguage = async (newLocale: "en" | "hi") => {
+    if (newLocale === locale && messages.length > 0) return;
+    saveLanguagePreference(newLocale);
+    setMessages([]);
+    setQuickReplies([]);
+    setTmState(undefined);
+    await initChat(newLocale, true);
+  };
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -108,7 +145,12 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       const res = await fetch("/api/ai/manager", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, locale, state: tmState }),
+        body: JSON.stringify({
+          message: text,
+          locale,
+          state: tmState,
+          context: buildClientContext(),
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -127,6 +169,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       if (data.state?.guests) {
         setBookingForm((f) => ({ ...f, guests: data.state.guests }));
       }
+
+      const memoryUpdates = memoryFromState(data.state ?? {}, locale);
+      saveLocalAiPreferences(
+        mergePreferences(getLocalAiPreferences() ?? undefined, memoryUpdates)
+      );
     } catch {
       toast.error(locale === "hi" ? "त्रुटि, पुनः प्रयास करें" : "Error, please try again");
     } finally {
@@ -205,20 +252,53 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         <DialogHeader className="border-b bg-gradient-to-r from-primary to-sky-600 px-4 py-3 text-left text-white">
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="flex items-center gap-2 text-base font-semibold text-white">
-              <Sparkles className="h-5 w-5" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 p-1">
+                <AiAssistantIcon size={24} className="h-6 w-6" />
+              </span>
               Safar Sathi AI Travel Manager
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-white hover:bg-white/20"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs">
+                <span className="opacity-90">🌐</span>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded px-1.5 py-0.5 transition-colors",
+                    locale === "hi" ? "bg-white text-primary font-semibold" : "text-white/90 hover:bg-white/10"
+                  )}
+                  onClick={() => void switchLanguage("hi")}
+                >
+                  Hindi
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded px-1.5 py-0.5 transition-colors",
+                    locale === "en" ? "bg-white text-primary font-semibold" : "text-white/90 hover:bg-white/10"
+                  )}
+                  onClick={() => void switchLanguage("en")}
+                >
+                  English
+                </button>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-white hover:bg-white/20"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-white/80">
-            {locale === "hi" ? "लाइव कीमतें · हिंदी/English · Razorpay" : "Live prices · EN/HI · Razorpay"}
+            {userLocation?.city
+              ? locale === "hi"
+                ? `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · लाइव कीमतें · Razorpay`
+                : `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · Live prices · Razorpay`
+              : locale === "hi"
+                ? "लाइव कीमतें · हिंदी/English · Razorpay"
+                : "Live prices · EN/HI · Razorpay"}
           </p>
         </DialogHeader>
 

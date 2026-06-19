@@ -1,5 +1,30 @@
 import type { Hotel, Locale, TourPackage, Vehicle } from "@/types";
 
+export type IndiaRegion = "north" | "south" | "other";
+
+export interface UserLocationInfo {
+  country?: string;
+  state?: string;
+  city?: string;
+  timezone?: string;
+  ip?: string;
+  region?: IndiaRegion;
+  source?: "ip" | "browser" | "saved" | "default";
+}
+
+export interface AITravelPreferences {
+  preferredLanguage: "hindi" | "english";
+  preferredBudget?: number;
+  favouriteDestinations?: string[];
+  tripStyle?: string;
+  hotelCategory?: string;
+  vehiclePreference?: string;
+  lastCity?: string;
+  lastState?: string;
+  lastCountry?: string;
+  updatedAt?: string;
+}
+
 export type TravelManagerStep =
   | "welcome"
   | "destination"
@@ -42,6 +67,8 @@ export interface TravelManagerState {
   customerEmail?: string;
   customerPhone?: string;
   bookingId?: string;
+  userLocation?: UserLocationInfo;
+  memory?: Partial<AITravelPreferences>;
 }
 
 export interface QuickReply {
