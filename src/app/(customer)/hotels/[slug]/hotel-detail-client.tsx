@@ -44,6 +44,17 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
 
   const pricePerNight = selectedRoom?.pricePerNight ?? hotel.priceFrom;
 
+  const selectRoom = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    const room = hotel.rooms.find((r) => r.id === roomId);
+    if (room && Number(guests) > room.maxGuests) {
+      setGuests(String(room.maxGuests));
+    }
+  };
+
+  const roomLabel = (room: HotelRoom) =>
+    `${localizedText(room.name, locale)} — ${formatCurrency(room.pricePerNight, locale)}`;
+
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 1;
     return Math.max(
@@ -154,10 +165,14 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                   <h3 className="font-semibold">Rooms</h3>
                   <div className="mt-3 space-y-3">
                     {hotel.rooms.map((room) => (
-                      <div
+                      <button
                         key={room.id}
-                        className={`flex items-center justify-between rounded-lg border p-4 ${
-                          selectedRoomId === room.id ? "border-primary bg-primary/5" : ""
+                        type="button"
+                        onClick={() => selectRoom(room.id)}
+                        className={`flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors ${
+                          selectedRoomId === room.id
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                            : "hover:border-primary/40 hover:bg-muted/40"
                         }`}
                       >
                         <div>
@@ -169,7 +184,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                         <p className="font-semibold text-primary">
                           {formatCurrency(room.pricePerNight, locale)}/night
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -206,15 +221,17 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                     <Label>Room Type</Label>
                     <Select
                       value={selectedRoomId}
-                      onValueChange={(value) => value && setSelectedRoomId(value)}
+                      onValueChange={(value) => value && selectRoom(value)}
                     >
                       <SelectTrigger className="mt-1.5 w-full">
-                        <SelectValue />
+                        <SelectValue placeholder="Select room type">
+                          {selectedRoom ? roomLabel(selectedRoom) : "Select room type"}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {hotel.rooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
-                            {localizedText(room.name, locale)} — {formatCurrency(room.pricePerNight, locale)}
+                            {roomLabel(room)}
                           </SelectItem>
                         ))}
                       </SelectContent>

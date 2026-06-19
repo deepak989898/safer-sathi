@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, User } from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { PageHero } from "@/components/customer/page-hero";
@@ -13,34 +13,49 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app-store";
-import { formatCurrency, localizedText } from "@/lib/i18n";
+import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ChatMessage, TourPackage, Vehicle } from "@/types";
 
-const suggestions = [
+const SUGGESTIONS_EN = [
   "Plan a 5-day trip to Rajasthan",
   "Best honeymoon destinations in India",
   "Find tempo traveller for group of 15",
   "Budget hotels in Goa under ₹5000",
 ];
 
-const initialMessages: ChatMessage[] = [
-  {
-    id: "1",
+const SUGGESTIONS_HI = [
+  "राजस्थान की 5 दिन की यात्रा की योजना बनाएं",
+  "भारत में सर्वश्रेष्ठ हनीमून स्थल",
+  "15 लोगों के लिए टेंपो ट्रैवलर खोजें",
+  "गोवा में ₹5000 के अंदर बजट होटल",
+];
+
+function getWelcomeMessage(locale: "en" | "hi"): ChatMessage {
+  return {
+    id: "welcome",
     role: "assistant",
     content:
-      "Hello! I'm your Safar Sathi travel assistant. I can help you plan trips, find packages, book vehicles, and answer travel questions. How can I help you today?",
+      locale === "hi"
+        ? "नमस्ते! मैं आपका Safar Sathi यात्रा सहायक हूं। मैं यात्रा योजना, पैकेज, वाहन, होटल बुकिंग और आपकी पूछताछ में मदद कर सकता हूं। आप हिंदी में भी पूछ सकते हैं। आज मैं आपकी कैसे सहायता करूं?"
+        : "Hello! I'm your Safar Sathi travel assistant. I can help you plan trips, find packages, book vehicles, hotels, and answer travel questions. How can I help you today?",
     timestamp: new Date().toISOString(),
-  },
-];
+  };
+}
 
 export default function AIAssistantPage() {
   const { locale } = useAppStore();
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([getWelcomeMessage(locale)]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = locale === "hi" ? SUGGESTIONS_HI : SUGGESTIONS_EN;
+
+  useEffect(() => {
+    setMessages([getWelcomeMessage(locale)]);
+  }, [locale]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -84,14 +99,20 @@ export default function AIAssistantPage() {
 
       setMessages((prev) => [...prev, reply]);
     } catch {
-      toast.error("Could not reach assistant. Please try again.");
+      toast.error(
+        locale === "hi"
+          ? "सहायक से संपर्क नहीं हो पाया। कृपया पुनः प्रयास करें।"
+          : "Could not reach assistant. Please try again."
+      );
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Sorry, I'm having trouble connecting right now. Please try again or browse our packages and vehicles directly.",
+            locale === "hi"
+              ? "क्षमा करें, अभी कनेक्शन में समस्या है। कृपया दोबारा प्रयास करें या सीधे पैकेज और वाहन पेज देखें।"
+              : "Sorry, I'm having trouble connecting right now. Please try again or browse our packages and vehicles directly.",
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -103,8 +124,12 @@ export default function AIAssistantPage() {
   return (
     <>
       <PageHero
-        title="Travel Assistant"
-        subtitle="Get personalized recommendations for your next journey"
+        title={locale === "hi" ? "यात्रा सहायक" : "Travel Assistant"}
+        subtitle={
+          locale === "hi"
+            ? "अपनी अगली यात्रा के लिए व्यक्तिगत सुझाव पाएं"
+            : "Get personalized recommendations for your next journey"
+        }
         image={HERO_IMAGES.assistant}
       />
 
@@ -118,20 +143,27 @@ export default function AIAssistantPage() {
                     <AssistantIcon className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="font-semibold">Safar Sathi Assistant</p>
-                    <p className="text-xs text-muted-foreground">Always online · EN / HI</p>
+                    <p className="font-semibold">
+                      {locale === "hi" ? "Safar Sathi सहायक" : "Safar Sathi Assistant"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {locale === "hi" ? "हमेशा ऑनलाइन · हिंदी / English" : "Always online · EN / HI"}
+                    </p>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Ask about destinations, packages, vehicles, hotels, budgets, and
-                  itineraries across India.
+                  {locale === "hi"
+                    ? "गंतव्य, पैकेज, वाहन, होटल, बजट और यात्रा कार्यक्रम के बारे में पूछें। आप हिंदी में अपनी पूछताछ भी कर सकते हैं।"
+                    : "Ask about destinations, packages, vehicles, hotels, budgets, and itineraries across India."}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hidden sm:block">
+            <Card className="lg:order-1">
               <CardContent className="pt-6">
-                <p className="mb-3 text-sm font-medium">Quick Suggestions</p>
+                <p className="mb-3 text-sm font-medium">
+                  {locale === "hi" ? "त्वरित सुझाव" : "Quick Suggestions"}
+                </p>
                 <div className="space-y-2">
                   {suggestions.map((s) => (
                     <button
@@ -148,7 +180,7 @@ export default function AIAssistantPage() {
             </Card>
           </div>
 
-          <Card className="order-1 flex min-h-[420px] flex-col sm:min-h-[500px] lg:h-[600px] lg:min-h-0">
+          <Card className="order-1 flex min-h-[420px] flex-col sm:min-h-[500px] lg:order-2 lg:h-[600px] lg:min-h-0">
             <ScrollArea className="flex-1 p-3 sm:p-4" ref={scrollRef}>
               <div className="space-y-4">
                 {messages.map((msg) => (
@@ -211,7 +243,9 @@ export default function AIAssistantPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm">
-                      <span className="animate-pulse">Thinking...</span>
+                      <span className="animate-pulse">
+                        {locale === "hi" ? "सोच रहा हूं..." : "Thinking..."}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -227,7 +261,11 @@ export default function AIAssistantPage() {
                 className="flex gap-2"
               >
                 <Input
-                  placeholder="Ask about destinations, packages, vehicles..."
+                  placeholder={
+                    locale === "hi"
+                      ? "गंतव्य, पैकेज, वाहन के बारे में पूछें..."
+                      : "Ask about destinations, packages, vehicles..."
+                  }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}

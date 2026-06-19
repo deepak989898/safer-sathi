@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   LogOut,
@@ -43,11 +44,14 @@ export function RoleNavigationDrawer({
   const pathname = usePathname();
   const { locale } = useAppStore();
   const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
   const adminItems = user ? getAdminNavItems(user.role) : [];
   const isStaff = user ? canShowAdminNav(user.role) : false;
 
+  const closeMenu = () => setOpen(false);
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
           <Button
@@ -102,6 +106,7 @@ export function RoleNavigationDrawer({
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={closeMenu}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
@@ -132,6 +137,7 @@ export function RoleNavigationDrawer({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={closeMenu}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive ? "bg-primary/10 text-primary" : "hover:bg-accent"
@@ -151,6 +157,7 @@ export function RoleNavigationDrawer({
               </p>
               <Link
                 href="/login"
+                onClick={closeMenu}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
               >
                 <LayoutDashboard className="h-4 w-4" />
@@ -158,6 +165,7 @@ export function RoleNavigationDrawer({
               </Link>
               <Link
                 href="/register"
+                onClick={closeMenu}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
               >
                 <UserPlus className="h-4 w-4" />
@@ -165,6 +173,7 @@ export function RoleNavigationDrawer({
               </Link>
               <Link
                 href="/register/staff"
+                onClick={closeMenu}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
               >
                 <Shield className="h-4 w-4" />
@@ -179,13 +188,16 @@ export function RoleNavigationDrawer({
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => logout()}
+              onClick={() => {
+                closeMenu();
+                logout();
+              }}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
           ) : (
-            <Link href="/login" className="block">
+            <Link href="/login" className="block" onClick={closeMenu}>
               <Button className="w-full">{t(locale, "nav", "login")}</Button>
             </Link>
           )}

@@ -1,14 +1,8 @@
 import Link from "next/link";
-import {
-  HeadphonesIcon,
-  ShieldCheck,
-  Tag,
-} from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { Button } from "@/components/ui/button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
-import { HomeClient } from "./home-client";
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 
@@ -32,19 +26,6 @@ export default async function HomePage() {
         featuredHotels={featuredHotels}
         featuredVehicles={featuredVehicles}
       />
-
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <FeatureCard
-            icon={AssistantIcon}
-            titleKey="aiAssistant"
-            descKey="aiAssistantDesc"
-          />
-          <FeatureCard icon={Tag} titleKey="bestPrice" descKey="bestPriceDesc" />
-          <FeatureCard icon={HeadphonesIcon} titleKey="support" descKey="supportDesc" />
-          <FeatureCard icon={ShieldCheck} titleKey="secure" descKey="secureDesc" />
-        </div>
-      </section>
 
       <ImageBannerSection className="py-16" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">
@@ -75,24 +56,5 @@ export default async function HomePage() {
         </div>
       </ImageBannerSection>
     </>
-  );
-}
-
-function FeatureCard({
-  icon: Icon,
-  titleKey,
-  descKey,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  titleKey: string;
-  descKey: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-6 w-6" />
-      </div>
-      <HomeClient titleKey={titleKey} descKey={descKey} mode="feature" />
-    </div>
   );
 }

@@ -4,7 +4,7 @@ interface AssistantIconProps {
   className?: string;
 }
 
-/** Travel assistant: message bubble with location pin */
+/** Travel assistant: sparkle compass bot — friendly & distinctive */
 export function AssistantIcon({ className }: AssistantIconProps) {
   return (
     <svg
@@ -14,22 +14,27 @@ export function AssistantIcon({ className }: AssistantIconProps) {
       aria-hidden
       className={cn("h-6 w-6", className)}
     >
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
       <path
-        d="M5.25 4.5h13.5A1.75 1.75 0 0120.5 6.25v6.75A1.75 1.75 0 0118.75 14.75H15.5l-3.25 2.75V14.75H5.25A1.75 1.75 0 013.5 13V6.25A1.75 1.75 0 015.25 4.5Z"
+        d="M12 7v5l3 2"
         stroke="currentColor"
         strokeWidth="1.75"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M12 7.25a2 2 0 110 4 2 2 0 010-4Z"
-        fill="currentColor"
-      />
-      <path
-        d="M12 11.25v2"
+        d="M5.5 4.5l1 2M18.5 4.5l-1 2M4.5 18.5l2-1M19.5 18.5l-2-1"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
+      <path
+        d="M12 3.5v1M12 19.5v1M3.5 12h1M19.5 12h1"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+      />
+      <circle cx="17" cy="7" r="1.25" fill="currentColor" />
     </svg>
   );
 }

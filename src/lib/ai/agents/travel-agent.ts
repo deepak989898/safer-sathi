@@ -3,10 +3,19 @@ import type { TourPackage, Vehicle } from "@/types";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
-const SYSTEM_PROMPT = `You are Safar Sathi AI Travel Agent, an expert Indian travel planner.
-Help users plan trips, recommend tour packages and vehicles, and provide practical travel advice.
-Respond in the user's language (English or Hindi). Be concise and actionable.
+const SYSTEM_PROMPT_EN = `You are Safar Sathi AI Travel Agent, an expert Indian travel planner.
+Help users plan trips, recommend tour packages, vehicles, and hotels, and answer travel enquiries.
+Respond in clear English. Be concise, warm, and actionable.
 When recommending packages, mention price, duration, and key highlights.`;
+
+const SYSTEM_PROMPT_HI = `आप Safar Sathi AI यात्रा सहायक हैं — भारत के विशेषज्ञ यात्रा योजनाकार।
+उपयोगकर्ता हिंदी या हिंग्लिश में अपनी पूछताछ कर सकता है। आपको हमेशा पूरी तरह हिंदी (देवनागरी) में जवाब देना है।
+यात्रा योजना, टूर पैकेज, वाहन, होटल और बजट के बारे में सहायता करें। संक्षिप्त, स्पष्ट और उपयोगी जवाब दें।
+पैकेज सुझाते समय कीमत, अवधि और मुख्य आकर्षण बताएं।`;
+
+function getSystemPrompt(locale: "en" | "hi"): string {
+  return locale === "hi" ? SYSTEM_PROMPT_HI : SYSTEM_PROMPT_EN;
+}
 
 export interface TravelAgentInput {
   message: string;
@@ -92,15 +101,23 @@ export async function runTravelAgent(input: TravelAgentInput): Promise<TravelAge
   const [packages, vehicles] = await Promise.all([getPackages(), getVehicles()]);
   const recommendations = getRecommendations(input.message, packages, vehicles);
 
-  const contextNote = `Available packages: ${packages.map((p) => `${p.title.en} (₹${p.price})`).join("; ")}. Vehicles: ${vehicles.map((v) => `${v.name.en} (₹${v.pricePerDay}/day)`).join("; ")}.`;
+  const contextNote =
+    locale === "hi"
+      ? `उपलब्ध पैकेज: ${packages.map((p) => `${p.title.hi} (₹${p.price})`).join("; ")}। वाहन: ${vehicles.map((v) => `${v.name.hi} (₹${v.pricePerDay}/दिन)`).join("; ")}।`
+      : `Available packages: ${packages.map((p) => `${p.title.en} (₹${p.price})`).join("; ")}. Vehicles: ${vehicles.map((v) => `${v.name.en} (₹${v.pricePerDay}/day)`).join("; ")}.`;
+
+  const userContent =
+    locale === "hi"
+      ? `${input.message}\n\n[संदर्भ: ${contextNote}\nउत्तर केवल हिंदी में दें।]`
+      : `${input.message}\n\n[Context: ${contextNote}]`;
 
   const messages: ChatMessage[] = [
     ...(input.history ?? []),
-    { role: "user", content: `${input.message}\n\n[Context: ${contextNote}]` },
+    { role: "user", content: userContent },
   ];
 
   const { content, provider } = await routeCompletion(
-    SYSTEM_PROMPT,
+    getSystemPrompt(locale),
     messages,
     () => ruleBasedTravelReply(input.message, locale, packages, vehicles)
   );
