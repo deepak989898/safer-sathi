@@ -38,9 +38,10 @@ export default function AirportPickupClient({
         title="Airport Pickup"
         subtitle="Reliable transfers to and from all major airports"
         image={HERO_IMAGES.airport}
+        compactOnMobile
       />
 
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-6 md:py-10">
         <Card className="mb-12">
           <CardContent className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-4">
             <div>

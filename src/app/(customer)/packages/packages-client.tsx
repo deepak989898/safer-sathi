@@ -105,8 +105,9 @@ export default function PackagesClient({
         title="Tour Packages"
         subtitle="Curated experiences across India's most beautiful destinations"
         image={HERO_IMAGES.packages}
+        compactOnMobile
       />
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-6 md:py-10">
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search destinations..." />
         </div>

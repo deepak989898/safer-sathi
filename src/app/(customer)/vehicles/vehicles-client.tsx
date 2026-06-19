@@ -109,8 +109,9 @@ export default function VehiclesPage({
         title="Vehicles"
         subtitle="Premium cars, SUVs, tempo travellers and buses for every journey"
         image={HERO_IMAGES.vehicles}
+        compactOnMobile
       />
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-6 md:py-10">
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search vehicles..." />
         </div>

@@ -93,8 +93,9 @@ export default function CarRentalClient({
         title="Car Rental"
         subtitle="Self-drive and chauffeur-driven cars for every occasion"
         image={HERO_IMAGES.carRental}
+        compactOnMobile
       />
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-6 md:py-10">
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search cars..." />
         </div>

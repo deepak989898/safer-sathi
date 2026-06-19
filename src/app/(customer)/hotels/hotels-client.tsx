@@ -118,8 +118,9 @@ export default function HotelsClient({
         title="Hotels"
         subtitle="Handpicked stays from budget-friendly to luxury resorts"
         image={HERO_IMAGES.hotels}
+        compactOnMobile
       />
-      <section className="container mx-auto px-4 py-10">
+      <section className="container mx-auto px-4 py-6 md:py-10">
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search city or hotel..." />
         </div>
