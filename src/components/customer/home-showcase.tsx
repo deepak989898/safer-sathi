@@ -79,8 +79,6 @@ export function HomeShowcase({
         <SearchWidget onExpandChange={setSearchExpanded} />
       </HeroSlider>
 
-      <HomeFeaturesSection />
-
       {/* Mobile: tabbed showcase */}
       <section className="bg-muted/50 py-10 md:hidden">
         <div className="container mx-auto px-4">
@@ -155,6 +153,8 @@ export function HomeShowcase({
           </div>
         </div>
       </section>
+
+      <HomeFeaturesSection />
     </>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { HeadphonesIcon, ShieldCheck, Tag } from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { useAppStore } from "@/store/app-store";
@@ -12,6 +13,8 @@ const FEATURES = [
   { icon: HeadphonesIcon, titleKey: "support", descKey: "supportDesc" },
   { icon: ShieldCheck, titleKey: "secure", descKey: "secureDesc" },
 ] as const;
+
+const AUTO_ADVANCE_MS = 5000;
 
 function FeatureCard({
   icon: Icon,
@@ -44,32 +47,64 @@ function FeatureCard({
   );
 }
 
-export function HomeFeaturesSection() {
+function MobileFeatureSlider() {
+  const [index, setIndex] = useState(0);
+  const active = FEATURES[index] ?? FEATURES[0];
+
+  useEffect(() => {
+    if (FEATURES.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % FEATURES.length);
+    }, AUTO_ADVANCE_MS);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (!active) return null;
+
   return (
-    <section className="container mx-auto px-4 py-6 md:py-16">
-      {/* Mobile: horizontal snap slider — one card at a time */}
-      <div className="md:hidden">
-        <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {FEATURES.map((feature) => (
-            <FeatureCard
-              key={feature.titleKey}
-              {...feature}
-              className="min-w-[85%] shrink-0 snap-center sm:min-w-[70%]"
-            />
-          ))}
-        </div>
-        <div className="mt-3 flex justify-center gap-1.5">
-          {FEATURES.map((feature) => (
-            <span
-              key={feature.titleKey}
-              className="h-1.5 w-1.5 rounded-full bg-primary/30"
-              aria-hidden
-            />
-          ))}
-        </div>
+    <div className="md:hidden">
+      <div className="relative min-h-[190px] overflow-hidden">
+        {FEATURES.map((feature, featureIndex) => (
+          <div
+            key={feature.titleKey}
+            className={cn(
+              "absolute inset-x-0 top-0 transition-opacity duration-700 ease-in-out",
+              featureIndex === index ? "opacity-100" : "pointer-events-none opacity-0"
+            )}
+            aria-hidden={featureIndex !== index}
+          >
+            <FeatureCard {...feature} />
+          </div>
+        ))}
       </div>
 
-      {/* Desktop: grid */}
+      <div className="mt-4 flex items-center justify-center gap-2">
+        {FEATURES.map((feature, featureIndex) => (
+          <button
+            key={feature.titleKey}
+            type="button"
+            aria-label={`Go to feature ${featureIndex + 1}`}
+            onClick={() => setIndex(featureIndex)}
+            className={cn(
+              "h-2 rounded-full transition-all",
+              featureIndex === index
+                ? "w-8 bg-primary"
+                : "w-2 bg-primary/30 hover:bg-primary/50"
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function HomeFeaturesSection() {
+  return (
+    <section className="container mx-auto px-4 py-10 md:py-16">
+      <MobileFeatureSlider />
+
       <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((feature) => (
           <FeatureCard key={feature.titleKey} {...feature} />

@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHero } from "@/components/customer/page-hero";
 import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar";
 import { HotelCard } from "@/components/customer/hotel-card";
+import { ListingLayout } from "@/components/customer/listing-filter-sort";
 import { Label } from "@/components/ui/label";
+import {
+  HOTEL_SORT_KEYS,
+  sortHotels,
+  type CatalogSortKey,
+} from "@/lib/catalog/sort";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
@@ -25,6 +31,7 @@ export default function HotelsClient({
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [minStars, setMinStars] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
   useEffect(() => {
     if (searchFilters.searchTab === "hotels") {
@@ -43,6 +50,48 @@ export default function HotelsClient({
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
 
+  const clearFilters = () => {
+    setQuery("");
+    setPriceRange([0, maxPrice]);
+    setMinStars([]);
+  };
+
+  const filterProps = {
+    priceRange,
+    maxPrice,
+    onPriceChange: setPriceRange,
+    categories: STAR_OPTIONS,
+    selectedCategories: minStars,
+    onCategoryToggle: (id: string) =>
+      setMinStars((prev) =>
+        prev.includes(id) ? prev.filter((s) => s !== id) : [id]
+      ),
+    onClear: clearFilters,
+    extraFilters: (
+      <div className="space-y-2">
+        <Label>Popular Cities</Label>
+        {["Delhi", "Goa", "Udaipur"].map((city) => (
+          <button
+            key={city}
+            type="button"
+            onClick={() => setQuery(city)}
+            className="block text-sm text-primary hover:underline"
+          >
+            {city}
+          </button>
+        ))}
+      </div>
+    ),
+  };
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (query.trim()) count++;
+    if (priceRange[0] > 0 || priceRange[1] < maxPrice) count++;
+    if (minStars.length > 0) count++;
+    return count;
+  }, [query, priceRange, maxPrice, minStars]);
+
   const filtered = useMemo(() => {
     const starMin =
       minStars.length > 0 ? Math.min(...minStars.map(Number)) : 0;
@@ -58,6 +107,11 @@ export default function HotelsClient({
     });
   }, [initialHotels, query, priceRange, minStars]);
 
+  const sorted = useMemo(
+    () => sortHotels(filtered, sortBy),
+    [filtered, sortBy]
+  );
+
   return (
     <>
       <PageHero
@@ -69,53 +123,27 @@ export default function HotelsClient({
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search city or hotel..." />
         </div>
-        <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-          <FilterSidebar
-            priceRange={priceRange}
-            maxPrice={maxPrice}
-            onPriceChange={setPriceRange}
-            categories={STAR_OPTIONS}
-            selectedCategories={minStars}
-            onCategoryToggle={(id) =>
-              setMinStars((prev) =>
-                prev.includes(id) ? prev.filter((s) => s !== id) : [id]
-              )
-            }
-            onClear={() => {
-              setQuery("");
-              setPriceRange([0, maxPrice]);
-              setMinStars([]);
-            }}
-            extraFilters={
-              <div className="space-y-2">
-                <Label>Popular Cities</Label>
-                {["Delhi", "Goa", "Udaipur"].map((city) => (
-                  <button
-                    key={city}
-                    type="button"
-                    onClick={() => setQuery(city)}
-                    className="block text-sm text-primary hover:underline"
-                  >
-                    {city}
-                  </button>
-                ))}
-              </div>
-            }
-          />
-          <div>
-            {filtered.length === 0 ? (
-              <p className="py-20 text-center text-muted-foreground">
-                {t(locale, "common", "noResults")}
-              </p>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((hotel) => (
-                  <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <ListingLayout
+          filterSidebar={<FilterSidebar {...filterProps} />}
+          mobileFilterPanel={<FilterSidebar {...filterProps} embedded />}
+          sortKeys={HOTEL_SORT_KEYS}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          activeFilterCount={activeFilterCount}
+          resultCount={sorted.length}
+        >
+          {sorted.length === 0 ? (
+            <p className="py-20 text-center text-muted-foreground">
+              {t(locale, "common", "noResults")}
+            </p>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {sorted.map((hotel) => (
+                <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
+              ))}
+            </div>
+          )}
+        </ListingLayout>
       </section>
     </>
   );

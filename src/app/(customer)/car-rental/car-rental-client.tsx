@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHero } from "@/components/customer/page-hero";
 import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar";
 import { VehicleCard } from "@/components/customer/vehicle-card";
+import { ListingLayout } from "@/components/customer/listing-filter-sort";
+import {
+  VEHICLE_SORT_KEYS,
+  sortVehicles,
+  type CatalogSortKey,
+} from "@/lib/catalog/sort";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
@@ -24,6 +30,7 @@ export default function CarRentalClient({
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 15000]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
   const maxPrice = useMemo(
     () => Math.max(...initialVehicles.map((v) => v.pricePerDay), 15000),
@@ -33,6 +40,33 @@ export default function CarRentalClient({
   useEffect(() => {
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setPriceRange([0, maxPrice]);
+    setSelectedTypes([]);
+  };
+
+  const filterProps = {
+    priceRange,
+    maxPrice,
+    onPriceChange: setPriceRange,
+    categories: CAR_TYPES.map((t) => ({ id: t.id, label: t.label })),
+    selectedCategories: selectedTypes,
+    onCategoryToggle: (id: string) =>
+      setSelectedTypes((prev) =>
+        prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+      ),
+    onClear: clearFilters,
+  };
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (query.trim()) count++;
+    if (priceRange[0] > 0 || priceRange[1] < maxPrice) count++;
+    if (selectedTypes.length > 0) count++;
+    return count;
+  }, [query, priceRange, maxPrice, selectedTypes]);
 
   const filtered = useMemo(() => {
     return initialVehicles.filter((v) => {
@@ -48,6 +82,11 @@ export default function CarRentalClient({
     });
   }, [initialVehicles, query, priceRange, selectedTypes]);
 
+  const sorted = useMemo(
+    () => sortVehicles(filtered, sortBy),
+    [filtered, sortBy]
+  );
+
   return (
     <>
       <PageHero
@@ -59,38 +98,27 @@ export default function CarRentalClient({
         <div className="mb-6">
           <SearchInput value={query} onChange={setQuery} placeholder="Search cars..." />
         </div>
-        <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-          <FilterSidebar
-            priceRange={priceRange}
-            maxPrice={maxPrice}
-            onPriceChange={setPriceRange}
-            categories={CAR_TYPES.map((t) => ({ id: t.id, label: t.label }))}
-            selectedCategories={selectedTypes}
-            onCategoryToggle={(id) =>
-              setSelectedTypes((prev) =>
-                prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-              )
-            }
-            onClear={() => {
-              setQuery("");
-              setPriceRange([0, maxPrice]);
-              setSelectedTypes([]);
-            }}
-          />
-          <div>
-            {filtered.length === 0 ? (
-              <p className="py-20 text-center text-muted-foreground">
-                {t(locale, "common", "noResults")}
-              </p>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((v) => (
-                  <VehicleCard key={v.id} vehicle={v} locale={locale} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <ListingLayout
+          filterSidebar={<FilterSidebar {...filterProps} />}
+          mobileFilterPanel={<FilterSidebar {...filterProps} embedded />}
+          sortKeys={VEHICLE_SORT_KEYS}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          activeFilterCount={activeFilterCount}
+          resultCount={sorted.length}
+        >
+          {sorted.length === 0 ? (
+            <p className="py-20 text-center text-muted-foreground">
+              {t(locale, "common", "noResults")}
+            </p>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {sorted.map((v) => (
+                <VehicleCard key={v.id} vehicle={v} locale={locale} />
+              ))}
+            </div>
+          )}
+        </ListingLayout>
       </section>
     </>
   );
