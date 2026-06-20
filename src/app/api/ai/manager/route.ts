@@ -3,6 +3,7 @@ import {
   buildInitContext,
   persistAiMemory,
 } from "@/lib/ai/travel-manager/init-context";
+import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
 import { runTravelManager } from "@/lib/ai/travel-manager/travel-manager-agent";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
@@ -103,6 +104,21 @@ export async function POST(request: Request) {
 
     if (parsed.data.context) {
       void persistAiMemory(parsed.data.context, result);
+    }
+
+    if (!isInit) {
+      const selectedTier = result.packageTiers?.find(
+        (t) => t.tierId === result.state.selectedTierId
+      );
+      void logAiAssistantEnquiry({
+        request,
+        userMessage: parsed.data.message,
+        aiReply: result.reply,
+        locale,
+        state: result.state,
+        context: parsed.data.context,
+        packagePrice: result.packageQuote?.totalAmount ?? selectedTier?.totalAmount,
+      });
     }
 
     return apiSuccess({

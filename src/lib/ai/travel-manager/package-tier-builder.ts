@@ -4,6 +4,7 @@ import {
   hydrateActivitiesStore,
 } from "@/lib/activity-store";
 import { calculateHiddenCosts } from "@/lib/ai/travel-manager/travel-costs";
+import { buildDayItinerary, type ItineraryDay } from "@/lib/ai/travel-manager/itinerary-builder";
 import { localizedText } from "@/lib/i18n";
 import type { CustomPackageQuote } from "@/types/travel-manager";
 import type { Hotel, HotelRoom, Locale, Vehicle } from "@/types";
@@ -16,6 +17,7 @@ export interface TierPackageQuote extends CustomPackageQuote {
   nights: number;
   includedPlaces: string[];
   mealsLabel: string;
+  itinerary: ItineraryDay[];
 }
 
 export interface BuildTierPackagesInput {
@@ -213,6 +215,17 @@ async function buildSingleTier(
   const places = defaultPlaces(input.destination).slice(0, cfg.activityCount + 2);
   const tierLabel = input.locale === "hi" ? cfg.labelHi : cfg.label;
   const mealsLabel = input.locale === "hi" ? cfg.mealsHi : cfg.meals;
+  const hotelName = picked ? localizedText(picked.hotel.name, input.locale) : undefined;
+  const itinerary = buildDayItinerary({
+    destination: input.destination,
+    pickupCity: input.pickupCity,
+    durationDays,
+    places,
+    activityNames: activityItems.map((a) => a.name),
+    hotelName,
+    mealsLabel,
+    locale: input.locale,
+  });
 
   return {
     tierId,
@@ -220,6 +233,7 @@ async function buildSingleTier(
     nights,
     includedPlaces: places,
     mealsLabel,
+    itinerary,
     title: `${input.destination} ${tierLabel}`,
     destination: input.destination,
     durationDays,

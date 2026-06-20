@@ -13,6 +13,7 @@ import {
   Home,
   LayoutDashboard,
   Megaphone,
+  MessageSquare,
   Package,
   Shield,
   User,
@@ -71,6 +72,12 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     href: "/admin/ai-travel-manager",
     label: "AI Travel Manager",
     icon: Brain,
+    roles: ["super_admin", "manager", "sales_agent"],
+  },
+  {
+    href: "/admin/ai-enquiries",
+    label: "AI Enquiries",
+    icon: MessageSquare,
     roles: ["super_admin", "manager", "sales_agent"],
   },
   {

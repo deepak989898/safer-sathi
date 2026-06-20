@@ -57,6 +57,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [packageQuote, setPackageQuote] = useState<CustomPackageQuote | undefined>();
   const [packageTiers, setPackageTiers] = useState<TierPackageQuote[]>([]);
+  const [detailsTier, setDetailsTier] = useState<TierPackageQuote | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookingForm, setBookingForm] = useState({
@@ -317,6 +318,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     tmState?.step === "booking_form" || tmState?.step === "payment";
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(92vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary to-sky-600 px-4 py-3 text-left text-white">
@@ -401,6 +403,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     locale={locale}
                     onSelect={() => void sendMessage(`select_tier:${tier.tierId}`)}
                     onCustomize={() => void sendMessage(`customize_tier:${tier.tierId}`)}
+                    onFullDetails={() => setDetailsTier(tier)}
                   />
                 ))}
               </div>
@@ -584,6 +587,28 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         </form>
       </DialogContent>
     </Dialog>
+
+      {detailsTier && (
+        <TierPackageDetailsDialog
+          tier={detailsTier}
+          locale={locale}
+          open={!!detailsTier}
+          onOpenChange={(open) => {
+            if (!open) setDetailsTier(null);
+          }}
+          onSelect={() => {
+            const tierId = detailsTier.tierId;
+            setDetailsTier(null);
+            void sendMessage(`select_tier:${tierId}`);
+          }}
+          onBook={() => {
+            const tierId = detailsTier.tierId;
+            setDetailsTier(null);
+            void sendMessage(`select_tier:${tierId}`);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -592,11 +617,13 @@ function TierPackageCard({
   locale,
   onSelect,
   onCustomize,
+  onFullDetails,
 }: {
   tier: TierPackageQuote;
   locale: "en" | "hi";
   onSelect: () => void;
   onCustomize: () => void;
+  onFullDetails: () => void;
 }) {
   return (
     <div className="rounded-xl border-2 border-primary/20 bg-card p-3 shadow-sm">
@@ -618,6 +645,14 @@ function TierPackageCard({
       <p className="mt-2 text-lg font-bold text-primary">
         {formatCurrency(tier.totalAmount, locale)}
       </p>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="mt-2 w-full h-8 text-xs"
+        onClick={onFullDetails}
+      >
+        {locale === "hi" ? "पूरा विवरण" : "Full Details"}
+      </Button>
       <div className="mt-2 flex gap-2">
         <Button size="sm" className="flex-1 h-8 text-xs" onClick={onSelect}>
           {locale === "hi" ? "चुनें" : "Select"}
@@ -627,6 +662,116 @@ function TierPackageCard({
         </Button>
       </div>
     </div>
+  );
+}
+
+function TierPackageDetailsDialog({
+  tier,
+  locale,
+  open,
+  onOpenChange,
+  onSelect,
+  onBook,
+}: {
+  tier: TierPackageQuote;
+  locale: "en" | "hi";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: () => void;
+  onBook: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{tier.tierLabel}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          <div className="rounded-lg bg-primary/5 p-3 space-y-1">
+            <p className="font-semibold text-primary">{tier.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {tier.durationDays} {locale === "hi" ? "दिन" : "days"} · {tier.nights}{" "}
+              {locale === "hi" ? "रात" : "nights"} · {tier.guests}{" "}
+              {locale === "hi" ? "मेहमान" : "guests"}
+            </p>
+            <p className="text-lg font-bold text-primary">
+              {formatCurrency(tier.totalAmount, locale)}
+            </p>
+          </div>
+
+          {tier.hotel && (
+            <div>
+              <p className="font-medium mb-1">{locale === "hi" ? "🏨 होटल" : "🏨 Hotel"}</p>
+              <p className="text-xs text-muted-foreground">
+                {tier.hotel.name} ({tier.hotel.starRating}★) — {tier.hotel.roomType} —{" "}
+                {formatCurrency(tier.hotel.total, locale)}
+              </p>
+            </div>
+          )}
+
+          {tier.vehicle && (
+            <div>
+              <p className="font-medium mb-1">{locale === "hi" ? "🚗 वाहन" : "🚗 Vehicle"}</p>
+              <p className="text-xs text-muted-foreground">
+                {tier.vehicle.name} — {formatCurrency(tier.vehicle.total, locale)}
+              </p>
+            </div>
+          )}
+
+          {tier.activities.length > 0 && (
+            <div>
+              <p className="font-medium mb-1">{locale === "hi" ? "🎯 गतिविधियाँ" : "🎯 Activities"}</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {tier.activities.map((a) => (
+                  <li key={a.id}>
+                    {a.name} — {formatCurrency(a.price, locale)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div>
+            <p className="font-medium mb-2">
+              {locale === "hi" ? "📅 दिन-दर-दिन योजना" : "📅 Day-by-day itinerary"}
+            </p>
+            <div className="space-y-3">
+              {tier.itinerary.map((day) => (
+                <div key={day.day} className="rounded-lg border p-3">
+                  <p className="font-semibold text-xs text-primary">
+                    {locale === "hi" ? day.titleHi : day.title}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {locale === "hi" ? day.descriptionHi : day.description}
+                  </p>
+                  {day.meals && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">🍽 {day.meals}</p>
+                  )}
+                  {day.stay && day.stay !== "—" && (
+                    <p className="text-[11px] text-muted-foreground">🏨 {day.stay}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="font-medium mb-1">{locale === "hi" ? "📍 पिकअप" : "📍 Pickup"}</p>
+            <p className="text-xs text-muted-foreground">{tier.pickup}</p>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button className="flex-1" onClick={onBook}>
+              {locale === "hi" ? "बुक करें 📅" : "Book Now 📅"}
+            </Button>
+            <Button variant="outline" className="flex-1" onClick={onSelect}>
+              {locale === "hi" ? "चुनें" : "Select"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

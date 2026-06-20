@@ -47,6 +47,31 @@ const ADVENTURE_ACTIVITIES = [
   "Mountain Biking",
 ];
 
+function durationStepTransition(
+  next: TravelManagerState,
+  locale: Locale
+): StepTransition {
+  const dest = next.destination ?? "";
+  next.step = "duration";
+  return {
+    state: next,
+    reply:
+      locale === "hi"
+        ? dest
+          ? `आपकी यात्रा की अवधि कितनी होगी? कृपया बताएं ताकि हम आपकी ${dest} यात्रा के लिए सही योजना बना सकें।`
+          : "आपकी यात्रा की अवधि कितनी होगी?"
+        : dest
+          ? `How many days is your trip? We'll plan the perfect ${dest} itinerary.`
+          : "How many days is your trip?",
+    quickReplies: ["3", "4", "5", "6", "7"].map((d) => ({
+      id: `d-${d}`,
+      label: t(`${d} Days`, `${d} दिन`, locale),
+      value: d,
+    })),
+    nextStep: "duration",
+  };
+}
+
 function t(en: string, hi: string, locale: Locale) {
   return locale === "hi" ? hi : en;
 }
@@ -373,38 +398,12 @@ export function processConversationInput(
           nextStep: "activities",
         };
       }
-      next.step = "budget";
-      return {
-        state: next,
-        reply: t("What's your budget?", "आपका बजट?", locale),
-        quickReplies: [
-          { id: "b-10", label: "₹10,000", value: "10000" },
-          { id: "b-20", label: "₹20,000", value: "20000" },
-          { id: "b-30", label: "₹30,000", value: "30000" },
-          { id: "b-50", label: "₹50,000", value: "50000" },
-          { id: "b-70", label: "₹70,000", value: "70000" },
-          { id: "b-c", label: t("Custom Budget", "कस्टम बजट", locale), value: "custom" },
-        ],
-        nextStep: "budget",
-      };
+      return durationStepTransition(next, locale);
     }
 
     case "activities": {
       if (text === "__done__" || text.toLowerCase() === "done") {
-        next.step = "budget";
-        return {
-          state: next,
-          reply: t("What's your budget?", "आपका बजट?", locale),
-          quickReplies: [
-            { id: "b-10", label: "₹10,000", value: "10000" },
-            { id: "b-20", label: "₹20,000", value: "20000" },
-            { id: "b-30", label: "₹30,000", value: "30000" },
-            { id: "b-50", label: "₹50,000", value: "50000" },
-            { id: "b-70", label: "₹70,000", value: "70000" },
-            { id: "b-c", label: t("Custom Budget", "कस्टम बजट", locale), value: "custom" },
-          ],
-          nextStep: "budget",
-        };
+        return durationStepTransition(next, locale);
       }
       if (!next.selectedActivities.includes(text)) next.selectedActivities.push(text);
       return {
@@ -416,26 +415,7 @@ export function processConversationInput(
     }
 
     case "budget": {
-      if (text === "custom") {
-        return {
-          state: next,
-          reply: t("Enter budget amount:", "बजट राशि लिखें:", locale),
-          quickReplies: [],
-          nextStep: "budget",
-        };
-      }
-      next.budget = parsedBudget ?? (Number(text.replace(/\D/g, "")) || 20000);
-      next.step = "duration";
-      return {
-        state: next,
-        reply: t("Trip duration?", "यात्रा अवधि?", locale),
-        quickReplies: ["3", "4", "5", "6", "7"].map((d) => ({
-          id: `d-${d}`,
-          label: t(`${d} Days`, `${d} दिन`, locale),
-          value: d,
-        })),
-        nextStep: "duration",
-      };
+      return durationStepTransition(next, locale);
     }
 
     case "duration": {
@@ -520,17 +500,7 @@ export function processConversationInput(
           nextStep: "hotel_budget",
         };
       }
-      next.step = "budget";
-      return {
-        state: next,
-        reply: t("What's your budget?", "आपका बजट?", locale),
-        quickReplies: [
-          { id: "b-20", label: "₹20,000", value: "20000" },
-          { id: "b-30", label: "₹30,000", value: "30000" },
-          { id: "b-50", label: "₹50,000", value: "50000" },
-        ],
-        nextStep: "budget",
-      };
+      return durationStepTransition(next, locale);
     }
 
     case "hotel_budget": {
@@ -722,26 +692,24 @@ export function getStepUiForState(
         ],
       };
     case "budget":
+    case "duration": {
+      const dest = state.destination ?? "";
       return {
-        reply: t("What's your budget?", "आपका बजट?", locale),
-        quickReplies: [
-          { id: "b-10", label: "₹10,000", value: "10000" },
-          { id: "b-20", label: "₹20,000", value: "20000" },
-          { id: "b-30", label: "₹30,000", value: "30000" },
-          { id: "b-50", label: "₹50,000", value: "50000" },
-          { id: "b-70", label: "₹70,000", value: "70000" },
-          { id: "b-c", label: t("Custom Budget", "कस्टम बजट", locale), value: "custom" },
-        ],
-      };
-    case "duration":
-      return {
-        reply: t("Trip duration?", "यात्रा अवधि?", locale),
+        reply:
+          locale === "hi"
+            ? dest
+              ? `आपकी यात्रा की अवधि कितनी होगी? कृपया बताएं ताकि हम आपकी ${dest} यात्रा के लिए सही योजना बना सकें।`
+              : "आपकी यात्रा की अवधि कितनी होगी?"
+            : dest
+              ? `How many days is your trip? We'll plan the perfect ${dest} itinerary.`
+              : "How many days is your trip?",
         quickReplies: ["3", "4", "5", "6", "7"].map((d) => ({
           id: `d-${d}`,
           label: t(`${d} Days`, `${d} दिन`, locale),
           value: d,
         })),
       };
+    }
     case "package_tiers":
       return {
         reply:
