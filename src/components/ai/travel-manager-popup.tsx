@@ -28,6 +28,8 @@ import type {
   TravelManagerState,
   UserLocationInfo,
 } from "@/types/travel-manager";
+import type { TierPackageQuote } from "@/lib/ai/travel-manager/package-tier-builder";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface ChatEntry {
@@ -42,6 +44,7 @@ interface TravelManagerPopupProps {
 }
 
 export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupProps) {
+  const router = useRouter();
   const { locale, setLocale } = useAppStore();
   const { user } = useAuth();
   const { buildClientContext, saveLanguagePreference } = useAiTravelContext(user?.id);
@@ -54,6 +57,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [userLocation, setUserLocation] = useState<UserLocationInfo | undefined>();
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [packageQuote, setPackageQuote] = useState<CustomPackageQuote | undefined>();
+  const [packageTiers, setPackageTiers] = useState<TierPackageQuote[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookingForm, setBookingForm] = useState({
@@ -101,6 +105,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             saveLanguagePreference(json.data.locale);
           }
           setPackageQuote(undefined);
+          setPackageTiers([]);
           setHotels([]);
           setVehicles([]);
           if (forceLocale) setLocale(forceLocale);
@@ -131,7 +136,16 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, packageQuote, hotels, vehicles]);
+  }, [messages, packageQuote, packageTiers, hotels, vehicles]);
+
+  const handleQuickReply = (qr: QuickReply) => {
+    if (qr.value.startsWith("__link:")) {
+      router.push(qr.value.replace("__link:", ""));
+      onOpenChange(false);
+      return;
+    }
+    void sendMessage(qr.value);
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -163,6 +177,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       setTmState(data.state);
       setQuickReplies(data.quickReplies ?? []);
       setPackageQuote(data.packageQuote);
+      setPackageTiers(
+        data.state?.step === "package_review" && data.packageQuote ? [] : (data.packageTiers ?? [])
+      );
       setHotels(data.hotels ?? []);
       setVehicles(data.vehicles ?? []);
 
@@ -244,11 +261,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const showBookingForm =
     tmState?.step === "booking_form" ||
     tmState?.step === "payment" ||
-    packageQuote !== undefined;
+    (packageQuote !== undefined && tmState?.step === "package_review");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent className="flex h-[min(92vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-b bg-gradient-to-r from-primary to-sky-600 px-4 py-3 text-left text-white">
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="flex items-center gap-2 text-base font-semibold text-white">
@@ -318,7 +335,24 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
               </div>
             ))}
 
-            {packageQuote && (
+            {packageTiers.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {packageTiers.map((tier) => (
+                  <TierPackageCard
+                    key={tier.tierId}
+                    tier={tier}
+                    locale={locale}
+                    onSelect={() => void sendMessage(`select_tier:${tier.tierId}`)}
+                    onCustomize={() => {
+                      void sendMessage(`select_tier:${tier.tierId}`);
+                      setTimeout(() => void sendMessage("__customize__"), 300);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {packageQuote && packageTiers.length === 0 && (
               <PackageQuoteCard
                 quote={packageQuote}
                 locale={locale}
@@ -434,15 +468,26 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         </ScrollArea>
 
         {quickReplies.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-t px-3 py-2">
+          <div
+            className={cn(
+              "border-t px-3 py-2",
+              quickReplies.some((q) => q.variant === "card")
+                ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
+                : "flex flex-wrap gap-2"
+            )}
+          >
             {quickReplies.map((qr) => (
               <Button
                 key={qr.id}
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
+                variant={qr.variant === "card" ? "secondary" : "outline"}
+                size={qr.variant === "card" ? "default" : "sm"}
+                className={cn(
+                  qr.variant === "card"
+                    ? "h-auto min-h-[3.5rem] flex-col gap-1 py-3 text-xs font-semibold whitespace-normal"
+                    : "h-8 text-xs"
+                )}
                 disabled={loading}
-                onClick={() => void sendMessage(qr.value)}
+                onClick={() => handleQuickReply(qr)}
               >
                 {qr.label}
               </Button>
@@ -484,6 +529,49 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TierPackageCard({
+  tier,
+  locale,
+  onSelect,
+  onCustomize,
+}: {
+  tier: TierPackageQuote;
+  locale: "en" | "hi";
+  onSelect: () => void;
+  onCustomize: () => void;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-primary/20 bg-card p-3 shadow-sm">
+      <p className="font-bold text-primary">{tier.tierLabel}</p>
+      <p className="text-xs text-muted-foreground">
+        {tier.nights} {locale === "hi" ? "रात" : "Nights"} · {tier.durationDays}{" "}
+        {locale === "hi" ? "दिन" : "Days"}
+      </p>
+      <div className="mt-2 space-y-1 text-xs">
+        {tier.hotel && (
+          <p>
+            🏨 {tier.hotel.name} ({tier.hotel.starRating}★)
+          </p>
+        )}
+        {tier.vehicle && <p>🚗 {tier.vehicle.name}</p>}
+        <p>🎯 {tier.includedPlaces.slice(0, 3).join(", ")}</p>
+        <p>🍽 {tier.mealsLabel}</p>
+      </div>
+      <p className="mt-2 text-lg font-bold text-primary">
+        {formatCurrency(tier.totalAmount, locale)}
+      </p>
+      <div className="mt-2 flex gap-2">
+        <Button size="sm" className="flex-1 h-8 text-xs" onClick={onSelect}>
+          {locale === "hi" ? "Select" : "Select"}
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={onCustomize}>
+          {locale === "hi" ? "Customize" : "Customize"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

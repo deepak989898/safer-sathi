@@ -28,23 +28,33 @@ export interface AITravelPreferences {
 export type TravelManagerStep =
   | "welcome"
   | "destination"
+  | "pickup_city"
   | "trip_type"
   | "activities"
   | "guests"
   | "budget"
   | "duration"
+  | "package_tiers"
+  | "customize"
   | "package_review"
+  | "hotel_destination"
+  | "hotel_dates"
   | "hotel_budget"
   | "hotel_results"
+  | "vehicle_passengers"
   | "vehicle_results"
   | "booking_form"
   | "payment"
   | "confirmed";
 
 export type TripIntent =
+  | "tour_packages"
   | "custom_package"
   | "hotel_only"
   | "vehicle_only"
+  | "bus_booking"
+  | "international"
+  | "custom_tour"
   | "general";
 
 export interface TravelManagerState {
@@ -67,6 +77,15 @@ export interface TravelManagerState {
   customerEmail?: string;
   customerPhone?: string;
   bookingId?: string;
+  selectedTierId?: string;
+  checkOutDate?: string;
+  customizeFlags?: {
+    removeHotel?: boolean;
+    removeVehicle?: boolean;
+    extraNights?: number;
+    addGuide?: boolean;
+    addAirportPickup?: boolean;
+  };
   userLocation?: UserLocationInfo;
   memory?: Partial<AITravelPreferences>;
 }
@@ -75,6 +94,7 @@ export interface QuickReply {
   id: string;
   label: string;
   value: string;
+  variant?: "default" | "card";
 }
 
 export interface CustomPackageLineItem {
@@ -120,6 +140,7 @@ export interface TravelManagerResponse {
   state: TravelManagerState;
   quickReplies: QuickReply[];
   packageQuote?: CustomPackageQuote;
+  packageTiers?: import("@/lib/ai/travel-manager/package-tier-builder").TierPackageQuote[];
   hotels?: Hotel[];
   vehicles?: Vehicle[];
   packages?: TourPackage[];

@@ -123,7 +123,12 @@ export interface ResolveLocaleInput {
   location?: UserLocationInfo;
 }
 
-/** Priority: saved > browser > IP region > English */
+export function hasDetectedCity(location?: UserLocationInfo): boolean {
+  const city = (location?.city ?? "").trim();
+  return city.length > 0;
+}
+
+/** Priority: saved > browser > IP region > Hindi if no city > English (south only) */
 export function resolveAiLocale(input: ResolveLocaleInput): Locale {
   if (input.savedPreference === "hindi") return "hi";
   if (input.savedPreference === "english") return "en";
@@ -131,10 +136,14 @@ export function resolveAiLocale(input: ResolveLocaleInput): Locale {
   const browser = (input.browserLanguage ?? "").toLowerCase();
   if (browser.startsWith("hi")) return "hi";
 
-  const region = input.location?.region ?? detectIndiaRegion(input.location?.state, input.location?.city);
-  if (region === "north") return "hi";
+  if (!hasDetectedCity(input.location)) return "hi";
 
-  return "en";
+  const region =
+    input.location?.region ?? detectIndiaRegion(input.location?.state, input.location?.city);
+  if (region === "north") return "hi";
+  if (region === "south") return "en";
+
+  return "hi";
 }
 
 export function getLocationSuggestions(
