@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Database, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -402,6 +403,16 @@ export default function VehiclesAdminClient() {
 
   const columns: ColumnDef<Vehicle>[] = [
     {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <AdminImageThumbnail
+          images={row.original.images}
+          alt={localizedText(row.original.name, "en")}
+        />
+      ),
+    },
+    {
       id: "name",
       header: "Vehicle",
       cell: ({ row }) => localizedText(row.original.name, "en"),
@@ -500,6 +511,7 @@ export default function VehiclesAdminClient() {
             data={vehicles}
             searchKey="name"
             searchPlaceholder="Search vehicles..."
+            hidePagination
           />
         )}
       </div>

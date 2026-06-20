@@ -29,6 +29,8 @@ interface DataTableProps<TData, TValue> {
   searchKey?: string;
   searchPlaceholder?: string;
   pageSize?: number;
+  /** Show all rows on one page and hide pager controls */
+  hidePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -37,21 +39,30 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = "Search...",
   pageSize = 10,
+  hidePagination = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
+  const effectivePageSize = hidePagination ? 9999 : pageSize;
+
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter },
+    state: {
+      sorting,
+      globalFilter,
+      pagination: hidePagination
+        ? { pageIndex: 0, pageSize: effectivePageSize }
+        : undefined,
+    },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize } },
+    initialState: { pagination: { pageSize: effectivePageSize } },
   });
 
   return (
@@ -103,6 +114,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      {!hidePagination && (
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
@@ -128,6 +140,13 @@ export function DataTable<TData, TValue>({
           </Button>
         </div>
       </div>
+      )}
+      {hidePagination && data.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Showing all {table.getFilteredRowModel().rows.length} item
+          {table.getFilteredRowModel().rows.length === 1 ? "" : "s"}
+        </p>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Database, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -269,6 +270,16 @@ export default function PackagesAdminClient() {
 
   const columns: ColumnDef<TourPackage>[] = [
     {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <AdminImageThumbnail
+          images={row.original.images}
+          alt={localizedText(row.original.title, "en")}
+        />
+      ),
+    },
+    {
       id: "title",
       header: "Package",
       cell: ({ row }) => (
@@ -430,6 +441,7 @@ export default function PackagesAdminClient() {
                   }
                   searchKey="title"
                   searchPlaceholder="Search packages..."
+                  hidePagination
                 />
               )}
             </TabsContent>

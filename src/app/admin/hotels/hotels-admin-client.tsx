@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Database, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -303,6 +304,16 @@ export default function HotelsAdminClient() {
 
   const columns: ColumnDef<Hotel>[] = [
     {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <AdminImageThumbnail
+          images={row.original.images}
+          alt={localizedText(row.original.name, "en")}
+        />
+      ),
+    },
+    {
       id: "name",
       header: "Hotel",
       cell: ({ row }) => (
@@ -395,7 +406,13 @@ export default function HotelsAdminClient() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading hotels...</p>
         ) : (
-          <DataTable columns={columns} data={hotels} searchKey="name" searchPlaceholder="Search hotels..." />
+          <DataTable
+            columns={columns}
+            data={hotels}
+            searchKey="name"
+            searchPlaceholder="Search hotels..."
+            hidePagination
+          />
         )}
       </div>
 
