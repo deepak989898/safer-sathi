@@ -32,7 +32,8 @@ type StatusVariant =
   | "pending_approval"
   | "manager_review"
   | "published"
-  | "rejected";
+  | "rejected"
+  | "approved";
 
 const variantStyles: Record<StatusVariant, string> = {
   confirmed: "bg-primary/15 text-primary border-primary/20",
@@ -66,6 +67,7 @@ const variantStyles: Record<StatusVariant, string> = {
   manager_review: "bg-blue-500/15 text-blue-600 border-blue-500/20 dark:text-blue-400",
   published: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   rejected: "bg-destructive/15 text-destructive border-destructive/20",
+  approved: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20 dark:text-emerald-400",
 };
 
 const labelMap: Record<StatusVariant, string> = {
@@ -100,6 +102,7 @@ const labelMap: Record<StatusVariant, string> = {
   manager_review: "Manager Review",
   published: "Published",
   rejected: "Rejected",
+  approved: "Approved",
 };
 
 interface StatusBadgeProps {

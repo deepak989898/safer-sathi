@@ -13,7 +13,11 @@ import {
   Settings,
   ScrollText,
   Globe,
+  Package,
 } from "lucide-react";
+import { AiCenterPackagesTab } from "./ai-center-packages-tab";
+import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
+import { AiCenterVoiceTab } from "./ai-center-voice-tab";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -271,7 +275,7 @@ export default function AiCenterClient() {
     <>
       <AdminHeader
         title="AI Center"
-        description="SEO Agent & Blog Writer — Super Admin only"
+        description="SEO, Blog Writer, Package Generator, Voice & Analytics — Super Admin only"
         adminName={user?.name ?? "Super Admin"}
       />
 
@@ -297,6 +301,10 @@ export default function AiCenterClient() {
             <TabsTrigger value="drafts">Blog Drafts</TabsTrigger>
             <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
             <TabsTrigger value="published">Published</TabsTrigger>
+            <TabsTrigger value="packages">Package Generator</TabsTrigger>
+            <TabsTrigger value="voice">Voice Assistant</TabsTrigger>
+            <TabsTrigger value="analytics">AI Analytics</TabsTrigger>
+            <TabsTrigger value="reports">AI Reports</TabsTrigger>
             <TabsTrigger value="logs">AI Logs</TabsTrigger>
             <TabsTrigger value="settings">AI Settings</TabsTrigger>
           </TabsList>
@@ -436,6 +444,37 @@ export default function AiCenterClient() {
             />
           </TabsContent>
 
+          <TabsContent value="packages">
+            <AiCenterPackagesTab
+              actorRole={actorRole}
+              actorId={actorId}
+              busy={busy}
+              setBusy={setBusy}
+            />
+          </TabsContent>
+
+          <TabsContent value="voice">
+            <AiCenterVoiceTab settings={settings} />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AiCenterAnalyticsTab
+              actorRole={actorRole}
+              actorId={actorId}
+              busy={busy}
+              setBusy={setBusy}
+            />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <AiCenterAnalyticsTab
+              actorRole={actorRole}
+              actorId={actorId}
+              busy={busy}
+              setBusy={setBusy}
+            />
+          </TabsContent>
+
           <TabsContent value="logs">
             <Card>
               <CardHeader>
@@ -527,6 +566,89 @@ export default function AiCenterClient() {
                       <p className="text-xs text-muted-foreground">Always ON — no blog goes live without approval</p>
                     </div>
                     <Switch checked disabled />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Package Approval Required</p>
+                      <p className="text-xs text-muted-foreground">Packages must be approved before publish</p>
+                    </div>
+                    <Switch
+                      checked={settings.packageApprovalRequired ?? true}
+                      onCheckedChange={(v) => setSettings({ ...settings, packageApprovalRequired: v })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Default package duration (days)</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={14}
+                      value={settings.defaultPackageDuration ?? 5}
+                      onChange={(e) =>
+                        setSettings({ ...settings, defaultPackageDuration: Number(e.target.value) || 5 })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Default margin %</Label>
+                    <Input
+                      type="number"
+                      min={5}
+                      max={40}
+                      value={settings.defaultMarginPercent ?? 18}
+                      onChange={(e) =>
+                        setSettings({ ...settings, defaultMarginPercent: Number(e.target.value) || 18 })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Voice default locale</Label>
+                    <Select
+                      value={settings.voiceDefaultLocale ?? "auto"}
+                      onValueChange={(v) =>
+                        setSettings({ ...settings, voiceDefaultLocale: v as AiCenterSettings["voiceDefaultLocale"] })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="hi">Hindi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Voice gender</Label>
+                    <Select
+                      value={settings.voiceGender ?? "female"}
+                      onValueChange={(v) =>
+                        setSettings({ ...settings, voiceGender: v as AiCenterSettings["voiceGender"] })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Voice auto language detect</p>
+                    </div>
+                    <Switch
+                      checked={settings.voiceAutoDetectLanguage ?? true}
+                      onCheckedChange={(v) => setSettings({ ...settings, voiceAutoDetectLanguage: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Analytics auto report</p>
+                    </div>
+                    <Switch
+                      checked={settings.analyticsAutoReport ?? false}
+                      onCheckedChange={(v) => setSettings({ ...settings, analyticsAutoReport: v })}
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <Button onClick={() => void saveSettings()} disabled={busy}>

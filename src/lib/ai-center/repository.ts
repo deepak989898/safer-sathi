@@ -97,7 +97,7 @@ export async function hydrateAiCenterStore(): Promise<void> {
   if (meta.length) seoMetaCache = meta;
   if (blogs.length) blogCache = blogs;
   if (logs.length) logCache = logs;
-  if (settings[0]) settingsCache = settings[0];
+  if (settings[0]) settingsCache = { ...DEFAULT_SETTINGS, ...settings[0] };
 }
 
 export async function addAiCenterLog(input: {
@@ -119,7 +119,7 @@ export async function addAiCenterLog(input: {
 }
 
 export function getAiCenterSettings(): AiCenterSettings {
-  return settingsCache;
+  return { ...DEFAULT_SETTINGS, ...settingsCache };
 }
 
 export async function updateAiCenterSettings(

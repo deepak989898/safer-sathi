@@ -2,18 +2,179 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2030, 7, 11);
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'super_admin';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager'];
+    }
+
+    function isStaff() {
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent'];
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isStaff();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /hotels/{hotelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isStaff() || (isAuthenticated() && getUserRole() == 'driver');
+      allow write: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow create: if isAuthenticated();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      allow write: if isStaff();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Public blog posts (AI Center publishes here when approved)
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // AI Center — Phase 1 (Super Admin only)
+    match /seo_keywords/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /seo_meta/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /ai_center_logs/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /ai_center_settings/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // AI Center — Phase 2 (Super Admin only)
+    match /tour_packages/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /reports/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /ai_logs/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // AI analytics snapshots (staff may read; only Super Admin writes)
+    match /analytics/{docId} {
+      allow read: if isStaff();
+      allow write: if isSuperAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    match /aiTasks/{taskId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /workflows/{workflowId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // AI Travel Manager drafts & enquiries
+    match /ai_assistant_enquiries/{docId} {
+      allow read: if isStaff();
+      allow create: if true;
+      allow update, delete: if isStaff();
+    }
+
+    match /ai_package_drafts/{docId} {
+      allow read, write: if isStaff();
+    }
+
+    match /ai_vehicle_drafts/{docId} {
+      allow read, write: if isStaff();
+    }
+
+    match /ai_hotel_drafts/{docId} {
+      allow read, write: if isStaff();
+    }
+
+    match /ai_competitor_data/{docId} {
+      allow read, write: if isStaff();
+    }
+
+    match /ai_generated_images/{docId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
   }
 }

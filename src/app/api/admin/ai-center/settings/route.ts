@@ -28,6 +28,14 @@ const settingsSchema = z.object({
   autoDraftEnabled: z.boolean().optional(),
   autoPublishEnabled: z.boolean().optional(),
   approvalRequired: z.boolean().optional(),
+  packageAutoDraftEnabled: z.boolean().optional(),
+  packageApprovalRequired: z.boolean().optional(),
+  defaultPackageDuration: z.number().min(2).max(14).optional(),
+  defaultMarginPercent: z.number().min(5).max(40).optional(),
+  voiceDefaultLocale: z.enum(["en", "hi", "auto"]).optional(),
+  voiceGender: z.enum(["male", "female"]).optional(),
+  voiceAutoDetectLanguage: z.boolean().optional(),
+  analyticsAutoReport: z.boolean().optional(),
 });
 
 export async function PUT(request: Request) {

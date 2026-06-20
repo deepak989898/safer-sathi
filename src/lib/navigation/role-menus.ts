@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageSquare,
+  Mic,
   Package,
   Shield,
   Sparkles,
@@ -35,6 +36,7 @@ export const CUSTOMER_NAV_ITEMS: NavMenuItem[] = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Building2 },
   { href: "/bus-booking", label: "bus", icon: Bus },
+  { href: "/ai-voice", label: "aiVoice", icon: Mic },
   { href: "/my-bookings", label: "myBookings", icon: CalendarCheck },
 ];
 

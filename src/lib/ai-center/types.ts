@@ -8,6 +8,15 @@ export type KeywordCategory =
   | "travel_guides"
   | "local";
 
+export type AiPackageStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "published"
+  | "rejected";
+
+export type AiReportPeriod = "daily" | "weekly" | "monthly";
+
 export type AiLogType =
   | "keyword_generated"
   | "keyword_approved"
@@ -18,6 +27,14 @@ export type AiLogType =
   | "blog_rejected"
   | "blog_published"
   | "blog_deleted"
+  | "package_generated"
+  | "package_approved"
+  | "package_rejected"
+  | "package_published"
+  | "package_deleted"
+  | "analytics_generated"
+  | "report_generated"
+  | "voice_session"
   | "error";
 
 export interface SeoKeyword {
@@ -95,7 +112,163 @@ export interface AiCenterLog {
   type: AiLogType;
   message: string;
   resourceId?: string;
-  resourceType?: "keyword" | "blog" | "seo_meta" | "settings";
+  resourceType?:
+    | "keyword"
+    | "blog"
+    | "seo_meta"
+    | "settings"
+    | "package"
+    | "analytics"
+    | "report"
+    | "voice";
+  durationMs?: number;
+  error?: string;
+  createdAt: string;
+}
+
+export interface AiPackagePriceBreakdown {
+  hotelCost: number;
+  vehicleCost: number;
+  activitiesCost: number;
+  guideCost: number;
+  mealsCost: number;
+  margin: number;
+  marginPercent: number;
+  gst: number;
+  gstPercent: number;
+  subtotal: number;
+  finalPrice: number;
+}
+
+export interface AiPackageHotelRef {
+  mode: "existing" | "generated";
+  hotelId?: string;
+  name: string;
+  city?: string;
+  starRating?: number;
+  pricePerNight?: number;
+}
+
+export interface AiPackageVehicleRef {
+  mode: "existing" | "generated";
+  vehicleId?: string;
+  name: string;
+  type?: string;
+  seats?: number;
+  pricePerDay?: number;
+}
+
+export interface AiPackageSeoMeta {
+  metaTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  slug: string;
+  metaKeywords: string[];
+  faq: { question: string; answer: string }[];
+  canonicalUrl: string;
+}
+
+export interface AiTourPackage {
+  id: string;
+  destination: string;
+  title: string;
+  overview: string;
+  shortDescription: string;
+  duration: number;
+  durationLabel: string;
+  itinerary: {
+    day: number;
+    title: string;
+    description: string;
+    activities: string[];
+    places: string[];
+  }[];
+  hotel: AiPackageHotelRef;
+  vehicle: AiPackageVehicleRef;
+  meals: string[];
+  activities: string[];
+  placesToVisit: string[];
+  inclusions: string[];
+  exclusions: string[];
+  highlights: string[];
+  images: string[];
+  imagePrompts: { label: string; prompt: string; url?: string }[];
+  seoMeta: AiPackageSeoMeta;
+  faq: { question: string; answer: string }[];
+  priceBreakdown: AiPackagePriceBreakdown;
+  price: number;
+  category: KeywordCategory | string;
+  slug: string;
+  status: AiPackageStatus;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  publishedAt?: string;
+  publishedPackageId?: string;
+  rejectedReason?: string;
+}
+
+export interface AiAnalyticsInsight {
+  id: string;
+  category: "revenue" | "bookings" | "demand" | "operations" | "marketing";
+  title: string;
+  insight: string;
+  impact: "high" | "medium" | "low";
+  trend?: string;
+}
+
+export interface AiAnalyticsSnapshot {
+  id: string;
+  period: AiReportPeriod | "custom";
+  dateFrom: string;
+  dateTo: string;
+  todayBookings: number;
+  weeklyBookings: number;
+  monthlyBookings: number;
+  totalRevenue: number;
+  pendingPayments: number;
+  cancelledBookings: number;
+  refundRequests: number;
+  topDestinations: { name: string; count: number }[];
+  topHotels: { name: string; count: number }[];
+  topVehicles: { name: string; count: number }[];
+  topPackages: { name: string; count: number }[];
+  mostSearchedDestination: string;
+  mostViewedHotel: string;
+  mostViewedVehicle: string;
+  averageBookingValue: number;
+  returningCustomers: number;
+  revenueByMonth: { month: string; revenue: number }[];
+  bookingsByMonth: { month: string; bookings: number }[];
+  destinationChart: { name: string; value: number }[];
+  vehicleChart: { name: string; value: number }[];
+  hotelChart: { name: string; value: number }[];
+  insights: AiAnalyticsInsight[];
+  summary: string;
+  createdAt: string;
+}
+
+export interface AiReport {
+  id: string;
+  title: string;
+  period: AiReportPeriod;
+  dateFrom: string;
+  dateTo: string;
+  snapshotId: string;
+  summary: string;
+  csvData: string;
+  pdfHtml: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface AiPhase2Log {
+  id: string;
+  type: AiLogType;
+  message: string;
+  resourceId?: string;
+  resourceType?: string;
   durationMs?: number;
   error?: string;
   createdAt: string;
@@ -108,6 +281,14 @@ export interface AiCenterSettings {
   autoDraftEnabled: boolean;
   autoPublishEnabled: boolean;
   approvalRequired: boolean;
+  packageAutoDraftEnabled: boolean;
+  packageApprovalRequired: boolean;
+  defaultPackageDuration: number;
+  defaultMarginPercent: number;
+  voiceDefaultLocale: "en" | "hi" | "auto";
+  voiceGender: "male" | "female";
+  voiceAutoDetectLanguage: boolean;
+  analyticsAutoReport: boolean;
   updatedAt: string;
   updatedBy?: string;
 }
@@ -119,5 +300,13 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   autoDraftEnabled: false,
   autoPublishEnabled: false,
   approvalRequired: true,
+  packageAutoDraftEnabled: false,
+  packageApprovalRequired: true,
+  defaultPackageDuration: 5,
+  defaultMarginPercent: 18,
+  voiceDefaultLocale: "auto",
+  voiceGender: "female",
+  voiceAutoDetectLanguage: true,
+  analyticsAutoReport: false,
   updatedAt: new Date().toISOString(),
 };
