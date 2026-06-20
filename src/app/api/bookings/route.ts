@@ -5,6 +5,7 @@ import {
   getBookings,
 } from "@/lib/data-service";
 import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
+import { calculateAdvanceAmount } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const createSchema = z.object({
@@ -32,6 +33,7 @@ const createSchema = z.object({
   userId: z.string().optional(),
   notes: z.string().optional(),
   aiProcessed: z.boolean().optional(),
+  paymentPlan: z.enum(["full", "advance"]).optional(),
 });
 
 export async function GET(request: Request) {
@@ -72,8 +74,9 @@ export async function POST(request: Request) {
       amount: parsed.data.amount,
       bookingMode: parsed.data.bookingMode,
       distanceKm: parsed.data.distanceKm,
-      depositAmount: Math.round(parsed.data.amount * 0.2),
+      depositAmount: calculateAdvanceAmount(parsed.data.amount),
       paidAmount: 0,
+      paymentPlan: parsed.data.paymentPlan ?? "advance",
       status: "pending",
       paymentStatus: "pending",
       aiProcessed: parsed.data.aiProcessed ?? false,

@@ -238,6 +238,9 @@ export interface Booking {
   distanceKm?: number;
   depositAmount?: number;
   paidAmount: number;
+  paymentPlan?: "full" | "advance";
+  paymentFailureReason?: string;
+  lastPaymentAttemptAt?: string;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   aiProcessed: boolean;

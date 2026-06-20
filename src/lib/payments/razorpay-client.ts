@@ -4,7 +4,7 @@ declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => {
       open: () => void;
-      on: (event: string, handler: () => void) => void;
+      on: (event: string, handler: (...args: unknown[]) => void) => void;
     };
   }
 }
@@ -91,8 +91,13 @@ export async function openRazorpayCheckout(
       },
     });
 
-    razorpay.on("payment.failed", () => {
-      reject(new Error("Payment failed. Please try again."));
+    razorpay.on("payment.failed", (response: unknown) => {
+      const failed = response as { error?: { description?: string; reason?: string } };
+      const reason =
+        failed?.error?.description ||
+        failed?.error?.reason ||
+        "Payment failed. Please check your balance and try again.";
+      reject(new Error(reason));
     });
 
     razorpay.open();

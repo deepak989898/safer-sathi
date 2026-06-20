@@ -13,8 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-payment";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Vehicle } from "@/types";
@@ -36,6 +38,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const submitting = paying;
 
   const pricePerKm = vehicle.pricePerKm ?? Math.round(vehicle.pricePerDay / 200);
@@ -55,6 +58,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const dayTotal = vehicle.pricePerDay * days;
   const kmTotal = pricePerKm * km;
   const total = bookingMode === "km" ? kmTotal : dayTotal;
+  const payNow = calculatePayNowAmount(total, paymentPlan);
 
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
@@ -80,6 +84,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
         endDate: bookingMode === "day" ? endDate : undefined,
         guests: Number(guests) || 1,
         amount: total,
+        paymentPlan,
         bookingMode,
         distanceKm: bookingMode === "km" ? km : undefined,
         userId: user?.id,
@@ -302,7 +307,20 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     <span>Total</span>
                     <span className="text-primary">{formatCurrency(total, locale)}</span>
                   </div>
+                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                    <span>Pay now</span>
+                    <span className="font-medium text-foreground">
+                      {formatCurrency(payNow, locale)}
+                    </span>
+                  </div>
                 </div>
+
+                <PaymentPlanSelector
+                  totalAmount={total}
+                  value={paymentPlan}
+                  onChange={setPaymentPlan}
+                  locale={locale}
+                />
 
                 <Button
                   className="w-full"
@@ -315,7 +333,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                   ) : (
                     <Calendar className="mr-2 h-4 w-4" />
                   )}
-                  {t(locale, "common", "bookNow")}
+                  {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
                 </Button>
               </CardContent>
             </Card>

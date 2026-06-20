@@ -9,9 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/store/app-store";
+import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
-import type { Booking, BookingStatus } from "@/types";
+import type { Booking, BookingStatus, PaymentStatus } from "@/types";
 import { cn } from "@/lib/utils";
+
+const paymentColors: Record<PaymentStatus, string> = {
+  pending: "text-amber-600",
+  partial: "text-blue-600",
+  paid: "text-emerald-600",
+  failed: "text-destructive",
+  refunded: "text-muted-foreground",
+};
 
 const statusColors: Record<BookingStatus, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -121,12 +130,38 @@ export default function MyBookingsClient({
                           <p className="text-lg font-bold text-primary">
                             {formatCurrency(booking.amount, locale)}
                           </p>
-                          <p className="text-xs capitalize text-muted-foreground">
+                          <p className={cn("text-xs capitalize", paymentColors[booking.paymentStatus])}>
                             {booking.paymentStatus}
+                            {(booking.paidAmount ?? 0) > 0 &&
+                              ` · paid ${formatCurrency(booking.paidAmount ?? 0, locale)}`}
                           </p>
-                          <Button variant="outline" size="sm" className="mt-2">
-                            View Details
-                          </Button>
+                          {booking.paymentFailureReason && (
+                            <p className="mt-1 max-w-[220px] text-xs text-destructive">
+                              {booking.paymentFailureReason}
+                            </p>
+                          )}
+                          {getBalanceDue(booking.amount, booking.paidAmount ?? 0) > 0 &&
+                            booking.paymentStatus !== "failed" && (
+                              <p className="text-xs text-muted-foreground">
+                                Balance:{" "}
+                                {formatCurrency(
+                                  getBalanceDue(booking.amount, booking.paidAmount ?? 0),
+                                  locale
+                                )}
+                              </p>
+                            )}
+                          {(booking.paymentStatus === "failed" ||
+                            booking.paymentStatus === "partial" ||
+                            booking.paymentStatus === "pending") &&
+                            getBalanceDue(booking.amount, booking.paidAmount ?? 0) > 0 && (
+                              <Link href={`/booking?bookingId=${booking.id}`}>
+                                <Button variant="outline" size="sm" className="mt-2">
+                                  {booking.paymentStatus === "failed"
+                                    ? "Retry payment"
+                                    : "Pay balance"}
+                                </Button>
+                              </Link>
+                            )}
                         </div>
                       </CardContent>
                     </Card>

@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { verifyPayment } from "@/lib/payments/razorpay";
-import { updateBooking } from "@/lib/data-service";
+import { getBookingById, updateBooking } from "@/lib/data-service";
 import { sendEmail } from "@/lib/notifications/email";
 import { sendSMS } from "@/lib/notifications/sms";
 import { sendWhatsApp } from "@/lib/notifications/whatsapp";
+import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -15,6 +16,7 @@ const schema = z.object({
   customerName: z.string().optional(),
   customerEmail: z.string().optional(),
   customerPhone: z.string().optional(),
+  paymentPlan: z.enum(["full", "advance"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -34,27 +36,51 @@ export async function POST(request: Request) {
     });
 
     if (!verified) {
+      if (parsed.data.bookingId) {
+        await updateBooking(parsed.data.bookingId, {
+          paymentStatus: "failed",
+          paymentFailureReason: "Payment verification failed",
+          lastPaymentAttemptAt: new Date().toISOString(),
+        });
+      }
       return apiError("Payment verification failed", 400);
     }
 
     if (parsed.data.bookingId) {
+      const existing = await getBookingById(parsed.data.bookingId);
+      if (!existing) {
+        return apiError("Booking not found", 404);
+      }
+
+      const paidNow = parsed.data.amount ?? 0;
+      const newPaidTotal = (existing.paidAmount ?? 0) + paidNow;
+      const balanceDue = getBalanceDue(existing.amount, newPaidTotal);
+      const isFullyPaid = balanceDue <= 0;
+
       await updateBooking(parsed.data.bookingId, {
-        paymentStatus: "paid",
-        paidAmount: parsed.data.amount,
+        paymentStatus: isFullyPaid ? "paid" : "partial",
+        paidAmount: newPaidTotal,
         status: "confirmed",
+        paymentPlan: parsed.data.paymentPlan ?? existing.paymentPlan,
+        paymentFailureReason: undefined,
+        lastPaymentAttemptAt: new Date().toISOString(),
       });
 
-      const { customerEmail, customerPhone, customerName, bookingId, amount } = parsed.data;
+      const { customerEmail, customerPhone, customerName } = parsed.data;
       if (customerEmail || customerPhone) {
-        const msg = `Safar Sathi: Booking confirmed! Amount paid: ₹${(amount ?? 0).toLocaleString("en-IN")}. Thank you ${customerName ?? ""}!`;
+        const msg = isFullyPaid
+          ? `Safar Sathi: Booking ${existing.bookingNumber} confirmed! Total paid: ₹${newPaidTotal.toLocaleString("en-IN")}. Thank you ${customerName ?? ""}!`
+          : `Safar Sathi: Advance received for ${existing.bookingNumber}. Paid ₹${newPaidTotal.toLocaleString("en-IN")}. Balance due: ₹${balanceDue.toLocaleString("en-IN")}.`;
         const notifyTasks = [];
         if (customerEmail) {
           notifyTasks.push(
             sendEmail({
               to: customerEmail,
-              subject: "Safar Sathi — Booking Confirmed",
+              subject: isFullyPaid
+                ? "Safar Sathi — Booking Confirmed"
+                : "Safar Sathi — Advance Payment Received",
               text: msg,
-              html: `<p>${msg}</p><p>Your invoice will be shared shortly.</p>`,
+              html: `<p>${msg}</p>`,
             })
           );
         }

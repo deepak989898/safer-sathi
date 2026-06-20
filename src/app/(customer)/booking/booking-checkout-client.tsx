@@ -13,7 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/auth-context";
+import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import {
+  calculatePayNowAmount,
+  getBalanceDue,
+  type PaymentPlan,
+} from "@/lib/payments/booking-payment";
 import { useAppStore, useBookingCart } from "@/store/app-store";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { isDemoPaymentMode } from "@/lib/payments/razorpay-client";
@@ -45,6 +51,7 @@ export function BookingCheckoutClient() {
     email: user?.email ?? "",
     phone: user?.phone ?? "",
   });
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
 
   const loadPendingBooking = useCallback(async (bookingId: string) => {
     setLoadingBooking(true);
@@ -101,6 +108,7 @@ export function BookingCheckoutClient() {
         endDate: cart.endDate || undefined,
         guests: cart.guests,
         amount: cart.amount,
+        paymentPlan,
         bookingMode: cart.bookingMode,
         distanceKm: cart.bookingMode === "km" ? cart.distanceKm : undefined,
         userId: user?.id,
@@ -118,7 +126,7 @@ export function BookingCheckoutClient() {
     if (!pendingBooking) return;
 
     try {
-      await payExistingBooking(pendingBooking);
+      await payExistingBooking(pendingBooking, paymentPlan);
       router.push("/my-bookings");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment failed. Please try again.");
@@ -138,6 +146,12 @@ export function BookingCheckoutClient() {
 
   if (pendingBooking) {
     const serviceName = localizedText(pendingBooking.serviceName, locale);
+    const payNow = calculatePayNowAmount(
+      pendingBooking.amount,
+      paymentPlan,
+      pendingBooking.paidAmount ?? 0
+    );
+    const balanceDue = getBalanceDue(pendingBooking.amount, pendingBooking.paidAmount ?? 0);
 
     return (
       <>
@@ -170,13 +184,43 @@ export function BookingCheckoutClient() {
                     </div>
                   )}
                   <div className="flex justify-between font-bold">
-                    <span>Amount to pay</span>
+                    <span>Total amount</span>
                     <span className="text-primary">
                       {formatCurrency(pendingBooking.amount, locale)}
                     </span>
                   </div>
+                  {(pendingBooking.paidAmount ?? 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Paid so far</span>
+                      <span>{formatCurrency(pendingBooking.paidAmount ?? 0, locale)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium">
+                    <span>Pay now</span>
+                    <span>{formatCurrency(payNow, locale)}</span>
+                  </div>
+                  {balanceDue > payNow && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Balance later</span>
+                      <span>{formatCurrency(balanceDue - payNow, locale)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {pendingBooking.paymentFailureReason && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  Last payment failed: {pendingBooking.paymentFailureReason}
+                </div>
+              )}
+
+              <PaymentPlanSelector
+                totalAmount={pendingBooking.amount}
+                value={paymentPlan}
+                onChange={setPaymentPlan}
+                locale={locale}
+                paidAmount={pendingBooking.paidAmount ?? 0}
+              />
 
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="flex items-start gap-3">
@@ -199,7 +243,7 @@ export function BookingCheckoutClient() {
                     Processing...
                   </>
                 ) : (
-                  <>Pay {formatCurrency(pendingBooking.amount, locale)} with Razorpay</>
+                  <>Pay {formatCurrency(payNow, locale)} with Razorpay</>
                 )}
               </Button>
             </CardContent>
@@ -351,6 +395,12 @@ export function BookingCheckoutClient() {
 
             {step === 3 && (
               <div className="space-y-4">
+                <PaymentPlanSelector
+                  totalAmount={cart.amount}
+                  value={paymentPlan}
+                  onChange={setPaymentPlan}
+                  locale={locale}
+                />
                 <div className="rounded-lg border bg-muted/30 p-4">
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
@@ -366,9 +416,9 @@ export function BookingCheckoutClient() {
                 </div>
                 <div className="rounded-lg bg-muted/50 p-4">
                   <div className="flex justify-between font-bold">
-                    <span>Amount to pay</span>
+                    <span>Pay now</span>
                     <span className="text-primary">
-                      {formatCurrency(cart.amount, locale)}
+                      {formatCurrency(calculatePayNowAmount(cart.amount, paymentPlan), locale)}
                     </span>
                   </div>
                 </div>
@@ -397,7 +447,7 @@ export function BookingCheckoutClient() {
                       Processing...
                     </>
                   ) : (
-                    <>Pay {formatCurrency(cart.amount, locale)} with Razorpay</>
+                    <>Pay {formatCurrency(calculatePayNowAmount(cart.amount, paymentPlan), locale)} with Razorpay</>
                   )}
                 </Button>
               )}

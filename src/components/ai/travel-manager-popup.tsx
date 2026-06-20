@@ -32,6 +32,11 @@ import {
 } from "@/lib/ai/travel-manager/native-languages";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
+import {
+  calculatePayNowAmount,
+  type PaymentPlan,
+} from "@/lib/payments/booking-payment";
 import { preferredLanguageToLocale } from "@/lib/ai/travel-manager/geo-language";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -94,6 +99,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     guests: 2,
     specialRequest: "",
   });
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -356,19 +362,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         hotel: hotels.find((h) => h.id === tmState?.selectedHotelId),
         vehicle: vehicles.find((v) => v.id === tmState?.selectedVehicleId),
         userId: user?.id,
+        paymentPlan,
       });
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content:
-            aiLocale === "hi"
-              ? "🎉 बुकिंग पुष्टि हो गई! ईमेल, SMS और WhatsApp पर पुष्टि भेज दी गई है।"
-              : "🎉 Booking confirmed! Confirmation sent via Email, SMS & WhatsApp.",
-        },
-      ]);
-      setQuickReplies([]);
+      router.push("/my-bookings");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment failed");
     }
@@ -409,6 +405,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
 
   const showBookingForm =
     tmState?.step === "booking_form" || tmState?.step === "payment";
+
+  const checkoutAmount =
+    packageQuote?.totalAmount ??
+    (hotels.find((h) => h.id === tmState?.selectedHotelId)?.priceFrom ?? 0) +
+      (vehicles.find((v) => v.id === tmState?.selectedVehicleId)?.pricePerDay ?? 0);
 
   useEffect(() => {
     if (!showBookingForm || !tmState) return;
@@ -635,12 +636,24 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     />
                   </div>
                 </div>
+                {checkoutAmount > 0 && (
+                  <PaymentPlanSelector
+                    totalAmount={checkoutAmount}
+                    value={paymentPlan}
+                    onChange={setPaymentPlan}
+                    locale={aiLocale}
+                  />
+                )}
                 <Button className="w-full" disabled={paying} onClick={() => void handlePay()}>
                   {paying ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
                   {aiLocale === "hi" ? "Pay Now — Razorpay 💳" : "Pay Now — Razorpay 💳"}
-                  {packageQuote && ` · ${formatCurrency(packageQuote.totalAmount, aiLocale)}`}
+                  {checkoutAmount > 0 &&
+                    ` · ${formatCurrency(
+                      calculatePayNowAmount(checkoutAmount, paymentPlan),
+                      aiLocale
+                    )}`}
                 </Button>
               </div>
             )}

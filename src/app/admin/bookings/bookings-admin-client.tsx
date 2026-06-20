@@ -6,6 +6,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAuth } from "@/contexts/auth-context";
+import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { Booking } from "@/types";
 import { toast } from "sonner";
@@ -54,8 +55,19 @@ export default function BookingsAdminClient() {
     },
     {
       accessorKey: "amount",
-      header: "Amount",
+      header: "Total",
       cell: ({ row }) => formatCurrency(row.original.amount),
+    },
+    {
+      id: "paid",
+      header: "Paid",
+      cell: ({ row }) => formatCurrency(row.original.paidAmount ?? 0),
+    },
+    {
+      id: "balance",
+      header: "Balance",
+      cell: ({ row }) =>
+        formatCurrency(getBalanceDue(row.original.amount, row.original.paidAmount ?? 0)),
     },
     {
       accessorKey: "status",
@@ -66,10 +78,16 @@ export default function BookingsAdminClient() {
       id: "payment",
       header: "Payment",
       cell: ({ row }) => (
-        <StatusBadge
-          status={row.original.paymentStatus === "paid" ? "success" : "pending"}
-          label={row.original.paymentStatus}
-        />
+        <StatusBadge status={row.original.paymentStatus} label={row.original.paymentStatus} />
+      ),
+    },
+    {
+      id: "failure",
+      header: "Last issue",
+      cell: ({ row }) => (
+        <span className="max-w-[220px] truncate text-xs text-muted-foreground">
+          {row.original.paymentFailureReason ?? "—"}
+        </span>
       ),
     },
   ];
@@ -78,7 +96,7 @@ export default function BookingsAdminClient() {
     <>
       <AdminHeader
         title="Bookings"
-        description="Real customer bookings from Firebase"
+        description="All bookings including failed payments, partial advances, and confirmed trips"
         adminName={user?.name ?? "Admin"}
       />
       <div className="p-6">

@@ -18,8 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-payment";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel, HotelRoom } from "@/types";
@@ -36,6 +38,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const submitting = paying;
 
   const defaultRoom = hotel.rooms[0] ?? null;
@@ -69,6 +72,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   }, [checkIn, checkOut]);
 
   const total = pricePerNight * nights;
+  const payNow = calculatePayNowAmount(total, paymentPlan);
 
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
@@ -94,6 +98,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
         endDate: checkOut,
         guests: Number(guests) || 1,
         amount: total,
+        paymentPlan,
         userId: user?.id,
         notes: `Room type: ${roomName} (${selectedRoom?.type ?? "standard"})`,
       });
@@ -260,7 +265,19 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                     <span>Total</span>
                     <span className="text-primary">{formatCurrency(total, locale)}</span>
                   </div>
+                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                    <span>Pay now</span>
+                    <span className="font-medium text-foreground">
+                      {formatCurrency(payNow, locale)}
+                    </span>
+                  </div>
                 </div>
+                <PaymentPlanSelector
+                  totalAmount={total}
+                  value={paymentPlan}
+                  onChange={setPaymentPlan}
+                  locale={locale}
+                />
                 <Button
                   className="w-full"
                   size="lg"
@@ -272,7 +289,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
                   ) : (
                     <Calendar className="mr-2 h-4 w-4" />
                   )}
-                  {t(locale, "common", "bookNow")}
+                  {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
                 </Button>
               </CardContent>
             </Card>
