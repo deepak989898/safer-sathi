@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Safar Sathi">
   <rect width="512" height="512" rx="96" fill="#ffffff"/>
-  <circle cx="256" cy="220" r="168" fill="#1e3a5f"/>
-  <path d="M72 300 C130 190, 382 190, 440 300" fill="none" stroke="#f97316" stroke-width="22" stroke-linecap="round"/>
-  <path d="M96 330 C150 240, 362 240, 416 330" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" opacity="0.9"/>
-  <path d="M150 320 L362 320 L346 380 L166 380 Z" fill="#ffffff"/>
-  <rect x="188" y="292" width="136" height="34" rx="10" fill="#bfdbfe"/>
-  <circle cx="188" cy="382" r="24" fill="#0f172a"/>
-  <circle cx="324" cy="382" r="24" fill="#0f172a"/>
-  <path d="M150 170 L220 110 L290 150 L360 120" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
-  <circle cx="360" cy="96" r="42" fill="#f97316"/>
-  <path d="M420 88 L470 72" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
-  <text x="256" y="455" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="700" fill="#1e3a5f">SS</text>
+  <circle cx="256" cy="236" r="188" fill="#1e3a5f"/>
+  <path d="M56 290 C120 170, 392 170, 456 290" fill="none" stroke="#f97316" stroke-width="26" stroke-linecap="round"/>
+  <path d="M82 322 C138 232, 374 232, 430 322" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
+  <path d="M142 312 L370 312 L352 392 L160 392 Z" fill="#ffffff"/>
+  <rect x="182" y="284" width="148" height="38" rx="12" fill="#bfdbfe"/>
+  <circle cx="182" cy="392" r="28" fill="#0f172a"/>
+  <circle cx="330" cy="392" r="28" fill="#0f172a"/>
+  <path d="M142 176 L228 108 L302 154 L370 118" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="370" cy="92" r="48" fill="#f97316"/>
+  <path d="M430 84 L486 64" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+  <text x="256" y="468" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="800" fill="#f97316">SS</text>
 </svg>

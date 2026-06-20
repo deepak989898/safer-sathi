@@ -19,6 +19,23 @@ interface BrandLogoProps {
 const LOGO_LIGHT_SRC = "/images/safarsathilogo.png";
 const LOGO_DARK_SRC = "/images/safarsathidarklogo.png";
 
+/** Extra scale for dark PNG — file has more padding than the light logo */
+const darkLogoBoost: Record<BrandLogoSize, string> = {
+  header: "scale-[1.42] origin-left",
+  drawer: "scale-[1.38] origin-left",
+  footer: "scale-[1.38] origin-left",
+  admin: "scale-[1.32] origin-left",
+  compact: "scale-[1.35] origin-left",
+};
+
+const darkLogoScale: Record<BrandLogoSize, string> = {
+  header: "dark:scale-[1.42] dark:origin-left",
+  drawer: "dark:scale-[1.38] dark:origin-left",
+  footer: "dark:scale-[1.38] dark:origin-left",
+  admin: "dark:scale-[1.32] dark:origin-left",
+  compact: "dark:scale-[1.35] dark:origin-left",
+};
+
 /** Tall logo — height drives size so all tagline text stays readable */
 const sizeClasses: Record<BrandLogoSize, string> = {
   header: "h-[5.25rem] w-auto sm:h-[5.75rem] md:h-[6.25rem] lg:h-[6.75rem]",
@@ -64,7 +81,7 @@ export function BrandLogo({
           width={dims.width}
           height={dims.height}
           priority={priority}
-          className={imgClass}
+          className={cn(imgClass, darkLogoBoost[size])}
         />
       ) : (
         <>
@@ -82,7 +99,7 @@ export function BrandLogo({
             width={dims.width}
             height={dims.height}
             priority={priority}
-            className={cn(imgClass, "hidden dark:block")}
+            className={cn(imgClass, "hidden dark:block", darkLogoScale[size])}
           />
         </>
       )}
