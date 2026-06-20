@@ -36,7 +36,7 @@ export default function PackagesClient({
   const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
   useEffect(() => {
-    if (searchFilters.searchTab === "packages" || searchFilters.searchTab === "flights") {
+    if (searchFilters.searchTab === "packages") {
       if (searchFilters.query) setQuery(searchFilters.query);
       if (searchFilters.packageCategory) {
         setSelectedCategories([searchFilters.packageCategory]);
