@@ -15,6 +15,7 @@ import {
   Globe,
   Package,
 } from "lucide-react";
+import { AiCenterPhase3Tab } from "./ai-center-phase3-tab";
 import { AiCenterPackagesTab } from "./ai-center-packages-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
 import { AiCenterVoiceTab } from "./ai-center-voice-tab";
@@ -275,7 +276,7 @@ export default function AiCenterClient() {
     <>
       <AdminHeader
         title="AI Center"
-        description="SEO, Blog Writer, Package Generator, Voice & Analytics — Super Admin only"
+        description="SEO, Blog, Packages, Voice, Analytics & Phase 3 Agents — Super Admin only"
         adminName={user?.name ?? "Super Admin"}
       />
 
@@ -305,6 +306,11 @@ export default function AiCenterClient() {
             <TabsTrigger value="voice">Voice Assistant</TabsTrigger>
             <TabsTrigger value="analytics">AI Analytics</TabsTrigger>
             <TabsTrigger value="reports">AI Reports</TabsTrigger>
+            <TabsTrigger value="phase3-pricing">Dynamic Pricing</TabsTrigger>
+            <TabsTrigger value="phase3-reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="phase3-leads">Lead Scoring</TabsTrigger>
+            <TabsTrigger value="phase3-fraud">Fraud Detection</TabsTrigger>
+            <TabsTrigger value="phase3">Phase 3 Hub</TabsTrigger>
             <TabsTrigger value="logs">AI Logs</TabsTrigger>
             <TabsTrigger value="settings">AI Settings</TabsTrigger>
           </TabsList>
@@ -473,6 +479,31 @@ export default function AiCenterClient() {
               busy={busy}
               setBusy={setBusy}
             />
+          </TabsContent>
+
+          <TabsContent value="phase3">
+            <AiCenterPhase3Tab
+              actorRole={actorRole}
+              actorId={actorId}
+              busy={busy}
+              setBusy={setBusy}
+            />
+          </TabsContent>
+
+          <TabsContent value="phase3-pricing">
+            <AiCenterPhase3Tab actorRole={actorRole} actorId={actorId} busy={busy} setBusy={setBusy} defaultSubTab="pricing" />
+          </TabsContent>
+
+          <TabsContent value="phase3-reviews">
+            <AiCenterPhase3Tab actorRole={actorRole} actorId={actorId} busy={busy} setBusy={setBusy} defaultSubTab="reviews" />
+          </TabsContent>
+
+          <TabsContent value="phase3-leads">
+            <AiCenterPhase3Tab actorRole={actorRole} actorId={actorId} busy={busy} setBusy={setBusy} defaultSubTab="leads" />
+          </TabsContent>
+
+          <TabsContent value="phase3-fraud">
+            <AiCenterPhase3Tab actorRole={actorRole} actorId={actorId} busy={busy} setBusy={setBusy} defaultSubTab="fraud" />
           </TabsContent>
 
           <TabsContent value="logs">
@@ -649,6 +680,41 @@ export default function AiCenterClient() {
                       checked={settings.analyticsAutoReport ?? false}
                       onCheckedChange={(v) => setSettings({ ...settings, analyticsAutoReport: v })}
                     />
+                  </div>
+                  <div className="sm:col-span-2 pt-2">
+                    <p className="text-sm font-semibold">Phase 3 AI Agents</p>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div><p className="font-medium">Dynamic Pricing</p></div>
+                    <Switch checked={settings.dynamicPricingEnabled ?? true} onCheckedChange={(v) => setSettings({ ...settings, dynamicPricingEnabled: v })} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div><p className="font-medium">Review Agent</p></div>
+                    <Switch checked={settings.reviewAgentEnabled ?? true} onCheckedChange={(v) => setSettings({ ...settings, reviewAgentEnabled: v })} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div><p className="font-medium">Lead Scoring</p></div>
+                    <Switch checked={settings.leadScoringEnabled ?? true} onCheckedChange={(v) => setSettings({ ...settings, leadScoringEnabled: v })} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div><p className="font-medium">Fraud Detection</p></div>
+                    <Switch checked={settings.fraudDetectionEnabled ?? true} onCheckedChange={(v) => setSettings({ ...settings, fraudDetectionEnabled: v })} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2 bg-muted/40">
+                    <div><p className="font-medium">Price approval required</p></div>
+                    <Switch checked={settings.priceApprovalRequired ?? true} onCheckedChange={(v) => setSettings({ ...settings, priceApprovalRequired: v })} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2 bg-muted/40">
+                    <div><p className="font-medium">Review approval required</p></div>
+                    <Switch checked={settings.reviewApprovalRequired ?? true} onCheckedChange={(v) => setSettings({ ...settings, reviewApprovalRequired: v })} />
+                  </div>
+                  <div>
+                    <Label>Fraud risk threshold (0–100)</Label>
+                    <Input type="number" min={0} max={100} value={settings.fraudRiskThreshold ?? 50} onChange={(e) => setSettings({ ...settings, fraudRiskThreshold: Number(e.target.value) || 50 })} />
+                  </div>
+                  <div>
+                    <Label>Hot lead threshold</Label>
+                    <Input type="number" min={0} max={100} value={settings.leadHotThreshold ?? 80} onChange={(e) => setSettings({ ...settings, leadHotThreshold: Number(e.target.value) || 80 })} />
                   </div>
                   <div className="sm:col-span-2">
                     <Button onClick={() => void saveSettings()} disabled={busy}>

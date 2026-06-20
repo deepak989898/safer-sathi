@@ -35,6 +35,17 @@ export type AiLogType =
   | "analytics_generated"
   | "report_generated"
   | "voice_session"
+  | "pricing_suggested"
+  | "pricing_approved"
+  | "pricing_rejected"
+  | "review_submitted"
+  | "review_approved"
+  | "review_hidden"
+  | "lead_scored"
+  | "fraud_detected"
+  | "fraud_resolved"
+  | "user_blocked"
+  | "user_unblocked"
   | "error";
 
 export interface SeoKeyword {
@@ -120,7 +131,12 @@ export interface AiCenterLog {
     | "package"
     | "analytics"
     | "report"
-    | "voice";
+    | "voice"
+    | "pricing"
+    | "review"
+    | "lead"
+    | "fraud"
+    | "blocked_user";
   durationMs?: number;
   error?: string;
   createdAt: string;
@@ -289,6 +305,17 @@ export interface AiCenterSettings {
   voiceGender: "male" | "female";
   voiceAutoDetectLanguage: boolean;
   analyticsAutoReport: boolean;
+  dynamicPricingEnabled: boolean;
+  reviewAgentEnabled: boolean;
+  leadScoringEnabled: boolean;
+  fraudDetectionEnabled: boolean;
+  priceApprovalRequired: boolean;
+  reviewApprovalRequired: boolean;
+  manualPriceOverride: boolean;
+  fraudRiskThreshold: number;
+  leadHotThreshold: number;
+  leadWarmThreshold: number;
+  phase3NotificationsEnabled: boolean;
   updatedAt: string;
   updatedBy?: string;
 }
@@ -308,5 +335,150 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   voiceGender: "female",
   voiceAutoDetectLanguage: true,
   analyticsAutoReport: false,
+  dynamicPricingEnabled: true,
+  reviewAgentEnabled: true,
+  leadScoringEnabled: true,
+  fraudDetectionEnabled: true,
+  priceApprovalRequired: true,
+  reviewApprovalRequired: true,
+  manualPriceOverride: true,
+  fraudRiskThreshold: 50,
+  leadHotThreshold: 80,
+  leadWarmThreshold: 50,
+  phase3NotificationsEnabled: true,
   updatedAt: new Date().toISOString(),
 };
+
+export type PricingEntityType = "package" | "hotel" | "vehicle" | "activity";
+export type PricingSuggestionStatus = "pending" | "approved" | "rejected";
+
+export interface PriceRule {
+  id: string;
+  entityType: PricingEntityType;
+  minPricePercent: number;
+  maxPricePercent: number;
+  minAbsolute?: number;
+  maxAbsolute?: number;
+  manualOverrideEnabled: boolean;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface PricingHistoryRecord {
+  id: string;
+  entityType: PricingEntityType;
+  entityId: string;
+  entityName: string;
+  destination?: string;
+  oldPrice: number;
+  suggestedPrice: number;
+  approvedPrice?: number;
+  changePercent: number;
+  reason: string;
+  factors: {
+    season: string;
+    demandLevel: "low" | "medium" | "high";
+    isWeekend: boolean;
+    isPeakSeason: boolean;
+    isFestival: boolean;
+    bookingCount30d: number;
+  };
+  status: PricingSuggestionStatus;
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedReason?: string;
+}
+
+export type AiRatingStatus = "pending" | "approved" | "hidden" | "rejected";
+
+export interface AiRatingRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  bookingId?: string;
+  serviceType: string;
+  serviceId: string;
+  serviceName: string;
+  destination?: string;
+  hotelName?: string;
+  vehicleName?: string;
+  rating: number;
+  review: string;
+  photos: string[];
+  suggestions?: string;
+  complaints?: string;
+  sentiment: "positive" | "negative" | "neutral";
+  status: AiRatingStatus;
+  adminReply?: string;
+  aiSummary?: string;
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+export interface LeadScoreRecord {
+  id: string;
+  userId?: string;
+  sessionId: string;
+  email?: string;
+  phone?: string;
+  name?: string;
+  score: number;
+  status: "hot" | "warm" | "cold";
+  signals: {
+    destinationSearches: number;
+    hotelViews: number;
+    vehicleViews: number;
+    repeatedVisits: number;
+    timeOnSiteMinutes: number;
+    bookingAttempts: number;
+    lastDestination?: string;
+  };
+  aiSuggestion: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FraudLogRecord {
+  id: string;
+  userId?: string;
+  email?: string;
+  phone?: string;
+  bookingId?: string;
+  riskScore: number;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  signals: { signal: string; severity: string; score: number }[];
+  recommendedAction: string;
+  actionTaken?: "warn" | "block" | "flag" | "hold" | "verify" | "none";
+  status: "open" | "resolved" | "blocked";
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface BlockedUserRecord {
+  id: string;
+  userId?: string;
+  email?: string;
+  phone?: string;
+  reason: string;
+  fraudLogId?: string;
+  permanent: boolean;
+  blockedAt: string;
+  blockedBy: string;
+  unblockedAt?: string;
+}
+
+export interface Phase3Stats {
+  pricingPending: number;
+  pricingApproved: number;
+  reviewsPending: number;
+  reviewsApproved: number;
+  hotLeads: number;
+  warmLeads: number;
+  coldLeads: number;
+  fraudOpen: number;
+  fraudHigh: number;
+  blockedUsers: number;
+}

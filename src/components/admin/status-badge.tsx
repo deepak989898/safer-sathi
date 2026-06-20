@@ -33,7 +33,11 @@ type StatusVariant =
   | "manager_review"
   | "published"
   | "rejected"
-  | "approved";
+  | "approved"
+  | "hot"
+  | "warm"
+  | "cold"
+  | "blocked";
 
 const variantStyles: Record<StatusVariant, string> = {
   confirmed: "bg-primary/15 text-primary border-primary/20",
@@ -68,6 +72,10 @@ const variantStyles: Record<StatusVariant, string> = {
   published: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   rejected: "bg-destructive/15 text-destructive border-destructive/20",
   approved: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20 dark:text-emerald-400",
+  hot: "bg-red-500/15 text-red-600 border-red-500/20 dark:text-red-400",
+  warm: "bg-amber-500/15 text-amber-600 border-amber-500/20 dark:text-amber-400",
+  cold: "bg-blue-500/15 text-blue-600 border-blue-500/20 dark:text-blue-400",
+  blocked: "bg-destructive/15 text-destructive border-destructive/20",
 };
 
 const labelMap: Record<StatusVariant, string> = {
@@ -103,6 +111,10 @@ const labelMap: Record<StatusVariant, string> = {
   published: "Published",
   rejected: "Rejected",
   approved: "Approved",
+  hot: "Hot Lead",
+  warm: "Warm Lead",
+  cold: "Cold Lead",
+  blocked: "Blocked",
 };
 
 interface StatusBadgeProps {

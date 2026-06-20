@@ -36,6 +36,17 @@ const settingsSchema = z.object({
   voiceGender: z.enum(["male", "female"]).optional(),
   voiceAutoDetectLanguage: z.boolean().optional(),
   analyticsAutoReport: z.boolean().optional(),
+  dynamicPricingEnabled: z.boolean().optional(),
+  reviewAgentEnabled: z.boolean().optional(),
+  leadScoringEnabled: z.boolean().optional(),
+  fraudDetectionEnabled: z.boolean().optional(),
+  priceApprovalRequired: z.boolean().optional(),
+  reviewApprovalRequired: z.boolean().optional(),
+  manualPriceOverride: z.boolean().optional(),
+  fraudRiskThreshold: z.number().min(0).max(100).optional(),
+  leadHotThreshold: z.number().min(0).max(100).optional(),
+  leadWarmThreshold: z.number().min(0).max(100).optional(),
+  phase3NotificationsEnabled: z.boolean().optional(),
 });
 
 export async function PUT(request: Request) {

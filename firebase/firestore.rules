@@ -129,6 +129,33 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    match /pricing_history/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /price_rules/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /ratings/{docId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /lead_scores/{docId} {
+      allow read, write: if isSuperAdmin();
+      allow create: if true;
+    }
+
+    match /fraud_logs/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /blocked_users/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isStaff();

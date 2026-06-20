@@ -132,7 +132,8 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
 }
 
 export async function getReviews() {
-  return [];
+  const { getPublicReviews } = await import("@/lib/ai-center/phase3-repository");
+  return getPublicReviews();
 }
 
 export async function getAllPackageSlugs() {
