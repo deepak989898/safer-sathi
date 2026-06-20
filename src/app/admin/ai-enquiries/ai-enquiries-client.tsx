@@ -22,6 +22,7 @@ import {
 } from "@/types/ai-enquiry";
 import { formatCurrency } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 function formatDateHeading(dateKey: string): string {
   try {
@@ -156,6 +157,8 @@ export default function AiEnquiriesClient() {
         if (firstDate) {
           setOpenDates((prev) => ({ ...prev, [firstDate]: true }));
         }
+      } else {
+        toast.error(json.error ?? "Failed to load AI enquiries");
       }
     } finally {
       setLoading(false);

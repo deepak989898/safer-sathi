@@ -14,6 +14,8 @@ export interface UserLocationInfo {
 
 export interface AITravelPreferences {
   preferredLanguage: "hindi" | "english";
+  /** Optional spoken language (Tamil, Gujarati, etc.) — replies stay Hindi/English */
+  nativeLanguage?: string;
   preferredBudget?: number;
   favouriteDestinations?: string[];
   tripStyle?: string;

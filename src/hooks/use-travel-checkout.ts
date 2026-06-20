@@ -82,7 +82,13 @@ export function useTravelCheckout() {
 
       const bookingJson = await bookingRes.json();
       if (!bookingJson.success) {
-        throw new Error(bookingJson.error ?? "Failed to create booking");
+        const detail =
+          typeof bookingJson.details === "object"
+            ? JSON.stringify(bookingJson.details)
+            : "";
+        throw new Error(
+          detail ? `${bookingJson.error ?? "Failed to create booking"}: ${detail}` : (bookingJson.error ?? "Failed to create booking")
+        );
       }
 
       const booking = bookingJson.data;
@@ -99,7 +105,13 @@ export function useTravelCheckout() {
 
       const orderJson = await orderRes.json();
       if (!orderJson.success) {
-        throw new Error(orderJson.error ?? "Failed to create payment order");
+        const detail =
+          typeof orderJson.details === "object"
+            ? JSON.stringify(orderJson.details)
+            : "";
+        throw new Error(
+          detail ? `${orderJson.error ?? "Failed to create payment order"}: ${detail}` : (orderJson.error ?? "Failed to create payment order")
+        );
       }
 
       const order = orderJson.data;

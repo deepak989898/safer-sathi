@@ -1,10 +1,44 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { getClientIp, resolveUserLocation } from "@/lib/ai/travel-manager/ip-geolocation";
+import {
+  buildLocationFromBrowser,
+  getClientIp,
+} from "@/lib/ai/travel-manager/ip-geolocation";
 import type { Locale } from "@/types";
 import type { AiAssistantEnquiry } from "@/types/ai-enquiry";
-import type { TravelManagerState } from "@/types/travel-manager";
+import type { TravelManagerState, UserLocationInfo } from "@/types/travel-manager";
 
 const COLLECTION = "ai_assistant_enquiries";
+
+/** Firestore rejects documents containing undefined field values. */
+function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  ) as T;
+}
+
+function resolveEnquiryLocation(
+  request: Request,
+  state?: TravelManagerState,
+  timezone?: string
+): UserLocationInfo {
+  if (state?.userLocation?.city || state?.userLocation?.state) {
+    return state.userLocation;
+  }
+
+  const fromBrowser = buildLocationFromBrowser({
+    timezone,
+    browserLanguage: undefined,
+  });
+  if (fromBrowser) return fromBrowser;
+
+  const ip = getClientIp(request);
+  return {
+    country: "India",
+    source: "default",
+    region: "other",
+    ip: ip ?? undefined,
+  };
+}
 
 function formatTimeLabel(iso: string, timezone?: string): string {
   try {
@@ -48,16 +82,15 @@ export async function logAiAssistantEnquiry(input: {
   const createdAt = now.toISOString();
   const dateKey = createdAt.slice(0, 10);
 
-  let location = input.state?.userLocation;
-  if (!location?.city) {
-    location = await resolveUserLocation(input.request, {
-      timezone: input.context?.timezone,
-    });
-  }
+  const location = resolveEnquiryLocation(
+    input.request,
+    input.state,
+    input.context?.timezone
+  );
 
-  const ip = getClientIp(input.request) ?? location?.ip;
+  const ip = getClientIp(input.request) ?? location.ip;
 
-  const enquiry: Omit<AiAssistantEnquiry, "id"> = {
+  const enquiry = omitUndefined({
     createdAt,
     dateKey,
     timeLabel: formatTimeLabel(createdAt, location?.timezone ?? input.context?.timezone),
@@ -88,16 +121,22 @@ export async function logAiAssistantEnquiry(input: {
       input.state?.step === "payment" || input.state?.step === "confirmed"
         ? "converted"
         : "active",
-  };
+  } satisfies Omit<AiAssistantEnquiry, "id">);
 
-  if (!isAdminEnvConfigured()) return;
+  if (!isAdminEnvConfigured()) {
+    console.warn("logAiAssistantEnquiry skipped: Firebase Admin not configured");
+    return;
+  }
 
   try {
     const db = await getSafeAdminDb();
-    if (!db) return;
+    if (!db) {
+      console.warn("logAiAssistantEnquiry skipped: Admin DB unavailable");
+      return;
+    }
     await db.collection(COLLECTION).add(enquiry);
   } catch (error) {
-    console.warn("logAiAssistantEnquiry failed:", error);
+    console.error("logAiAssistantEnquiry failed:", error);
   }
 }
 
@@ -119,8 +158,20 @@ export async function listAiAssistantEnquiries(limit = 200): Promise<AiAssistant
       ...(doc.data() as Omit<AiAssistantEnquiry, "id">),
     }));
   } catch (error) {
-    console.warn("listAiAssistantEnquiries failed:", error);
-    return [];
+    console.error("listAiAssistantEnquiries orderBy failed, retrying:", error);
+    try {
+      const db = await getSafeAdminDb();
+      if (!db) return [];
+      const snap = await db.collection(COLLECTION).limit(limit).get();
+      const items = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<AiAssistantEnquiry, "id">),
+      }));
+      return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch (retryError) {
+      console.error("listAiAssistantEnquiries failed:", retryError);
+      return [];
+    }
   }
 }
 

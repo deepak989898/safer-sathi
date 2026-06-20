@@ -144,7 +144,10 @@ async function buildStepPayload(
   }
 
   if (
-    (state.step === "package_review" || state.step === "customize") &&
+    (state.step === "package_review" ||
+      state.step === "customize" ||
+      state.step === "booking_form" ||
+      state.step === "payment") &&
     state.destination &&
     state.durationDays &&
     state.selectedTierId

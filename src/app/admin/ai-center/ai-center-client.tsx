@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   Loader2,
@@ -64,7 +65,39 @@ interface Stats {
   seoMetaCount: number;
 }
 
+const AI_CENTER_TABS = new Set([
+  "seo",
+  "keywords",
+  "blog-writer",
+  "drafts",
+  "scheduled",
+  "published",
+  "packages",
+  "voice",
+  "analytics",
+  "reports",
+  "phase3-pricing",
+  "phase3-reviews",
+  "phase3-leads",
+  "phase3-fraud",
+  "phase3",
+  "logs",
+  "settings",
+]);
+
 export default function AiCenterClient() {
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && AI_CENTER_TABS.has(tabFromUrl) ? tabFromUrl : "seo"
+  );
+
+  useEffect(() => {
+    if (tabFromUrl && AI_CENTER_TABS.has(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
   const { user } = useAuth();
   const actorRole = user?.role ?? "customer";
   const actorId = user?.id ?? user?.email ?? "super_admin";
@@ -294,7 +327,7 @@ export default function AiCenterClient() {
           </Button>
         </div>
 
-        <Tabs defaultValue="seo" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="flex h-auto flex-wrap gap-1">
             <TabsTrigger value="seo">SEO Agent</TabsTrigger>
             <TabsTrigger value="keywords">Keyword Research</TabsTrigger>

@@ -34,10 +34,14 @@ export async function buildInitContext(
   clientContext?: TravelManagerClientContext,
   forceLocale?: Locale
 ): Promise<InitContextResult> {
-  const location = await resolveUserLocation(request, {
-    browserLanguage: clientContext?.browserLanguage,
-    timezone: clientContext?.timezone,
-  });
+  const location = await resolveUserLocation(
+    request,
+    {
+      browserLanguage: clientContext?.browserLanguage,
+      timezone: clientContext?.timezone,
+    },
+    { ipTimeoutMs: 400 }
+  );
 
   let savedPrefs: AITravelPreferences | null = null;
   if (clientContext?.userId && clientContext.userId !== "guest") {

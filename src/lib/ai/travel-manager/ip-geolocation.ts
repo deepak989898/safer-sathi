@@ -101,20 +101,33 @@ export function buildLocationFromBrowser(input: {
   return location;
 }
 
+const DEFAULT_LOCATION: UserLocationInfo = {
+  country: "India",
+  source: "default",
+  region: "other",
+};
+
 export async function resolveUserLocation(
   request: Request,
-  browserHints?: { timezone?: string; browserLanguage?: string }
+  browserHints?: { timezone?: string; browserLanguage?: string },
+  options?: { ipTimeoutMs?: number }
 ): Promise<UserLocationInfo> {
+  const fromBrowser = buildLocationFromBrowser(browserHints ?? {});
+
+  if (options?.ipTimeoutMs !== undefined) {
+    const ip = getClientIp(request);
+    const fromIp = await Promise.race([
+      fetchIpGeolocation(ip),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), options.ipTimeoutMs)),
+    ]);
+    if (fromIp) return fromIp;
+    if (fromBrowser) return fromBrowser;
+    return DEFAULT_LOCATION;
+  }
+
   const ip = getClientIp(request);
   const fromIp = await fetchIpGeolocation(ip);
   if (fromIp) return fromIp;
-
-  const fromBrowser = buildLocationFromBrowser(browserHints ?? {});
   if (fromBrowser) return fromBrowser;
-
-  return {
-    country: "India",
-    source: "default",
-    region: "other",
-  };
+  return DEFAULT_LOCATION;
 }

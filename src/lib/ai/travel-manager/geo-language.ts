@@ -230,6 +230,7 @@ export function mergePreferences(
   const favs = new Set([...(existing?.favouriteDestinations ?? []), ...(updates.favouriteDestinations ?? [])]);
   return {
     preferredLanguage: updates.preferredLanguage ?? existing?.preferredLanguage ?? "hindi",
+    nativeLanguage: updates.nativeLanguage ?? existing?.nativeLanguage,
     preferredBudget: updates.preferredBudget ?? existing?.preferredBudget,
     tripStyle: updates.tripStyle ?? existing?.tripStyle,
     hotelCategory: updates.hotelCategory ?? existing?.hotelCategory,

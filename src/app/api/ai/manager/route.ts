@@ -49,6 +49,7 @@ const contextSchema = z.object({
   localPreferences: z
     .object({
       preferredLanguage: z.enum(["hindi", "english"]).optional(),
+      nativeLanguage: z.string().optional(),
       preferredBudget: z.number().optional(),
       favouriteDestinations: z.array(z.string()).optional(),
       tripStyle: z.string().optional(),
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
       const selectedTier = result.packageTiers?.find(
         (t) => t.tierId === result.state.selectedTierId
       );
-      void logAiAssistantEnquiry({
+      await logAiAssistantEnquiry({
         request,
         userMessage: parsed.data.message,
         aiReply: result.reply,

@@ -59,6 +59,7 @@ export function useAiTravelContext(userId?: string) {
     const existing = getLocalAiPreferences();
     saveLocalAiPreferences({
       preferredLanguage: localeToPreferredLanguage(locale),
+      nativeLanguage: existing?.nativeLanguage,
       preferredBudget: existing?.preferredBudget,
       favouriteDestinations: existing?.favouriteDestinations,
       tripStyle: existing?.tripStyle,
@@ -71,5 +72,22 @@ export function useAiTravelContext(userId?: string) {
     });
   }, []);
 
-  return { buildClientContext, saveLanguagePreference, getLocalAiPreferences };
+  const saveNativeLanguagePreference = useCallback((nativeLanguage: string) => {
+    const existing = getLocalAiPreferences();
+    saveLocalAiPreferences({
+      preferredLanguage: existing?.preferredLanguage ?? "hindi",
+      nativeLanguage: nativeLanguage || undefined,
+      preferredBudget: existing?.preferredBudget,
+      favouriteDestinations: existing?.favouriteDestinations,
+      tripStyle: existing?.tripStyle,
+      hotelCategory: existing?.hotelCategory,
+      vehiclePreference: existing?.vehiclePreference,
+      lastCity: existing?.lastCity,
+      lastState: existing?.lastState,
+      lastCountry: existing?.lastCountry,
+      updatedAt: new Date().toISOString(),
+    });
+  }, []);
+
+  return { buildClientContext, saveLanguagePreference, saveNativeLanguagePreference, getLocalAiPreferences };
 }

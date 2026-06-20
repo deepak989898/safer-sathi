@@ -1,6 +1,7 @@
 "use client";
 
 import type { ElementType } from "react";
+import Link from "next/link";
 import {
   BarChart3,
   Bot,
@@ -16,6 +17,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/contexts/auth-context";
 import { localizedText } from "@/lib/i18n";
 import type { AIAgent, AIAgentType } from "@/types";
 
@@ -91,17 +93,39 @@ const agentIcons: Record<AIAgentType, ElementType> = {
   market_packages: TrendingUp,
 };
 
+const agentManageRoutes: Record<
+  AIAgentType,
+  { href: string; cta: string }
+> = {
+  travel: { href: "/admin/ai-travel-manager?tab=chat", cta: "Open AI Travel Manager" },
+  booking: { href: "/admin/bookings", cta: "View Bookings" },
+  support: { href: "/admin/ai-enquiries", cta: "Open AI Enquiries" },
+  sales: { href: "/admin/ai-center?tab=phase3-leads", cta: "Open Lead Scoring" },
+  marketing: { href: "/admin/ai-center?tab=blog-writer", cta: "Open Blog Writer" },
+  analytics: { href: "/admin/ai-center?tab=analytics", cta: "Open AI Analytics" },
+  seo: { href: "/admin/ai-center?tab=seo", cta: "Open SEO Agent" },
+  social: { href: "/admin/ai-center?tab=blog-writer", cta: "Open Blog Writer" },
+  fraud: { href: "/admin/ai-center?tab=phase3-fraud", cta: "Open Fraud Detection" },
+  market_packages: {
+    href: "/admin/ai-travel-manager?tab=packages",
+    cta: "Open Package Drafts",
+  },
+};
+
 export default function AIAgentsPage() {
+  const { user } = useAuth();
+
   return (
     <>
       <AdminHeader
         title="AI Agents"
         description="Monitor and manage autonomous AI agents"
-        adminName="Rajesh Kumar"
+        adminName={user?.name ?? "Admin"}
       />
       <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
         {agentCatalog.map((agent) => {
           const Icon = agentIcons[agent.id] ?? Bot;
+          const manageRoute = agentManageRoutes[agent.id];
           return (
             <Card key={agent.id} className="shadow-sm">
               <CardHeader className="flex flex-row items-start justify-between space-y-0">
@@ -133,9 +157,13 @@ export default function AIAgentsPage() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  render={<Link href={manageRoute.href} />}
+                >
                   <Settings2 className="size-4" />
-                  Manage Agent
+                  {manageRoute.cta}
                 </Button>
               </CardFooter>
             </Card>

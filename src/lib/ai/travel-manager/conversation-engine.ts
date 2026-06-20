@@ -3,6 +3,7 @@ import {
   type AITravelPreferences,
   type UserLocationInfo,
 } from "@/lib/ai/travel-manager/geo-language";
+import { getNativeLanguageAcknowledgment } from "@/lib/ai/travel-manager/native-languages";
 import type { Locale } from "@/types";
 import type {
   QuickReply,
@@ -649,6 +650,8 @@ export function getWelcomeMessage(
     const fav = preferences.favouriteDestinations.slice(-1)[0];
     reply += locale === "hi" ? `\n\nपिछली बार: ${fav}` : `\n\nLast interest: ${fav}`;
   }
+
+  reply += getNativeLanguageAcknowledgment(preferences?.nativeLanguage, locale);
 
   return { reply, quickReplies: mainMenuReplies(locale) };
 }

@@ -4,6 +4,7 @@ import {
   generateBookingNumber,
   getBookings,
 } from "@/lib/data-service";
+import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const createSchema = z.object({
@@ -80,6 +81,27 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    if (parsed.data.aiProcessed) {
+      await logAiAssistantEnquiry({
+        request,
+        userMessage: `AI booking: ${parsed.data.serviceName.en}`,
+        aiReply: `Booking ${booking.bookingNumber} · ₹${parsed.data.amount.toLocaleString("en-IN")}`,
+        locale: "hi",
+        state: {
+          step: "payment",
+          intent: "tour_packages",
+          selectedActivities: [],
+          customerName: parsed.data.customerName,
+          customerEmail: parsed.data.customerEmail,
+          customerPhone: parsed.data.customerPhone,
+          travelDate: parsed.data.startDate,
+          guests: parsed.data.guests,
+        },
+        context: { userId: parsed.data.userId },
+        packagePrice: parsed.data.amount,
+      });
+    }
 
     return apiSuccess(booking, 201);
   } catch (err) {

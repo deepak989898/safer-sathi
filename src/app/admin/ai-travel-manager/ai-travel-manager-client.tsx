@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Building2,
@@ -67,7 +68,28 @@ interface DraftsData {
   hotels: AIHotelDraft[];
 }
 
+const AI_TRAVEL_MANAGER_TABS = new Set([
+  "dashboard",
+  "competitors",
+  "packages",
+  "vehicles",
+  "hotels",
+  "chat",
+]);
+
 export default function AITravelManagerClient() {
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && AI_TRAVEL_MANAGER_TABS.has(tabFromUrl) ? tabFromUrl : "dashboard"
+  );
+
+  useEffect(() => {
+    if (tabFromUrl && AI_TRAVEL_MANAGER_TABS.has(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
   const { user } = useAuth();
   const actorRole = user?.role ?? "customer";
   const actorId = user?.id || user?.email || "admin";
@@ -574,7 +596,7 @@ export default function AITravelManagerClient() {
       />
 
       <div className="p-6">
-        <Tabs defaultValue="dashboard">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             {canViewCompetitorData(actorRole) && (

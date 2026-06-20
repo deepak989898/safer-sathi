@@ -13,8 +13,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth-context";
 import { mergePreferences, memoryFromState } from "@/lib/ai/travel-manager/geo-language";
+import { mainMenuReplies } from "@/lib/ai/travel-manager/conversation-engine";
+import {
+  buildInstantWelcomeMessage,
+  getNativeLanguageOption,
+  getSpeechRecognitionLang,
+  NATIVE_LANGUAGE_OPTIONS,
+} from "@/lib/ai/travel-manager/native-languages";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { preferredLanguageToLocale } from "@/lib/ai/travel-manager/geo-language";
@@ -51,8 +65,12 @@ function getInitialAiLocale(): Locale {
 export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupProps) {
   const router = useRouter();
   const [aiLocale, setAiLocale] = useState<Locale>(getInitialAiLocale);
+  const [nativeLanguage, setNativeLanguage] = useState<string>(
+    () => getLocalAiPreferences()?.nativeLanguage ?? ""
+  );
   const { user } = useAuth();
-  const { buildClientContext, saveLanguagePreference } = useAiTravelContext(user?.id);
+  const { buildClientContext, saveLanguagePreference, saveNativeLanguagePreference } =
+    useAiTravelContext(user?.id);
   const { completeBooking, paying } = useTravelCheckout();
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
@@ -79,8 +97,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const initChat = useCallback(
-    async (forceLocale?: "en" | "hi", reset = false) => {
-      setLoading(true);
+    async (forceLocale?: "en" | "hi", options?: { background?: boolean }) => {
+      const background = options?.background ?? false;
+      if (!background) setLoading(true);
       try {
         const activeLocale = forceLocale ?? aiLocale;
         const res = await fetch("/api/ai/manager", {
@@ -95,13 +114,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         });
         const json = await res.json();
         if (json.success) {
-          if (reset || messages.length === 0) {
+          const onWelcome = !tmState || tmState.step === "welcome";
+          if (onWelcome) {
             setMessages([{ id: "1", role: "assistant", content: json.data.reply }]);
-          } else {
-            setMessages((prev) => [
-              ...prev,
-              { id: Date.now().toString(), role: "assistant", content: json.data.reply },
-            ]);
           }
           setQuickReplies(json.data.quickReplies ?? []);
           setTmState(json.data.state);
@@ -116,12 +131,14 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           setVehicles([]);
         }
       } catch {
-        toast.error("Could not start AI Travel Manager");
+        if (!background) {
+          toast.error("Could not start AI Travel Manager");
+        }
       } finally {
-        setLoading(false);
+        if (!background) setLoading(false);
       }
     },
-    [aiLocale, buildClientContext, messages.length, saveLanguagePreference]
+    [aiLocale, buildClientContext, saveLanguagePreference, tmState]
   );
 
   const switchLanguage = async (newLocale: Locale) => {
@@ -170,9 +187,35 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     }
   };
 
+  const switchNativeLanguage = (code: string | null) => {
+    const nextCode = !code || code === "none" ? "" : code;
+    setNativeLanguage(nextCode);
+    saveNativeLanguagePreference(nextCode);
+
+    if (!tmState || tmState.step === "welcome") {
+      setMessages([
+        {
+          id: "1",
+          role: "assistant",
+          content: buildInstantWelcomeMessage(aiLocale, nextCode),
+        },
+      ]);
+    }
+  };
+
   useEffect(() => {
     if (open && messages.length === 0) {
-      void initChat();
+      const prefs = getLocalAiPreferences();
+      const locale = getInitialAiLocale();
+      setMessages([
+        {
+          id: "1",
+          role: "assistant",
+          content: buildInstantWelcomeMessage(locale, prefs?.nativeLanguage),
+        },
+      ]);
+      setQuickReplies(mainMenuReplies(locale));
+      void initChat(undefined, { background: true });
     }
   }, [open, messages.length, initChat]);
 
@@ -200,12 +243,21 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   }) => {
     setTmState(data.state);
     setQuickReplies(data.quickReplies ?? []);
-    setPackageQuote(data.packageQuote);
+    setPackageQuote((prev) => data.packageQuote ?? prev);
     setPackageTiers(data.state?.step === "package_tiers" ? (data.packageTiers ?? []) : []);
     setHotels(data.hotels ?? []);
     setVehicles(data.vehicles ?? []);
-    if (data.state?.guests) {
-      setBookingForm((f) => ({ ...f, guests: data.state!.guests! }));
+    if (data.state) {
+      setBookingForm((f) => ({
+        ...f,
+        ...(data.state?.guests ? { guests: data.state.guests } : {}),
+        ...(data.state?.pickupCity ? { pickupCity: data.state.pickupCity } : {}),
+        ...(data.state?.customerName ? { name: data.state.customerName } : {}),
+        ...(data.state?.customerEmail ? { email: data.state.customerEmail } : {}),
+        ...(data.state?.customerPhone ? { phone: data.state.customerPhone } : {}),
+        ...(data.state?.travelDate ? { travelDate: data.state.travelDate } : {}),
+        ...(data.state?.specialRequest ? { specialRequest: data.state.specialRequest } : {}),
+      }));
     }
   };
 
@@ -259,6 +311,21 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       toast.error(aiLocale === "hi" ? "सभी विवरण भरें" : "Please fill all details");
       return;
     }
+
+    const checkoutAmount =
+      packageQuote?.totalAmount ??
+      (hotels.find((h) => h.id === tmState?.selectedHotelId)?.priceFrom ?? 0) +
+        (vehicles.find((v) => v.id === tmState?.selectedVehicleId)?.pricePerDay ?? 0);
+
+    if (!checkoutAmount || checkoutAmount <= 0) {
+      toast.error(
+        aiLocale === "hi"
+          ? "पैकेज कीमत लोड नहीं हुई — कृपया पैकेज फिर से चुनें"
+          : "Package price not loaded — please select your package again"
+      );
+      return;
+    }
+
     try {
       await completeBooking({
         ...bookingForm,
@@ -300,7 +367,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       return;
     }
     const rec = new SR();
-    rec.lang = aiLocale === "hi" ? "hi-IN" : "en-IN";
+    rec.lang = getSpeechRecognitionLang(aiLocale, nativeLanguage);
     rec.interimResults = false;
     rec.onresult = (e: SpeechRecognitionEvent) => {
       const transcript = e.results[0]?.[0]?.transcript ?? "";
@@ -323,10 +390,22 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const showBookingForm =
     tmState?.step === "booking_form" || tmState?.step === "payment";
 
+  useEffect(() => {
+    if (!showBookingForm || !tmState) return;
+    setBookingForm((f) => ({
+      ...f,
+      pickupCity: tmState.pickupCity ?? f.pickupCity,
+      guests: tmState.guests ?? f.guests,
+    }));
+  }, [showBookingForm, tmState?.pickupCity, tmState?.guests, tmState?.step]);
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent
+        showCloseButton={false}
+        className="flex h-[min(92vh,720px)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      >
         <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary to-sky-600 px-4 py-3 text-left text-white">
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="flex min-w-0 items-center gap-2 text-base font-semibold text-white">
@@ -336,10 +415,35 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
               <span className="truncate">Safar Sathi AI</span>
             </DialogTitle>
             <div className="flex shrink-0 items-center gap-1">
+              <Select value={nativeLanguage || "none"} onValueChange={switchNativeLanguage}>
+                <SelectTrigger
+                  className="h-8 w-[min(7.5rem,28vw)] border-white/25 bg-white/20 text-xs text-white shadow-none [&_svg]:text-white"
+                  size="sm"
+                  aria-label={aiLocale === "hi" ? "मातृभाषा" : "Native language"}
+                >
+                  <SelectValue>
+                    {nativeLanguage
+                      ? getNativeLanguageOption(nativeLanguage)?.nameNative ?? nativeLanguage
+                      : aiLocale === "hi"
+                        ? "🗣️ भाषा"
+                        : "🗣️ Language"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="none">
+                    {aiLocale === "hi" ? "हिंदी / English" : "Hindi / English only"}
+                  </SelectItem>
+                  {NATIVE_LANGUAGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.nameNative} · {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div
                 className="flex items-center gap-0.5 rounded-full border border-white/25 bg-white/20 px-1 py-0.5 text-xs backdrop-blur-sm"
                 role="group"
-                aria-label="Language"
+                aria-label="Reply language"
               >
                 <span className="hidden px-1 opacity-90 sm:inline">🌐</span>
                 <button
@@ -379,8 +483,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                 ? `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · लाइव कीमतें · Razorpay`
                 : `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · Live prices · Razorpay`
               : aiLocale === "hi"
-                ? "लाइव कीमतें · हिंदी/English · Razorpay"
-                : "Live prices · EN/HI · Razorpay"}
+                ? "लाइव कीमतें · हिंदी डिफ़ॉल्ट · Razorpay"
+                : "Live prices · Hindi default · Razorpay"}
           </p>
         </DialogHeader>
 
@@ -578,9 +682,13 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           </Button>
           <Input
             placeholder={
-              aiLocale === "hi"
-                ? "हिंदी या English में पूछें…"
-                : "Ask in Hindi or English…"
+              nativeLanguage
+                ? aiLocale === "hi"
+                  ? "हिंदी, English या अपनी भाषा में पूछें…"
+                  : "Ask in English, Hindi, or your native language…"
+                : aiLocale === "hi"
+                  ? "हिंदी या English में पूछें…"
+                  : "Ask in Hindi or English…"
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}
