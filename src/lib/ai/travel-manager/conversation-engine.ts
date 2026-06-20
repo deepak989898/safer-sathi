@@ -231,6 +231,28 @@ export function processConversationInput(
     };
   }
 
+  if (text.startsWith("customize_tier:")) {
+    next.selectedTierId = text.replace("customize_tier:", "");
+    next.step = "customize";
+    return {
+      state: next,
+      reply: t(
+        "Customize your package — what would you like to change?",
+        "अपना पैकेज कस्टमाइज़ करें — क्या बदलना चाहते हैं?",
+        locale
+      ),
+      quickReplies: [
+        { id: "c-rh", label: t("Remove Hotel", "होटल हटाएं", locale), value: "mod:remove_hotel" },
+        { id: "c-rv", label: t("Remove Vehicle", "वाहन हटाएं", locale), value: "mod:remove_vehicle" },
+        { id: "c-en", label: t("Add Extra Nights", "अतिरिक्त रातें", locale), value: "mod:extra_night" },
+        { id: "c-ap", label: t("Add Airport Pickup", "एयरपोर्ट पिकअप", locale), value: "mod:airport" },
+        { id: "c-gd", label: t("Add Guide", "गाइड जोड़ें", locale), value: "mod:guide" },
+        { id: "c-done", label: t("Done ✓", "हो गया ✓", locale), value: "mod:done" },
+      ],
+      nextStep: "customize",
+    };
+  }
+
   if (text === "__customize__") {
     next.step = "customize";
     return {
@@ -523,18 +545,62 @@ export function processConversationInput(
     }
 
     case "package_tiers":
+      return {
+        state: next,
+        reply: t("Please select a package from the cards above.", "ऊपर से पैकेज चुनें।", locale),
+        quickReplies: [],
+        nextStep: "package_tiers",
+      };
+
     case "package_review":
+      if (text === "book_package") {
+        next.step = "booking_form";
+        return {
+          state: next,
+          reply: t(
+            "Share booking details — Name, Email, Phone, Travel Date:",
+            "बुकिंग विवरण — नाम, ईमेल, फ़ोन, यात्रा तिथि:",
+            locale
+          ),
+          quickReplies: [],
+          nextStep: "booking_form",
+        };
+      }
+      return {
+        state: next,
+        reply: t("Your package summary is shown above.", "आपका पैकेज ऊपर दिख रहा है।", locale),
+        quickReplies: [
+          { id: "book", label: t("Book Now 📅", "अभी बुक करें 📅", locale), value: "book_package" },
+          { id: "customize", label: t("Customize", "कस्टमाइज़", locale), value: "__customize__" },
+          { id: "human", label: t("Talk To Human", "एजेंट से बात", locale), value: "__human__" },
+        ],
+        nextStep: "package_review",
+      };
+
     case "customize":
+      return {
+        state: next,
+        reply: t("What would you like to change?", "आप क्या बदलना चाहते हैं?", locale),
+        quickReplies: [
+          { id: "c-rh", label: t("Remove Hotel", "होटल हटाएं", locale), value: "mod:remove_hotel" },
+          { id: "c-rv", label: t("Remove Vehicle", "वाहन हटाएं", locale), value: "mod:remove_vehicle" },
+          { id: "c-en", label: t("Add Extra Nights", "अतिरिक्त रातें", locale), value: "mod:extra_night" },
+          { id: "c-ap", label: t("Add Airport Pickup", "एयरपोर्ट पिकअप", locale), value: "mod:airport" },
+          { id: "c-gd", label: t("Add Guide", "गाइड जोड़ें", locale), value: "mod:guide" },
+          { id: "c-done", label: t("Done ✓", "हो गया ✓", locale), value: "mod:done" },
+        ],
+        nextStep: "customize",
+      };
+
     case "hotel_results":
     case "vehicle_results": {
       if (text.startsWith("book_hotel:")) {
         next.selectedHotelId = text.replace("book_hotel:", "");
       } else if (text.startsWith("book_vehicle:")) {
         next.selectedVehicleId = text.replace("book_vehicle:", "");
-      } else if (text.startsWith("select_tier:")) {
-        next.selectedTierId = text.replace("select_tier:", "");
+      } else {
+        next.step = "booking_form";
       }
-      next.step = "booking_form";
       return {
         state: next,
         reply: t(
@@ -615,4 +681,111 @@ export function getWelcomeMessage(
   }
 
   return { reply, quickReplies: mainMenuReplies(locale) };
+}
+
+/** Rebuild UI labels for current step (language switch without losing progress) */
+export function getStepUiForState(
+  state: TravelManagerState,
+  locale: Locale
+): { reply: string; quickReplies: QuickReply[] } {
+  switch (state.step) {
+    case "welcome":
+      return {
+        reply: t("Hello 👋\n\nWhat would you like today?", "नमस्ते 👋\n\nआज आप क्या चाहेंगे?", locale),
+        quickReplies: mainMenuReplies(locale),
+      };
+    case "destination":
+      return {
+        reply: t("Where do you want to go?", "आप कहाँ जाना चाहते हैं?", locale),
+        quickReplies: destinationReplies(locale),
+      };
+    case "pickup_city":
+      return {
+        reply: t("Where are you travelling from?", "आप कहाँ से यात्रा शुरू करेंगे?", locale),
+        quickReplies: pickupReplies(locale),
+      };
+    case "trip_type":
+      return {
+        reply: t("What type of trip do you prefer?", "किस तरह की यात्रा?", locale),
+        quickReplies: TRIP_TYPES.map((tt) => ({
+          id: `tt-${tt.id}`,
+          label: locale === "hi" ? tt.labelHi : tt.label,
+          value: tt.id,
+        })),
+      };
+    case "activities":
+      return {
+        reply: t("Select activities (multiple):", "गतिविधियाँ चुनें:", locale),
+        quickReplies: [
+          ...ADVENTURE_ACTIVITIES.map((a) => ({ id: `act-${a}`, label: a, value: a })),
+          { id: "act-done", label: t("Done ✓", "हो गया ✓", locale), value: "__done__" },
+        ],
+      };
+    case "budget":
+      return {
+        reply: t("What's your budget?", "आपका बजट?", locale),
+        quickReplies: [
+          { id: "b-10", label: "₹10,000", value: "10000" },
+          { id: "b-20", label: "₹20,000", value: "20000" },
+          { id: "b-30", label: "₹30,000", value: "30000" },
+          { id: "b-50", label: "₹50,000", value: "50000" },
+          { id: "b-70", label: "₹70,000", value: "70000" },
+          { id: "b-c", label: t("Custom Budget", "कस्टम बजट", locale), value: "custom" },
+        ],
+      };
+    case "duration":
+      return {
+        reply: t("Trip duration?", "यात्रा अवधि?", locale),
+        quickReplies: ["3", "4", "5", "6", "7"].map((d) => ({
+          id: `d-${d}`,
+          label: t(`${d} Days`, `${d} दिन`, locale),
+          value: d,
+        })),
+      };
+    case "package_tiers":
+      return {
+        reply:
+          locale === "hi"
+            ? `✨ ${state.destination ?? ""} के लिए 4 पैकेज — ऊपर से चुनें।`
+            : `✨ 4 packages for ${state.destination ?? ""} — select above.`,
+        quickReplies: [],
+      };
+    case "customize":
+      return {
+        reply: t("What would you like to change?", "आप क्या बदलना चाहते हैं?", locale),
+        quickReplies: [
+          { id: "c-rh", label: t("Remove Hotel", "होटल हटाएं", locale), value: "mod:remove_hotel" },
+          { id: "c-rv", label: t("Remove Vehicle", "वाहन हटाएं", locale), value: "mod:remove_vehicle" },
+          { id: "c-en", label: t("Add Extra Nights", "अतिरिक्त रातें", locale), value: "mod:extra_night" },
+          { id: "c-ap", label: t("Add Airport Pickup", "एयरपोर्ट पिकअप", locale), value: "mod:airport" },
+          { id: "c-gd", label: t("Add Guide", "गाइड जोड़ें", locale), value: "mod:guide" },
+          { id: "c-done", label: t("Done ✓", "हो गया ✓", locale), value: "mod:done" },
+        ],
+      };
+    case "package_review":
+      return {
+        reply: t("Your package summary is shown above.", "आपका पैकेज ऊपर दिख रहा है।", locale),
+        quickReplies: [
+          { id: "book", label: t("Book Now 📅", "अभी बुक करें 📅", locale), value: "book_package" },
+          { id: "customize", label: t("Customize", "कस्टमाइज़", locale), value: "__customize__" },
+          { id: "human", label: t("Talk To Human", "एजेंट से बात", locale), value: "__human__" },
+        ],
+      };
+    case "vehicle_passengers":
+      return {
+        reply: t("How many passengers?", "कितने यात्री?", locale),
+        quickReplies: [
+          { id: "p1", label: "1-4", value: "1-4" },
+          { id: "p2", label: "5-7", value: "5-7" },
+          { id: "p3", label: "8-12", value: "8-12" },
+          { id: "p4", label: "13-20", value: "13-20" },
+          { id: "p5", label: "20+", value: "20+" },
+        ],
+      };
+    default:
+      return {
+        reply: t("Hello 👋\n\nWhat would you like today?", "नमस्ते 👋\n\nआज आप क्या चाहेंगे?", locale),
+        quickReplies: mainMenuReplies(locale),
+      };
+  }
 }

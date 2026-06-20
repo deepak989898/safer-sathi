@@ -12,11 +12,12 @@ interface BrandLogoProps {
   showTagline?: boolean;
   priority?: boolean;
   centered?: boolean;
-  /** Subtle glow on dark backgrounds (admin sidebar) — no white box */
+  /** Always use dark-theme logo (e.g. admin sidebar) */
   onDarkSurface?: boolean;
 }
 
-const LOGO_SRC = "/images/safarsathilogo.png";
+const LOGO_LIGHT_SRC = "/images/safarsathilogo.png";
+const LOGO_DARK_SRC = "/images/safarsathidarklogo.png";
 
 /** Tall logo — height drives size so all tagline text stays readable */
 const sizeClasses: Record<BrandLogoSize, string> = {
@@ -35,12 +36,6 @@ const imageDimensions: Record<BrandLogoSize, { width: number; height: number }> 
   compact: { width: 240, height: 300 },
 };
 
-const logoGlow =
-  "[filter:drop-shadow(0_0_1px_rgba(255,255,255,0.85))_drop-shadow(0_0_14px_rgba(255,255,255,0.12))]";
-
-const logoGlowDark =
-  "dark:[filter:drop-shadow(0_0_1px_rgba(255,255,255,0.85))_drop-shadow(0_0_14px_rgba(255,255,255,0.12))]";
-
 export function BrandLogo({
   href = "/",
   className,
@@ -52,6 +47,7 @@ export function BrandLogo({
   onDarkSurface = false,
 }: BrandLogoProps) {
   const dims = imageDimensions[size];
+  const imgClass = cn("object-contain object-left", sizeClasses[size], imageClassName);
 
   const content = (
     <div
@@ -61,19 +57,35 @@ export function BrandLogo({
         className
       )}
     >
-      <Image
-        src={LOGO_SRC}
-        alt="Safar Sathi — Travel | Comfort | Trust"
-        width={dims.width}
-        height={dims.height}
-        priority={priority}
-        className={cn(
-          "object-contain object-left",
-          sizeClasses[size],
-          onDarkSurface ? logoGlow : logoGlowDark,
-          imageClassName
-        )}
-      />
+      {onDarkSurface ? (
+        <Image
+          src={LOGO_DARK_SRC}
+          alt="Safar Sathi — Travel | Comfort | Trust"
+          width={dims.width}
+          height={dims.height}
+          priority={priority}
+          className={imgClass}
+        />
+      ) : (
+        <>
+          <Image
+            src={LOGO_LIGHT_SRC}
+            alt="Safar Sathi — Travel | Comfort | Trust"
+            width={dims.width}
+            height={dims.height}
+            priority={priority}
+            className={cn(imgClass, "dark:hidden")}
+          />
+          <Image
+            src={LOGO_DARK_SRC}
+            alt="Safar Sathi — Travel | Comfort | Trust"
+            width={dims.width}
+            height={dims.height}
+            priority={priority}
+            className={cn(imgClass, "hidden dark:block")}
+          />
+        </>
+      )}
       {showTagline && (
         <div className="hidden sm:block">
           <p className="text-sm font-semibold text-primary">Safar Sathi</p>
@@ -98,4 +110,7 @@ export function BrandLogo({
   );
 }
 
-export { LOGO_SRC };
+/** @deprecated Use LOGO_LIGHT_SRC */
+const LOGO_SRC = LOGO_LIGHT_SRC;
+
+export { LOGO_SRC, LOGO_LIGHT_SRC, LOGO_DARK_SRC };

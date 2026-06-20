@@ -10,6 +10,7 @@ import {
   searchVehiclesForGuests,
 } from "@/lib/ai/travel-manager/live-quote";
 import {
+  getStepUiForState,
   getWelcomeMessage,
   initialTravelManagerState,
   processConversationInput,
@@ -95,7 +96,14 @@ async function resolvePackageQuote(
   if (!quote) return undefined;
 
   const flags = state.customizeFlags;
-  if (flags && (flags.removeHotel || flags.removeVehicle || flags.extraNights || flags.addGuide || flags.addAirportPickup)) {
+  if (
+    flags &&
+    (flags.removeHotel ||
+      flags.removeVehicle ||
+      flags.extraNights ||
+      flags.addGuide ||
+      flags.addAirportPickup)
+  ) {
     quote = await recalculateSelectedTier(quote, tierBuildInput(state, locale), {
       removeHotel: flags.removeHotel,
       removeVehicle: flags.removeVehicle,
@@ -107,11 +115,82 @@ async function resolvePackageQuote(
   return quote;
 }
 
+function formatPackageReviewReply(quote: CustomPackageQuote, locale: Locale): string {
+  return locale === "hi"
+    ? `📦 ${quote.title}\n\n🗓 ${quote.durationDays} दिन | 👥 ${quote.guests} मेहमान\n${quote.hotel ? `🏨 ${quote.hotel.name} (${quote.hotel.starRating}★)\n` : ""}${quote.vehicle ? `🚗 ${quote.vehicle.name}\n` : ""}🎯 ${quote.activities.map((a) => a.name).join(", ") || "Sightseeing"}\n🍽 ${quote.meals.join(", ")}\n📍 ${quote.pickup}\n\n💰 कुल: ₹${quote.totalAmount.toLocaleString("en-IN")}`
+    : `📦 ${quote.title}\n\n🗓 ${quote.durationDays} days | 👥 ${quote.guests} guests\n${quote.hotel ? `🏨 ${quote.hotel.name} (${quote.hotel.starRating}★)\n` : ""}${quote.vehicle ? `🚗 ${quote.vehicle.name}\n` : ""}🎯 ${quote.activities.map((a) => a.name).join(", ")}\n🍽 ${quote.meals.join(", ")}\n📍 Pickup: ${quote.pickup}\n\n💰 Total: ₹${quote.totalAmount.toLocaleString("en-IN")}`;
+}
+
+async function buildStepPayload(
+  state: TravelManagerState,
+  locale: Locale,
+  baseReply?: string,
+  baseQuickReplies?: TravelManagerResponse["quickReplies"]
+): Promise<Pick<TravelManagerResponse, "reply" | "quickReplies" | "packageQuote" | "packageTiers" | "hotels" | "vehicles">> {
+  let reply = baseReply ?? getStepUiForState(state, locale).reply;
+  let quickReplies = baseQuickReplies ?? getStepUiForState(state, locale).quickReplies;
+  let packageQuote: CustomPackageQuote | undefined;
+  let packageTiers: TierPackageQuote[] | undefined;
+  let hotels = undefined;
+  let vehicles = undefined;
+
+  if (state.step === "package_tiers" && state.destination && state.durationDays) {
+    packageTiers = await buildTierPackages(tierBuildInput(state, locale));
+    reply =
+      locale === "hi"
+        ? `✨ ${state.destination} के लिए 4 पैकेज तैयार हैं!\n\nबजट से लक्ज़री — सभी कीमतें लाइव हैं।\n\nपसंदीदा पैकेज चुनें:`
+        : `✨ 4 packages ready for ${state.destination}!\n\nBudget to Luxury — all live prices.\n\nSelect your package:`;
+    quickReplies = [];
+  }
+
+  if (
+    (state.step === "package_review" || state.step === "customize") &&
+    state.destination &&
+    state.durationDays &&
+    state.selectedTierId
+  ) {
+    const tiers = await buildTierPackages(tierBuildInput(state, locale));
+    packageQuote = await resolvePackageQuote(state, tiers, locale);
+    if (state.step === "package_review" && packageQuote) {
+      reply = formatPackageReviewReply(packageQuote, locale);
+      quickReplies = [
+        { id: "book", label: locale === "hi" ? "Book Now 📅" : "Book Now 📅", value: "book_package" },
+        { id: "customize", label: locale === "hi" ? "Customize" : "Customize", value: "__customize__" },
+        { id: "human", label: locale === "hi" ? "Talk To Human" : "Talk To Human", value: "__human__" },
+      ];
+    }
+    if (state.step === "customize" && packageQuote) {
+      const tierLabel = "tierLabel" in packageQuote ? String((packageQuote as TierPackageQuote).tierLabel) : packageQuote.title;
+      reply =
+        locale === "hi"
+          ? `✏️ कस्टमाइज़ करें — ${tierLabel}\n\n💰 वर्तमान कीमत: ₹${packageQuote.totalAmount.toLocaleString("en-IN")}\n\nनीचे से बदलाव चुनें:`
+          : `✏️ Customize — ${tierLabel}\n\n💰 Current price: ₹${packageQuote.totalAmount.toLocaleString("en-IN")}\n\nPick changes below:`;
+    }
+  }
+
+  if (state.step === "hotel_results" && state.destination) {
+    hotels = await searchHotelsForDestination(state.destination, state.hotelBudgetTier);
+    if (hotels.length === 0) {
+      reply =
+        locale === "hi"
+          ? "कोई होटल नहीं मिला। दूसरा शहर आज़माएं।"
+          : "No hotels found. Try another city.";
+    }
+  }
+
+  if (state.step === "vehicle_results" && state.guests) {
+    vehicles = await searchVehiclesForGuests(state.guests);
+  }
+
+  return { reply, quickReplies, packageQuote, packageTiers, hotels, vehicles };
+}
+
 export async function runTravelManager(
   input: TravelManagerInput
 ): Promise<TravelManagerResponse> {
   const locale = input.locale ?? "hi";
   const isInit = !input.message || input.message === "__init__";
+  const isRefresh = input.message === "__refresh__";
   const baseState = input.state ?? initialTravelManagerState();
   const state = applyMemoryToState(baseState, input.userLocation, input.aiPreferences);
 
@@ -126,90 +205,44 @@ export async function runTravelManager(
     };
   }
 
+  if (isRefresh && input.state) {
+    const ui = getStepUiForState(state, locale);
+    const payload = await buildStepPayload(state, locale, ui.reply, ui.quickReplies);
+    return {
+      locale,
+      state,
+      provider: "rule-based",
+      ...payload,
+    };
+  }
+
   const transition = processConversationInput(input.message, state, locale);
-  let newState = { ...transition.state, step: transition.nextStep };
-  let reply = transition.reply;
-  let quickReplies = transition.quickReplies;
-  let packageQuote: CustomPackageQuote | undefined;
-  let packageTiers: TierPackageQuote[] | undefined;
-  let hotels = undefined;
-  let vehicles = undefined;
+  const newState = { ...transition.state, step: transition.nextStep };
+  const payload = await buildStepPayload(newState, locale, transition.reply, transition.quickReplies);
 
-  if (
-    newState.step === "package_tiers" &&
-    newState.destination &&
-    newState.durationDays
-  ) {
-    packageTiers = await buildTierPackages(tierBuildInput(newState, locale));
-    reply =
-      locale === "hi"
-        ? `✨ ${newState.destination} के लिए 4 पैकेज तैयार हैं!\n\nबजट से लक्ज़री — सभी कीमतें लाइव हैं।\n\nपसंदीदा पैकेज चुनें:`
-        : `✨ 4 packages ready for ${newState.destination}!\n\nBudget to Luxury — all live prices.\n\nSelect your package:`;
-    quickReplies = packageTiers.map((p) => ({
-      id: `tier-${p.tierId}`,
-      label: `${p.tierLabel} · ₹${p.totalAmount.toLocaleString("en-IN")}`,
-      value: `select_tier:${p.tierId}`,
-    }));
-  }
+  const skipEnrich =
+    newState.step === "package_tiers" ||
+    newState.step === "package_review" ||
+    newState.step === "customize";
+  const context = payload.packageQuote
+    ? `Package ₹${payload.packageQuote.totalAmount}`
+    : payload.packageTiers
+      ? `${payload.packageTiers.length} tiers`
+      : newState.destination ?? "";
 
-  if (
-    (newState.step === "package_review" || newState.step === "customize") &&
-    newState.destination &&
-    newState.durationDays
-  ) {
-    packageTiers = await buildTierPackages(tierBuildInput(newState, locale));
-    packageQuote = await resolvePackageQuote(newState, packageTiers, locale);
-    if (packageQuote && newState.step === "package_review") {
-      reply =
-        locale === "hi"
-          ? `📦 ${packageQuote.title}\n\n🗓 ${packageQuote.durationDays} दिन | 👥 ${packageQuote.guests} मेहमान\n${packageQuote.hotel ? `🏨 ${packageQuote.hotel.name} (${packageQuote.hotel.starRating}★)\n` : ""}${packageQuote.vehicle ? `🚗 ${packageQuote.vehicle.name}\n` : ""}🎯 ${packageQuote.activities.map((a) => a.name).join(", ") || "Sightseeing"}\n🍽 ${packageQuote.meals.join(", ")}\n📍 ${packageQuote.pickup}\n\n💰 कुल: ₹${packageQuote.totalAmount.toLocaleString("en-IN")}`
-          : `📦 ${packageQuote.title}\n\n🗓 ${packageQuote.durationDays} days | 👥 ${packageQuote.guests} guests\n${packageQuote.hotel ? `🏨 ${packageQuote.hotel.name} (${packageQuote.hotel.starRating}★)\n` : ""}${packageQuote.vehicle ? `🚗 ${packageQuote.vehicle.name}\n` : ""}🎯 ${packageQuote.activities.map((a) => a.name).join(", ")}\n🍽 ${packageQuote.meals.join(", ")}\n📍 Pickup: ${packageQuote.pickup}\n\n💰 Total: ₹${packageQuote.totalAmount.toLocaleString("en-IN")}`;
-      quickReplies = [
-        { id: "book", label: locale === "hi" ? "Book Now 📅" : "Book Now 📅", value: "book_package" },
-        { id: "customize", label: locale === "hi" ? "Customize" : "Customize", value: "__customize__" },
-        { id: "human", label: locale === "hi" ? "Talk To Human" : "Talk To Human", value: "__human__" },
-      ];
-    }
-  }
-
-  if (newState.step === "hotel_results" && newState.destination) {
-    hotels = await searchHotelsForDestination(newState.destination, newState.hotelBudgetTier);
-    if (hotels.length === 0) {
-      reply =
-        locale === "hi"
-          ? "कोई होटल नहीं मिला। दूसरा शहर आज़माएं।"
-          : "No hotels found. Try another city.";
-    }
-  }
-
-  if (newState.step === "vehicle_results" && newState.guests) {
-    vehicles = await searchVehiclesForGuests(newState.guests);
-  }
-
-  const context = packageQuote
-    ? `Package ₹${packageQuote.totalAmount}`
-    : packageTiers
-      ? `${packageTiers.length} tiers`
-      : hotels
-        ? `${hotels.length} hotels`
-        : vehicles
-          ? `${vehicles.length} vehicles`
-          : newState.destination ?? "";
-
-  const skipEnrich = newState.step === "package_tiers" || newState.step === "package_review";
   const enriched = skipEnrich
-    ? { reply, provider: "rule-based" as const }
-    : await enrichReplyWithAi(reply, input.message, locale, context);
+    ? { reply: payload.reply, provider: "rule-based" as const }
+    : await enrichReplyWithAi(payload.reply, input.message, locale, context);
 
   return {
     reply: enriched.reply,
     locale,
     state: newState,
-    quickReplies,
-    packageQuote,
-    packageTiers,
-    hotels,
-    vehicles,
+    quickReplies: payload.quickReplies,
+    packageQuote: payload.packageQuote,
+    packageTiers: payload.packageTiers,
+    hotels: payload.hotels,
+    vehicles: payload.vehicles,
     provider: enriched.provider,
   };
 }
