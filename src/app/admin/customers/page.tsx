@@ -1,22 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
 import { canManageUser, ROLE_LABELS } from "@/lib/auth/constants";
 import { formatCurrency } from "@/lib/i18n";
-import type { User } from "@/types";
+import type { User, UserRole } from "@/types";
 import { toast } from "sonner";
 
 export default function CustomersPage() {
   const { user, refreshUsers, approveUser, suspendUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
 
   const actorRole = user?.role ?? "customer";
 
@@ -24,7 +32,11 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const data = await refreshUsers();
-      setUsers(data);
+      // Guard against malformed/null records from remote auth/user store.
+      const safeUsers = (data ?? []).filter(
+        (u): u is User => Boolean(u?.id && u?.name && u?.email && u?.role && u?.status)
+      );
+      setUsers(safeUsers);
     } catch {
       toast.error("Failed to load users");
     } finally {
@@ -80,6 +92,16 @@ export default function CustomersPage() {
     }
     return u.role === "customer";
   });
+
+  const filteredActiveUsers = useMemo(
+    () => activeUsers.filter((u) => roleFilter === "all" || u.role === roleFilter),
+    [activeUsers, roleFilter]
+  );
+
+  const filteredPendingUsers = useMemo(
+    () => pendingUsers.filter((u) => roleFilter === "all" || u.role === roleFilter),
+    [pendingUsers, roleFilter]
+  );
 
   const baseColumns: ColumnDef<User>[] = [
     {
@@ -192,13 +214,34 @@ export default function CustomersPage() {
             Super Admin and Support Agent accounts require Super Admin approval.
           </p>
         )}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Filter users by role to review customers, managers, sales agents, drivers, etc.
+          </p>
+          <div className="w-full max-w-xs">
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as "all" | UserRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="customer">{ROLE_LABELS.customer}</SelectItem>
+                <SelectItem value="super_admin">{ROLE_LABELS.super_admin}</SelectItem>
+                <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
+                <SelectItem value="sales_agent">{ROLE_LABELS.sales_agent}</SelectItem>
+                <SelectItem value="support_agent">{ROLE_LABELS.support_agent}</SelectItem>
+                <SelectItem value="driver">{ROLE_LABELS.driver}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <Tabs defaultValue="customers">
           <TabsList>
             <TabsTrigger value="customers">
-              Active Users ({activeUsers.length})
+              Active Users ({filteredActiveUsers.length})
             </TabsTrigger>
             <TabsTrigger value="pending">
-              Pending Approval ({pendingUsers.length})
+              Pending Approval ({filteredPendingUsers.length})
             </TabsTrigger>
           </TabsList>
 
@@ -208,7 +251,7 @@ export default function CustomersPage() {
             ) : (
               <DataTable
                 columns={customerColumns}
-                data={activeUsers}
+                data={filteredActiveUsers}
                 searchKey="name"
                 searchPlaceholder="Search users..."
               />
@@ -216,14 +259,14 @@ export default function CustomersPage() {
           </TabsContent>
 
           <TabsContent value="pending" className="mt-4">
-            {pendingUsers.length === 0 ? (
+            {filteredPendingUsers.length === 0 ? (
               <p className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
                 No pending applications in your approval scope
               </p>
             ) : (
               <DataTable
                 columns={pendingColumns}
-                data={pendingUsers}
+                data={filteredPendingUsers}
                 searchKey="name"
                 searchPlaceholder="Search pending users..."
               />

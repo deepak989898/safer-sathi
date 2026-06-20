@@ -49,13 +49,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
-    state: {
-      sorting,
-      globalFilter,
-      pagination: hidePagination
-        ? { pageIndex: 0, pageSize: effectivePageSize }
-        : undefined,
-    },
+    state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
