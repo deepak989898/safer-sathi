@@ -128,21 +128,9 @@ export function hasDetectedCity(location?: UserLocationInfo): boolean {
   return city.length > 0;
 }
 
-/** Priority: saved > browser > IP region > Hindi if no city > English (south only) */
+/** Priority: saved preference > Hindi default for AI assistant */
 export function resolveAiLocale(input: ResolveLocaleInput): Locale {
-  if (input.savedPreference === "hindi") return "hi";
   if (input.savedPreference === "english") return "en";
-
-  const browser = (input.browserLanguage ?? "").toLowerCase();
-  if (browser.startsWith("hi")) return "hi";
-
-  if (!hasDetectedCity(input.location)) return "hi";
-
-  const region =
-    input.location?.region ?? detectIndiaRegion(input.location?.state, input.location?.city);
-  if (region === "north") return "hi";
-  if (region === "south") return "en";
-
   return "hi";
 }
 
@@ -241,7 +229,7 @@ export function mergePreferences(
 ): AITravelPreferences {
   const favs = new Set([...(existing?.favouriteDestinations ?? []), ...(updates.favouriteDestinations ?? [])]);
   return {
-    preferredLanguage: updates.preferredLanguage ?? existing?.preferredLanguage ?? "english",
+    preferredLanguage: updates.preferredLanguage ?? existing?.preferredLanguage ?? "hindi",
     preferredBudget: updates.preferredBudget ?? existing?.preferredBudget,
     tripStyle: updates.tripStyle ?? existing?.tripStyle,
     hotelCategory: updates.hotelCategory ?? existing?.hotelCategory,

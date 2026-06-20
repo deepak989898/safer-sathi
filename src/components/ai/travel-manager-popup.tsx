@@ -17,10 +17,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { mergePreferences, memoryFromState } from "@/lib/ai/travel-manager/geo-language";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
-import { useAppStore } from "@/store/app-store";
+import { preferredLanguageToLocale } from "@/lib/ai/travel-manager/geo-language";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import type { Hotel, Vehicle } from "@/types";
+import type { Hotel, Locale, Vehicle } from "@/types";
 import type {
   CustomPackageQuote,
   QuickReply,
@@ -42,9 +42,15 @@ interface TravelManagerPopupProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function getInitialAiLocale(): Locale {
+  if (typeof window === "undefined") return "hi";
+  const saved = getLocalAiPreferences()?.preferredLanguage;
+  return saved ? preferredLanguageToLocale(saved) : "hi";
+}
+
 export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupProps) {
   const router = useRouter();
-  const { locale, setLocale } = useAppStore();
+  const [aiLocale, setAiLocale] = useState<Locale>(getInitialAiLocale);
   const { user } = useAuth();
   const { buildClientContext, saveLanguagePreference } = useAiTravelContext(user?.id);
   const { completeBooking, paying } = useTravelCheckout();
@@ -76,14 +82,14 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     async (forceLocale?: "en" | "hi", reset = false) => {
       setLoading(true);
       try {
-        const activeLocale = forceLocale ?? locale;
+        const activeLocale = forceLocale ?? aiLocale;
         const res = await fetch("/api/ai/manager", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: "__init__",
             locale: activeLocale,
-            forceLocale: forceLocale,
+            forceLocale: forceLocale ?? activeLocale,
             context: buildClientContext(),
           }),
         });
@@ -101,14 +107,13 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           setTmState(json.data.state);
           setUserLocation(json.data.location ?? json.data.state?.userLocation);
           if (json.data.locale) {
-            setLocale(json.data.locale);
+            setAiLocale(json.data.locale);
             saveLanguagePreference(json.data.locale);
           }
           setPackageQuote(undefined);
           setPackageTiers([]);
           setHotels([]);
           setVehicles([]);
-          if (forceLocale) setLocale(forceLocale);
         }
       } catch {
         toast.error("Could not start AI Travel Manager");
@@ -116,13 +121,13 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         setLoading(false);
       }
     },
-    [locale, buildClientContext, messages.length, setLocale, saveLanguagePreference]
+    [aiLocale, buildClientContext, messages.length, saveLanguagePreference]
   );
 
-  const switchLanguage = async (newLocale: "en" | "hi") => {
-    if (newLocale === locale) return;
+  const switchLanguage = async (newLocale: Locale) => {
+    if (newLocale === aiLocale) return;
     saveLanguagePreference(newLocale);
-    setLocale(newLocale);
+    setAiLocale(newLocale);
 
     if (!tmState) return;
 
@@ -222,7 +227,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          locale,
+          locale: aiLocale,
+          forceLocale: aiLocale,
           state: tmState,
           context: buildClientContext(),
         }),
@@ -237,12 +243,12 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       ]);
       applyResponse(data);
 
-      const memoryUpdates = memoryFromState(data.state ?? {}, locale);
+      const memoryUpdates = memoryFromState(data.state ?? {}, aiLocale);
       saveLocalAiPreferences(
         mergePreferences(getLocalAiPreferences() ?? undefined, memoryUpdates)
       );
     } catch {
-      toast.error(locale === "hi" ? "त्रुटि, पुनः प्रयास करें" : "Error, please try again");
+      toast.error(aiLocale === "hi" ? "त्रुटि, पुनः प्रयास करें" : "Error, please try again");
     } finally {
       setLoading(false);
     }
@@ -250,7 +256,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
 
   const handlePay = async () => {
     if (!bookingForm.name || !bookingForm.email || !bookingForm.phone || !bookingForm.travelDate) {
-      toast.error(locale === "hi" ? "सभी विवरण भरें" : "Please fill all details");
+      toast.error(aiLocale === "hi" ? "सभी विवरण भरें" : "Please fill all details");
       return;
     }
     try {
@@ -270,7 +276,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           id: Date.now().toString(),
           role: "assistant",
           content:
-            locale === "hi"
+            aiLocale === "hi"
               ? "🎉 बुकिंग पुष्टि हो गई! ईमेल, SMS और WhatsApp पर पुष्टि भेज दी गई है।"
               : "🎉 Booking confirmed! Confirmation sent via Email, SMS & WhatsApp.",
         },
@@ -285,7 +291,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     if (typeof window === "undefined") return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      toast.error(locale === "hi" ? "वॉइस समर्थित नहीं" : "Voice not supported in this browser");
+      toast.error(aiLocale === "hi" ? "वॉइस समर्थित नहीं" : "Voice not supported in this browser");
       return;
     }
     if (listening && recognitionRef.current) {
@@ -294,7 +300,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       return;
     }
     const rec = new SR();
-    rec.lang = locale === "hi" ? "hi-IN" : "en-IN";
+    rec.lang = aiLocale === "hi" ? "hi-IN" : "en-IN";
     rec.interimResults = false;
     rec.onresult = (e: SpeechRecognitionEvent) => {
       const transcript = e.results[0]?.[0]?.transcript ?? "";
@@ -340,7 +346,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   type="button"
                   className={cn(
                     "rounded-full px-2 py-1 transition-colors",
-                    locale === "hi" ? "bg-white text-primary font-semibold shadow-sm" : "text-white hover:bg-white/15"
+                    aiLocale === "hi" ? "bg-white text-primary font-semibold shadow-sm" : "text-white hover:bg-white/15"
                   )}
                   onClick={() => void switchLanguage("hi")}
                 >
@@ -350,7 +356,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   type="button"
                   className={cn(
                     "rounded-full px-2 py-1 transition-colors",
-                    locale === "en" ? "bg-white text-primary font-semibold shadow-sm" : "text-white hover:bg-white/15"
+                    aiLocale === "en" ? "bg-white text-primary font-semibold shadow-sm" : "text-white hover:bg-white/15"
                   )}
                   onClick={() => void switchLanguage("en")}
                 >
@@ -369,10 +375,10 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           </div>
           <p className="text-xs text-white/80">
             {userLocation?.city
-              ? locale === "hi"
+              ? aiLocale === "hi"
                 ? `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · लाइव कीमतें · Razorpay`
                 : `📍 ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""} · Live prices · Razorpay`
-              : locale === "hi"
+              : aiLocale === "hi"
                 ? "लाइव कीमतें · हिंदी/English · Razorpay"
                 : "Live prices · EN/HI · Razorpay"}
           </p>
@@ -400,7 +406,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   <TierPackageCard
                     key={tier.tierId}
                     tier={tier}
-                    locale={locale}
+                    locale={aiLocale}
                     onSelect={() => void sendMessage(`select_tier:${tier.tierId}`)}
                     onCustomize={() => void sendMessage(`customize_tier:${tier.tierId}`)}
                     onFullDetails={() => setDetailsTier(tier)}
@@ -412,7 +418,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             {showPackageQuote && packageQuote && (
               <PackageQuoteCard
                 quote={packageQuote}
-                locale={locale}
+                locale={aiLocale}
                 showBook={tmState?.step === "package_review"}
                 onBook={() => void sendMessage("book_package")}
               />
@@ -424,7 +430,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   <HotelCardMini
                     key={hotel.id}
                     hotel={hotel}
-                    locale={locale}
+                    locale={aiLocale}
                     onBook={() => void sendMessage(`book_hotel:${hotel.id}`)}
                   />
                 ))}
@@ -437,7 +443,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   <VehicleCardMini
                     key={vehicle.id}
                     vehicle={vehicle}
-                    locale={locale}
+                    locale={aiLocale}
                     onBook={() => void sendMessage(`book_vehicle:${vehicle.id}`)}
                   />
                 ))}
@@ -447,11 +453,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             {showBookingForm && (
               <div className="rounded-xl border bg-card p-3 space-y-3">
                 <p className="text-sm font-semibold">
-                  {locale === "hi" ? "बुकिंग विवरण" : "Booking Details"}
+                  {aiLocale === "hi" ? "बुकिंग विवरण" : "Booking Details"}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
-                    <Label className="text-xs">{locale === "hi" ? "नाम" : "Name"}</Label>
+                    <Label className="text-xs">{aiLocale === "hi" ? "नाम" : "Name"}</Label>
                     <Input
                       value={bookingForm.name}
                       onChange={(e) => setBookingForm((f) => ({ ...f, name: e.target.value }))}
@@ -459,7 +465,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">{locale === "hi" ? "फ़ोन" : "Phone"}</Label>
+                    <Label className="text-xs">{aiLocale === "hi" ? "फ़ोन" : "Phone"}</Label>
                     <Input
                       value={bookingForm.phone}
                       onChange={(e) => setBookingForm((f) => ({ ...f, phone: e.target.value }))}
@@ -476,7 +482,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">{locale === "hi" ? "यात्रा तिथि" : "Travel Date"}</Label>
+                    <Label className="text-xs">{aiLocale === "hi" ? "यात्रा तिथि" : "Travel Date"}</Label>
                     <Input
                       type="date"
                       value={bookingForm.travelDate}
@@ -485,7 +491,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">{locale === "hi" ? "मेहमान" : "Guests"}</Label>
+                    <Label className="text-xs">{aiLocale === "hi" ? "मेहमान" : "Guests"}</Label>
                     <Input
                       type="number"
                       min={1}
@@ -497,7 +503,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <Label className="text-xs">{locale === "hi" ? "पिकअप शहर" : "Pickup City"}</Label>
+                    <Label className="text-xs">{aiLocale === "hi" ? "पिकअप शहर" : "Pickup City"}</Label>
                     <Input
                       value={bookingForm.pickupCity}
                       onChange={(e) => setBookingForm((f) => ({ ...f, pickupCity: e.target.value }))}
@@ -509,8 +515,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   {paying ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  {locale === "hi" ? "Pay Now — Razorpay 💳" : "Pay Now — Razorpay 💳"}
-                  {packageQuote && ` · ${formatCurrency(packageQuote.totalAmount, locale)}`}
+                  {aiLocale === "hi" ? "Pay Now — Razorpay 💳" : "Pay Now — Razorpay 💳"}
+                  {packageQuote && ` · ${formatCurrency(packageQuote.totalAmount, aiLocale)}`}
                 </Button>
               </div>
             )}
@@ -518,7 +524,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             {loading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {locale === "hi" ? "सोच रहा हूं…" : "Thinking…"}
+                {aiLocale === "hi" ? "सोच रहा हूं…" : "Thinking…"}
               </div>
             )}
             <div ref={scrollRef} />
@@ -572,7 +578,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           </Button>
           <Input
             placeholder={
-              locale === "hi"
+              aiLocale === "hi"
                 ? "हिंदी या English में पूछें…"
                 : "Ask in Hindi or English…"
             }
@@ -591,7 +597,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       {detailsTier && (
         <TierPackageDetailsDialog
           tier={detailsTier}
-          locale={locale}
+          locale={aiLocale}
           open={!!detailsTier}
           onOpenChange={(open) => {
             if (!open) setDetailsTier(null);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Send, User } from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { PageHero } from "@/components/customer/page-hero";
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app-store";
-import { formatCurrency, localizedText, t } from "@/lib/i18n";
+import { formatCurrency, localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ChatMessage, TourPackage, Vehicle } from "@/types";
@@ -45,17 +45,14 @@ function getWelcomeMessage(locale: "en" | "hi"): ChatMessage {
 }
 
 export default function AIAssistantPage() {
-  const { locale } = useAppStore();
-  const [messages, setMessages] = useState<ChatMessage[]>([getWelcomeMessage(locale)]);
+  const { locale: siteLocale } = useAppStore();
+  const aiLocale: "en" | "hi" = "hi";
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [getWelcomeMessage(aiLocale)]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const suggestions = locale === "hi" ? SUGGESTIONS_HI : SUGGESTIONS_EN;
-
-  useEffect(() => {
-    setMessages([getWelcomeMessage(locale)]);
-  }, [locale]);
+  const suggestions = SUGGESTIONS_HI;
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -79,7 +76,7 @@ export default function AIAssistantPage() {
       const res = await fetch("/api/ai/travel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, locale, history }),
+        body: JSON.stringify({ message: text, locale: aiLocale, history }),
       });
 
       const json = await res.json();
@@ -100,7 +97,7 @@ export default function AIAssistantPage() {
       setMessages((prev) => [...prev, reply]);
     } catch {
       toast.error(
-        locale === "hi"
+        aiLocale === "hi"
           ? "सहायक से संपर्क नहीं हो पाया। कृपया पुनः प्रयास करें।"
           : "Could not reach assistant. Please try again."
       );
@@ -110,7 +107,7 @@ export default function AIAssistantPage() {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            locale === "hi"
+            aiLocale === "hi"
               ? "क्षमा करें, अभी कनेक्शन में समस्या है। कृपया दोबारा प्रयास करें या सीधे पैकेज और वाहन पेज देखें।"
               : "Sorry, I'm having trouble connecting right now. Please try again or browse our packages and vehicles directly.",
           timestamp: new Date().toISOString(),
@@ -124,9 +121,9 @@ export default function AIAssistantPage() {
   return (
     <>
       <PageHero
-        title={locale === "hi" ? "यात्रा सहायक" : "Travel Assistant"}
+        title={siteLocale === "hi" ? "यात्रा सहायक" : "Travel Assistant"}
         subtitle={
-          locale === "hi"
+          siteLocale === "hi"
             ? "अपनी अगली यात्रा के लिए व्यक्तिगत सुझाव पाएं"
             : "Get personalized recommendations for your next journey"
         }
@@ -144,15 +141,15 @@ export default function AIAssistantPage() {
                   </div>
                   <div>
                     <p className="font-semibold">
-                      {locale === "hi" ? "Safar Sathi सहायक" : "Safar Sathi Assistant"}
+                      {siteLocale === "hi" ? "Safar Sathi सहायक" : "Safar Sathi Assistant"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {locale === "hi" ? "हमेशा ऑनलाइन · हिंदी / English" : "Always online · EN / HI"}
+                      {siteLocale === "hi" ? "हमेशा ऑनलाइन · हिंदी / English" : "Always online · EN / HI"}
                     </p>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  {locale === "hi"
+                  {siteLocale === "hi"
                     ? "गंतव्य, पैकेज, वाहन, होटल, बजट और यात्रा कार्यक्रम के बारे में पूछें। आप हिंदी में अपनी पूछताछ भी कर सकते हैं।"
                     : "Ask about destinations, packages, vehicles, hotels, budgets, and itineraries across India."}
                 </p>
@@ -162,7 +159,7 @@ export default function AIAssistantPage() {
             <Card className="lg:order-1">
               <CardContent className="pt-6">
                 <p className="mb-3 text-sm font-medium">
-                  {locale === "hi" ? "त्वरित सुझाव" : "Quick Suggestions"}
+                  {siteLocale === "hi" ? "त्वरित सुझाव" : "Quick Suggestions"}
                 </p>
                 <div className="space-y-2">
                   {suggestions.map((s) => (
@@ -221,7 +218,7 @@ export default function AIAssistantPage() {
                     {msg.role === "assistant" && msg.packages && msg.packages.length > 0 && (
                       <div className="ml-10 grid gap-2 sm:grid-cols-2">
                         {msg.packages.map((pkg) => (
-                          <ChatPackageCard key={pkg.id} pkg={pkg} locale={locale} />
+                          <ChatPackageCard key={pkg.id} pkg={pkg} locale={siteLocale} />
                         ))}
                       </div>
                     )}
@@ -229,7 +226,7 @@ export default function AIAssistantPage() {
                     {msg.role === "assistant" && msg.vehicles && msg.vehicles.length > 0 && (
                       <div className="ml-10 space-y-2">
                         {msg.vehicles.map((v) => (
-                          <ChatVehicleCard key={v.id} vehicle={v} locale={locale} />
+                          <ChatVehicleCard key={v.id} vehicle={v} locale={siteLocale} />
                         ))}
                       </div>
                     )}
@@ -244,7 +241,7 @@ export default function AIAssistantPage() {
                     </Avatar>
                     <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm">
                       <span className="animate-pulse">
-                        {locale === "hi" ? "सोच रहा हूं..." : "Thinking..."}
+                        {aiLocale === "hi" ? "सोच रहा हूं..." : "Thinking..."}
                       </span>
                     </div>
                   </div>
@@ -262,7 +259,7 @@ export default function AIAssistantPage() {
               >
                 <Input
                   placeholder={
-                    locale === "hi"
+                    aiLocale === "hi"
                       ? "गंतव्य, पैकेज, वाहन के बारे में पूछें..."
                       : "Ask about destinations, packages, vehicles..."
                   }

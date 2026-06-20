@@ -56,14 +56,16 @@ export function RoleNavigationDrawer({
         render={
           <Button
             variant="outline"
-            size={showLabel ? "sm" : "icon"}
+            size={showLabel ? "default" : "icon"}
             className={cn(
-              showLabel ? "gap-2" : "h-9 w-9",
+              showLabel
+                ? "h-11 min-w-[5.5rem] gap-2.5 rounded-xl border-2 px-3.5 text-sm font-semibold shadow-sm"
+                : "h-11 w-11 rounded-xl border-2 shadow-sm",
               triggerClassName
             )}
             aria-label="Open navigation menu"
           >
-            <Menu className="h-4 w-4" />
+            <Menu className="h-6 w-6 shrink-0" strokeWidth={2.5} />
             {showLabel ? "Menu" : null}
           </Button>
         }

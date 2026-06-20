@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       parsed.data.forceLocale ??
       initContext?.locale ??
       parsed.data.locale ??
-      "en";
+      "hi";
 
     const result = await runTravelManager({
       message: parsed.data.message,
