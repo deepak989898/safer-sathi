@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import { TravelManagerPopup } from "@/components/ai/travel-manager-popup";
@@ -24,30 +23,19 @@ export function AiAssistantFab() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-        <Link
-          href="/ai-assistant"
-          className={cn(
-            "hidden rounded-full bg-background px-3 py-1.5 text-xs font-medium shadow-md sm:inline-block",
-            pathname.startsWith("/ai-assistant") && "pointer-events-none opacity-50"
-          )}
-        >
-          {t(locale, "features", "aiAssistant")}
-        </Link>
-        <button
-          type="button"
-          aria-label={t(locale, "features", "aiAssistant")}
-          onClick={() => setOpen(true)}
-          className={cn(
-            "relative flex h-14 w-14 items-center justify-center rounded-full",
-            "bg-white shadow-lg shadow-primary/25 ring-4 ring-background",
-            "transition-transform hover:scale-105 active:scale-95",
-            "dark:bg-white dark:shadow-black/30"
-          )}
-        >
-          <AiAssistantIcon size={36} className="h-9 w-9" priority />
-        </button>
-      </div>
+      <button
+        type="button"
+        aria-label={t(locale, "features", "aiAssistant")}
+        onClick={() => setOpen(true)}
+        className={cn(
+          "fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full",
+          "bg-white shadow-lg shadow-primary/25 ring-4 ring-background",
+          "transition-transform hover:scale-105 active:scale-95",
+          "dark:bg-white dark:shadow-black/30"
+        )}
+      >
+        <AiAssistantIcon size={36} className="h-9 w-9" priority />
+      </button>
       <TravelManagerPopup open={open} onOpenChange={setOpen} />
     </>
   );

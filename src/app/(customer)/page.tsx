@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { Button } from "@/components/ui/button";
+import { TryAssistantButton } from "@/components/ai/try-assistant-button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
@@ -38,11 +39,7 @@ export default async function HomePage() {
             curated packages and book instantly.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/ai-assistant">
-              <Button size="lg" variant="secondary">
-                Try Assistant
-              </Button>
-            </Link>
+            <TryAssistantButton variant="secondary" showIcon />
             <Link href="/packages">
               <Button
                 size="lg"

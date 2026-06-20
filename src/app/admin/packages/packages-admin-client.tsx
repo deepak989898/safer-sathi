@@ -401,7 +401,7 @@ export default function PackagesAdminClient() {
           </p>
         )}
 
-        <Tabs defaultValue="drafts">
+        <Tabs defaultValue="all">
           <TabsList>
             <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>

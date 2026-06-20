@@ -1,8 +1,52 @@
+import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { listAllUsers } from "@/lib/auth/auth-service";
 import { getBookings } from "@/lib/data-service";
 import { getAdminHotels, hydrateHotelsStore } from "@/lib/hotel-store";
-import { getPublishedPackages, hydratePackagesStore } from "@/lib/package-store";
+import {
+  getAdminPackages,
+  getPublishedPackages,
+  hydratePackagesStore,
+} from "@/lib/package-store";
 import { getAdminVehicles, hydrateVehiclesStore } from "@/lib/vehicle-store";
+import type { User, UserRole } from "@/types";
+
+function mapAdminUser(id: string, data: Record<string, unknown>): User {
+  return {
+    id,
+    email: String(data.email ?? ""),
+    name: String(data.name ?? ""),
+    phone: data.phone ? String(data.phone) : undefined,
+    role: (data.role as UserRole) ?? "customer",
+    status: (data.status as User["status"]) ?? "active",
+    approved: Boolean(data.approved ?? true),
+    avatar: data.avatar ? String(data.avatar) : undefined,
+    locale: (data.locale as User["locale"]) ?? "en",
+    segment: data.segment as User["segment"],
+    totalBookings: Number(data.totalBookings ?? 0),
+    totalSpent: Number(data.totalSpent ?? 0),
+    createdAt: String(data.createdAt ?? new Date().toISOString()),
+    updatedAt: String(data.updatedAt ?? new Date().toISOString()),
+  };
+}
+
+async function listUsersForAdmin(): Promise<User[]> {
+  if (isAdminEnvConfigured()) {
+    try {
+      const db = await getSafeAdminDb();
+      if (db) {
+        const snap = await db.collection("users").limit(500).get();
+        return snap.docs.map((d) => mapAdminUser(d.id, d.data() as Record<string, unknown>));
+      }
+    } catch (error) {
+      console.warn("Admin listUsers failed, falling back:", error);
+    }
+  }
+  try {
+    return await listAllUsers();
+  } catch {
+    return [];
+  }
+}
 
 export async function getAdminAnalytics() {
   await Promise.all([
@@ -11,13 +55,15 @@ export async function getAdminAnalytics() {
     hydrateHotelsStore(),
   ]);
 
-  const [bookings, users, packages, vehicles, hotels] = await Promise.all([
-    getBookings(),
-    listAllUsers(),
-    Promise.resolve(getPublishedPackages()),
-    Promise.resolve(getAdminVehicles()),
-    Promise.resolve(getAdminHotels()),
-  ]);
+  const [bookings, users, publishedPackages, allPackages, vehicles, hotels] =
+    await Promise.all([
+      getBookings(),
+      listUsersForAdmin(),
+      Promise.resolve(getPublishedPackages()),
+      Promise.resolve(getAdminPackages()),
+      Promise.resolve(getAdminVehicles()),
+      Promise.resolve(getAdminHotels()),
+    ]);
 
   const totalRevenue = bookings
     .filter((b) => b.paymentStatus === "paid" || b.paymentStatus === "partial")
@@ -41,7 +87,7 @@ export async function getAdminAnalytics() {
   });
 
   const destinationCounts: Record<string, number> = {};
-  for (const pkg of packages) {
+  for (const pkg of publishedPackages) {
     for (const city of pkg.cities) {
       destinationCounts[city] = (destinationCounts[city] ?? 0) + 1;
     }
@@ -75,7 +121,7 @@ export async function getAdminAnalytics() {
     totalRevenue,
     activeVehicles,
     totalCustomers: customers.length,
-    totalPackages: packages.length,
+    totalPackages: allPackages.length,
     totalHotels: hotels.length,
     conversionRate,
     revenueByMonth,

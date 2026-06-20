@@ -66,7 +66,8 @@ export default function CustomersPage() {
 
   const pendingUsers = users.filter(
     (u) =>
-      (u.status === "pending" || !u.approved) &&
+      u.status === "pending" &&
+      !u.approved &&
       u.role !== "customer" &&
       canManageUser(actorRole, u.role)
   );

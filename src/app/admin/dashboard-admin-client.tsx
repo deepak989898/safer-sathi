@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarCheck, Car, IndianRupee, Users } from "lucide-react";
+import { Building2, CalendarCheck, Car, IndianRupee, Package, Users } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { DestinationsChart } from "@/components/admin/charts/destinations-chart";
 import { RevenueChart } from "@/components/admin/charts/revenue-chart";
@@ -15,6 +15,8 @@ interface AnalyticsData {
   totalRevenue: number;
   activeVehicles: number;
   totalCustomers: number;
+  totalPackages: number;
+  totalHotels: number;
   revenueByMonth: { month: string; revenue: number }[];
   topDestinations: { name: string; count: number }[];
 }
@@ -60,6 +62,8 @@ export default function DashboardAdminClient() {
     totalRevenue: 0,
     activeVehicles: 0,
     totalCustomers: 0,
+    totalPackages: 0,
+    totalHotels: 0,
     revenueByMonth: [],
     topDestinations: [],
   };
@@ -72,7 +76,7 @@ export default function DashboardAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-6 p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <MetricCard
             title="Total Bookings"
             value={analytics.totalBookings.toLocaleString("en-IN")}
@@ -86,6 +90,20 @@ export default function DashboardAdminClient() {
             change="Paid & partial bookings"
             changeType="neutral"
             icon={IndianRupee}
+          />
+          <MetricCard
+            title="Tour Packages"
+            value={analytics.totalPackages.toLocaleString("en-IN")}
+            change="In catalog"
+            changeType="neutral"
+            icon={Package}
+          />
+          <MetricCard
+            title="Hotels"
+            value={analytics.totalHotels.toLocaleString("en-IN")}
+            change="In catalog"
+            changeType="neutral"
+            icon={Building2}
           />
           <MetricCard
             title="Active Vehicles"
@@ -105,7 +123,13 @@ export default function DashboardAdminClient() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <RevenueChart data={analytics.revenueByMonth} />
-          <DestinationsChart data={analytics.topDestinations} />
+          {analytics.topDestinations.length > 0 ? (
+            <DestinationsChart data={analytics.topDestinations} />
+          ) : (
+            <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed p-8 text-sm text-muted-foreground">
+              No destination data yet — publish tour packages to see top destinations.
+            </div>
+          )}
         </div>
       </div>
     </>
