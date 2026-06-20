@@ -20,6 +20,7 @@ import {
   groupEnquiriesByDate,
   type AiAssistantEnquiry,
 } from "@/types/ai-enquiry";
+import { listAiEnquiriesFromClient } from "@/lib/ai/travel-manager/enquiry-client";
 import { formatCurrency } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -144,21 +145,41 @@ export default function AiEnquiriesClient() {
   const [enquiries, setEnquiries] = useState<AiAssistantEnquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDates, setOpenDates] = useState<Record<string, boolean>>({});
+  const [loadSource, setLoadSource] = useState<"server" | "client" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/ai-enquiries");
       const json = await res.json();
+      let items: AiAssistantEnquiry[] = [];
+
       if (json.success) {
-        setEnquiries(json.data ?? []);
-        const grouped = groupEnquiriesByDate(json.data ?? []);
-        const firstDate = Object.keys(grouped).sort((a, b) => b.localeCompare(a))[0];
-        if (firstDate) {
-          setOpenDates((prev) => ({ ...prev, [firstDate]: true }));
-        }
+        const payload = json.data;
+        items = Array.isArray(payload)
+          ? payload
+          : (payload?.enquiries ?? []);
       } else {
         toast.error(json.error ?? "Failed to load AI enquiries");
+      }
+
+      if (items.length === 0) {
+        const clientItems = await listAiEnquiriesFromClient(300);
+        if (clientItems.length > 0) {
+          items = clientItems;
+          setLoadSource("client");
+        } else {
+          setLoadSource(null);
+        }
+      } else {
+        setLoadSource("server");
+      }
+
+      setEnquiries(items);
+      const grouped = groupEnquiriesByDate(items);
+      const firstDate = Object.keys(grouped).sort((a, b) => b.localeCompare(a))[0];
+      if (firstDate) {
+        setOpenDates((prev) => ({ ...prev, [firstDate]: true }));
       }
     } finally {
       setLoading(false);
@@ -188,8 +209,14 @@ export default function AiEnquiriesClient() {
       />
 
       <div className="p-6 space-y-4">
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {loadSource === "client" && enquiries.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Loaded from Firebase (staff session). New chats appear after customers send messages.
+            </p>
+          )}
+          <div className="ml-auto">
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -197,6 +224,7 @@ export default function AiEnquiriesClient() {
             )}
             Refresh
           </Button>
+          </div>
         </div>
         {loading && enquiries.length === 0 ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth-context";
 import { mergePreferences, memoryFromState } from "@/lib/ai/travel-manager/geo-language";
+import { logAiEnquiryFromClient } from "@/lib/ai/travel-manager/enquiry-client";
 import { mainMenuReplies } from "@/lib/ai/travel-manager/conversation-engine";
 import {
   buildInstantWelcomeMessage,
@@ -294,6 +295,25 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         { id: (Date.now() + 1).toString(), role: "assistant", content: data.reply },
       ]);
       applyResponse(data);
+
+      if (
+        !data.enquiryLogged &&
+        text !== "__init__" &&
+        text !== "__refresh__"
+      ) {
+        const selectedTier = data.packageTiers?.find(
+          (t: { tierId: string }) => t.tierId === data.state?.selectedTierId
+        );
+        void logAiEnquiryFromClient({
+          userMessage: text,
+          aiReply: data.reply,
+          locale: aiLocale,
+          state: data.state,
+          context: buildClientContext(),
+          packagePrice: data.packageQuote?.totalAmount ?? selectedTier?.totalAmount,
+          location: data.location ?? data.state?.userLocation ?? userLocation,
+        });
+      }
 
       const memoryUpdates = memoryFromState(data.state ?? {}, aiLocale);
       saveLocalAiPreferences(

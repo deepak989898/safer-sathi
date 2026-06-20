@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       const selectedTier = result.packageTiers?.find(
         (t) => t.tierId === result.state.selectedTierId
       );
-      await logAiAssistantEnquiry({
+      const enquiryLogged = await logAiAssistantEnquiry({
         request,
         userMessage: parsed.data.message,
         aiReply: result.reply,
@@ -120,10 +120,18 @@ export async function POST(request: Request) {
         context: parsed.data.context,
         packagePrice: result.packageQuote?.totalAmount ?? selectedTier?.totalAmount,
       });
+
+      return apiSuccess({
+        ...result,
+        enquiryLogged,
+        location: initContext?.location ?? result.state.userLocation,
+        preferences: initContext?.preferences,
+      });
     }
 
     return apiSuccess({
       ...result,
+      enquiryLogged: false,
       location: initContext?.location ?? result.state.userLocation,
       preferences: initContext?.preferences,
     });

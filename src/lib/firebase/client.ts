@@ -72,4 +72,5 @@ export const COLLECTIONS = {
   aiVehicleDrafts: "ai_vehicle_drafts",
   aiHotelDrafts: "ai_hotel_drafts",
   aiGeneratedImages: "ai_generated_images",
+  aiAssistantEnquiries: "ai_assistant_enquiries",
 } as const;
