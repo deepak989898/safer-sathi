@@ -7,8 +7,6 @@ import {
   Bus,
   CalendarCheck,
   Car,
-  Cog,
-  Headphones,
   Home,
   LayoutDashboard,
   MessageSquare,
@@ -48,7 +46,7 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     href: "/admin/bookings",
     label: "Bookings",
     icon: CalendarCheck,
-    roles: ["super_admin", "manager", "sales_agent", "driver"],
+    roles: ["super_admin", "manager", "sales_agent", "support_agent", "driver"],
   },
   {
     href: "/admin/vehicles",
@@ -84,7 +82,7 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     href: "/admin/ai-enquiries",
     label: "AI Enquiries",
     icon: MessageSquare,
-    roles: ["super_admin", "manager", "sales_agent"],
+    roles: ["super_admin", "manager", "sales_agent", "support_agent"],
   },
   {
     href: "/admin/ai-agents",
@@ -103,18 +101,6 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     label: "Customers",
     icon: Users,
     roles: ["super_admin", "manager", "sales_agent"],
-  },
-  {
-    href: "/admin/support",
-    label: "Support",
-    icon: Headphones,
-    roles: ["super_admin", "manager", "support_agent"],
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    icon: Cog,
-    roles: ["super_admin", "manager"],
   },
 ];
 

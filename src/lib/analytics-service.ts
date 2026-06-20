@@ -8,6 +8,7 @@ import {
   hydratePackagesStore,
 } from "@/lib/package-store";
 import { getAdminVehicles, hydrateVehiclesStore } from "@/lib/vehicle-store";
+import { buildAdminDailyChecklist } from "@/lib/admin/daily-checklist";
 import type { User, UserRole } from "@/types";
 
 function mapAdminUser(id: string, data: Record<string, unknown>): User {
@@ -48,7 +49,7 @@ async function listUsersForAdmin(): Promise<User[]> {
   }
 }
 
-export async function getAdminAnalytics() {
+export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {
   await Promise.all([
     hydratePackagesStore(),
     hydrateVehiclesStore(),
@@ -116,6 +117,8 @@ export async function getAdminAnalytics() {
       ? Math.min(100, Math.round((bookings.length / customers.length) * 100))
       : 0;
 
+  const dailyChecklist = await buildAdminDailyChecklist(actorRole, users);
+
   return {
     totalBookings: bookings.length,
     totalRevenue,
@@ -128,5 +131,6 @@ export async function getAdminAnalytics() {
     bookingsByMonth,
     topDestinations,
     recentBookings: bookings.slice(0, 10),
+    dailyChecklist,
   };
 }
