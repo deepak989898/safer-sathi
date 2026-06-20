@@ -40,7 +40,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID
 FIREBASE_PROJECT_ID
 FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
-NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
+NEXT_PUBLIC_APP_URL=https://www.thesafarsathi.com
 DEMO_MODE=false
 ```
 
@@ -67,21 +67,29 @@ Click **Deploy**. Vercel will:
 ## Step 5: Custom Domain
 
 1. Project Settings → **Domains**
-2. Add your domain (e.g., `safarsathi.com`)
+2. Add **www.thesafarsathi.com** (primary) and **thesafarsathi.com** (redirect to www)
 3. Configure DNS as instructed by Vercel
-4. Update `NEXT_PUBLIC_APP_URL` to your custom domain
+4. Set Vercel env: `NEXT_PUBLIC_APP_URL=https://www.thesafarsathi.com`
+5. Redeploy after changing environment variables
 
 ## Step 6: Firebase Authorized Domains
 
 1. Firebase Console → Authentication → Settings → Authorized domains
-2. Add your Vercel domain: `your-app.vercel.app`
-3. Add custom domain if configured
+2. Add: `www.thesafarsathi.com`
+3. Add: `thesafarsathi.com`
+4. Keep `localhost` for local dev
+5. Optional: keep your `*.vercel.app` preview domain for staging
 
-## Step 7: Razorpay Webhook (Production)
+## Step 7: Razorpay (Live payments)
 
-1. Razorpay Dashboard → Webhooks
-2. Add webhook URL: `https://your-domain.com/api/payments/verify`
-3. Select events: `payment.captured`, `payment.failed`
+1. Razorpay Dashboard → **Settings → API Keys** — use Live keys in production
+2. Vercel env (all three required):
+   - `RAZORPAY_KEY_ID`
+   - `RAZORPAY_KEY_SECRET`
+   - `NEXT_PUBLIC_RAZORPAY_KEY_ID` (same key id as above, public)
+3. Ensure Razorpay account KYC is complete for live mode
+4. Test a small real payment on https://www.thesafarsathi.com/booking
+5. Payment verification runs via `/api/payments/verify` after checkout (client-side callback)
 
 ## Performance Tips
 

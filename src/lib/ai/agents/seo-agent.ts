@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/site-config";
 import { getPackages } from "@/lib/data-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
@@ -42,7 +43,7 @@ async function ruleBasedSEO(input: SEOAgentInput): Promise<{ meta: SEOMetaTags; 
     : packages[0];
 
   if (!pkg) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://safarsathi.com";
+    const baseUrl = getAppUrl();
     return {
       meta: {
         title: input.title ?? "Safar Sathi Travel",
@@ -61,7 +62,7 @@ async function ruleBasedSEO(input: SEOAgentInput): Promise<{ meta: SEOMetaTags; 
     input.description ??
     pkg.description.en.slice(0, 155) + " | Book with Safar Sathi — India's trusted travel partner.";
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://safarsathi.com";
+  const baseUrl = getAppUrl();
   const path = input.pageType === "package" ? `/packages/${pkg.slug}` : `/${input.pageType}`;
 
   const meta: SEOMetaTags = {

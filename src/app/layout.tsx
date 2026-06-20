@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { getAppUrl, SITE_NAME } from "@/lib/site-config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,10 +14,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getAppUrl();
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Safar Sathi | Travel | Comfort | Trust",
   description:
     "Discover incredible destinations across India with curated packages, instant booking, and 24/7 support.",
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: siteUrl,
+    siteName: SITE_NAME,
+    title: "Safar Sathi | Travel | Comfort | Trust",
+    description:
+      "Discover incredible destinations across India with curated packages, instant booking, and 24/7 support.",
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
   icons: {
     icon: [{ url: "/images/favicon.svg", type: "image/svg+xml" }],
     shortcut: "/images/favicon.svg",

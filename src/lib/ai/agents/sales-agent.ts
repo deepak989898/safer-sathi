@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/site-config";
 import { listAllUsers } from "@/lib/auth/auth-service";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
@@ -32,9 +33,11 @@ function ruleBasedFollowUps(input: SalesAgentInput): SalesFollowUp[] {
   const packageName = input.abandonedPackage ?? "Golden Triangle Tour";
   const isVip = input.segment === "vip";
 
+  const packagesLink = appUrl("/packages");
+
   const emailMessage = isHi
-    ? `प्रिय ${input.leadName},\n\nआपने ${packageName} में रुचि दिखाई थी। Safar Sathi पर विशेष 10% छूट — केवल 48 घंटे के लिए! अभी बुक करें: https://safarsathi.com/packages\n\nधन्यवाद,\nSafar Sathi Sales`
-    : `Hi ${input.leadName},\n\nYou showed interest in ${packageName}. Exclusive 10% off at Safar Sathi — valid for 48 hours only! Book now: https://safarsathi.com/packages\n\nBest regards,\nSafar Sathi Sales`;
+    ? `प्रिय ${input.leadName},\n\nआपने ${packageName} में रुचि दिखाई थी। Safar Sathi पर विशेष 10% छूट — केवल 48 घंटे के लिए! अभी बुक करें: ${packagesLink}\n\nधन्यवाद,\nSafar Sathi Sales`
+    : `Hi ${input.leadName},\n\nYou showed interest in ${packageName}. Exclusive 10% off at Safar Sathi — valid for 48 hours only! Book now: ${packagesLink}\n\nBest regards,\nSafar Sathi Sales`;
 
   const whatsappMessage = isHi
     ? `नमस्ते ${input.leadName}! 🌴 ${packageName} आपका इंतज़ार कर रहा है। आज बुक करें और 10% बचाएं। Reply YES for callback.`

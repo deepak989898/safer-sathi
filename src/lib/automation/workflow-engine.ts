@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/site-config";
 import { createAuditLog } from "./audit-log";
 import { generateInvoice } from "@/lib/documents/invoice";
 import { sendEmail } from "@/lib/notifications/email";
@@ -120,7 +121,7 @@ async function executeStep(
         const due = booking.amount - booking.paidAmount;
         const result = await sendWhatsApp({
           to: booking.customerPhone,
-          message: `Reminder: ₹${due.toLocaleString("en-IN")} pending for booking ${booking.bookingNumber}. Pay at https://safarsathi.com/pay/${booking.id}`,
+          message: `Reminder: ₹${due.toLocaleString("en-IN")} pending for booking ${booking.bookingNumber}. Pay at ${appUrl("/booking")}`,
         });
         return {
           action: step.action,
