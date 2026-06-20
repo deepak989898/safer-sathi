@@ -16,127 +16,160 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
-import {
-  groupEnquiriesByDate,
-  type AiAssistantEnquiry,
-} from "@/types/ai-enquiry";
 import { listAiEnquiriesFromClient } from "@/lib/ai/travel-manager/enquiry-client";
 import { formatCurrency } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import {
+  formatEnquiryStep,
+  groupEnquiriesIntoVisitorSessions,
+  type AiAssistantEnquiry,
+  type AiEnquiryVisitorSession,
+} from "@/types/ai-enquiry";
 import { toast } from "sonner";
 
-function formatDateHeading(dateKey: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-IN", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date(`${dateKey}T12:00:00`));
-  } catch {
-    return dateKey;
-  }
-}
+function VisitorSessionCard({
+  session,
+  defaultOpen,
+}: {
+  session: AiEnquiryVisitorSession;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
 
-function EnquiryRow({ enquiry }: { enquiry: AiAssistantEnquiry }) {
+  const summaryParts = [
+    session.destination && `→ ${session.destination}`,
+    session.pickupCity && `from ${session.pickupCity}`,
+    session.lastStep && `left at: ${formatEnquiryStep(session.lastStep)}`,
+  ].filter(Boolean);
+
   return (
-    <Card className="border-muted">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold">{enquiry.timeLabel}</p>
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {enquiry.locationReadable}
+    <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+      >
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{session.startTimeLabel}</p>
+            {session.endTimeLabel !== session.startTimeLabel && (
+              <span className="text-xs text-muted-foreground">→ {session.endTimeLabel}</span>
+            )}
+            <StatusBadge
+              status={session.status === "converted" ? "success" : "pending"}
+              label={session.status}
+            />
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              {session.locationReadable}
+            </span>
+            {session.ip && (
+              <span className="inline-flex items-center gap-1 font-mono">
+                <Globe className="h-3.5 w-3.5 shrink-0" />
+                {session.ip}
               </span>
-              {enquiry.ip && (
-                <span className="inline-flex items-center gap-1 font-mono">
-                  <Globe className="h-3 w-3" />
-                  {enquiry.ip}
+            )}
+            <Badge variant="outline" className="h-5 text-[10px]">
+              {session.locale === "hi" ? "Hindi" : "English"}
+            </Badge>
+            <span className="inline-flex items-center gap-1">
+              <MessageSquare className="h-3.5 w-3.5" />
+              {session.messageCount} message{session.messageCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          {summaryParts.length > 0 && (
+            <p className="text-xs font-medium text-foreground/80">{summaryParts.join(" · ")}</p>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t bg-muted/15">
+          {(session.destination ||
+            session.packagePrice ||
+            session.customerName ||
+            session.customerPhone) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 border-b bg-muted/30 px-4 py-2 text-xs">
+              {session.destination && (
+                <span>
+                  <span className="text-muted-foreground">Destination:</span> {session.destination}
                 </span>
               )}
-              {enquiry.locale && (
-                <Badge variant="outline" className="text-[10px] h-5">
-                  {enquiry.locale === "hi" ? "Hindi" : "English"}
-                </Badge>
+              {session.pickupCity && (
+                <span>
+                  <span className="text-muted-foreground">Pickup:</span> {session.pickupCity}
+                </span>
+              )}
+              {session.tripType && (
+                <span>
+                  <span className="text-muted-foreground">Trip:</span> {session.tripType}
+                </span>
+              )}
+              {session.durationDays && (
+                <span>
+                  <span className="text-muted-foreground">Days:</span> {session.durationDays}
+                </span>
+              )}
+              {session.selectedTierId && (
+                <span>
+                  <span className="text-muted-foreground">Tier:</span> {session.selectedTierId}
+                </span>
+              )}
+              {session.packagePrice != null && session.packagePrice > 0 && (
+                <span>
+                  <span className="text-muted-foreground">Quote:</span>{" "}
+                  {formatCurrency(session.packagePrice, "en")}
+                </span>
+              )}
+              {session.lastStep && (
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  Stopped at: {formatEnquiryStep(session.lastStep)}
+                </span>
               )}
             </div>
-          </div>
-          <StatusBadge
-            status={enquiry.status === "converted" ? "success" : "pending"}
-            label={enquiry.status}
-          />
-        </div>
+          )}
 
-        <div className="grid gap-2 sm:grid-cols-2 text-xs">
-          {enquiry.destination && (
-            <p>
-              <span className="text-muted-foreground">Destination:</span> {enquiry.destination}
-            </p>
-          )}
-          {enquiry.pickupCity && (
-            <p>
-              <span className="text-muted-foreground">Pickup:</span> {enquiry.pickupCity}
-            </p>
-          )}
-          {enquiry.tripType && (
-            <p>
-              <span className="text-muted-foreground">Trip type:</span> {enquiry.tripType}
-            </p>
-          )}
-          {enquiry.durationDays && (
-            <p>
-              <span className="text-muted-foreground">Duration:</span> {enquiry.durationDays} days
-            </p>
-          )}
-          {enquiry.selectedTierId && (
-            <p>
-              <span className="text-muted-foreground">Tier:</span> {enquiry.selectedTierId}
-            </p>
-          )}
-          {enquiry.packagePrice != null && enquiry.packagePrice > 0 && (
-            <p>
-              <span className="text-muted-foreground">Quote:</span>{" "}
-              {formatCurrency(enquiry.packagePrice, "en")}
-            </p>
-          )}
-          {enquiry.step && (
-            <p>
-              <span className="text-muted-foreground">Step:</span> {enquiry.step}
-            </p>
-          )}
-        </div>
-
-        {(enquiry.customerName || enquiry.customerPhone || enquiry.customerEmail) && (
-          <div className="rounded-lg bg-muted/50 p-2 text-xs space-y-1">
-            <p className="font-medium inline-flex items-center gap-1">
-              <User className="h-3 w-3" />
-              Customer details
-            </p>
-            {enquiry.customerName && <p>Name: {enquiry.customerName}</p>}
-            {enquiry.customerPhone && <p>Phone: {enquiry.customerPhone}</p>}
-            {enquiry.customerEmail && <p>Email: {enquiry.customerEmail}</p>}
-          </div>
-        )}
-
-        <div className="space-y-2 text-sm">
-          <div className="rounded-lg bg-primary/5 p-2">
-            <p className="text-xs font-medium text-muted-foreground mb-1">User</p>
-            <p>{enquiry.userMessage}</p>
-          </div>
-          {enquiry.aiReply && (
-            <div className="rounded-lg bg-muted p-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1 inline-flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                AI reply
-              </p>
-              <p className="whitespace-pre-wrap text-xs">{enquiry.aiReply}</p>
+          {(session.customerName || session.customerPhone || session.customerEmail) && (
+            <div className="flex flex-wrap gap-4 border-b px-4 py-2 text-xs">
+              <span className="inline-flex items-center gap-1 font-medium">
+                <User className="h-3.5 w-3.5" />
+                Customer
+              </span>
+              {session.customerName && <span>{session.customerName}</span>}
+              {session.customerPhone && <span>{session.customerPhone}</span>}
+              {session.customerEmail && <span>{session.customerEmail}</span>}
             </div>
           )}
+
+          <div className="max-h-[min(70vh,560px)] space-y-3 overflow-y-auto p-4">
+            {session.chat.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn(
+                  "max-w-[92%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
+                  msg.role === "user"
+                    ? "ml-auto bg-primary text-primary-foreground"
+                    : "mr-auto bg-background border shadow-sm"
+                )}
+              >
+                <p className="mb-1 text-[10px] font-medium opacity-70">
+                  {msg.role === "user" ? "Customer" : "Safar Sathi AI"} · {msg.timeLabel}
+                </p>
+                {msg.content}
+              </div>
+            ))}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 
@@ -144,7 +177,6 @@ export default function AiEnquiriesClient() {
   const { user } = useAuth();
   const [enquiries, setEnquiries] = useState<AiAssistantEnquiry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openDates, setOpenDates] = useState<Record<string, boolean>>({});
   const [loadSource, setLoadSource] = useState<"server" | "client" | null>(null);
 
   const load = useCallback(async () => {
@@ -156,9 +188,7 @@ export default function AiEnquiriesClient() {
 
       if (json.success) {
         const payload = json.data;
-        items = Array.isArray(payload)
-          ? payload
-          : (payload?.enquiries ?? []);
+        items = Array.isArray(payload) ? payload : (payload?.enquiries ?? []);
       } else {
         toast.error(json.error ?? "Failed to load AI enquiries");
       }
@@ -176,11 +206,6 @@ export default function AiEnquiriesClient() {
       }
 
       setEnquiries(items);
-      const grouped = groupEnquiriesByDate(items);
-      const firstDate = Object.keys(grouped).sort((a, b) => b.localeCompare(a))[0];
-      if (firstDate) {
-        setOpenDates((prev) => ({ ...prev, [firstDate]: true }));
-      }
     } finally {
       setLoading(false);
     }
@@ -190,33 +215,37 @@ export default function AiEnquiriesClient() {
     void load();
   }, [load]);
 
-  const grouped = useMemo(() => groupEnquiriesByDate(enquiries), [enquiries]);
-  const sortedDates = useMemo(
-    () => Object.keys(grouped).sort((a, b) => b.localeCompare(a)),
-    [grouped]
+  const sessions = useMemo(
+    () => groupEnquiriesIntoVisitorSessions(enquiries),
+    [enquiries]
   );
-
-  const toggleDate = (dateKey: string) => {
-    setOpenDates((prev) => ({ ...prev, [dateKey]: !prev[dateKey] }));
-  };
 
   return (
     <>
       <AdminHeader
         title="AI Assistant Enquiries"
-        description="Live chat enquiries from Safar Sathi AI — grouped by date with location & IP"
+        description="Full customer chats — grouped by visitor with location, IP and where they stopped"
         adminName={user?.name ?? "Admin"}
       />
 
-      <div className="p-6 space-y-4">
+      <div className="space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {loadSource === "client" && enquiries.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Loaded from Firebase (staff session). New chats appear after customers send messages.
+          {sessions.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {sessions.length} visitor session{sessions.length === 1 ? "" : "s"} ·{" "}
+              {enquiries.length} total messages
             </p>
           )}
-          <div className="ml-auto">
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+          {loadSource === "client" && enquiries.length > 0 && (
+            <p className="text-xs text-muted-foreground">Loaded via staff Firebase session</p>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => void load()}
+            disabled={loading}
+          >
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -224,53 +253,25 @@ export default function AiEnquiriesClient() {
             )}
             Refresh
           </Button>
-          </div>
         </div>
+
         {loading && enquiries.length === 0 ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Loading enquiries…
           </div>
-        ) : sortedDates.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               No AI enquiries yet. They appear when users chat with Safar Sathi AI on the website.
             </CardContent>
           </Card>
         ) : (
-          sortedDates.map((dateKey) => {
-            const items = grouped[dateKey] ?? [];
-            const isOpen = openDates[dateKey] ?? false;
-            return (
-              <div key={dateKey} className="rounded-xl border bg-card overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => toggleDate(dateKey)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-                >
-                  <div>
-                    <p className="font-semibold">{formatDateHeading(dateKey)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {items.length} enquiry{items.length === 1 ? "" : "ies"}
-                    </p>
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-                      isOpen && "rotate-180"
-                    )}
-                  />
-                </button>
-                {isOpen && (
-                  <div className="space-y-3 border-t p-4 bg-muted/20">
-                    {items.map((enquiry) => (
-                      <EnquiryRow key={enquiry.id} enquiry={enquiry} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <div className="space-y-3">
+            {sessions.map((session, index) => (
+              <VisitorSessionCard key={session.id} session={session} defaultOpen={index === 0} />
+            ))}
+          </div>
         )}
       </div>
     </>
