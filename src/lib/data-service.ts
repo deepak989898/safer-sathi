@@ -3,6 +3,8 @@ import { listAllUsers } from "@/lib/auth/auth-service";
 import type { Booking, User } from "@/types";
 
 export {
+  getAllBlogSlugs,
+  getBlogCategoriesList,
   getBlogPostBySlug,
   getBlogPosts,
   getBusRoutes,
@@ -11,6 +13,7 @@ export {
   getPackageById,
   getPackageBySlug,
   getPackages,
+  getRelatedBlogPostsForSlug,
   getReviews,
   getVehicleById,
   getVehicles,

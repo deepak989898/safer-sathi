@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Package,
   Shield,
+  Sparkles,
   User,
   Users,
 } from "lucide-react";
@@ -67,6 +68,12 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     label: "Hotels",
     icon: Building2,
     roles: ["super_admin", "manager"],
+  },
+  {
+    href: "/admin/ai-center",
+    label: "AI Center",
+    icon: Sparkles,
+    roles: ["super_admin"],
   },
   {
     href: "/admin/ai-travel-manager",

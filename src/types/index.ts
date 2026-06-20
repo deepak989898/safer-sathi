@@ -296,6 +296,7 @@ export interface BlogPost {
   published: boolean;
   seoTitle?: LocalizedString;
   seoDescription?: LocalizedString;
+  faq?: { question: string; answer: string }[];
   createdAt: string;
   updatedAt: string;
 }

@@ -17,6 +17,14 @@ import {
   getVehicleByIdPublished,
   hydrateVehiclesStore,
 } from "@/lib/vehicle-store";
+import {
+  getAllPublishedBlogSlugs,
+  getBlogCategories,
+  getPublishedBlogBySlug,
+  getPublishedBlogPosts,
+  getRelatedBlogPosts,
+  hydrateBlogStore,
+} from "@/lib/blog-store";
 import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
@@ -114,11 +122,13 @@ export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute
 }
 
 export async function getBlogPosts(): Promise<BlogPost[]> {
-  return [];
+  await hydrateBlogStore();
+  return getPublishedBlogPosts();
 }
 
-export async function getBlogPostBySlug(_slug: string): Promise<BlogPost | null> {
-  return null;
+export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  await hydrateBlogStore();
+  return getPublishedBlogBySlug(slug);
 }
 
 export async function getReviews() {
@@ -140,6 +150,17 @@ export async function getAllHotelSlugs() {
   return getAllPublishedHotelSlugs();
 }
 
-export function getAllBlogSlugs() {
-  return [];
+export async function getAllBlogSlugs() {
+  await hydrateBlogStore();
+  return getAllPublishedBlogSlugs();
+}
+
+export async function getBlogCategoriesList(): Promise<string[]> {
+  await hydrateBlogStore();
+  return getBlogCategories();
+}
+
+export async function getRelatedBlogPostsForSlug(slug: string, limit = 3) {
+  await hydrateBlogStore();
+  return getRelatedBlogPosts(slug, limit);
 }

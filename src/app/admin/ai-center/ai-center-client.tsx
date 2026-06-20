@@ -1,0 +1,763 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Check,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  X,
+  FileText,
+  Settings,
+  ScrollText,
+  Globe,
+} from "lucide-react";
+import { AdminHeader } from "@/components/admin/admin-header";
+import { StatusBadge } from "@/components/admin/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
+import type {
+  AiBlogPost,
+  AiCenterLog,
+  AiCenterSettings,
+  SeoKeyword,
+  SeoMetaRecord,
+} from "@/lib/ai-center/types";
+import { toast } from "sonner";
+
+interface Stats {
+  keywordsTotal: number;
+  keywordsPending: number;
+  keywordsApproved: number;
+  blogsDraft: number;
+  blogsPending: number;
+  blogsPublished: number;
+  blogsRejected: number;
+  seoMetaCount: number;
+}
+
+export default function AiCenterClient() {
+  const { user } = useAuth();
+  const actorRole = user?.role ?? "customer";
+  const actorId = user?.id ?? user?.email ?? "super_admin";
+
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [keywords, setKeywords] = useState<SeoKeyword[]>([]);
+  const [seoMeta, setSeoMeta] = useState<SeoMetaRecord[]>([]);
+  const [blogs, setBlogs] = useState<AiBlogPost[]>([]);
+  const [logs, setLogs] = useState<AiCenterLog[]>([]);
+  const [settings, setSettings] = useState<AiCenterSettings | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [editBlog, setEditBlog] = useState<AiBlogPost | null>(null);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [kwRes, blogRes, logRes, settingsRes] = await Promise.all([
+        fetch(`/api/admin/ai-center/keywords?actorRole=${actorRole}`),
+        fetch(`/api/admin/ai-center/blogs?actorRole=${actorRole}`),
+        fetch(`/api/admin/ai-center/logs?actorRole=${actorRole}&limit=100`),
+        fetch(`/api/admin/ai-center/settings?actorRole=${actorRole}`),
+      ]);
+      const [kwJson, blogJson, logJson, settingsJson] = await Promise.all([
+        kwRes.json(),
+        blogRes.json(),
+        logRes.json(),
+        settingsRes.json(),
+      ]);
+      if (kwJson.success) {
+        setKeywords(kwJson.data.keywords ?? []);
+        setSeoMeta(kwJson.data.seoMeta ?? []);
+        setStats(kwJson.data.stats ?? null);
+      }
+      if (blogJson.success) setBlogs(blogJson.data.blogs ?? []);
+      if (logJson.success) {
+        setLogs(logJson.data.logs ?? []);
+        if (logJson.data.stats) setStats(logJson.data.stats);
+      }
+      if (settingsJson.success) setSettings(settingsJson.data);
+    } catch {
+      toast.error("Failed to load AI Center");
+    } finally {
+      setLoading(false);
+    }
+  }, [actorRole]);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
+
+  const pendingKeywords = useMemo(
+    () => keywords.filter((k) => k.status === "pending"),
+    [keywords]
+  );
+  const approvedKeywords = useMemo(
+    () => keywords.filter((k) => k.status === "approved"),
+    [keywords]
+  );
+  const draftBlogs = useMemo(
+    () => blogs.filter((b) => b.status === "draft" || b.status === "pending_approval"),
+    [blogs]
+  );
+  const scheduledBlogs = useMemo(
+    () => blogs.filter((b) => b.status === "approved"),
+    [blogs]
+  );
+  const publishedBlogs = useMemo(
+    () => blogs.filter((b) => b.status === "published"),
+    [blogs]
+  );
+  const rejectedBlogs = useMemo(
+    () => blogs.filter((b) => b.status === "rejected"),
+    [blogs]
+  );
+
+  const runKeywordResearch = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, actorId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast.success(`Generated ${json.data.count} keywords`);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Keyword research failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const keywordAction = async (id: string, action: "approve" | "reject") => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/ai-center/keywords/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, actorId, action }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast.success(action === "approve" ? "Keyword approved + SEO meta generated" : "Keyword rejected");
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteKeyword = async (id: string) => {
+    if (!confirm("Delete this keyword?")) return;
+    await fetch(`/api/admin/ai-center/keywords/${id}?actorRole=${actorRole}`, { method: "DELETE" });
+    toast.success("Keyword deleted");
+    await loadAll();
+  };
+
+  const generateBlog = async (keywordId: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, actorId, keywordId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast.success("Blog draft generated");
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Blog generation failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const blogAction = async (
+    id: string,
+    action: "approve" | "reject" | "publish" | "regenerate" | "update",
+    extra?: Partial<AiBlogPost>
+  ) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/ai-center/blogs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, actorId, action, ...extra }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast.success(`Blog ${action} successful`);
+      setEditBlog(null);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Blog action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteBlog = async (id: string) => {
+    if (!confirm("Delete this blog?")) return;
+    await fetch(`/api/admin/ai-center/blogs/${id}?actorRole=${actorRole}`, { method: "DELETE" });
+    toast.success("Blog deleted");
+    await loadAll();
+  };
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          actorId,
+          blogWordLimit: settings.blogWordLimit,
+          keywordsPerDay: settings.keywordsPerDay,
+          autoDraftEnabled: settings.autoDraftEnabled,
+          autoPublishEnabled: settings.autoPublishEnabled,
+          approvalRequired: true,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setSettings(json.data);
+      toast.success("AI settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <AdminHeader
+        title="AI Center"
+        description="SEO Agent & Blog Writer — Super Admin only"
+        adminName={user?.name ?? "Super Admin"}
+      />
+
+      <div className="space-y-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <StatPill label="Keywords" value={stats?.keywordsTotal ?? 0} />
+            <StatPill label="Pending" value={stats?.keywordsPending ?? 0} />
+            <StatPill label="Published Blogs" value={stats?.blogsPublished ?? 0} />
+            <StatPill label="SEO Meta" value={stats?.seoMetaCount ?? 0} />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void loadAll()} disabled={busy}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+
+        <Tabs defaultValue="seo" className="space-y-4">
+          <TabsList className="flex h-auto flex-wrap gap-1">
+            <TabsTrigger value="seo">SEO Agent</TabsTrigger>
+            <TabsTrigger value="keywords">Keyword Research</TabsTrigger>
+            <TabsTrigger value="blog-writer">Blog Writer</TabsTrigger>
+            <TabsTrigger value="drafts">Blog Drafts</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="published">Published</TabsTrigger>
+            <TabsTrigger value="logs">AI Logs</TabsTrigger>
+            <TabsTrigger value="settings">AI Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="seo" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  AI SEO Agent
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Automatically discovers tour, hotel, vehicle & destination keywords. When you approve a keyword,
+                  AI generates SEO title, description, slug, FAQ, OpenGraph & schema markup into Firebase.
+                </p>
+                <Button onClick={() => void runKeywordResearch()} disabled={busy}>
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  Run Keyword Research
+                </Button>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {seoMeta.slice(0, 6).map((meta) => (
+                    <div key={meta.id} className="rounded-lg border p-3 text-sm">
+                      <p className="font-semibold">{meta.seoTitle}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{meta.seoDescription}</p>
+                      <p className="text-xs mt-2">Focus: {meta.focusKeyword}</p>
+                      <Link href={`/blog/${meta.slug}`} className="text-xs text-primary hover:underline">
+                        /blog/{meta.slug}
+                      </Link>
+                    </div>
+                  ))}
+                  {seoMeta.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Approve keywords to generate SEO meta.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="keywords">
+            <KeywordTable
+              title="Pending Keywords"
+              items={pendingKeywords}
+              busy={busy}
+              onApprove={(id) => void keywordAction(id, "approve")}
+              onReject={(id) => void keywordAction(id, "reject")}
+              onDelete={(id) => void deleteKeyword(id)}
+              onGenerateBlog={(id) => void generateBlog(id)}
+              showGenerate
+            />
+            <div className="mt-6">
+              <KeywordTable
+                title="Approved Keywords"
+                items={approvedKeywords}
+                busy={busy}
+                onApprove={() => {}}
+                onReject={() => {}}
+                onDelete={(id) => void deleteKeyword(id)}
+                onGenerateBlog={(id) => void generateBlog(id)}
+                showGenerate
+                hideActions
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="blog-writer">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  AI Blog Writer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Select an approved keyword and generate a full SEO blog ({settings?.blogWordLimit ?? 1500} words)
+                  with image prompts, FAQ, and meta tags.
+                </p>
+                {approvedKeywords.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Approve keywords first.</p>
+                ) : (
+                  approvedKeywords.map((kw) => (
+                    <div key={kw.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                      <span className="font-medium">{kw.keyword}</span>
+                      <Button size="sm" disabled={busy} onClick={() => void generateBlog(kw.id)}>
+                        Generate Blog
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="drafts">
+            <BlogTable
+              title="Drafts & Pending Approval"
+              blogs={draftBlogs}
+              busy={busy}
+              onEdit={setEditBlog}
+              onApprove={(id) => void blogAction(id, "approve")}
+              onReject={(id) => void blogAction(id, "reject")}
+              onPublish={(id) => void blogAction(id, "publish")}
+              onRegenerate={(id) => void blogAction(id, "regenerate")}
+              onDelete={(id) => void deleteBlog(id)}
+            />
+          </TabsContent>
+
+          <TabsContent value="scheduled">
+            <BlogTable
+              title="Approved — Ready to Publish"
+              blogs={scheduledBlogs}
+              busy={busy}
+              onEdit={setEditBlog}
+              onApprove={() => {}}
+              onReject={(id) => void blogAction(id, "reject")}
+              onPublish={(id) => void blogAction(id, "publish")}
+              onRegenerate={(id) => void blogAction(id, "regenerate")}
+              onDelete={(id) => void deleteBlog(id)}
+              publishOnly
+            />
+          </TabsContent>
+
+          <TabsContent value="published">
+            <BlogTable
+              title="Published Blogs"
+              blogs={publishedBlogs}
+              busy={busy}
+              onEdit={setEditBlog}
+              onApprove={() => {}}
+              onReject={() => {}}
+              onPublish={() => {}}
+              onRegenerate={() => {}}
+              onDelete={(id) => void deleteBlog(id)}
+              readOnly
+            />
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ScrollText className="h-5 w-5" />
+                  AI Logs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {logs.map((log) => (
+                  <div key={log.id} className="rounded-lg border p-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge variant="outline">{log.type}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(log.createdAt).toLocaleString("en-IN")}
+                        {log.durationMs ? ` · ${log.durationMs}ms` : ""}
+                      </span>
+                    </div>
+                    <p className="mt-1">{log.message}</p>
+                    {log.error && <p className="text-xs text-destructive mt-1">{log.error}</p>}
+                  </div>
+                ))}
+                {logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            {settings && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    AI Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>Blog word limit</Label>
+                    <Select
+                      value={String(settings.blogWordLimit)}
+                      onValueChange={(v) =>
+                        setSettings({ ...settings, blogWordLimit: Number(v) as AiCenterSettings["blogWordLimit"] })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1000, 1500, 2000, 3000].map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n} words</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Keywords per day</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={settings.keywordsPerDay}
+                      onChange={(e) =>
+                        setSettings({ ...settings, keywordsPerDay: Number(e.target.value) || 10 })
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Auto Draft</p>
+                      <p className="text-xs text-muted-foreground">Auto-create blog drafts on keyword approve</p>
+                    </div>
+                    <Switch
+                      checked={settings.autoDraftEnabled}
+                      onCheckedChange={(v) => setSettings({ ...settings, autoDraftEnabled: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Auto Publish</p>
+                      <p className="text-xs text-muted-foreground">Off by default — Super Admin must publish</p>
+                    </div>
+                    <Switch
+                      checked={settings.autoPublishEnabled}
+                      onCheckedChange={(v) => setSettings({ ...settings, autoPublishEnabled: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2 bg-muted/40">
+                    <div>
+                      <p className="font-medium">Approval Required</p>
+                      <p className="text-xs text-muted-foreground">Always ON — no blog goes live without approval</p>
+                    </div>
+                    <Switch checked disabled />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button onClick={() => void saveSettings()} disabled={busy}>
+                      Save Settings
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Dialog open={!!editBlog} onOpenChange={(o) => !o && setEditBlog(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Blog</DialogTitle>
+          </DialogHeader>
+          {editBlog && (
+            <div className="space-y-3">
+              <div>
+                <Label>Title</Label>
+                <Input
+                  value={editBlog.title}
+                  onChange={(e) => setEditBlog({ ...editBlog, title: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Meta description</Label>
+                <Input
+                  value={editBlog.metaDescription}
+                  onChange={(e) => setEditBlog({ ...editBlog, metaDescription: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Content (markdown)</Label>
+                <Textarea
+                  rows={12}
+                  value={editBlog.content}
+                  onChange={(e) => setEditBlog({ ...editBlog, content: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Image prompts</Label>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  {editBlog.imagePrompts.map((img) => (
+                    <p key={img.id}>🖼 {img.label}: {img.prompt}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditBlog(null)}>Cancel</Button>
+            <Button
+              disabled={busy || !editBlog}
+              onClick={() =>
+                editBlog &&
+                void blogAction(editBlog.id, "update", {
+                  title: editBlog.title,
+                  content: editBlog.content,
+                  metaDescription: editBlog.metaDescription,
+                })
+              }
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function StatPill({ label, value }: { label: string; value: number }) {
+  return (
+    <Badge variant="secondary" className="px-3 py-1">
+      {label}: <strong className="ml-1">{value}</strong>
+    </Badge>
+  );
+}
+
+function KeywordTable({
+  title,
+  items,
+  busy,
+  onApprove,
+  onReject,
+  onDelete,
+  onGenerateBlog,
+  showGenerate,
+  hideActions,
+}: {
+  title: string;
+  items: SeoKeyword[];
+  busy: boolean;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onDelete: (id: string) => void;
+  onGenerateBlog: (id: string) => void;
+  showGenerate?: boolean;
+  hideActions?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-muted-foreground">
+              <th className="p-2">Keyword</th>
+              <th className="p-2">Searches/mo</th>
+              <th className="p-2">Competition</th>
+              <th className="p-2">Trend</th>
+              <th className="p-2">Category</th>
+              <th className="p-2">SEO</th>
+              <th className="p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((kw) => (
+              <tr key={kw.id} className="border-b">
+                <td className="p-2 font-medium">{kw.keyword}</td>
+                <td className="p-2">{kw.searchVolume.toLocaleString("en-IN")}</td>
+                <td className="p-2"><StatusBadge status={kw.competition === "low" ? "success" : kw.competition === "medium" ? "pending" : "failed"} label={kw.competition} /></td>
+                <td className="p-2">{kw.trendScore}</td>
+                <td className="p-2">{kw.category.replace(/_/g, " ")}</td>
+                <td className="p-2">{kw.seoScore}</td>
+                <td className="p-2">
+                  <div className="flex flex-wrap gap-1">
+                    {!hideActions && kw.status === "pending" && (
+                      <>
+                        <Button size="sm" variant="outline" disabled={busy} onClick={() => onApprove(kw.id)}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={busy} onClick={() => onReject(kw.id)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                    {showGenerate && kw.status === "approved" && (
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => onGenerateBlog(kw.id)}>
+                        Blog
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDelete(kw.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {items.length === 0 && <p className="py-6 text-center text-muted-foreground">No keywords.</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BlogTable({
+  title,
+  blogs,
+  busy,
+  onEdit,
+  onApprove,
+  onReject,
+  onPublish,
+  onRegenerate,
+  onDelete,
+  publishOnly,
+  readOnly,
+}: {
+  title: string;
+  blogs: AiBlogPost[];
+  busy: boolean;
+  onEdit: (b: AiBlogPost) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onPublish: (id: string) => void;
+  onRegenerate: (id: string) => void;
+  onDelete: (id: string) => void;
+  publishOnly?: boolean;
+  readOnly?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {blogs.map((blog) => (
+          <div key={blog.id} className="rounded-lg border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold">{blog.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {blog.wordCount} words · {blog.keyword} · /blog/{blog.slug}
+                </p>
+                <StatusBadge status={blog.status === "published" ? "success" : "pending"} label={blog.status.replace(/_/g, " ")} />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {!readOnly && (
+                  <Button size="sm" variant="outline" onClick={() => onEdit(blog)}>Edit</Button>
+                )}
+                {!readOnly && !publishOnly && blog.status === "pending_approval" && (
+                  <>
+                    <Button size="sm" disabled={busy} onClick={() => onApprove(blog.id)}>Approve</Button>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => onReject(blog.id)}>Reject</Button>
+                  </>
+                )}
+                {!readOnly && (blog.status === "approved" || publishOnly) && (
+                  <Button size="sm" disabled={busy} onClick={() => onPublish(blog.id)}>Publish</Button>
+                )}
+                {!readOnly && !publishOnly && (
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => onRegenerate(blog.id)}>Regenerate</Button>
+                )}
+                {!readOnly && (
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDelete(blog.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+                {blog.status === "published" && (
+                  <Link href={`/blog/${blog.slug}`} target="_blank">
+                    <Button size="sm" variant="outline">View</Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {blogs.length === 0 && <p className="text-sm text-muted-foreground">No blogs in this section.</p>}
+      </CardContent>
+    </Card>
+  );
+}

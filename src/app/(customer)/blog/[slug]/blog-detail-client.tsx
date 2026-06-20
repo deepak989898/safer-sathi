@@ -5,11 +5,49 @@ import Link from "next/link";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app-store";
 import { localizedText } from "@/lib/i18n";
 import type { BlogPost } from "@/types";
 
-export function BlogDetailClient({ post }: { post: BlogPost }) {
+function renderMarkdownish(content: string) {
+  return content.split("\n\n").map((block, i) => {
+    if (block.startsWith("## ")) {
+      return (
+        <h2 key={i} className="mt-8 text-xl font-semibold">
+          {block.replace(/^##\s+/, "")}
+        </h2>
+      );
+    }
+    if (block.startsWith("# ")) {
+      return (
+        <h1 key={i} className="mt-4 text-2xl font-bold">
+          {block.replace(/^#\s+/, "")}
+        </h1>
+      );
+    }
+    if (block.startsWith("**") && block.includes("**")) {
+      return (
+        <p key={i} className="mt-3 font-medium">
+          {block.replace(/\*\*/g, "")}
+        </p>
+      );
+    }
+    return (
+      <p key={i} className="mt-3 leading-relaxed text-muted-foreground">
+        {block}
+      </p>
+    );
+  });
+}
+
+export function BlogDetailClient({
+  post,
+  related = [],
+}: {
+  post: BlogPost;
+  related?: BlogPost[];
+}) {
   const { locale } = useAppStore();
 
   return (
@@ -33,7 +71,7 @@ export function BlogDetailClient({ post }: { post: BlogPost }) {
 
       <div className="mb-4 flex flex-wrap gap-2">
         {post.tags.map((tag) => (
-          <Badge key={tag} variant="secondary">
+          <Badge key={tag} variant="secondary" className="capitalize">
             {tag}
           </Badge>
         ))}
@@ -59,10 +97,42 @@ export function BlogDetailClient({ post }: { post: BlogPost }) {
       </div>
 
       <div className="prose prose-slate mt-8 max-w-none dark:prose-invert">
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          {localizedText(post.content, locale)}
-        </p>
+        {renderMarkdownish(localizedText(post.content, locale))}
       </div>
+
+      {post.faq && post.faq.length > 0 && (
+        <section className="mt-10 space-y-3">
+          <h2 className="text-xl font-semibold">FAQ</h2>
+          {post.faq.map((item) => (
+            <Card key={item.question}>
+              <CardContent className="pt-4">
+                <p className="font-medium">{item.question}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
+
+      {related.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-xl font-semibold mb-4">Related Blogs</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {related.map((r) => (
+              <Link key={r.id} href={`/blog/${r.slug}`}>
+                <Card className="h-full hover:border-primary transition-colors">
+                  <CardContent className="pt-4">
+                    <p className="font-medium line-clamp-2">{localizedText(r.title, locale)}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {localizedText(r.excerpt, locale)}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </article>
   );
 }
