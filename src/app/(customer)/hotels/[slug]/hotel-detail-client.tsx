@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { useAuth } from "@/contexts/auth-context";
+import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel, HotelRoom } from "@/types";
@@ -28,13 +29,14 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const router = useRouter();
+  const { completeCatalogBooking, paying } = useTravelCheckout();
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState("2");
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = paying;
 
   const defaultRoom = hotel.rooms[0] ?? null;
   const [selectedRoomId, setSelectedRoomId] = useState(defaultRoom?.id ?? "");
@@ -78,36 +80,26 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
       return;
     }
 
-    setSubmitting(true);
     try {
       const title = localizedText(hotel.name, locale);
-      const roomLabel = selectedRoom ? localizedText(selectedRoom.name, locale) : "Standard";
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name.trim(),
-          customerEmail: email.trim(),
-          customerPhone: phone.trim(),
-          serviceType: "hotel",
-          serviceId: hotel.id,
-          serviceName: { en: title, hi: hotel.name.hi },
-          startDate: checkIn,
-          endDate: checkOut,
-          guests: Number(guests) || 1,
-          amount: total,
-          userId: user?.id,
-          notes: `Room type: ${roomLabel} (${selectedRoom?.type ?? "standard"})`,
-        }),
+      const roomName = selectedRoom ? localizedText(selectedRoom.name, locale) : "Standard";
+      await completeCatalogBooking({
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        serviceType: "hotel",
+        serviceId: hotel.id,
+        serviceName: { en: title, hi: hotel.name.hi },
+        startDate: checkIn,
+        endDate: checkOut,
+        guests: Number(guests) || 1,
+        amount: total,
+        userId: user?.id,
+        notes: `Room type: ${roomName} (${selectedRoom?.type ?? "standard"})`,
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Booking failed");
-      toast.success("Booking saved! Continue to payment...");
-      router.push(`/booking?bookingId=${json.data.id}`);
+      router.push("/my-bookings");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save booking");
-    } finally {
-      setSubmitting(false);
+      toast.error(error instanceof Error ? error.message : "Booking failed");
     }
   };
 

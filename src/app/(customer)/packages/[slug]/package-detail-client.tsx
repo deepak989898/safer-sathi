@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { useAuth } from "@/contexts/auth-context";
+import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { TourPackage } from "@/types";
@@ -30,13 +31,14 @@ export function PackageDetailClient({
   const { locale } = useAppStore();
   const { user } = useAuth();
   const router = useRouter();
+  const { completeCatalogBooking, paying } = useTravelCheckout();
   const [startDate, setStartDate] = useState("");
   const [guests, setGuests] = useState("2");
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = paying;
   const total = pkg.price * Number(guests || 1);
 
   const handleBook = async () => {
@@ -49,34 +51,24 @@ export function PackageDetailClient({
       return;
     }
 
-    setSubmitting(true);
     try {
       const title = localizedText(pkg.title, locale);
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name.trim(),
-          customerEmail: email.trim(),
-          customerPhone: phone.trim(),
-          serviceType: "package",
-          serviceId: pkg.id,
-          serviceName: { en: title, hi: pkg.title.hi },
-          startDate,
-          guests: Number(guests) || 1,
-          amount: total,
-          userId: user?.id,
-          notes: specialRequest.trim() || undefined,
-        }),
+      await completeCatalogBooking({
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        serviceType: "package",
+        serviceId: pkg.id,
+        serviceName: { en: title, hi: pkg.title.hi },
+        startDate,
+        guests: Number(guests) || 1,
+        amount: total,
+        userId: user?.id,
+        notes: specialRequest.trim() || undefined,
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Booking failed");
-      toast.success("Booking saved! Redirecting to checkout...");
-      router.push(`/booking?bookingId=${json.data.id}`);
+      router.push("/my-bookings");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save booking");
-    } finally {
-      setSubmitting(false);
+      toast.error(error instanceof Error ? error.message : "Booking failed");
     }
   };
 

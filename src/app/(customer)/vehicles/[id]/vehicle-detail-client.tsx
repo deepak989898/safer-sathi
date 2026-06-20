@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { useAuth } from "@/contexts/auth-context";
+import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Vehicle } from "@/types";
@@ -25,6 +26,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const router = useRouter();
+  const { completeCatalogBooking, paying } = useTravelCheckout();
   const [bookingMode, setBookingMode] = useState<"day" | "km">("day");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -34,7 +36,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = paying;
 
   const pricePerKm = vehicle.pricePerKm ?? Math.round(vehicle.pricePerDay / 200);
 
@@ -64,37 +66,28 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
       return;
     }
 
-    setSubmitting(true);
     try {
       const title = localizedText(vehicle.name, locale);
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name.trim(),
-          customerEmail: email.trim(),
-          customerPhone: phone.trim(),
-          serviceType: "vehicle",
-          serviceId: vehicle.id,
-          serviceName: { en: title, hi: vehicle.name.hi },
-          startDate: bookingMode === "km" ? startDate || new Date().toISOString().slice(0, 10) : startDate,
-          endDate: bookingMode === "day" ? endDate : undefined,
-          guests: Number(guests) || 1,
-          amount: total,
-          bookingMode,
-          distanceKm: bookingMode === "km" ? km : undefined,
-          userId: user?.id,
-          notes: specialRequest.trim() || undefined,
-        }),
+      await completeCatalogBooking({
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        serviceType: "vehicle",
+        serviceId: vehicle.id,
+        serviceName: { en: title, hi: vehicle.name.hi },
+        startDate:
+          bookingMode === "km" ? startDate || new Date().toISOString().slice(0, 10) : startDate,
+        endDate: bookingMode === "day" ? endDate : undefined,
+        guests: Number(guests) || 1,
+        amount: total,
+        bookingMode,
+        distanceKm: bookingMode === "km" ? km : undefined,
+        userId: user?.id,
+        notes: specialRequest.trim() || undefined,
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Booking failed");
-      toast.success("Booking saved! Continue to payment...");
-      router.push(`/booking?bookingId=${json.data.id}`);
+      router.push("/my-bookings");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save booking");
-    } finally {
-      setSubmitting(false);
+      toast.error(error instanceof Error ? error.message : "Booking failed");
     }
   };
 
