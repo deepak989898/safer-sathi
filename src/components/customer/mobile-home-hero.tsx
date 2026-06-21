@@ -54,15 +54,22 @@ export function MobileHomeHero() {
 
   return (
     <div className="md:hidden">
-      <HeroSlider
-        slides={heroSlides}
-        compact={!searchExpanded}
-        className="min-h-[400px] pb-14 sm:min-h-[440px] sm:pb-16"
-        mobileReferenceLayout
-      />
+      <div className="relative overflow-visible">
+        <HeroSlider
+          slides={heroSlides}
+          compact={!searchExpanded}
+          className="min-h-[400px] overflow-visible pb-[calc(var(--mobile-feature-card-height)*0.65)] sm:min-h-[440px]"
+          mobileReferenceLayout
+        />
 
-      <div className="mobile-hero-cards relative z-10 mx-auto max-w-md space-y-3 px-4">
-        <MobileFeatureCard />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-4">
+          <div className="mobile-feature-bridge pointer-events-auto mx-auto w-full max-w-md">
+            <MobileFeatureCard />
+          </div>
+        </div>
+      </div>
+
+      <div className="mobile-search-bridge relative z-20 mx-auto w-full max-w-md px-4">
         <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
       </div>
     </div>

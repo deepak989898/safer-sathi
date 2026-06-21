@@ -289,7 +289,11 @@ export function SearchWidget({
   );
 
   if (isMobilePill) {
-    return !expanded ? pillTrigger : expandedMobilePanel;
+    return (
+      <div className="mobile-search-pill">
+        {!expanded ? pillTrigger : expandedMobilePanel}
+      </div>
+    );
   }
 
   return (

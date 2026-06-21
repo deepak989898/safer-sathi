@@ -56,64 +56,66 @@ export function HomeShowcase({
 
   return (
     <>
-      <MobileHomeHero />
+      <div className="mobile-hero-stack md:hidden">
+        <MobileHomeHero />
+
+        <section className="mobile-showcase-section bg-background pb-6">
+          <div className="container mx-auto px-4">
+            <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
+
+            <div className="mt-5">
+              <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
+
+              <div className="mobile-showcase-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+                {mobileTab === "packages" &&
+                  featuredPackages.map((pkg) => (
+                    <MobileShowcaseCard
+                      key={pkg.id}
+                      href={`/packages/${pkg.slug}`}
+                      image={pkg.images[0] ?? ""}
+                      title={pkg.cities[0] ?? localizedText(pkg.title, locale)}
+                      subtitle={localizedText(pkg.durationLabel, locale)}
+                      price={pkg.price}
+                      locale={locale}
+                    />
+                  ))}
+
+                {mobileTab === "hotels" &&
+                  featuredHotels.map((hotel) => (
+                    <MobileShowcaseCard
+                      key={hotel.id}
+                      href={`/hotels/${hotel.slug}`}
+                      image={hotel.images[0] ?? ""}
+                      title={hotel.city || hotel.location}
+                      subtitle={`${hotel.starRating} Star · per night`}
+                      price={hotel.priceFrom}
+                      locale={locale}
+                    />
+                  ))}
+
+                {mobileTab === "vehicles" &&
+                  featuredVehicles.map((vehicle) => (
+                    <MobileShowcaseCard
+                      key={vehicle.id}
+                      href={`/vehicles/${vehicle.id}`}
+                      image={vehicle.images[0] ?? ""}
+                      title={vehicle.location}
+                      subtitle={localizedText(vehicle.name, locale)}
+                      price={vehicle.pricePerDay}
+                      locale={locale}
+                    />
+                  ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <div className="hidden md:block">
         <HeroSlider slides={heroSlides} compact={!searchExpanded}>
           <SearchWidget onExpandChange={setSearchExpanded} />
         </HeroSlider>
       </div>
-
-      <section className="bg-background pb-6 pt-4 md:hidden">
-        <div className="container mx-auto px-4">
-          <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
-
-          <div className="mt-5">
-            <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
-
-            <div className="mobile-showcase-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-              {mobileTab === "packages" &&
-                featuredPackages.map((pkg) => (
-                  <MobileShowcaseCard
-                    key={pkg.id}
-                    href={`/packages/${pkg.slug}`}
-                    image={pkg.images[0] ?? ""}
-                    title={pkg.cities[0] ?? localizedText(pkg.title, locale)}
-                    subtitle={localizedText(pkg.durationLabel, locale)}
-                    price={pkg.price}
-                    locale={locale}
-                  />
-                ))}
-
-              {mobileTab === "hotels" &&
-                featuredHotels.map((hotel) => (
-                  <MobileShowcaseCard
-                    key={hotel.id}
-                    href={`/hotels/${hotel.slug}`}
-                    image={hotel.images[0] ?? ""}
-                    title={hotel.city || hotel.location}
-                    subtitle={`${hotel.starRating} Star · per night`}
-                    price={hotel.priceFrom}
-                    locale={locale}
-                  />
-                ))}
-
-              {mobileTab === "vehicles" &&
-                featuredVehicles.map((vehicle) => (
-                  <MobileShowcaseCard
-                    key={vehicle.id}
-                    href={`/vehicles/${vehicle.id}`}
-                    image={vehicle.images[0] ?? ""}
-                    title={vehicle.location}
-                    subtitle={localizedText(vehicle.name, locale)}
-                    price={vehicle.pricePerDay}
-                    locale={locale}
-                  />
-                ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
       <section className="hidden bg-muted/50 py-16 md:block">
         <div className="container mx-auto px-4">

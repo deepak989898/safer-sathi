@@ -207,18 +207,32 @@
   display: none;
 }
 
-/* Mobile hero: feature card 35% on hero, 65% below — normal flow, no overlap on tabs */
-.mobile-feature-card {
+/* Mobile hero overlays */
+.mobile-hero-stack {
   --mobile-feature-card-height: 5.5rem;
+  --mobile-search-height: 4.75rem;
 }
 
-.mobile-hero-cards {
-  margin-top: calc(var(--mobile-feature-card-height) * -0.35);
-  padding-bottom: 0.25rem;
+.mobile-search-bridge {
+  --mobile-search-height: 4.75rem;
+  margin-top: calc(var(--mobile-search-height) * -0.5);
+}
+
+.mobile-search-pill > button {
+  min-height: var(--mobile-search-height);
+}
+
+.mobile-feature-bridge {
+  transform: translateY(65%);
+}
+
+.mobile-showcase-section {
+  padding-top: calc(var(--mobile-search-height) * 0.5 + 0.5rem);
 }
 
 @media (min-width: 640px) {
-  .mobile-feature-card {
+  .mobile-hero-stack {
     --mobile-feature-card-height: 5.75rem;
+    --mobile-search-height: 5rem;
   }
 }
