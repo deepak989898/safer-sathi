@@ -47,7 +47,7 @@ export function HeroSlider({
     <section
       className={cn(
         "relative flex items-center justify-center md:min-h-[580px]",
-        mobileReferenceLayout && "overflow-visible",
+        mobileReferenceLayout && "overflow-x-hidden",
         compact ? "min-h-[420px] sm:min-h-[480px]" : "min-h-[520px] sm:min-h-[560px]",
         className
       )}
@@ -78,7 +78,7 @@ export function HeroSlider({
         className={cn(
           "container relative z-10 mx-auto px-4 py-10 md:py-20",
           mobileReferenceLayout
-            ? "flex min-h-0 flex-col justify-start pt-24 text-left sm:pt-28"
+            ? "flex min-h-0 flex-col justify-start pb-2 pt-24 text-left sm:pt-28"
             : "text-center"
         )}
       >
@@ -86,7 +86,7 @@ export function HeroSlider({
           <h1
             className={cn(
               mobileReferenceLayout
-                ? "max-w-[15rem] font-serif text-[1.65rem] font-bold leading-[1.12] tracking-tight text-[#0f172a] sm:max-w-md sm:text-4xl"
+                ? "mobile-hero-title max-w-[16rem] font-serif text-[1.65rem] font-bold leading-[1.12] tracking-tight sm:max-w-md sm:text-4xl"
                 : "text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-4xl md:text-5xl lg:text-6xl"
             )}
           >

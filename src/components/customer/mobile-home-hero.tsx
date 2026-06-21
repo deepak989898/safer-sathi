@@ -89,17 +89,23 @@ export function MobileHomeShowcase({
         : mobileVehicles;
 
   return (
-    <div className="mobile-hero-stack md:hidden">
+    <div className="mobile-hero-stack overflow-x-hidden md:hidden">
       <HeroSlider
         slides={heroSlides}
         compact={!searchExpanded}
-        className="min-h-[360px] overflow-visible pb-0 sm:min-h-[400px]"
+        className="min-h-[400px] pb-[calc(var(--mobile-search-height)*0.35)] sm:min-h-[430px]"
         mobileReferenceLayout
       />
 
-      <section className="bg-background pb-6">
+      <section className="relative z-20 bg-background pb-6">
         <div className="container mx-auto px-4">
-          <div className="mobile-search-overlap mx-auto mb-3 max-w-md">
+          <div
+            className={
+              searchExpanded
+                ? "mx-auto mb-3 max-w-md"
+                : "mobile-search-overlap mx-auto mb-3 max-w-md"
+            }
+          >
             <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
           </div>
 
@@ -108,7 +114,7 @@ export function MobileHomeShowcase({
           <div className="mt-4">
             <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
 
-            <div className="mobile-showcase-scroll -mx-4 flex flex-nowrap gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 touch-pan-x">
+            <div className="mobile-showcase-scroll -mx-4 flex flex-nowrap gap-3 overflow-x-auto px-4 pb-1">
               {showcaseItems.map((item) => (
                 <MobileShowcaseCard
                   key={`${mobileTab}-${item.slug}`}
