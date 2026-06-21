@@ -1,12 +1,13 @@
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { SITE_CONTACT } from "@/lib/site-config";
 
 export default function PrivacyPage() {
   return (
     <>
       <PageHero
         title="Privacy Policy"
-        subtitle="Last updated: June 2025"
+        subtitle="Last updated: June 2026"
         image={HERO_IMAGES.privacy}
       />
       <section className="container mx-auto max-w-3xl px-4 py-10 prose prose-slate dark:prose-invert">
@@ -50,8 +51,8 @@ export default function PrivacyPage() {
 
         <h2>7. Your Rights</h2>
         <p>
-          You have the right to access, correct, or delete your personal data. Contact
-          privacy@safarsathi.com to exercise these rights.
+          You have the right to access, correct, or delete your personal data. Contact{" "}
+          {SITE_CONTACT.email} to exercise these rights.
         </p>
       </section>
     </>

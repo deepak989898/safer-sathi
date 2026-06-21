@@ -1,4 +1,5 @@
 import { getBookings } from "@/lib/data-service";
+import { SITE_CONTACT } from "@/lib/site-config";
 import { routeCompletion, type AIProvider } from "../router";
 import type { ChatMessage } from "../openai";
 
@@ -9,7 +10,7 @@ If you cannot resolve the issue, recommend human escalation.`;
 const FAQ: Record<string, { answer: string; confidence: number }> = {
   cancel: {
     answer:
-      "Cancellations made 7+ days before travel receive a full refund minus processing fees. Within 7 days, 50% refund applies. Contact support@safarsathi.com with your booking number.",
+      `Cancellations made 7+ days before travel receive a full refund minus processing fees. Within 7 days, 50% refund applies. Contact ${SITE_CONTACT.email} with your booking number.`,
     confidence: 0.92,
   },
   refund: {
@@ -29,7 +30,7 @@ const FAQ: Record<string, { answer: string; confidence: number }> = {
   },
   contact: {
     answer:
-      "Reach us at support@safarsathi.com, WhatsApp +91-9876543210, or call 1800-SAFAR-SATHI (24/7).",
+      `Reach us at ${SITE_CONTACT.email}, WhatsApp ${SITE_CONTACT.phone}, or call ${SITE_CONTACT.phone} (24/7).`,
     confidence: 0.97,
   },
 };
@@ -62,7 +63,7 @@ async function ruleBasedSupport(query: string, bookingNumber?: string): Promise<
       };
     }
     return {
-      answer: `I couldn't find booking ${bookingNumber}. Please verify the number or contact support@safarsathi.com.`,
+      answer: `I couldn't find booking ${bookingNumber}. Please verify the number or contact ${SITE_CONTACT.email}.`,
       confidence: 0.7,
     };
   }

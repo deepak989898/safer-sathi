@@ -3,6 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { SITE_CONTACT } from "@/lib/site-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const faqData = {
@@ -18,6 +19,10 @@ const faqData = {
     {
       q: "Is my payment secure?",
       a: "Yes, all payments are processed through secure, encrypted gateways with instant booking confirmation.",
+    },
+    {
+      q: "How do I contact support?",
+      a: `Call ${SITE_CONTACT.phone}, email ${SITE_CONTACT.email}, or visit us at ${SITE_CONTACT.addressFull}.`,
     },
   ],
   booking: [

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { SITE_CONTACT } from "@/lib/site-config";
 import type { Booking } from "@/types";
 
 export interface InvoiceData {
@@ -12,7 +13,8 @@ export function generateInvoice(booking: Booking, options?: Partial<InvoiceData>
   const doc = new jsPDF();
   const companyName = options?.companyName ?? "Safar Sathi Tours Pvt. Ltd.";
   const companyAddress =
-    options?.companyAddress ?? "123 Travel Hub, Connaught Place, New Delhi - 110001";
+    options?.companyAddress ??
+    `${SITE_CONTACT.addressLine1}, ${SITE_CONTACT.addressLine2.replace(", India", "")}`;
   const gstNumber = options?.gstNumber ?? "07AABCS1234F1Z5";
 
   doc.setFontSize(20);
@@ -90,7 +92,7 @@ export function generateInvoice(booking: Booking, options?: Partial<InvoiceData>
   doc.text(`Payment Status: ${booking.paymentStatus.toUpperCase()}`, 20, 195);
   doc.text(`Status: ${booking.status.toUpperCase()}`, 20, 201);
   doc.text("Thank you for choosing Safar Sathi!", 20, 215);
-  doc.text("support@safarsathi.com | +91-9876543210", 20, 221);
+  doc.text(`${SITE_CONTACT.email} | ${SITE_CONTACT.phone}`, 20, 221);
 
   const arrayBuffer = doc.output("arraybuffer");
   return new Uint8Array(arrayBuffer);

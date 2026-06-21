@@ -1,12 +1,13 @@
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { SITE_CONTACT } from "@/lib/site-config";
 
 export default function TermsPage() {
   return (
     <>
       <PageHero
         title="Terms of Service"
-        subtitle="Last updated: June 2025"
+        subtitle="Last updated: June 2026"
         image={HERO_IMAGES.terms}
       />
       <section className="container mx-auto max-w-3xl px-4 py-10 prose prose-slate dark:prose-invert">
@@ -52,8 +53,8 @@ export default function TermsPage() {
 
         <h2>7. Contact</h2>
         <p>
-          For questions about these terms, contact us at hello@safarsathi.com or call
-          +91 98765 43210.
+          For questions about these terms, contact us at {SITE_CONTACT.email} or call{" "}
+          {SITE_CONTACT.phone}.
         </p>
       </section>
     </>

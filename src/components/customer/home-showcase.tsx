@@ -123,7 +123,7 @@ export function HomeShowcase({
             href="/packages"
           />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredPackages.map((pkg) => (
+            {featuredPackages.slice(0, 3).map((pkg) => (
               <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
             ))}
           </div>
@@ -138,7 +138,7 @@ export function HomeShowcase({
             href="/hotels"
           />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredHotels.map((hotel) => (
+            {featuredHotels.slice(0, 3).map((hotel) => (
               <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
             ))}
           </div>
@@ -153,7 +153,7 @@ export function HomeShowcase({
             href="/vehicles"
           />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredVehicles.map((vehicle) => (
+            {featuredVehicles.slice(0, 3).map((vehicle) => (
               <VehicleCard key={vehicle.id} vehicle={vehicle} locale={locale} />
             ))}
           </div>

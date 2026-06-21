@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Globe, Mail, MapPin, Phone, Share2 } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { appUrl, SITE_CONTACT } from "@/lib/site-config";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 
@@ -19,15 +20,31 @@ export function Footer() {
               {t(locale, "footer", "tagline")}
             </p>
             <div className="mt-4 flex gap-3">
-              <Link href="#" className="text-muted-foreground hover:text-primary">
+              <a
+                href={SITE_CONTACT.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary"
+                aria-label="Share on WhatsApp"
+              >
                 <Share2 className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary">
+              </a>
+              <a
+                href={appUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary"
+                aria-label="Visit website"
+              >
                 <Globe className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary">
+              </a>
+              <a
+                href={`mailto:${SITE_CONTACT.email}`}
+                className="text-muted-foreground hover:text-primary"
+                aria-label="Email us"
+              >
                 <Mail className="h-5 w-5" />
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -94,15 +111,19 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                +91 98765 43210
+                <a href={`tel:${SITE_CONTACT.phoneTel}`} className="hover:text-primary">
+                  {SITE_CONTACT.phone}
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                hello@safarsathi.com
+                <a href={`mailto:${SITE_CONTACT.email}`} className="hover:text-primary">
+                  {SITE_CONTACT.email}
+                </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                123 Travel Hub, Connaught Place, New Delhi 110001
+                {SITE_CONTACT.addressFull}
               </li>
             </ul>
           </div>

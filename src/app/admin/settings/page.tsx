@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { SITE_CONTACT } from "@/lib/site-config";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
     companyName: "Safar Sathi Tours",
-    supportEmail: "support@safarsathi.com",
-    supportPhone: "+91 98765 43210",
+    supportEmail: SITE_CONTACT.email as string,
+    supportPhone: SITE_CONTACT.phone as string,
     currency: "INR",
     timezone: "Asia/Kolkata",
     aiEnabled: true,

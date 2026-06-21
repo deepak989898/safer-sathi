@@ -3,6 +3,7 @@
 import { Mail, MapPin, Phone, Clock } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { SITE_CONTACT } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,24 +11,34 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
-const contactInfo = [
+type ContactItem = {
+  icon: typeof Phone;
+  title: string;
+  detail: string;
+  sub: string;
+  href?: string;
+};
+
+const contactInfo: ContactItem[] = [
   {
     icon: Phone,
     title: "Phone",
-    detail: "+91 98765 43210",
+    detail: SITE_CONTACT.phone,
     sub: "Mon-Sat, 9 AM - 8 PM",
+    href: `tel:${SITE_CONTACT.phoneTel}`,
   },
   {
     icon: Mail,
     title: "Email",
-    detail: "hello@safarsathi.com",
+    detail: SITE_CONTACT.email,
     sub: "We reply within 24 hours",
+    href: `mailto:${SITE_CONTACT.email}`,
   },
   {
     icon: MapPin,
     title: "Office",
-    detail: "123 Travel Hub, Connaught Place",
-    sub: "New Delhi 110001, India",
+    detail: SITE_CONTACT.addressLine1,
+    sub: SITE_CONTACT.addressLine2,
   },
   {
     icon: Clock,
@@ -68,7 +79,13 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <p className="font-medium">{item.title}</p>
-                      <p className="text-sm">{item.detail}</p>
+                      {item.href ? (
+                        <a href={item.href} className="text-sm hover:text-primary">
+                          {item.detail}
+                        </a>
+                      ) : (
+                        <p className="text-sm">{item.detail}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">{item.sub}</p>
                     </div>
                   </CardContent>
@@ -99,7 +116,11 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="+91 98765 43210" className="mt-1.5" />
+                  <Input
+                    id="phone"
+                    placeholder={SITE_CONTACT.phone}
+                    className="mt-1.5"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="subject">Subject</Label>

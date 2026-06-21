@@ -46,7 +46,8 @@ export function HeroSlider({
   return (
     <section
       className={cn(
-        "relative flex items-center justify-center overflow-hidden md:min-h-[580px]",
+        "relative flex items-center justify-center md:min-h-[580px]",
+        mobileReferenceLayout && "overflow-visible",
         compact ? "min-h-[420px] sm:min-h-[480px]" : "min-h-[520px] sm:min-h-[560px]",
         className
       )}

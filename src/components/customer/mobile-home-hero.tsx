@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { SearchWidget } from "@/components/customer/search-widget";
-import { Button } from "@/components/ui/button";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
@@ -23,6 +22,25 @@ const MOBILE_FEATURES = [
   { icon: ShieldCheck, label: "Best Price Guarantee" },
   { icon: Headphones, label: "24/7 Support" },
 ] as const;
+
+export function MobileFeatureCard() {
+  return (
+    <div className="mobile-feature-card rounded-2xl border border-white/60 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-border dark:bg-card/95">
+      <div className="grid grid-cols-3 gap-1">
+        {MOBILE_FEATURES.map((feature) => (
+          <div key={feature.label} className="flex flex-col items-center px-1 text-center">
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <feature.icon className="h-5 w-5" />
+            </div>
+            <p className="text-[10px] font-semibold leading-tight text-foreground sm:text-[11px]">
+              {feature.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function MobileHomeHero() {
   const { locale } = useAppStore();
@@ -36,38 +54,24 @@ export function MobileHomeHero() {
 
   return (
     <div className="md:hidden">
-      <HeroSlider
-        slides={heroSlides}
-        compact={!searchExpanded}
-        className="min-h-[640px] sm:min-h-[680px]"
-        mobileReferenceLayout
-      >
-        <div className="mx-auto w-full max-w-md space-y-4 text-left">
-          <Link href="/packages">
-            <Button size="lg" className="h-11 rounded-full px-6 shadow-md">
-              Explore Packages
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+      <div className="relative overflow-visible">
+        <HeroSlider
+          slides={heroSlides}
+          compact={!searchExpanded}
+          className="mobile-hero-panel min-h-[460px] overflow-visible pb-0 sm:min-h-[500px]"
+          mobileReferenceLayout
+        />
 
-          <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
-
-          <div className="rounded-2xl border border-white/60 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:bg-card/95">
-            <div className="grid grid-cols-3 gap-1">
-              {MOBILE_FEATURES.map((feature) => (
-                <div key={feature.label} className="flex flex-col items-center px-1 text-center">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <feature.icon className="h-5 w-5" />
-                  </div>
-                  <p className="text-[10px] font-semibold leading-tight text-foreground sm:text-[11px]">
-                    {feature.label}
-                  </p>
-                </div>
-              ))}
-            </div>
+        <div className="mobile-hero-feature-bridge pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4">
+          <div className="pointer-events-auto mx-auto w-full max-w-md">
+            <MobileFeatureCard />
           </div>
         </div>
-      </HeroSlider>
+      </div>
+
+      <div className="mobile-hero-search relative z-20 mx-auto max-w-md px-4">
+        <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
+      </div>
     </div>
   );
 }

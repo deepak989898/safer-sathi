@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { SITE_CONTACT } from "@/lib/site-config";
 
 export default function PendingApprovalPage() {
   return (
@@ -38,7 +39,10 @@ export default function PendingApprovalPage() {
             </div>
             <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
-              Need help? Contact hello@safarsathi.com
+              Need help? Contact{" "}
+              <a href={`mailto:${SITE_CONTACT.email}`} className="text-primary hover:underline">
+                {SITE_CONTACT.email}
+              </a>
             </p>
           </CardContent>
         </Card>
