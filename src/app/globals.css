@@ -207,12 +207,12 @@
   display: none;
 }
 
-/* Mobile hero: search pill half on hero, half below */
+/* Mobile hero: search pill half on hero, half below — no extra gap before tabs */
 .mobile-hero-stack {
-  --mobile-search-height: 4.75rem;
+  --mobile-search-height: 4.5rem;
 }
 
-.mobile-search-bridge {
+.mobile-search-overlap {
   margin-top: calc(var(--mobile-search-height) * -0.5);
 }
 
@@ -220,12 +220,8 @@
   min-height: var(--mobile-search-height);
 }
 
-.mobile-showcase-section {
-  padding-top: calc(var(--mobile-search-height) * 0.5 + 0.5rem);
-}
-
 @media (min-width: 640px) {
   .mobile-hero-stack {
-    --mobile-search-height: 5rem;
+    --mobile-search-height: 4.75rem;
   }
 }

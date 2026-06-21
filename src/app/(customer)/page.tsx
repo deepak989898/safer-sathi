@@ -8,6 +8,9 @@ import {
   buildHomepageHotels,
   buildHomepagePackages,
   buildHomepageVehicles,
+  toMobileHotelItems,
+  toMobilePackageItems,
+  toMobileVehicleItems,
 } from "@/lib/catalog/homepage-showcase";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
@@ -25,12 +28,19 @@ export default async function HomePage() {
   const featuredHotels = buildHomepageHotels(hotels);
   const featuredVehicles = buildHomepageVehicles(vehicles);
 
+  const mobilePackages = toMobilePackageItems(packages);
+  const mobileHotels = toMobileHotelItems(hotels);
+  const mobileVehicles = toMobileVehicleItems(vehicles);
+
   return (
     <>
       <HomeShowcase
         featuredPackages={featuredPackages}
         featuredHotels={featuredHotels}
         featuredVehicles={featuredVehicles}
+        mobilePackages={mobilePackages}
+        mobileHotels={mobileHotels}
+        mobileVehicles={mobileVehicles}
       />
 
       <div className="container mx-auto px-4 pb-5 md:hidden">

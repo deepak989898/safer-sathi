@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { SearchWidget } from "@/components/customer/search-widget";
+import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
-import { useAppStore } from "@/store/app-store";
+import type { MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { t } from "@/lib/i18n";
+import { useAppStore } from "@/store/app-store";
 
 const MOBILE_FEATURES = [
   { icon: Briefcase, label: "Curated Packages" },
@@ -42,9 +44,34 @@ export function MobileFeatureCard() {
   );
 }
 
-export function MobileHomeHero() {
+export const MOBILE_SHOWCASE_TABS = [
+  { id: "packages" as const, label: "Tour Packages", icon: Map, href: "/packages" },
+  { id: "vehicles" as const, label: "Vehicles", icon: Car, href: "/vehicles" },
+  { id: "hotels" as const, label: "Hotels", icon: Building2, href: "/hotels" },
+];
+
+type ShowcaseTab = "packages" | "vehicles" | "hotels";
+
+interface MobileHomeShowcaseProps {
+  mobilePackages: MobileShowcaseItem[];
+  mobileHotels: MobileShowcaseItem[];
+  mobileVehicles: MobileShowcaseItem[];
+}
+
+const MOBILE_SECTION_COPY: Record<ShowcaseTab, { title: string; href: string }> = {
+  packages: { title: "Handpicked destinations", href: "/packages" },
+  hotels: { title: "Popular stays", href: "/hotels" },
+  vehicles: { title: "Premium rides", href: "/vehicles" },
+};
+
+export function MobileHomeShowcase({
+  mobilePackages,
+  mobileHotels,
+  mobileVehicles,
+}: MobileHomeShowcaseProps) {
   const { locale } = useAppStore();
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [mobileTab, setMobileTab] = useState<ShowcaseTab>("packages");
 
   const heroSlides = HOME_HERO_SLIDES.map((slide) => ({
     image: slide.image,
@@ -52,34 +79,67 @@ export function MobileHomeHero() {
     subtitle: t(locale, "hero", "subtitle"),
   }));
 
+  const mobileSection = MOBILE_SECTION_COPY[mobileTab];
+
+  const showcaseItems =
+    mobileTab === "packages"
+      ? mobilePackages
+      : mobileTab === "hotels"
+        ? mobileHotels
+        : mobileVehicles;
+
   return (
-    <div className="md:hidden">
+    <div className="mobile-hero-stack md:hidden">
       <HeroSlider
         slides={heroSlides}
         compact={!searchExpanded}
-        className="min-h-[380px] overflow-visible pb-8 sm:min-h-[420px] sm:pb-10"
+        className="min-h-[360px] overflow-visible pb-0 sm:min-h-[400px]"
         mobileReferenceLayout
       />
 
-      <div className="mobile-search-bridge relative z-20 mx-auto w-full max-w-md px-4">
-        <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
-      </div>
+      <section className="bg-background pb-6">
+        <div className="container mx-auto px-4">
+          <div className="mobile-search-overlap mx-auto mb-3 max-w-md">
+            <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
+          </div>
+
+          <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
+
+          <div className="mt-4">
+            <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
+
+            <div className="mobile-showcase-scroll -mx-4 flex flex-nowrap gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 touch-pan-x">
+              {showcaseItems.map((item) => (
+                <MobileShowcaseCard
+                  key={`${mobileTab}-${item.slug}`}
+                  href={item.href}
+                  image={item.image}
+                  title={item.title}
+                  subtitle={item.subtitle}
+                  price={item.price}
+                  locale={locale}
+                />
+              ))}
+            </div>
+
+            {showcaseItems.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No items to show yet.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
-
-export const MOBILE_SHOWCASE_TABS = [
-  { id: "packages" as const, label: "Tour Packages", icon: Map, href: "/packages" },
-  { id: "vehicles" as const, label: "Vehicles", icon: Car, href: "/vehicles" },
-  { id: "hotels" as const, label: "Hotels", icon: Building2, href: "/hotels" },
-];
 
 export function MobileShowcaseTabs({
   activeTab,
   onChange,
 }: {
-  activeTab: "packages" | "vehicles" | "hotels";
-  onChange: (tab: "packages" | "vehicles" | "hotels") => void;
+  activeTab: ShowcaseTab;
+  onChange: (tab: ShowcaseTab) => void;
 }) {
   return (
     <div className="flex overflow-hidden rounded-full border bg-white p-1 shadow-sm dark:bg-card">

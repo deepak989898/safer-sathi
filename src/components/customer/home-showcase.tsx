@@ -5,46 +5,36 @@ import Link from "next/link";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { HomeFeaturesSection } from "@/components/customer/home-features-section";
 import { HotelCard } from "@/components/customer/hotel-card";
-import {
-  MobileHomeHero,
-  MobileShowcaseHeader,
-  MobileShowcaseTabs,
-} from "@/components/customer/mobile-home-hero";
-import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
+import { MobileHomeShowcase } from "@/components/customer/mobile-home-hero";
 import { PackageCard } from "@/components/customer/package-card";
 import { SearchWidget } from "@/components/customer/search-widget";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { Button } from "@/components/ui/button";
+import type { MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
-import { localizedText, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
-
-type ShowcaseTab = "packages" | "vehicles" | "hotels";
 
 interface HomeHeroProps {
   featuredPackages: TourPackage[];
   featuredHotels: Hotel[];
   featuredVehicles: Vehicle[];
+  mobilePackages: MobileShowcaseItem[];
+  mobileHotels: MobileShowcaseItem[];
+  mobileVehicles: MobileShowcaseItem[];
 }
-
-const MOBILE_SECTION_COPY: Record<
-  ShowcaseTab,
-  { title: string; href: string }
-> = {
-  packages: { title: "Handpicked destinations", href: "/packages" },
-  hotels: { title: "Popular stays", href: "/hotels" },
-  vehicles: { title: "Premium rides", href: "/vehicles" },
-};
 
 export function HomeShowcase({
   featuredPackages,
   featuredHotels,
   featuredVehicles,
+  mobilePackages,
+  mobileHotels,
+  mobileVehicles,
 }: HomeHeroProps) {
   const { locale } = useAppStore();
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [mobileTab, setMobileTab] = useState<ShowcaseTab>("packages");
 
   const heroSlides = HOME_HERO_SLIDES.map((slide) => ({
     image: slide.image,
@@ -52,64 +42,13 @@ export function HomeShowcase({
     subtitle: t(locale, "hero", "subtitle"),
   }));
 
-  const mobileSection = MOBILE_SECTION_COPY[mobileTab];
-
   return (
     <>
-      <div className="mobile-hero-stack md:hidden">
-        <MobileHomeHero />
-
-        <section className="mobile-showcase-section bg-background pb-6">
-          <div className="container mx-auto px-4">
-            <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
-
-            <div className="mt-5">
-              <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
-
-              <div className="mobile-showcase-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-                {mobileTab === "packages" &&
-                  featuredPackages.map((pkg) => (
-                    <MobileShowcaseCard
-                      key={pkg.id}
-                      href={`/packages/${pkg.slug}`}
-                      image={pkg.images[0] ?? ""}
-                      title={pkg.cities[0] ?? localizedText(pkg.title, locale)}
-                      subtitle={localizedText(pkg.durationLabel, locale)}
-                      price={pkg.price}
-                      locale={locale}
-                    />
-                  ))}
-
-                {mobileTab === "hotels" &&
-                  featuredHotels.map((hotel) => (
-                    <MobileShowcaseCard
-                      key={hotel.id}
-                      href={`/hotels/${hotel.slug}`}
-                      image={hotel.images[0] ?? ""}
-                      title={hotel.city || hotel.location}
-                      subtitle={`${hotel.starRating} Star · per night`}
-                      price={hotel.priceFrom}
-                      locale={locale}
-                    />
-                  ))}
-
-                {mobileTab === "vehicles" &&
-                  featuredVehicles.map((vehicle) => (
-                    <MobileShowcaseCard
-                      key={vehicle.id}
-                      href={`/vehicles/${vehicle.id}`}
-                      image={vehicle.images[0] ?? ""}
-                      title={vehicle.location}
-                      subtitle={localizedText(vehicle.name, locale)}
-                      price={vehicle.pricePerDay}
-                      locale={locale}
-                    />
-                  ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+      <MobileHomeShowcase
+        mobilePackages={mobilePackages}
+        mobileHotels={mobileHotels}
+        mobileVehicles={mobileVehicles}
+      />
 
       <div className="hidden md:block">
         <HeroSlider slides={heroSlides} compact={!searchExpanded}>

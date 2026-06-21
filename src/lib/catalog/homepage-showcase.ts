@@ -4,6 +4,16 @@ import { getVehiclesSeed } from "@/data/vehicles-seed";
 import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
 
+export interface MobileShowcaseItem {
+  id: string;
+  slug: string;
+  href: string;
+  image: string;
+  title: string;
+  subtitle: string;
+  price: number;
+}
+
 type Slugged = { id: string; slug?: string; featured?: boolean };
 
 /** Live catalog wins on duplicate slug; seed fills the list up to limit. */
@@ -41,4 +51,60 @@ export function buildHomepageHotels(live: Hotel[], limit = MOBILE_HOME_SHOWCASE_
 export function buildHomepageVehicles(live: Vehicle[], limit = MOBILE_HOME_SHOWCASE_LIMIT) {
   const seed = getVehiclesSeed().filter((v) => v.available !== false);
   return mergeShowcaseCatalog(live, seed, limit);
+}
+
+export function toMobilePackageItems(
+  packages: TourPackage[],
+  limit = MOBILE_HOME_SHOWCASE_LIMIT
+): MobileShowcaseItem[] {
+  const seed = getTourPackagesSeed().filter(
+    (p) => !p.publishStatus || p.publishStatus === "published"
+  );
+  const merged = mergeShowcaseCatalog(packages, seed, limit);
+
+  return merged.map((pkg) => ({
+    id: pkg.id,
+    slug: pkg.slug,
+    href: `/packages/${pkg.slug}`,
+    image: pkg.images[0] ?? "",
+    title: pkg.cities[0] ?? pkg.title.en,
+    subtitle: pkg.durationLabel.en,
+    price: pkg.price,
+  }));
+}
+
+export function toMobileHotelItems(
+  hotels: Hotel[],
+  limit = MOBILE_HOME_SHOWCASE_LIMIT
+): MobileShowcaseItem[] {
+  const seed = getHotelsSeed().filter((h) => h.available !== false);
+  const merged = mergeShowcaseCatalog(hotels, seed, limit);
+
+  return merged.map((hotel) => ({
+    id: hotel.id,
+    slug: hotel.slug,
+    href: `/hotels/${hotel.slug}`,
+    image: hotel.images[0] ?? "",
+    title: hotel.city || hotel.location,
+    subtitle: `${hotel.starRating} Star · per night`,
+    price: hotel.priceFrom,
+  }));
+}
+
+export function toMobileVehicleItems(
+  vehicles: Vehicle[],
+  limit = MOBILE_HOME_SHOWCASE_LIMIT
+): MobileShowcaseItem[] {
+  const seed = getVehiclesSeed().filter((v) => v.available !== false);
+  const merged = mergeShowcaseCatalog(vehicles, seed, limit);
+
+  return merged.map((vehicle) => ({
+    id: vehicle.id,
+    slug: vehicle.id,
+    href: `/vehicles/${vehicle.id}`,
+    image: vehicle.images[0] ?? "",
+    title: vehicle.location,
+    subtitle: vehicle.name.en,
+    price: vehicle.pricePerDay,
+  }));
 }
