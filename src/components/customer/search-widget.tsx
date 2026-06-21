@@ -247,8 +247,8 @@ export function SearchWidget({
       type="button"
       onClick={() => setMobileExpanded(true)}
       className={cn(
-        "flex w-full items-center gap-3 rounded-full border border-white/70 bg-white px-4 py-3 text-left shadow-lg",
-        "transition-shadow hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        "flex w-full items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-left",
+        "shadow-lg transition-shadow hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       )}
       aria-expanded={false}
       aria-label="Open search"

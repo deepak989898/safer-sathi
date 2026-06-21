@@ -93,21 +93,21 @@ export function MobileHomeShowcase({
       <HeroSlider
         slides={heroSlides}
         compact={!searchExpanded}
-        className="min-h-[400px] pb-[calc(var(--mobile-search-height)*0.35)] sm:min-h-[430px]"
+        className="min-h-[400px] sm:min-h-[430px]"
         mobileReferenceLayout
       />
 
       <section className="relative z-20 bg-background pb-6">
         <div className="container mx-auto px-4">
-          <div
-            className={
-              searchExpanded
-                ? "mx-auto mb-3 max-w-md"
-                : "mobile-search-overlap mx-auto mb-3 max-w-md"
-            }
-          >
-            <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
-          </div>
+          {searchExpanded ? (
+            <div className="mx-auto mb-3 max-w-md pt-1">
+              <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
+            </div>
+          ) : (
+            <div className="mobile-search-overlap mx-auto max-w-md">
+              <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
+            </div>
+          )}
 
           <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
 
