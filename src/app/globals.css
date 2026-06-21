@@ -207,17 +207,14 @@
   display: none;
 }
 
-/* Mobile hero: feature card 35% on hero, 65% below */
+/* Mobile hero: feature card 35% on hero, 65% below — normal flow, no overlap on tabs */
 .mobile-feature-card {
   --mobile-feature-card-height: 5.5rem;
 }
 
-.mobile-hero-feature-bridge {
-  transform: translateY(65%);
-}
-
-.mobile-hero-search {
-  margin-top: calc(var(--mobile-feature-card-height) * 0.65 + 0.75rem);
+.mobile-hero-cards {
+  margin-top: calc(var(--mobile-feature-card-height) * -0.35);
+  padding-bottom: 0.25rem;
 }
 
 @media (min-width: 640px) {

@@ -1,9 +1,11 @@
 import {
   deleteCatalogItem,
+  loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
+import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { getSeedHotels } from "@/data/seed-catalog";
 import { getHotelsSeed } from "@/data/hotels-seed";
 import type { Hotel } from "@/types";
@@ -23,8 +25,13 @@ export async function hydrateHotelsStore(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
   hydratePromise = (async () => {
-    const items = await seedCatalogIfEmpty(HOTELS_COLLECTION, getSeedHotels());
-    hotelsStore = items;
+    const seed = getSeedHotels();
+    const remote = await loadCatalogCollection<Hotel>(HOTELS_COLLECTION);
+    if (remote.length === 0) {
+      hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
+    } else {
+      hotelsStore = mergeCatalogById(remote, seed);
+    }
   })();
 
   return hydratePromise;

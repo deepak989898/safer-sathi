@@ -1,9 +1,11 @@
 import {
   deleteCatalogItem,
+  loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
+import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { getSeedVehicles } from "@/data/seed-catalog";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
@@ -23,8 +25,13 @@ export async function hydrateVehiclesStore(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
   hydratePromise = (async () => {
-    const items = await seedCatalogIfEmpty(VEHICLES_COLLECTION, getSeedVehicles());
-    vehiclesStore = items;
+    const seed = getSeedVehicles();
+    const remote = await loadCatalogCollection<Vehicle>(VEHICLES_COLLECTION);
+    if (remote.length === 0) {
+      vehiclesStore = await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed);
+    } else {
+      vehiclesStore = mergeCatalogById(remote, seed);
+    }
   })();
 
   return hydratePromise;

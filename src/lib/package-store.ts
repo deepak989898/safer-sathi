@@ -1,9 +1,11 @@
 import {
   deleteCatalogItem,
+  loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
+import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { getSeedPackages } from "@/data/seed-catalog";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { PackagePublishStatus, TourPackage } from "@/types";
@@ -23,15 +25,22 @@ export async function hydratePackagesStore(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
   hydratePromise = (async () => {
-    const items = await seedCatalogIfEmpty(PACKAGES_COLLECTION, getSeedPackages());
-    packagesStore = items;
+    const seed = getSeedPackages();
+    const remote = await loadCatalogCollection<TourPackage>(PACKAGES_COLLECTION);
+    if (remote.length === 0) {
+      packagesStore = await seedCatalogIfEmpty(PACKAGES_COLLECTION, seed);
+    } else {
+      packagesStore = mergeCatalogById(remote, seed);
+    }
   })();
 
   return hydratePromise;
 }
 
 export function getPublishedPackages(): TourPackage[] {
-  return packagesStore.filter((p) => p.publishStatus === "published");
+  return packagesStore.filter(
+    (p) => !p.publishStatus || p.publishStatus === "published"
+  );
 }
 
 export function getAdminPackages(status?: PackagePublishStatus): TourPackage[] {

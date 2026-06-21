@@ -25,7 +25,7 @@ const MOBILE_FEATURES = [
 
 export function MobileFeatureCard() {
   return (
-    <div className="mobile-feature-card rounded-2xl border border-white/60 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-border dark:bg-card/95">
+    <div className="mobile-feature-card rounded-2xl border border-white/60 bg-white p-3 shadow-lg dark:border-border dark:bg-card">
       <div className="grid grid-cols-3 gap-1">
         {MOBILE_FEATURES.map((feature) => (
           <div key={feature.label} className="flex flex-col items-center px-1 text-center">
@@ -54,22 +54,15 @@ export function MobileHomeHero() {
 
   return (
     <div className="md:hidden">
-      <div className="relative overflow-visible">
-        <HeroSlider
-          slides={heroSlides}
-          compact={!searchExpanded}
-          className="mobile-hero-panel min-h-[460px] overflow-visible pb-0 sm:min-h-[500px]"
-          mobileReferenceLayout
-        />
+      <HeroSlider
+        slides={heroSlides}
+        compact={!searchExpanded}
+        className="min-h-[400px] pb-14 sm:min-h-[440px] sm:pb-16"
+        mobileReferenceLayout
+      />
 
-        <div className="mobile-hero-feature-bridge pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4">
-          <div className="pointer-events-auto mx-auto w-full max-w-md">
-            <MobileFeatureCard />
-          </div>
-        </div>
-      </div>
-
-      <div className="mobile-hero-search relative z-20 mx-auto max-w-md px-4">
+      <div className="mobile-hero-cards relative z-10 mx-auto max-w-md space-y-3 px-4">
+        <MobileFeatureCard />
         <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
       </div>
     </div>

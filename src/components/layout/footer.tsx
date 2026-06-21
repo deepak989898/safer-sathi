@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Globe, Mail, MapPin, Phone, Share2 } from "lucide-react";
+import { Globe, Mail, MapPin, Phone } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { SiteShareButton } from "@/components/layout/site-share-button";
 import { appUrl, SITE_CONTACT } from "@/lib/site-config";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
@@ -12,35 +13,24 @@ export function Footer() {
 
   return (
     <footer className="border-t bg-slate-50 dark:bg-card">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-4">
+      <div className="container mx-auto px-4 py-10 md:py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
           <div>
-            <BrandLogo href="/" size="footer" />
-            <p className="mt-4 text-sm text-muted-foreground">
-              {t(locale, "footer", "tagline")}
-            </p>
-            <div className="mt-4 flex gap-3">
-              <a
-                href={SITE_CONTACT.whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary"
-                aria-label="Share on WhatsApp"
-              >
-                <Share2 className="h-5 w-5" />
-              </a>
+            <p className="text-sm text-muted-foreground">{t(locale, "footer", "tagline")}</p>
+            <div className="mt-4 flex gap-2">
+              <SiteShareButton className="h-9 w-9 text-muted-foreground hover:text-primary" />
               <a
                 href={appUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary"
+                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-primary"
                 aria-label="Visit website"
               >
                 <Globe className="h-5 w-5" />
               </a>
               <a
                 href={`mailto:${SITE_CONTACT.email}`}
-                className="text-muted-foreground hover:text-primary"
+                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-primary"
                 aria-label="Email us"
               >
                 <Mail className="h-5 w-5" />
@@ -129,10 +119,13 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t pt-8 text-sm text-muted-foreground sm:flex-row">
-          <p>
-            © {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}
-          </p>
+        <div className="mt-6 flex flex-col gap-4 border-t pt-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <BrandLogo href="/" size="compact" />
+            <p>
+              © {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}
+            </p>
+          </div>
           <div className="flex gap-4">
             <Link href="/terms" className="hover:text-primary">
               Terms

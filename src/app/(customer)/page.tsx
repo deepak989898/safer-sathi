@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { Button } from "@/components/ui/button";
 import { TryAssistantButton } from "@/components/ai/try-assistant-button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
@@ -17,7 +16,10 @@ export default async function HomePage() {
     getVehicles(),
   ]);
 
-  const featuredPackages = packages.slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
+  const featuredPackages = packages
+    .slice()
+    .sort((a, b) => Number(b.featured) - Number(a.featured))
+    .slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
   const featuredHotels = hotels.slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
   const featuredVehicles = vehicles.slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
 
@@ -29,21 +31,20 @@ export default async function HomePage() {
         featuredVehicles={featuredVehicles}
       />
 
-      <ImageBannerSection className="py-8 md:py-16" image={HERO_IMAGES.cta}>
+      <ImageBannerSection className="py-5 pb-6 md:py-12" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">
-          <AssistantIcon className="mx-auto mb-2 h-8 w-8 md:mb-4 md:h-12 md:w-12" />
-          <h2 className="text-xl font-bold md:text-3xl">Ready for Your Next Adventure?</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-primary-foreground/90 md:mt-4 md:text-base">
+          <h2 className="text-lg font-bold md:text-3xl">Ready for Your Next Adventure?</h2>
+          <p className="mx-auto mt-1.5 max-w-xl text-xs text-primary-foreground/90 md:mt-3 md:text-base">
             Let our travel assistant plan the perfect trip for you, or browse our
             curated packages and book instantly.
           </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-3 md:mt-8 md:gap-4">
+          <div className="mt-3 flex flex-wrap justify-center gap-2 md:mt-6 md:gap-4">
             <TryAssistantButton variant="secondary" showIcon />
             <Link href="/packages">
               <Button
-                size="lg"
+                size="default"
                 variant="outline"
-                className="border-white/30 bg-transparent text-white hover:bg-white/10"
+                className="border-white/30 bg-transparent text-white hover:bg-white/10 md:size-lg"
               >
                 Explore Packages
               </Button>

@@ -64,7 +64,7 @@ export function HomeShowcase({
         </HeroSlider>
       </div>
 
-      <section className="bg-background py-6 md:hidden">
+      <section className="bg-background pb-6 pt-4 md:hidden">
         <div className="container mx-auto px-4">
           <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
 
