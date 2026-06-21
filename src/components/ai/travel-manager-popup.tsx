@@ -91,7 +91,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const { user } = useAuth();
   const { buildClientContext, saveLanguagePreference, saveNativeLanguagePreference } =
     useAiTravelContext(user?.id);
-  const { completeBooking, paying } = useTravelCheckout();
+  const { completeBooking, completeCatalogBooking, paying } = useTravelCheckout();
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,6 +103,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [packageTiers, setPackageTiers] = useState<TierPackageQuote[]>([]);
   const [detailsTier, setDetailsTier] = useState<TierPackageQuote | null>(null);
   const [detailsVehicle, setDetailsVehicle] = useState<Vehicle | null>(null);
+  const [selectedBookingVehicle, setSelectedBookingVehicle] = useState<Vehicle | null>(null);
+  const [selectedBookingHotel, setSelectedBookingHotel] = useState<Hotel | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookingForm, setBookingForm] = useState({
@@ -263,6 +265,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       setPackageTiers([]);
       setDetailsTier(null);
       setDetailsVehicle(null);
+      setSelectedBookingVehicle(null);
+      setSelectedBookingHotel(null);
       setHotels([]);
       setVehicles([]);
     }
@@ -310,8 +314,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     setQuickReplies(data.quickReplies ?? []);
     setPackageQuote((prev) => data.packageQuote ?? prev);
     setPackageTiers(data.state?.step === "package_tiers" ? (data.packageTiers ?? []) : []);
-    setHotels(data.hotels ?? []);
-    setVehicles(data.vehicles ?? []);
+    setHotels((prev) => (data.hotels?.length ? data.hotels : prev));
+    setVehicles((prev) => (data.vehicles?.length ? data.vehicles : prev));
     if (data.state) {
       setBookingForm((f) => ({
         ...f,
@@ -401,38 +405,133 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     }
   };
 
+  const resolveSelectedHotel = useCallback(
+    () => hotels.find((h) => h.id === tmState?.selectedHotelId) ?? selectedBookingHotel ?? undefined,
+    [hotels, tmState?.selectedHotelId, selectedBookingHotel]
+  );
+
+  const resolveSelectedVehicle = useCallback(
+    () =>
+      vehicles.find((v) => v.id === tmState?.selectedVehicleId) ??
+      selectedBookingVehicle ??
+      undefined,
+    [vehicles, tmState?.selectedVehicleId, selectedBookingVehicle]
+  );
+
+  const computeCheckoutAmount = useCallback(
+    (
+      quote?: CustomPackageQuote,
+      hotel?: Hotel,
+      vehicle?: Vehicle
+    ): number => {
+      if (quote?.totalAmount && quote.totalAmount > 0) return quote.totalAmount;
+      return (hotel?.priceFrom ?? 0) + (vehicle?.pricePerDay ?? 0);
+    },
+    []
+  );
+
   const handlePay = async () => {
     if (!bookingForm.name || !bookingForm.email || !bookingForm.phone || !bookingForm.travelDate) {
       toast.error(aiLocale === "hi" ? "सभी विवरण भरें" : "Please fill all details");
       return;
     }
 
-    const checkoutAmount =
-      packageQuote?.totalAmount ??
-      (hotels.find((h) => h.id === tmState?.selectedHotelId)?.priceFrom ?? 0) +
-        (vehicles.find((v) => v.id === tmState?.selectedVehicleId)?.pricePerDay ?? 0);
+    const email = bookingForm.email.trim();
+    const phoneDigits = bookingForm.phone.replace(/\D/g, "").slice(-10);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error(aiLocale === "hi" ? "सही ईमेल दर्ज करें" : "Please enter a valid email");
+      return;
+    }
+    if (!/^\d{10}$/.test(phoneDigits)) {
+      toast.error(
+        aiLocale === "hi"
+          ? "फ़ोन में 10 अंकों का मोबाइल नंबर दर्ज करें (ईमेल नहीं)"
+          : "Enter a 10-digit mobile number in the phone field (not email)"
+      );
+      return;
+    }
+
+    const hotel = resolveSelectedHotel();
+    const vehicle = resolveSelectedVehicle();
+    const checkoutAmount = computeCheckoutAmount(packageQuote, hotel, vehicle);
 
     if (!checkoutAmount || checkoutAmount <= 0) {
       toast.error(
-        aiLocale === "hi"
-          ? "पैकेज कीमत लोड नहीं हुई — कृपया पैकेज फिर से चुनें"
-          : "Package price not loaded — please select your package again"
+        packageQuote
+          ? aiLocale === "hi"
+            ? "पैकेज कीमत लोड नहीं हुई — कृपया पैकेज फिर से चुनें"
+            : "Package price not loaded — please select your package again"
+          : vehicle
+            ? aiLocale === "hi"
+              ? "वाहन की कीमत लोड नहीं हुई — कृपया वाहन फिर से चुनें"
+              : "Vehicle price not loaded — please select your vehicle again"
+            : aiLocale === "hi"
+              ? "बुकिंग कीमत लोड नहीं हुई — कृपया होटल या वाहन फिर से चुनें"
+              : "Booking price not loaded — please select hotel or vehicle again"
       );
       return;
     }
 
     try {
-      await completeBooking({
-        ...bookingForm,
-        customerName: bookingForm.name,
-        customerEmail: bookingForm.email,
-        customerPhone: bookingForm.phone,
-        packageQuote,
-        hotel: hotels.find((h) => h.id === tmState?.selectedHotelId),
-        vehicle: vehicles.find((v) => v.id === tmState?.selectedVehicleId),
-        userId: user?.id,
-        paymentPlan,
-      });
+      if (packageQuote?.totalAmount) {
+        await completeBooking({
+          ...bookingForm,
+          customerName: bookingForm.name,
+          customerEmail: email,
+          customerPhone: phoneDigits,
+          packageQuote,
+          hotel,
+          vehicle,
+          userId: user?.id,
+          paymentPlan,
+        });
+      } else if (vehicle && !hotel) {
+        const title = localizedText(vehicle.name, aiLocale);
+        await completeCatalogBooking({
+          customerName: bookingForm.name.trim(),
+          customerEmail: email,
+          customerPhone: phoneDigits,
+          serviceType: "vehicle",
+          serviceId: vehicle.id,
+          serviceName: { en: title, hi: vehicle.name.hi },
+          startDate: bookingForm.travelDate,
+          guests: bookingForm.guests,
+          amount: checkoutAmount,
+          paymentPlan,
+          userId: user?.id,
+          notes: bookingForm.specialRequest || bookingForm.pickupCity
+            ? `Pickup: ${bookingForm.pickupCity}${bookingForm.specialRequest ? ` · ${bookingForm.specialRequest}` : ""}`
+            : undefined,
+        });
+      } else if (hotel && !vehicle) {
+        const title = localizedText(hotel.name, aiLocale);
+        await completeCatalogBooking({
+          customerName: bookingForm.name.trim(),
+          customerEmail: email,
+          customerPhone: phoneDigits,
+          serviceType: "hotel",
+          serviceId: hotel.id,
+          serviceName: { en: title, hi: hotel.name.hi },
+          startDate: bookingForm.travelDate,
+          guests: bookingForm.guests,
+          amount: checkoutAmount,
+          paymentPlan,
+          userId: user?.id,
+          notes: bookingForm.specialRequest || undefined,
+        });
+      } else {
+        await completeBooking({
+          ...bookingForm,
+          customerName: bookingForm.name,
+          customerEmail: email,
+          customerPhone: phoneDigits,
+          packageQuote,
+          hotel,
+          vehicle,
+          userId: user?.id,
+          paymentPlan,
+        });
+      }
       router.push("/my-bookings");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment failed");
@@ -477,10 +576,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const showBookingForm =
     tmState?.step === "booking_form" || tmState?.step === "payment";
 
-  const checkoutAmount =
-    packageQuote?.totalAmount ??
-    (hotels.find((h) => h.id === tmState?.selectedHotelId)?.priceFrom ?? 0) +
-      (vehicles.find((v) => v.id === tmState?.selectedVehicleId)?.pricePerDay ?? 0);
+  const selectedHotel = resolveSelectedHotel();
+  const selectedVehicle = resolveSelectedVehicle();
+  const checkoutAmount = computeCheckoutAmount(packageQuote, selectedHotel, selectedVehicle);
 
   useEffect(() => {
     if (!showBookingForm || !tmState) return;
@@ -627,7 +725,10 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     key={hotel.id}
                     hotel={hotel}
                     locale={aiLocale}
-                    onBook={() => void sendMessage(`book_hotel:${hotel.id}`)}
+                    onBook={() => {
+                      setSelectedBookingHotel(hotel);
+                      void sendMessage(`book_hotel:${hotel.id}`);
+                    }}
                   />
                 ))}
               </div>
@@ -642,7 +743,10 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     locale={aiLocale}
                     requestedGuests={tmState?.guests}
                     onDetails={() => setDetailsVehicle(vehicle)}
-                    onBook={() => void sendMessage(`book_vehicle:${vehicle.id}`)}
+                    onBook={() => {
+                      setSelectedBookingVehicle(vehicle);
+                      void sendMessage(`book_vehicle:${vehicle.id}`);
+                    }}
                   />
                 ))}
               </div>
@@ -653,6 +757,29 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                 <p className="text-sm font-semibold">
                   {aiLocale === "hi" ? "बुकिंग विवरण" : "Booking Details"}
                 </p>
+                {(selectedVehicle || selectedHotel || packageQuote) && (
+                  <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs">
+                    {packageQuote && (
+                      <p className="font-medium text-primary">
+                        📦 {packageQuote.title} · {formatCurrency(packageQuote.totalAmount, aiLocale)}
+                      </p>
+                    )}
+                    {selectedVehicle && (
+                      <p className="font-medium text-primary">
+                        🚗 {localizedText(selectedVehicle.name, aiLocale)} ·{" "}
+                        {formatCurrency(selectedVehicle.pricePerDay, aiLocale)}
+                        {aiLocale === "hi" ? "/दिन" : "/day"}
+                      </p>
+                    )}
+                    {selectedHotel && (
+                      <p className="font-medium text-primary">
+                        🏨 {localizedText(selectedHotel.name, aiLocale)} ·{" "}
+                        {formatCurrency(selectedHotel.priceFrom, aiLocale)}
+                        {aiLocale === "hi" ? "/रात" : "/night"}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
                     <Label className="text-xs">{aiLocale === "hi" ? "नाम" : "Name"}</Label>
@@ -665,6 +792,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                   <div>
                     <Label className="text-xs">{aiLocale === "hi" ? "फ़ोन" : "Phone"}</Label>
                     <Input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder={aiLocale === "hi" ? "10 अंकों का मोबाइल" : "10-digit mobile"}
                       value={bookingForm.phone}
                       onChange={(e) => setBookingForm((f) => ({ ...f, phone: e.target.value }))}
                       className="h-9"
@@ -839,6 +969,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           }}
           onBook={() => {
             const vehicleId = detailsVehicle.id;
+            setSelectedBookingVehicle(detailsVehicle);
             setDetailsVehicle(null);
             void sendMessage(`book_vehicle:${vehicleId}`);
           }}
