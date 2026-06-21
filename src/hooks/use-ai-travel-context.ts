@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback } from "react";
+import {
+  sanitizeClientContext,
+  sanitizeLocalPreferences,
+} from "@/lib/ai/travel-manager/api-payload";
 import type { AITravelPreferences } from "@/types/travel-manager";
 import { localeToPreferredLanguage } from "@/lib/ai/travel-manager/geo-language";
 import type { Locale } from "@/types";
@@ -26,20 +30,8 @@ function safeStorageSet(key: string, value: string): void {
   }
 }
 
-function normalizePreferredLanguage(
-  value: unknown
-): AITravelPreferences["preferredLanguage"] | undefined {
-  if (value === "hindi" || value === "hi") return "hindi";
-  if (value === "english" || value === "en") return "english";
-  return undefined;
-}
-
 function sanitizeAiPreferences(prefs: AITravelPreferences): AITravelPreferences {
-  const preferredLanguage = normalizePreferredLanguage(prefs.preferredLanguage);
-  return {
-    ...prefs,
-    ...(preferredLanguage ? { preferredLanguage } : {}),
-  };
+  return sanitizeLocalPreferences(prefs) as AITravelPreferences;
 }
 
 export function getOrCreateGuestId(): string {
@@ -57,7 +49,12 @@ export function getLocalAiPreferences(): AITravelPreferences | null {
   try {
     const raw = safeStorageGet(PREFS_KEY);
     if (!raw) return null;
-    return sanitizeAiPreferences(JSON.parse(raw) as AITravelPreferences);
+    const sanitized = sanitizeLocalPreferences(JSON.parse(raw) as AITravelPreferences);
+    if (!sanitized) return null;
+    return {
+      preferredLanguage: sanitized.preferredLanguage ?? "hindi",
+      ...sanitized,
+    };
   } catch {
     return null;
   }
@@ -81,13 +78,13 @@ export function getBrowserHints(): { browserLanguage: string; timezone: string }
 export function useAiTravelContext(userId?: string) {
   const buildClientContext = useCallback(() => {
     const hints = getBrowserHints();
-    return {
+    return sanitizeClientContext({
       userId: userId && userId !== "guest" ? userId : undefined,
       guestId: getOrCreateGuestId(),
       browserLanguage: hints.browserLanguage,
       timezone: hints.timezone,
       localPreferences: getLocalAiPreferences(),
-    };
+    })!;
   }, [userId]);
 
   const saveLanguagePreference = useCallback((locale: Locale) => {

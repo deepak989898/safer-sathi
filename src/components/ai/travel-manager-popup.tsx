@@ -32,6 +32,10 @@ import {
   NATIVE_LANGUAGE_OPTIONS,
 } from "@/lib/ai/travel-manager/native-languages";
 import { formatChatUserMessage } from "@/types/ai-enquiry";
+import {
+  sanitizeClientContext,
+  sanitizeTravelManagerState,
+} from "@/lib/ai/travel-manager/api-payload";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
@@ -114,6 +118,44 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const userInteractedRef = useRef(false);
+  const tmStateRef = useRef<TravelManagerState | undefined>(undefined);
+
+  useEffect(() => {
+    tmStateRef.current = tmState;
+  }, [tmState]);
+
+  const postManager = useCallback(
+    async (payload: {
+      message: string;
+      locale: Locale;
+      forceLocale?: Locale;
+      state?: TravelManagerState;
+    }) => {
+      const context = buildClientContext();
+      const state = sanitizeTravelManagerState(payload.state ?? tmStateRef.current);
+
+      const res = await fetch("/api/ai/manager", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          message: payload.message,
+          locale: payload.locale,
+          forceLocale: payload.forceLocale ?? payload.locale,
+          ...(state ? { state } : {}),
+          ...(context ? { context: sanitizeClientContext(context) } : {}),
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? `Request failed (${res.status})`);
+      }
+
+      return json.data;
+    },
+    [buildClientContext]
+  );
 
   const initChat = useCallback(
     async (forceLocale?: "en" | "hi", options?: { background?: boolean }) => {
@@ -121,34 +163,26 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       if (!background) setLoading(true);
       try {
         const activeLocale = forceLocale ?? aiLocale;
-        const res = await fetch("/api/ai/manager", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: "__init__",
-            locale: activeLocale,
-            forceLocale: forceLocale ?? activeLocale,
-            context: buildClientContext(),
-          }),
+        const data = await postManager({
+          message: "__init__",
+          locale: activeLocale,
+          forceLocale: forceLocale ?? activeLocale,
         });
-        const json = await res.json();
-        if (json.success) {
-          const onWelcome = !tmState || tmState.step === "welcome";
-          if (onWelcome && !userInteractedRef.current) {
-            setMessages([{ id: "1", role: "assistant", content: json.data.reply }]);
-          }
-          setQuickReplies(json.data.quickReplies ?? []);
-          setTmState(json.data.state);
-          setUserLocation(json.data.location ?? json.data.state?.userLocation);
-          if (json.data.locale) {
-            setAiLocale(json.data.locale);
-            saveLanguagePreference(json.data.locale);
-          }
-          setPackageQuote(undefined);
-          setPackageTiers([]);
-          setHotels([]);
-          setVehicles([]);
+        const onWelcome = !tmStateRef.current || tmStateRef.current.step === "welcome";
+        if (onWelcome && !userInteractedRef.current) {
+          setMessages([{ id: "1", role: "assistant", content: data.reply }]);
         }
+        setQuickReplies(data.quickReplies ?? []);
+        setTmState(data.state);
+        setUserLocation(data.location ?? data.state?.userLocation);
+        if (data.locale) {
+          setAiLocale(data.locale);
+          saveLanguagePreference(data.locale);
+        }
+        setPackageQuote(undefined);
+        setPackageTiers([]);
+        setHotels([]);
+        setVehicles([]);
       } catch {
         if (!background) {
           toast.error("Could not start AI Travel Manager");
@@ -157,7 +191,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         if (!background) setLoading(false);
       }
     },
-    [aiLocale, buildClientContext, saveLanguagePreference, tmState]
+    [aiLocale, postManager, saveLanguagePreference]
   );
 
   const switchLanguage = async (newLocale: Locale) => {
@@ -169,21 +203,13 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
 
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/manager", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: "__refresh__",
-          locale: newLocale,
-          forceLocale: newLocale,
-          state: tmState,
-          context: buildClientContext(),
-        }),
+      const data = await postManager({
+        message: "__refresh__",
+        locale: newLocale,
+        forceLocale: newLocale,
+        state: tmStateRef.current,
       });
-      const json = await res.json();
-      if (!json.success) return;
 
-      const data = json.data;
       setQuickReplies(data.quickReplies ?? []);
       setTmState(data.state);
       setPackageQuote(data.packageQuote);
@@ -221,6 +247,26 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       ]);
     }
   };
+
+  useEffect(() => {
+    if (!open) {
+      userInteractedRef.current = false;
+      tmStateRef.current = undefined;
+      setMessages([]);
+      setInput("");
+      setLoading(false);
+      setListening(false);
+      setTmState(undefined);
+      setUserLocation(undefined);
+      setQuickReplies([]);
+      setPackageQuote(undefined);
+      setPackageTiers([]);
+      setDetailsTier(null);
+      setDetailsVehicle(null);
+      setHotels([]);
+      setVehicles([]);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -300,23 +346,13 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     setLoading(true);
 
     try {
-      const res = await fetch("/api/ai/manager", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          locale: aiLocale,
-          forceLocale: aiLocale,
-          state: tmState,
-          context: buildClientContext(),
-        }),
+      const data = await postManager({
+        message: text,
+        locale: aiLocale,
+        forceLocale: aiLocale,
+        state: tmStateRef.current,
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? `Request failed (${res.status})`);
-      }
 
-      const data = json.data;
       setMessages((prev) => [
         ...prev,
         { id: (Date.now() + 1).toString(), role: "assistant", content: data.reply },
@@ -342,16 +378,20 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         });
       }
 
-      const memoryUpdates = memoryFromState(data.state ?? {}, aiLocale);
-      saveLocalAiPreferences(
-        mergePreferences(getLocalAiPreferences() ?? undefined, memoryUpdates)
-      );
+      try {
+        const memoryUpdates = memoryFromState(data.state ?? {}, aiLocale);
+        saveLocalAiPreferences(
+          mergePreferences(getLocalAiPreferences() ?? undefined, memoryUpdates)
+        );
+      } catch (storageError) {
+        console.warn("Could not save AI preferences locally:", storageError);
+      }
     } catch (error) {
       console.error("AI Travel Manager request failed:", error);
       setQuickReplies(
         previousQuickReplies.length > 0
           ? previousQuickReplies
-          : tmState?.step === "welcome" || !tmState
+          : tmStateRef.current?.step === "welcome" || !tmStateRef.current
             ? mainMenuReplies(aiLocale)
             : []
       );
