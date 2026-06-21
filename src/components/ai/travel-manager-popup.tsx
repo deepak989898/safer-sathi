@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, Mic, MicOff, Send, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, X, Check, Fuel, MapPin, Route, Users } from "lucide-react";
 import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import {
   Dialog,
@@ -10,7 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +31,7 @@ import {
   getSpeechRecognitionLang,
   NATIVE_LANGUAGE_OPTIONS,
 } from "@/lib/ai/travel-manager/native-languages";
+import { formatChatUserMessage } from "@/types/ai-enquiry";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
@@ -48,7 +50,15 @@ import type {
   UserLocationInfo,
 } from "@/types/travel-manager";
 import type { TierPackageQuote } from "@/lib/ai/travel-manager/package-tier-builder";
+import { RatingStars } from "@/components/customer/rating-stars";
+import {
+  estimateLuggageCapacity,
+  getEffectivePricePerKm,
+  vehicleFitsGuests,
+  VEHICLE_MIN_KM,
+} from "@/lib/vehicles/capacity";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 
 interface ChatEntry {
@@ -88,6 +98,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [packageQuote, setPackageQuote] = useState<CustomPackageQuote | undefined>();
   const [packageTiers, setPackageTiers] = useState<TierPackageQuote[]>([]);
   const [detailsTier, setDetailsTier] = useState<TierPackageQuote | null>(null);
+  const [detailsVehicle, setDetailsVehicle] = useState<Vehicle | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookingForm, setBookingForm] = useState({
@@ -102,6 +113,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const userInteractedRef = useRef(false);
 
   const initChat = useCallback(
     async (forceLocale?: "en" | "hi", options?: { background?: boolean }) => {
@@ -122,7 +134,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         const json = await res.json();
         if (json.success) {
           const onWelcome = !tmState || tmState.step === "welcome";
-          if (onWelcome) {
+          if (onWelcome && !userInteractedRef.current) {
             setMessages([{ id: "1", role: "assistant", content: json.data.reply }]);
           }
           setQuickReplies(json.data.quickReplies ?? []);
@@ -236,7 +248,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       onOpenChange(false);
       return;
     }
-    void sendMessage(qr.value);
+    void sendMessage(qr.value, { displayText: qr.label });
   };
 
   const applyResponse = (data: {
@@ -268,15 +280,22 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     }
   };
 
-  const sendMessage = async (text: string, options?: { silent?: boolean }) => {
+  const sendMessage = async (
+    text: string,
+    options?: { silent?: boolean; displayText?: string }
+  ) => {
     if (!text.trim() || loading) return;
+
+    userInteractedRef.current = true;
+    const userDisplay = options?.displayText?.trim() || formatChatUserMessage(text);
 
     setMessages((prev) =>
       options?.silent
         ? prev
-        : [...prev, { id: Date.now().toString(), role: "user", content: text }]
+        : [...prev, { id: Date.now().toString(), role: "user", content: userDisplay }]
     );
     setInput("");
+    const previousQuickReplies = quickReplies;
     setQuickReplies([]);
     setLoading(true);
 
@@ -292,8 +311,10 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           context: buildClientContext(),
         }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? `Request failed (${res.status})`);
+      }
 
       const data = json.data;
       setMessages((prev) => [
@@ -325,7 +346,15 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       saveLocalAiPreferences(
         mergePreferences(getLocalAiPreferences() ?? undefined, memoryUpdates)
       );
-    } catch {
+    } catch (error) {
+      console.error("AI Travel Manager request failed:", error);
+      setQuickReplies(
+        previousQuickReplies.length > 0
+          ? previousQuickReplies
+          : tmState?.step === "welcome" || !tmState
+            ? mainMenuReplies(aiLocale)
+            : []
+      );
       toast.error(aiLocale === "hi" ? "त्रुटि, पुनः प्रयास करें" : "Error, please try again");
     } finally {
       setLoading(false);
@@ -386,9 +415,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     rec.lang = getSpeechRecognitionLang(aiLocale, nativeLanguage);
     rec.interimResults = false;
     rec.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript ?? "";
+      const transcript = e.results[0]?.[0]?.transcript?.trim() ?? "";
       setInput(transcript);
-      void sendMessage(transcript);
+      if (transcript.length >= 2) {
+        void sendMessage(transcript);
+      }
     };
     rec.onend = () => setListening(false);
     rec.onerror = () => setListening(false);
@@ -569,6 +600,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                     key={vehicle.id}
                     vehicle={vehicle}
                     locale={aiLocale}
+                    requestedGuests={tmState?.guests}
+                    onDetails={() => setDetailsVehicle(vehicle)}
                     onBook={() => void sendMessage(`book_vehicle:${vehicle.id}`)}
                   />
                 ))}
@@ -752,6 +785,22 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             const tierId = detailsTier.tierId;
             setDetailsTier(null);
             void sendMessage(`select_tier:${tierId}`);
+          }}
+        />
+      )}
+      {detailsVehicle && (
+        <VehicleDetailsDialog
+          vehicle={detailsVehicle}
+          locale={aiLocale}
+          requestedGuests={tmState?.guests}
+          open={!!detailsVehicle}
+          onOpenChange={(open) => {
+            if (!open) setDetailsVehicle(null);
+          }}
+          onBook={() => {
+            const vehicleId = detailsVehicle.id;
+            setDetailsVehicle(null);
+            void sendMessage(`book_vehicle:${vehicleId}`);
           }}
         />
       )}
@@ -996,25 +1045,287 @@ function HotelCardMini({
 function VehicleCardMini({
   vehicle,
   locale,
+  requestedGuests,
+  onDetails,
   onBook,
 }: {
   vehicle: Vehicle;
   locale: "en" | "hi";
+  requestedGuests?: number;
+  onDetails: () => void;
   onBook: () => void;
 }) {
+  const pricePerKm = getEffectivePricePerKm(vehicle);
+  const luggage = estimateLuggageCapacity(vehicle.seats);
+  const fitsGroup = vehicleFitsGuests(vehicle, requestedGuests);
+  const vehicleName = localizedText(vehicle.name, locale);
+
   return (
-    <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
-      <div>
-        <p className="text-sm font-medium">{localizedText(vehicle.name, locale)}</p>
-        <p className="text-xs text-muted-foreground">
-          {vehicle.seats} seats · {formatCurrency(vehicle.pricePerDay, locale)}/day
-          {vehicle.pricePerKm ? ` · ₹${vehicle.pricePerKm}/km` : ""}
-        </p>
+    <div className="rounded-xl border bg-card p-2.5 shadow-sm">
+      <div className="flex gap-3">
+        <div className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-muted">
+          {vehicle.images[0] ? (
+            <Image
+              src={vehicle.images[0]}
+              alt={vehicleName}
+              fill
+              className="object-cover"
+              sizes="72px"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+              {locale === "hi" ? "कोई फोटो नहीं" : "No photo"}
+            </div>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="line-clamp-1 text-sm font-semibold">{vehicleName}</p>
+            <RatingStars rating={vehicle.rating} className="shrink-0 text-xs" />
+          </div>
+
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {vehicle.seats} {locale === "hi" ? "सीट" : "seats"} ·{" "}
+            {formatCurrency(vehicle.pricePerDay, locale)}
+            {locale === "hi" ? "/दिन" : "/day"}
+            {vehicle.pricePerKm || pricePerKm
+              ? ` · ${formatCurrency(pricePerKm, locale)}${locale === "hi" ? "/किमी" : "/km"}`
+              : ""}
+          </p>
+
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {locale === "hi"
+              ? `अधिकतम ${vehicle.seats} यात्री · ~${luggage} बैग`
+              : `Max ${vehicle.seats} passengers · ~${luggage} bags`}
+          </p>
+
+          {requestedGuests && requestedGuests > 0 && (
+            <p
+              className={cn(
+                "mt-1 text-[11px] font-medium",
+                fitsGroup ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+              )}
+            >
+              {fitsGroup
+                ? locale === "hi"
+                  ? `✓ आपके ${requestedGuests} यात्रियों के लिए उपयुक्त`
+                  : `✓ Fits your group of ${requestedGuests}`
+                : locale === "hi"
+                  ? `⚠ ${requestedGuests} यात्रियों के लिए छोटा — बड़ा वाहन चुनें`
+                  : `⚠ Too small for ${requestedGuests} — choose a larger vehicle`}
+            </p>
+          )}
+        </div>
       </div>
-      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onBook}>
-        Book
-      </Button>
+
+      <div className="mt-2.5 flex gap-2">
+        <Button size="sm" variant="secondary" className="h-8 flex-1 text-xs" onClick={onDetails}>
+          {locale === "hi" ? "पूरा विवरण" : "Full Details"}
+        </Button>
+        <Button size="sm" className="h-8 flex-1 text-xs" onClick={onBook}>
+          {locale === "hi" ? "बुक करें" : "Book"}
+        </Button>
+      </div>
     </div>
+  );
+}
+
+function VehicleDetailsDialog({
+  vehicle,
+  locale,
+  requestedGuests,
+  open,
+  onOpenChange,
+  onBook,
+}: {
+  vehicle: Vehicle;
+  locale: "en" | "hi";
+  requestedGuests?: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onBook: () => void;
+}) {
+  const pricePerKm = getEffectivePricePerKm(vehicle);
+  const luggage = estimateLuggageCapacity(vehicle.seats);
+  const fitsGroup = vehicleFitsGuests(vehicle, requestedGuests);
+  const vehicleName = localizedText(vehicle.name, locale);
+  const description = localizedText(vehicle.description, locale);
+  const dayExamples = [1, 3, 5];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto p-0">
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+          {vehicle.images[0] ? (
+            <Image
+              src={vehicle.images[0]}
+              alt={vehicleName}
+              fill
+              className="object-cover"
+              sizes="(max-width: 512px) 100vw, 512px"
+            />
+          ) : null}
+        </div>
+
+        <div className="space-y-4 p-4 pt-3">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="text-lg leading-tight">{vehicleName}</DialogTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
+              {vehicle.brand && <Badge variant="outline">{vehicle.brand}</Badge>}
+              <Badge variant="secondary" className="capitalize">
+                {vehicle.category ?? vehicle.type.replace("_", " ")}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {vehicle.location}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              <Users className="mr-1 h-3 w-3" />
+              {locale === "hi"
+                ? `अधिकतम ${vehicle.seats} यात्री`
+                : `Max ${vehicle.seats} passengers`}
+            </Badge>
+            <Badge variant="secondary">
+              {locale === "hi" ? `~${luggage} बैग` : `~${luggage} bags`}
+            </Badge>
+            <Badge variant="secondary">
+              <Fuel className="mr-1 h-3 w-3" />
+              {vehicle.fuelType}
+            </Badge>
+            {vehicle.driverIncluded && (
+              <Badge>{locale === "hi" ? "ड्राइवर शामिल" : "Driver Included"}</Badge>
+            )}
+          </div>
+
+          {requestedGuests && requestedGuests > 0 && (
+            <p
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm",
+                fitsGroup
+                  ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+              )}
+            >
+              {fitsGroup
+                ? locale === "hi"
+                  ? `यह वाहन आपके ${requestedGuests} यात्रियों के लिए उपयुक्त है।`
+                  : `This vehicle fits your group of ${requestedGuests} passengers.`
+                : locale === "hi"
+                  ? `यह वाहन ${requestedGuests} यात्रियों के लिए छोटा है। कृपया ${requestedGuests} या अधिक सीट वाला वाहन चुनें।`
+                  : `This vehicle is too small for ${requestedGuests} passengers. Please choose one with ${requestedGuests}+ seats.`}
+            </p>
+          )}
+
+          {description && (
+            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          )}
+
+          {vehicle.features.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-semibold">
+                {locale === "hi" ? "सुविधाएँ" : "Features"}
+              </p>
+              <ul className="grid gap-1.5 sm:grid-cols-2">
+                {vehicle.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="rounded-xl border bg-primary/5 p-3 space-y-3">
+            <p className="text-sm font-semibold text-primary">
+              {locale === "hi" ? "कीमत और बुकिंग" : "Pricing & booking"}
+            </p>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">
+                  {locale === "hi" ? "प्रति दिन" : "Per day"}
+                </span>
+                <span className="font-semibold">
+                  {formatCurrency(vehicle.pricePerDay, locale)}
+                  {locale === "hi" ? "/दिन" : "/day"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Route className="h-3.5 w-3.5" />
+                  {locale === "hi" ? "प्रति किमी" : "Per km"}
+                </span>
+                <span className="font-semibold">
+                  {formatCurrency(pricePerKm, locale)}
+                  {locale === "hi" ? "/किमी" : "/km"}
+                </span>
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                {locale === "hi" ? "प्रति दिन बुकिंग उदाहरण" : "Per-day booking examples"}
+              </p>
+              <div className="space-y-1.5">
+                {dayExamples.map((days) => (
+                  <div key={days} className="flex justify-between text-xs">
+                    <span>
+                      {formatCurrency(vehicle.pricePerDay, locale)} × {days}{" "}
+                      {locale === "hi" ? "दिन" : days === 1 ? "day" : "days"}
+                    </span>
+                    <span className="font-medium">
+                      {formatCurrency(vehicle.pricePerDay * days, locale)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3 text-xs text-muted-foreground">
+              <p>
+                {locale === "hi"
+                  ? `किमी बुकिंग: न्यूनतम ${VEHICLE_MIN_KM} किमी · ${formatCurrency(pricePerKm, locale)}/किमी`
+                  : `Km booking: minimum ${VEHICLE_MIN_KM} km · ${formatCurrency(pricePerKm, locale)}/km`}
+              </p>
+              <p className="mt-1">
+                {locale === "hi"
+                  ? `उदाहरण: ${VEHICLE_MIN_KM} किमी = ${formatCurrency(pricePerKm * VEHICLE_MIN_KM, locale)}`
+                  : `Example: ${VEHICLE_MIN_KM} km = ${formatCurrency(pricePerKm * VEHICLE_MIN_KM, locale)}`}
+              </p>
+              {vehicle.driverIncluded && (
+                <p className="mt-1">
+                  {locale === "hi"
+                    ? "दिन की कीमत में ड्राइवर शामिल है।"
+                    : "Driver is included in the per-day rate."}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button className="flex-1" onClick={onBook}>
+              {locale === "hi" ? "अभी बुक करें" : "Book Now"}
+            </Button>
+            <Link
+              href={`/vehicles/${vehicle.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }), "flex-1 justify-center")}
+            >
+              {locale === "hi" ? "वेबसाइट पर देखें" : "View on website"}
+            </Link>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

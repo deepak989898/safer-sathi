@@ -170,8 +170,8 @@ export function processConversationInput(
   const text = message.trim();
   const next: TravelManagerState = {
     ...state,
-    selectedActivities: [...state.selectedActivities],
-    customizeFlags: { ...state.customizeFlags },
+    selectedActivities: [...(state.selectedActivities ?? [])],
+    customizeFlags: { ...(state.customizeFlags ?? {}) },
   };
 
   if (text.startsWith("__intent:")) {

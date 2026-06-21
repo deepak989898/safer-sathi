@@ -8,12 +8,46 @@ import type { Locale } from "@/types";
 const GUEST_ID_KEY = "safar-sathi-ai-guest-id";
 const PREFS_KEY = "safar-sathi-ai-preferences";
 
+function safeStorageGet(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private browsing / storage disabled — continue without persistence.
+  }
+}
+
+function normalizePreferredLanguage(
+  value: unknown
+): AITravelPreferences["preferredLanguage"] | undefined {
+  if (value === "hindi" || value === "hi") return "hindi";
+  if (value === "english" || value === "en") return "english";
+  return undefined;
+}
+
+function sanitizeAiPreferences(prefs: AITravelPreferences): AITravelPreferences {
+  const preferredLanguage = normalizePreferredLanguage(prefs.preferredLanguage);
+  return {
+    ...prefs,
+    ...(preferredLanguage ? { preferredLanguage } : {}),
+  };
+}
+
 export function getOrCreateGuestId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(GUEST_ID_KEY);
+  let id = safeStorageGet(GUEST_ID_KEY);
   if (!id) {
     id = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    localStorage.setItem(GUEST_ID_KEY, id);
+    safeStorageSet(GUEST_ID_KEY, id);
   }
   return id;
 }
@@ -21,8 +55,9 @@ export function getOrCreateGuestId(): string {
 export function getLocalAiPreferences(): AITravelPreferences | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? (JSON.parse(raw) as AITravelPreferences) : null;
+    const raw = safeStorageGet(PREFS_KEY);
+    if (!raw) return null;
+    return sanitizeAiPreferences(JSON.parse(raw) as AITravelPreferences);
   } catch {
     return null;
   }
@@ -30,7 +65,7 @@ export function getLocalAiPreferences(): AITravelPreferences | null {
 
 export function saveLocalAiPreferences(prefs: AITravelPreferences): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  safeStorageSet(PREFS_KEY, JSON.stringify(sanitizeAiPreferences(prefs)));
 }
 
 export function getBrowserHints(): { browserLanguage: string; timezone: string } {

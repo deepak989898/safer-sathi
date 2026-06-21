@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { initialTravelManagerState } from "@/lib/ai/travel-manager/conversation-engine";
 import {
   buildInitContext,
   persistAiMemory,
@@ -6,6 +7,31 @@ import {
 import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
 import { runTravelManager } from "@/lib/ai/travel-manager/travel-manager-agent";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import type { TravelManagerState } from "@/types/travel-manager";
+
+function normalizePreferredLanguage(value: unknown): "hindi" | "english" | undefined {
+  if (value === "hindi" || value === "hi") return "hindi";
+  if (value === "english" || value === "en") return "english";
+  return undefined;
+}
+
+function normalizeTravelManagerState(
+  state: z.infer<typeof stateSchema> | undefined
+): TravelManagerState | undefined {
+  if (!state) return undefined;
+  const base = initialTravelManagerState();
+  return {
+    ...base,
+    ...state,
+    selectedActivities: Array.isArray(state.selectedActivities)
+      ? state.selectedActivities
+      : base.selectedActivities,
+    customizeFlags:
+      state.customizeFlags && typeof state.customizeFlags === "object"
+        ? state.customizeFlags
+        : base.customizeFlags,
+  } as TravelManagerState;
+}
 
 const stateSchema = z
   .object({
@@ -48,7 +74,10 @@ const contextSchema = z.object({
   timezone: z.string().optional(),
   localPreferences: z
     .object({
-      preferredLanguage: z.enum(["hindi", "english"]).optional(),
+      preferredLanguage: z
+        .union([z.enum(["hindi", "english"]), z.string()])
+        .optional()
+        .transform((value) => normalizePreferredLanguage(value)),
       nativeLanguage: z.string().optional(),
       preferredBudget: z.number().optional(),
       favouriteDestinations: z.array(z.string()).optional(),
@@ -95,11 +124,13 @@ export async function POST(request: Request) {
       parsed.data.locale ??
       "hi";
 
+    const normalizedState = normalizeTravelManagerState(parsed.data.state);
+
     const result = await runTravelManager({
       message: parsed.data.message,
       locale,
-      state: parsed.data.state as Parameters<typeof runTravelManager>[0]["state"],
-      userLocation: initContext?.location ?? parsed.data.state?.userLocation,
+      state: normalizedState,
+      userLocation: initContext?.location ?? normalizedState?.userLocation,
       aiPreferences: initContext?.preferences,
     });
 

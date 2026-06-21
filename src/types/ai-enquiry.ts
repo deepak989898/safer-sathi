@@ -96,6 +96,10 @@ const STEP_LABELS: Record<string, string> = {
   vehicle_results: "Vehicle results",
 };
 
+export function formatChatUserMessage(message: string): string {
+  return formatEnquiryUserMessage(message);
+}
+
 export function formatEnquiryUserMessage(message: string): string {
   const trimmed = message.trim();
   if (INTENT_LABELS[trimmed]) return INTENT_LABELS[trimmed];
