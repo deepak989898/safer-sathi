@@ -4,8 +4,13 @@ import { TryAssistantButton } from "@/components/ai/try-assistant-button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
+import {
+  buildHomepageHotels,
+  buildHomepagePackages,
+  buildHomepageVehicles,
+} from "@/lib/catalog/homepage-showcase";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
-import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
+import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +21,9 @@ export default async function HomePage() {
     getVehicles(),
   ]);
 
-  const featuredPackages = packages
-    .slice()
-    .sort((a, b) => Number(b.featured) - Number(a.featured))
-    .slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
-  const featuredHotels = hotels.slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
-  const featuredVehicles = vehicles.slice(0, MOBILE_HOME_SHOWCASE_LIMIT);
+  const featuredPackages = buildHomepagePackages(packages);
+  const featuredHotels = buildHomepageHotels(hotels);
+  const featuredVehicles = buildHomepageVehicles(vehicles);
 
   return (
     <>
@@ -30,6 +32,10 @@ export default async function HomePage() {
         featuredHotels={featuredHotels}
         featuredVehicles={featuredVehicles}
       />
+
+      <div className="container mx-auto px-4 pb-5 md:hidden">
+        <MobileFeatureCard />
+      </div>
 
       <ImageBannerSection className="py-5 pb-6 md:py-12" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">

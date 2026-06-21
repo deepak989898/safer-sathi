@@ -25,6 +25,7 @@ import {
   getRelatedBlogPosts,
   hydrateBlogStore,
 } from "@/lib/blog-store";
+import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
@@ -81,7 +82,13 @@ export async function getPackages(filters?: SearchFilters): Promise<TourPackage[
 
 export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
   await hydratePackagesStore();
-  return getPublishedPackageBySlug(slug);
+  const found = getPublishedPackageBySlug(slug);
+  if (found) return found;
+  return (
+    getTourPackagesSeed().find(
+      (p) => p.slug === slug && (!p.publishStatus || p.publishStatus === "published")
+    ) ?? null
+  );
 }
 
 export async function getPackageById(id: string): Promise<TourPackage | null> {
