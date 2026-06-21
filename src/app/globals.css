@@ -220,12 +220,12 @@
   --mobile-search-height: 4.75rem;
 }
 
-.mobile-search-overlap {
-  position: relative;
-  z-index: 30;
-  /* Pull up by half the card height so it straddles the hero/content line */
-  margin-top: calc(var(--mobile-search-height) * -0.5);
-  margin-bottom: 0.75rem;
+.mobile-search-bridge {
+  transform: translateY(50%);
+}
+
+.mobile-search-section-pad {
+  padding-top: calc(var(--mobile-search-height) * 0.5 + 0.75rem);
 }
 
 .mobile-search-pill > button {

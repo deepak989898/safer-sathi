@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Globe, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { SiteShareButton } from "@/components/layout/site-share-button";
-import { appUrl, SITE_CONTACT } from "@/lib/site-config";
+import { SITE_CONTACT } from "@/lib/site-config";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export function Footer() {
   const { locale } = useAppStore();
@@ -17,23 +18,17 @@ export function Footer() {
         <div className="grid gap-8 lg:grid-cols-3">
           <div>
             <p className="text-sm text-muted-foreground">{t(locale, "footer", "tagline")}</p>
-            <div className="mt-4 flex gap-2">
-              <SiteShareButton className="h-9 w-9 text-muted-foreground hover:text-primary" />
-              <a
-                href={appUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-primary"
-                aria-label="Visit website"
-              >
-                <Globe className="h-5 w-5" />
-              </a>
+            <div className="mt-4 flex items-center gap-2.5">
+              <SiteShareButton />
               <a
                 href={`mailto:${SITE_CONTACT.email}`}
-                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-primary"
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full",
+                  "bg-primary/10 text-primary transition-colors hover:bg-primary/15"
+                )}
                 aria-label="Email us"
               >
-                <Mail className="h-5 w-5" />
+                <Mail className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} />
               </a>
             </div>
           </div>
@@ -119,20 +114,23 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 border-t pt-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <BrandLogo href="/" size="compact" />
-            <p>
-              © {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}
-            </p>
-          </div>
-          <div className="flex gap-4">
-            <Link href="/terms" className="hover:text-primary">
-              Terms
-            </Link>
-            <Link href="/privacy" className="hover:text-primary">
-              Privacy
-            </Link>
+        <div className="mt-6 border-t pt-5">
+          <div className="flex items-center justify-between gap-4">
+            <BrandLogo href="/" size="compact" className="shrink-0" />
+
+            <div className="flex flex-col items-end text-right text-sm text-muted-foreground">
+              <p>
+                © {new Date().getFullYear()} Safar Sathi. {t(locale, "footer", "rights")}
+              </p>
+              <div className="mt-2 flex items-center gap-4">
+                <Link href="/terms" className="hover:text-primary">
+                  Terms
+                </Link>
+                <Link href="/privacy" className="hover:text-primary">
+                  Privacy
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

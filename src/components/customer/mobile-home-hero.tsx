@@ -90,21 +90,31 @@ export function MobileHomeShowcase({
 
   return (
     <div className="mobile-hero-stack overflow-x-hidden md:hidden">
-      <HeroSlider
-        slides={heroSlides}
-        compact={!searchExpanded}
-        className="min-h-[400px] sm:min-h-[430px]"
-        mobileReferenceLayout
-      />
+      <div className="relative">
+        <HeroSlider
+          slides={heroSlides}
+          compact={!searchExpanded}
+          className="min-h-[400px] sm:min-h-[430px]"
+          mobileReferenceLayout
+        />
 
-      <section className="relative z-20 bg-background pb-6">
-        <div className="container mx-auto px-4">
-          {searchExpanded ? (
-            <div className="mx-auto mb-3 max-w-md pt-1">
+        {!searchExpanded && (
+          <div className="mobile-search-bridge pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4">
+            <div className="pointer-events-auto mx-auto max-w-md">
               <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
             </div>
-          ) : (
-            <div className="mobile-search-overlap mx-auto max-w-md">
+          </div>
+        )}
+      </div>
+
+      <section
+        className={`relative z-20 bg-background pb-6 ${
+          searchExpanded ? "pt-1" : "mobile-search-section-pad"
+        }`}
+      >
+        <div className="container mx-auto px-4">
+          {searchExpanded && (
+            <div className="mx-auto mb-3 max-w-md">
               <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
             </div>
           )}
