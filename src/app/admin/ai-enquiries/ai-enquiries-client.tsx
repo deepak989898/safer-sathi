@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Calendar,
   ChevronDown,
   Globe,
   Loader2,
@@ -27,14 +28,8 @@ import {
 } from "@/types/ai-enquiry";
 import { toast } from "sonner";
 
-function VisitorSessionCard({
-  session,
-  defaultOpen,
-}: {
-  session: AiEnquiryVisitorSession;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
+function VisitorSessionCard({ session }: { session: AiEnquiryVisitorSession }) {
+  const [open, setOpen] = useState(false);
 
   const summaryParts = [
     session.destination && `→ ${session.destination}`,
@@ -173,6 +168,74 @@ function VisitorSessionCard({
   );
 }
 
+interface DateSessionGroup {
+  dateKey: string;
+  dateLabel: string;
+  sessions: AiEnquiryVisitorSession[];
+}
+
+function groupSessionsByDate(sessions: AiEnquiryVisitorSession[]): DateSessionGroup[] {
+  const groups = new Map<string, DateSessionGroup>();
+
+  for (const session of sessions) {
+    const dateKey = session.startedAt.slice(0, 10);
+    const dateLabel = new Date(session.startedAt).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const existing = groups.get(dateKey);
+    if (existing) {
+      existing.sessions.push(session);
+    } else {
+      groups.set(dateKey, { dateKey, dateLabel, sessions: [session] });
+    }
+  }
+
+  return Array.from(groups.values()).sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+function DateEnquiryGroup({ group }: { group: DateSessionGroup }) {
+  const [open, setOpen] = useState(false);
+  const totalMessages = group.sessions.reduce((sum, s) => sum + s.messageCount, 0);
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-muted/40 transition-colors"
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <Calendar className="h-4 w-4 shrink-0 text-primary" />
+          <p className="text-base font-semibold">{group.dateLabel}</p>
+          <Badge variant="secondary" className="text-xs">
+            {group.sessions.length} session{group.sessions.length === 1 ? "" : "s"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {totalMessages} message{totalMessages === 1 ? "" : "s"}
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t bg-muted/10 p-3">
+          {group.sessions.map((session) => (
+            <VisitorSessionCard key={session.id} session={session} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiEnquiriesClient() {
   const { user } = useAuth();
   const [enquiries, setEnquiries] = useState<AiAssistantEnquiry[]>([]);
@@ -220,6 +283,8 @@ export default function AiEnquiriesClient() {
     [enquiries]
   );
 
+  const sessionsByDate = useMemo(() => groupSessionsByDate(sessions), [sessions]);
+
   return (
     <>
       <AdminHeader
@@ -232,7 +297,8 @@ export default function AiEnquiriesClient() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           {sessions.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              {sessions.length} visitor session{sessions.length === 1 ? "" : "s"} ·{" "}
+              {sessions.length} visitor session{sessions.length === 1 ? "" : "s"} across{" "}
+              {sessionsByDate.length} day{sessionsByDate.length === 1 ? "" : "s"} ·{" "}
               {enquiries.length} total messages
             </p>
           )}
@@ -268,8 +334,8 @@ export default function AiEnquiriesClient() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {sessions.map((session) => (
-              <VisitorSessionCard key={session.id} session={session} />
+            {sessionsByDate.map((group) => (
+              <DateEnquiryGroup key={group.dateKey} group={group} />
             ))}
           </div>
         )}
