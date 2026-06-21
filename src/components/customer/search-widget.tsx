@@ -26,9 +26,13 @@ const searchTabs: {
 
 interface SearchWidgetProps {
   onExpandChange?: (expanded: boolean) => void;
+  variant?: "default" | "mobile-pill";
 }
 
-export function SearchWidget({ onExpandChange }: SearchWidgetProps) {
+export function SearchWidget({
+  onExpandChange,
+  variant = "default",
+}: SearchWidgetProps) {
   const router = useRouter();
   const { locale, setSearchFilters } = useAppStore();
   const [activeTab, setActiveTab] = useState<SearchTabId>("packages");
@@ -103,6 +107,7 @@ export function SearchWidget({ onExpandChange }: SearchWidgetProps) {
   };
 
   const activeTabMeta = searchTabs.find((tab) => tab.id === activeTab)!;
+  const isMobilePill = variant === "mobile-pill";
 
   const searchButton = (tab: SearchTabId, href: string) => (
     <Button size="lg" className="w-full" onClick={() => runSearch(tab, href)}>
@@ -236,6 +241,56 @@ export function SearchWidget({ onExpandChange }: SearchWidgetProps) {
       </TabsContent>
     </Tabs>
   );
+
+  const pillTrigger = (
+    <button
+      type="button"
+      onClick={() => setMobileExpanded(true)}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-full border border-white/70 bg-white px-4 py-3 text-left shadow-lg",
+        "transition-shadow hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      )}
+      aria-expanded={false}
+      aria-label="Open search"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <activeTabMeta.icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">
+          {t(locale, "hero", "search")} {activeTabMeta.label}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">
+          Find your perfect trip, hotels &amp; vehicles
+        </span>
+      </span>
+      <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
+    </button>
+  );
+
+  const expandedMobilePanel = (
+    <div className="rounded-2xl border border-white/70 bg-white p-3 shadow-lg dark:bg-card">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-foreground">{t(locale, "hero", "search")}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1 px-2 text-xs"
+          onClick={() => setMobileExpanded(false)}
+          aria-label="Close search"
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+          Collapse
+        </Button>
+      </div>
+      {searchForm}
+    </div>
+  );
+
+  if (isMobilePill) {
+    return !expanded ? pillTrigger : expandedMobilePanel;
+  }
 
   return (
     <>

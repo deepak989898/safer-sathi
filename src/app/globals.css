@@ -9,6 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-playfair);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -184,4 +185,24 @@
       oklch(0.52 0.19 264 / 0.42)
     );
   }
+}
+
+/* Reference mobile hero: minimal tint so photo and dark title stay readable */
+.hero-slider-overlay-reference {
+  background: linear-gradient(
+    180deg,
+    oklch(1 0 0 / 0.08) 0%,
+    oklch(1 0 0 / 0) 35%,
+    oklch(0.2 0.02 264 / 0.12) 100%
+  );
+}
+
+.mobile-showcase-scroll {
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.mobile-showcase-scroll::-webkit-scrollbar {
+  display: none;
 }

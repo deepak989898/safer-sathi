@@ -5,14 +5,19 @@ import Link from "next/link";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { HomeFeaturesSection } from "@/components/customer/home-features-section";
 import { HotelCard } from "@/components/customer/hotel-card";
+import {
+  MobileHomeHero,
+  MobileShowcaseHeader,
+  MobileShowcaseTabs,
+} from "@/components/customer/mobile-home-hero";
+import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
 import { PackageCard } from "@/components/customer/package-card";
 import { SearchWidget } from "@/components/customer/search-widget";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { Button } from "@/components/ui/button";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
+import { localizedText, t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
-import { t } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
 
 type ShowcaseTab = "packages" | "vehicles" | "hotels";
@@ -23,11 +28,14 @@ interface HomeHeroProps {
   featuredVehicles: Vehicle[];
 }
 
-const MOBILE_TABS: { id: ShowcaseTab; labelKey: string; href: string }[] = [
-  { id: "packages", labelKey: "packages", href: "/packages" },
-  { id: "vehicles", labelKey: "vehicles", href: "/vehicles" },
-  { id: "hotels", labelKey: "hotels", href: "/hotels" },
-];
+const MOBILE_SECTION_COPY: Record<
+  ShowcaseTab,
+  { title: string; href: string }
+> = {
+  packages: { title: "Handpicked destinations", href: "/packages" },
+  hotels: { title: "Popular stays", href: "/hotels" },
+  vehicles: { title: "Premium rides", href: "/vehicles" },
+};
 
 export function HomeShowcase({
   featuredPackages,
@@ -44,71 +52,69 @@ export function HomeShowcase({
     subtitle: t(locale, "hero", "subtitle"),
   }));
 
-  const mobileConfig = {
-    packages: {
-      title: "Featured Packages",
-      subtitle: "Handpicked destinations loved by thousands of travelers",
-      href: "/packages",
-      items: featuredPackages.map((pkg) => (
-        <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
-      )),
-    },
-    hotels: {
-      title: "Popular Hotels",
-      subtitle: "Luxury stays and scenic resorts across India",
-      href: "/hotels",
-      items: featuredHotels.map((hotel) => (
-        <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
-      )),
-    },
-    vehicles: {
-      title: "Premium Vehicles",
-      subtitle: "Comfortable rides for every journey — cars, SUVs, tempo & buses",
-      href: "/vehicles",
-      items: featuredVehicles.map((vehicle) => (
-        <VehicleCard key={vehicle.id} vehicle={vehicle} locale={locale} />
-      )),
-    },
-  } as const;
-
-  const activeMobile = mobileConfig[mobileTab];
+  const mobileSection = MOBILE_SECTION_COPY[mobileTab];
 
   return (
     <>
-      <HeroSlider slides={heroSlides} compact={!searchExpanded}>
-        <SearchWidget onExpandChange={setSearchExpanded} />
-      </HeroSlider>
+      <MobileHomeHero />
 
-      {/* Mobile: tabbed showcase */}
-      <section className="bg-muted/50 py-10 md:hidden">
+      <div className="hidden md:block">
+        <HeroSlider slides={heroSlides} compact={!searchExpanded}>
+          <SearchWidget onExpandChange={setSearchExpanded} />
+        </HeroSlider>
+      </div>
+
+      <section className="bg-background py-6 md:hidden">
         <div className="container mx-auto px-4">
-          <div className="mb-6 flex rounded-xl border bg-background p-1">
-            {MOBILE_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMobileTab(tab.id)}
-                className={cn(
-                  "flex-1 rounded-lg px-2 py-2.5 text-center text-xs font-medium transition-colors sm:text-sm",
-                  mobileTab === tab.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t(locale, "nav", tab.labelKey)}
-              </button>
-            ))}
+          <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
+
+          <div className="mt-5">
+            <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
+
+            <div className="mobile-showcase-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+              {mobileTab === "packages" &&
+                featuredPackages.map((pkg) => (
+                  <MobileShowcaseCard
+                    key={pkg.id}
+                    href={`/packages/${pkg.slug}`}
+                    image={pkg.images[0] ?? ""}
+                    title={pkg.cities[0] ?? localizedText(pkg.title, locale)}
+                    subtitle={localizedText(pkg.durationLabel, locale)}
+                    price={pkg.price}
+                    locale={locale}
+                  />
+                ))}
+
+              {mobileTab === "hotels" &&
+                featuredHotels.map((hotel) => (
+                  <MobileShowcaseCard
+                    key={hotel.id}
+                    href={`/hotels/${hotel.slug}`}
+                    image={hotel.images[0] ?? ""}
+                    title={hotel.city || hotel.location}
+                    subtitle={`${hotel.starRating} Star · per night`}
+                    price={hotel.priceFrom}
+                    locale={locale}
+                  />
+                ))}
+
+              {mobileTab === "vehicles" &&
+                featuredVehicles.map((vehicle) => (
+                  <MobileShowcaseCard
+                    key={vehicle.id}
+                    href={`/vehicles/${vehicle.id}`}
+                    image={vehicle.images[0] ?? ""}
+                    title={vehicle.location}
+                    subtitle={localizedText(vehicle.name, locale)}
+                    price={vehicle.pricePerDay}
+                    locale={locale}
+                  />
+                ))}
+            </div>
           </div>
-          <ShowcaseHeader
-            title={activeMobile.title}
-            subtitle={activeMobile.subtitle}
-            href={activeMobile.href}
-          />
-          <div className="grid gap-6">{activeMobile.items}</div>
         </div>
       </section>
 
-      {/* Desktop: separate sections */}
       <section className="hidden bg-muted/50 py-16 md:block">
         <div className="container mx-auto px-4">
           <ShowcaseHeader
@@ -154,7 +160,9 @@ export function HomeShowcase({
         </div>
       </section>
 
-      <HomeFeaturesSection />
+      <div className="hidden md:block">
+        <HomeFeaturesSection />
+      </div>
     </>
   );
 }

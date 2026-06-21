@@ -35,11 +35,14 @@ import { cn } from "@/lib/utils";
 interface RoleNavigationDrawerProps {
   triggerClassName?: string;
   showLabel?: boolean;
+  /** White circular trigger for transparent hero header */
+  transparentSurface?: boolean;
 }
 
 export function RoleNavigationDrawer({
   triggerClassName,
   showLabel = false,
+  transparentSurface = false,
 }: RoleNavigationDrawerProps) {
   const pathname = usePathname();
   const { locale } = useAppStore();
@@ -60,7 +63,9 @@ export function RoleNavigationDrawer({
             className={cn(
               showLabel
                 ? "h-11 min-w-[5.5rem] gap-2.5 rounded-xl border-2 px-3.5 text-sm font-semibold shadow-sm"
-                : "h-11 w-11 rounded-xl border-2 shadow-sm",
+                : transparentSurface
+                  ? "h-10 w-10 rounded-full border-0 bg-white text-foreground shadow-md hover:bg-white/95"
+                  : "h-11 w-11 rounded-xl border-2 shadow-sm",
               triggerClassName
             )}
             aria-label="Open navigation menu"

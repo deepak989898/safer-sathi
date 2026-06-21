@@ -53,13 +53,20 @@ export function Header() {
   const mounted = useMounted();
   const isStaff = user ? canShowAdminNav(user.role) : false;
   const adminHome = user ? getLoginRedirect(user.role) : "/admin";
+  const isHome = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full overflow-visible border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95">
+    <header
+      className={cn(
+        "z-50 w-full overflow-visible",
+        isHome
+          ? "absolute inset-x-0 top-0 border-0 bg-transparent md:sticky md:border-b md:bg-white/95 md:backdrop-blur md:supports-[backdrop-filter]:md:bg-white/80 dark:md:bg-background/95"
+          : "sticky top-0 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95"
+      )}
+    >
       <div className="container mx-auto flex min-h-[5.5rem] items-center justify-between gap-2 px-3 py-1.5 sm:gap-3 sm:px-4 md:min-h-[6.25rem]">
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-          <RoleNavigationDrawer showLabel triggerClassName="hidden sm:inline-flex" />
-          <RoleNavigationDrawer triggerClassName="inline-flex sm:hidden" />
+          <RoleNavigationDrawer showLabel triggerClassName="hidden md:inline-flex" />
           <BrandLogo priority size="header" />
         </div>
 
@@ -92,10 +99,19 @@ export function Header() {
           )}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className="h-9 w-9" />}
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-9 w-9",
+                    isHome && "text-foreground md:text-inherit"
+                  )}
+                />
+              }
             >
               <Globe className="h-4 w-4" />
             </DropdownMenuTrigger>
@@ -112,7 +128,10 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="relative h-9 w-9"
+            className={cn(
+              "relative h-9 w-9",
+              isHome && "text-foreground md:text-inherit"
+            )}
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label="Toggle theme"
           >
@@ -165,6 +184,11 @@ export function Header() {
               </Link>
             </>
           )}
+
+          <RoleNavigationDrawer
+            triggerClassName="inline-flex md:hidden"
+            transparentSurface={isHome}
+          />
         </div>
       </div>
     </header>
