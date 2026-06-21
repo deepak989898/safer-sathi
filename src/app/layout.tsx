@@ -51,8 +51,13 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   publisher: SITE_NAME,
   icons: {
-    icon: [{ url: "/images/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/images/favicon.svg",
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "512x512" },
+      { url: "/images/favicon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/images/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.png",
   },
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
@@ -77,6 +82,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
         <JsonLd data={travelAgencySchema()} />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>

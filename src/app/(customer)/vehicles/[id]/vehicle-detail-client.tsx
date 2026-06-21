@@ -23,8 +23,16 @@ import type { Vehicle } from "@/types";
 import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
 import { trackBookingStarted } from "@/lib/analytics";
 import { toast } from "sonner";
+import { VehiclePricingPanel } from "@/components/vehicles/vehicle-pricing-panel";
+import { getEffectivePricePerKm } from "@/lib/vehicles/capacity";
+import {
+  calculateBillableKmFromOneWay,
+  getVehicleDayInclusions,
+  getVehicleKmInclusions,
+  VEHICLE_MIN_KM_ROUND_TRIP,
+} from "@/lib/vehicles/pricing-policy";
 
-const MIN_KM = 50;
+const MIN_ONE_WAY_KM = 50;
 
 export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const { locale } = useAppStore();
@@ -35,7 +43,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [guests, setGuests] = useState("1");
-  const [distanceKm, setDistanceKm] = useState(String(MIN_KM));
+  const [distanceKm, setDistanceKm] = useState(String(MIN_ONE_WAY_KM));
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
@@ -56,9 +64,11 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
     );
   }, [startDate, endDate]);
 
-  const km = Math.max(MIN_KM, Number(distanceKm) || MIN_KM);
+  const oneWayKm = Math.max(MIN_ONE_WAY_KM, Number(distanceKm) || MIN_ONE_WAY_KM);
+  const billableKm =
+    bookingMode === "km" ? calculateBillableKmFromOneWay(oneWayKm) : 0;
   const dayTotal = vehicle.pricePerDay * days;
-  const kmTotal = pricePerKm * km;
+  const kmTotal = pricePerKm * billableKm;
   const total = bookingMode === "km" ? kmTotal : dayTotal;
   const payNow = calculatePayNowAmount(total, paymentPlan);
 
@@ -89,7 +99,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
         amount: total,
         paymentPlan,
         bookingMode,
-        distanceKm: bookingMode === "km" ? km : undefined,
+        distanceKm: bookingMode === "km" ? billableKm : undefined,
         userId: user?.id,
         notes: specialRequest.trim() || undefined,
       });
@@ -102,7 +112,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const canBook =
     bookingMode === "day"
       ? Boolean(startDate && endDate)
-      : Boolean(startDate && km >= MIN_KM);
+      : Boolean(startDate && oneWayKm >= MIN_ONE_WAY_KM);
 
   return (
     <>
@@ -225,6 +235,14 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                   </TabsList>
 
                   <TabsContent value="day" className="mt-4 space-y-4">
+                    <ul className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
+                      {getVehicleDayInclusions(locale, vehicle, pricePerKm).map((line) => (
+                        <li key={line} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
                     <div>
                       <Label>Pick-up Date</Label>
                       <Input
@@ -246,6 +264,14 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                   </TabsContent>
 
                   <TabsContent value="km" className="mt-4 space-y-4">
+                    <ul className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
+                      {getVehicleKmInclusions(locale, vehicle, pricePerKm).map((line) => (
+                        <li key={line} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
                     <div>
                       <Label>Travel Date</Label>
                       <Input
@@ -256,17 +282,18 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                       />
                     </div>
                     <div>
-                      <Label>Total distance (km)</Label>
+                      <Label>One-way distance (km)</Label>
                       <Input
                         type="number"
-                        min={MIN_KM}
-                        step={10}
+                        min={MIN_ONE_WAY_KM}
+                        step={5}
                         value={distanceKm}
                         onChange={(e) => setDistanceKm(e.target.value)}
                         className="mt-1.5"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Minimum {MIN_KM} km · billed at{" "}
+                        Round trip: {oneWayKm * 2} km (go + return) · billed{" "}
+                        {billableKm} km minimum {VEHICLE_MIN_KM_ROUND_TRIP} km ·{" "}
                         {formatCurrency(pricePerKm, locale)}/km
                       </p>
                     </div>
@@ -307,7 +334,10 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     <div className="flex justify-between text-sm">
                       <span className="flex items-center gap-1">
                         <Route className="h-3.5 w-3.5" />
-                        {formatCurrency(pricePerKm, locale)} × {km} km
+                        {formatCurrency(pricePerKm, locale)} × {billableKm} km
+                        <span className="block text-[10px] font-normal text-muted-foreground">
+                          ({oneWayKm} km one-way × 2, min {VEHICLE_MIN_KM_ROUND_TRIP} km)
+                        </span>
                       </span>
                       <span>{formatCurrency(kmTotal, locale)}</span>
                     </div>

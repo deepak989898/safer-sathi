@@ -8,7 +8,6 @@ import {
   orderBy,
   query,
   setDoc,
-  updateDoc,
 } from "firebase/firestore";
 import { getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { Booking, PaymentStatus } from "@/types";
@@ -49,10 +48,15 @@ export async function updateBookingPaymentOnClient(
 
   try {
     const db = getFirebaseDb();
-    await updateDoc(doc(db, COLLECTION, bookingId), {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
+    await setDoc(
+      doc(db, COLLECTION, bookingId),
+      {
+        id: bookingId,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
     return true;
   } catch (error) {
     console.warn("updateBookingPaymentOnClient failed:", error);

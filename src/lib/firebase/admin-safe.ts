@@ -1,14 +1,12 @@
+import { resolveFirebaseAdminCredentials } from "@/lib/firebase/resolve-admin-credentials";
+
 type AdminModule = typeof import("./admin");
 
 let adminModule: AdminModule | null = null;
 let adminLoadFailed = false;
 
 export function isAdminEnvConfigured(): boolean {
-  return Boolean(
-    process.env.FIREBASE_PROJECT_ID &&
-      process.env.FIREBASE_CLIENT_EMAIL &&
-      process.env.FIREBASE_PRIVATE_KEY
-  );
+  return resolveFirebaseAdminCredentials() !== null;
 }
 
 export async function getSafeFirebaseAdmin(): Promise<AdminModule | null> {

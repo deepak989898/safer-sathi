@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, Mic, MicOff, Send, X, Check, Fuel, MapPin, Route, Users } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, X, Check, Fuel, MapPin, Users } from "lucide-react";
 import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import {
   Dialog,
@@ -55,11 +55,11 @@ import type {
 } from "@/types/travel-manager";
 import type { TierPackageQuote } from "@/lib/ai/travel-manager/package-tier-builder";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { VehiclePricingPanel } from "@/components/vehicles/vehicle-pricing-panel";
 import {
   estimateLuggageCapacity,
   getEffectivePricePerKm,
   vehicleFitsGuests,
-  VEHICLE_MIN_KM,
 } from "@/lib/vehicles/capacity";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1191,7 +1191,6 @@ function VehicleDetailsDialog({
   const fitsGroup = vehicleFitsGuests(vehicle, requestedGuests);
   const vehicleName = localizedText(vehicle.name, locale);
   const description = localizedText(vehicle.description, locale);
-  const dayExamples = [1, 3, 5];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1283,72 +1282,7 @@ function VehicleDetailsDialog({
             </div>
           )}
 
-          <div className="rounded-xl border bg-primary/5 p-3 space-y-3">
-            <p className="text-sm font-semibold text-primary">
-              {locale === "hi" ? "कीमत और बुकिंग" : "Pricing & booking"}
-            </p>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">
-                  {locale === "hi" ? "प्रति दिन" : "Per day"}
-                </span>
-                <span className="font-semibold">
-                  {formatCurrency(vehicle.pricePerDay, locale)}
-                  {locale === "hi" ? "/दिन" : "/day"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Route className="h-3.5 w-3.5" />
-                  {locale === "hi" ? "प्रति किमी" : "Per km"}
-                </span>
-                <span className="font-semibold">
-                  {formatCurrency(pricePerKm, locale)}
-                  {locale === "hi" ? "/किमी" : "/km"}
-                </span>
-              </div>
-            </div>
-
-            <div className="border-t pt-3">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {locale === "hi" ? "प्रति दिन बुकिंग उदाहरण" : "Per-day booking examples"}
-              </p>
-              <div className="space-y-1.5">
-                {dayExamples.map((days) => (
-                  <div key={days} className="flex justify-between text-xs">
-                    <span>
-                      {formatCurrency(vehicle.pricePerDay, locale)} × {days}{" "}
-                      {locale === "hi" ? "दिन" : days === 1 ? "day" : "days"}
-                    </span>
-                    <span className="font-medium">
-                      {formatCurrency(vehicle.pricePerDay * days, locale)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t pt-3 text-xs text-muted-foreground">
-              <p>
-                {locale === "hi"
-                  ? `किमी बुकिंग: न्यूनतम ${VEHICLE_MIN_KM} किमी · ${formatCurrency(pricePerKm, locale)}/किमी`
-                  : `Km booking: minimum ${VEHICLE_MIN_KM} km · ${formatCurrency(pricePerKm, locale)}/km`}
-              </p>
-              <p className="mt-1">
-                {locale === "hi"
-                  ? `उदाहरण: ${VEHICLE_MIN_KM} किमी = ${formatCurrency(pricePerKm * VEHICLE_MIN_KM, locale)}`
-                  : `Example: ${VEHICLE_MIN_KM} km = ${formatCurrency(pricePerKm * VEHICLE_MIN_KM, locale)}`}
-              </p>
-              {vehicle.driverIncluded && (
-                <p className="mt-1">
-                  {locale === "hi"
-                    ? "दिन की कीमत में ड्राइवर शामिल है।"
-                    : "Driver is included in the per-day rate."}
-                </p>
-              )}
-            </div>
-          </div>
+          <VehiclePricingPanel vehicle={vehicle} locale={locale} />
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button className="flex-1" onClick={onBook}>

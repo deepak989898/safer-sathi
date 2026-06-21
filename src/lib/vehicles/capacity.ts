@@ -1,6 +1,7 @@
 import type { Vehicle } from "@/types";
 
-export const VEHICLE_MIN_KM = 50;
+/** @deprecated Use VEHICLE_MIN_KM_ROUND_TRIP from pricing-policy */
+export const VEHICLE_MIN_KM = 100;
 
 /** Approximate medium bags the vehicle can carry comfortably. */
 export function estimateLuggageCapacity(seats: number): number {
