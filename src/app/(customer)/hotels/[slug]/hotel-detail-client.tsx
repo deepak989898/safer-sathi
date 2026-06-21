@@ -25,6 +25,8 @@ import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel, HotelRoom } from "@/types";
+import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
+import { trackBookingStarted } from "@/lib/analytics";
 import { toast } from "sonner";
 
 export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
@@ -87,6 +89,7 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
     try {
       const title = localizedText(hotel.name, locale);
       const roomName = selectedRoom ? localizedText(selectedRoom.name, locale) : "Standard";
+      trackBookingStarted("hotel", hotel.id, total);
       await completeCatalogBooking({
         customerName: name.trim(),
         customerEmail: email.trim(),
@@ -110,6 +113,12 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
 
   return (
     <>
+      <CatalogViewTracker
+        type="hotel"
+        id={hotel.slug ?? hotel.id}
+        name={localizedText(hotel.name, locale)}
+        price={hotel.priceFrom}
+      />
       <DetailPageHeader
         title={localizedText(hotel.name, locale)}
         backHref="/hotels"

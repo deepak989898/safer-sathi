@@ -1,6 +1,14 @@
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { SITE_CONTACT } from "@/lib/site-config";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export const metadata = buildPageMetadata({
+  title: "Terms of Service | Safar Sathi",
+  description: "Terms and conditions for booking tour packages, hotels, and vehicles with Safar Sathi.",
+  path: "/terms",
+  noIndex: true,
+});
 
 export default function TermsPage() {
   return (

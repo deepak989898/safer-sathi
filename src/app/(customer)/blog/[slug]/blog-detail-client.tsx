@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app-store";
 import { localizedText } from "@/lib/i18n";
 import type { BlogPost } from "@/types";
+import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
 
 function renderMarkdownish(content: string) {
   return content.split("\n\n").map((block, i) => {
@@ -52,6 +53,11 @@ export function BlogDetailClient({
 
   return (
     <article className="container mx-auto max-w-3xl px-4 py-10">
+      <CatalogViewTracker
+        type="blog"
+        id={post.slug}
+        name={localizedText(post.title, locale)}
+      />
       <Link href="/blog">
         <Button variant="ghost" size="sm" className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

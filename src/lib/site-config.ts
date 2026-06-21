@@ -2,7 +2,9 @@ const PRODUCTION_APP_URL = "https://www.thesafarsathi.com";
 
 /** Canonical public site URL (custom domain in production). */
 export function getAppUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  const configured =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
   if (configured) return configured;
 
   const vercelUrl = process.env.VERCEL_URL?.trim();

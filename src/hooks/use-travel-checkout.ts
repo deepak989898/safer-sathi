@@ -9,6 +9,12 @@ import {
   calculatePayNowAmount,
   type PaymentPlan,
 } from "@/lib/payments/booking-payment";
+import {
+  trackBookingCompleted,
+  trackPaymentFailed,
+  trackPaymentSuccess,
+  trackPurchase,
+} from "@/lib/analytics";
 import { toast } from "sonner";
 import type { CustomPackageQuote } from "@/types/travel-manager";
 import type { Booking, Hotel, ServiceType, Vehicle } from "@/types";
@@ -79,7 +85,8 @@ async function runPaymentForBooking(
     customerEmail: string;
     customerPhone: string;
   },
-  paymentPlan: PaymentPlan
+  paymentPlan: PaymentPlan,
+  serviceType?: string
 ) {
   const orderRes = await fetch("/api/payments/create-order", {
     method: "POST",
@@ -132,6 +139,7 @@ async function runPaymentForBooking(
     const reason =
       error instanceof Error ? error.message : "Payment cancelled or failed";
     await markPaymentFailed(booking.id, reason);
+    trackPaymentFailed(reason, booking.id);
     throw new Error(
       `${reason} Your booking ${booking.bookingNumber} is saved — admin can follow up or you can retry payment from My Bookings.`
     );
@@ -155,14 +163,22 @@ async function runPaymentForBooking(
 
   const verifyJson = await verifyRes.json();
   if (!verifyJson.success) {
-    await markPaymentFailed(
-      booking.id,
-      verifyJson.error ?? "Payment verification failed"
-    );
+    const failReason = verifyJson.error ?? "Payment verification failed";
+    await markPaymentFailed(booking.id, failReason);
+    trackPaymentFailed(failReason, booking.id);
     throw new Error(
-      `${verifyJson.error ?? "Payment verification failed"}. Booking ${booking.bookingNumber} is saved for admin review.`
+      `${failReason}. Booking ${booking.bookingNumber} is saved for admin review.`
     );
   }
+
+  trackPaymentSuccess(payAmount, booking.id, serviceType);
+  trackPurchase(payAmount, {
+    item_id: booking.id,
+    item_name: serviceNameEn,
+    service_type: serviceType as "package" | "hotel" | "vehicle" | undefined,
+    payment_plan: paymentPlan,
+  });
+  trackBookingCompleted(serviceType ?? "other", booking.id, totalAmount, paymentPlan);
 
   if (isDemoPaymentMode(order.keyId, order.demo)) {
     toast.info("Demo payment mode — booking confirmed locally.");
@@ -260,7 +276,8 @@ export function useTravelCheckout() {
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,
         },
-        paymentPlan
+        paymentPlan,
+        serviceType
       );
     } finally {
       setPaying(false);
@@ -318,7 +335,8 @@ export function useTravelCheckout() {
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,
         },
-        paymentPlan
+        paymentPlan,
+        input.serviceType
       );
     } finally {
       setPaying(false);
@@ -360,7 +378,8 @@ export function useTravelCheckout() {
           customerEmail: booking.customerEmail,
           customerPhone: booking.customerPhone,
         },
-        booking.paidAmount && booking.paidAmount > 0 ? "full" : paymentPlan
+        booking.paidAmount && booking.paidAmount > 0 ? "full" : paymentPlan,
+        booking.serviceType
       );
     } finally {
       setPaying(false);

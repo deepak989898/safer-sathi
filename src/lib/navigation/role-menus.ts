@@ -13,6 +13,7 @@ import {
   Mic,
   Package,
   Sparkles,
+  Search,
   User,
   Users,
 } from "lucide-react";
@@ -64,6 +65,12 @@ export const ADMIN_NAV_ITEMS: NavMenuItem[] = [
     href: "/admin/hotels",
     label: "Hotels",
     icon: Building2,
+    roles: ["super_admin", "manager"],
+  },
+  {
+    href: "/admin/seo-center",
+    label: "SEO Center",
+    icon: Search,
     roles: ["super_admin", "manager"],
   },
   {

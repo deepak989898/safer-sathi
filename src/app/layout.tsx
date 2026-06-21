@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
+import { PageViewTracker } from "@/components/analytics/page-view-tracker";
+import { JsonLd } from "@/components/seo/json-ld";
 import { Providers } from "@/components/providers";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import { travelAgencySchema } from "@/lib/seo/schema";
 import { getAppUrl, SITE_NAME } from "@/lib/site-config";
 import "./globals.css";
 
@@ -22,26 +28,34 @@ const playfair = Playfair_Display({
 
 const siteUrl = getAppUrl();
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+const rootSeo = buildPageMetadata({
   title: "Safar Sathi | Travel | Comfort | Trust",
   description:
-    "Discover incredible destinations across India with curated packages, instant booking, and 24/7 support.",
-  openGraph: {
-    type: "website",
-    locale: "en_IN",
-    url: siteUrl,
-    siteName: SITE_NAME,
-    title: "Safar Sathi | Travel | Comfort | Trust",
-    description:
-      "Discover incredible destinations across India with curated packages, instant booking, and 24/7 support.",
-  },
-  alternates: {
-    canonical: siteUrl,
-  },
+    "Discover incredible destinations across India with curated tour packages, hotels, vehicles, instant booking, and 24/7 support.",
+  path: "/",
+  keywords: [
+    "India tour packages",
+    "Manali tour package",
+    "Goa holiday package",
+    "hotel booking India",
+    "tempo traveller rental",
+    "Safar Sathi",
+  ],
+});
+
+export const metadata: Metadata = {
+  ...rootSeo,
+  metadataBase: new URL(siteUrl),
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME, url: siteUrl }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
   icons: {
     icon: [{ url: "/images/favicon.svg", type: "image/svg+xml" }],
     shortcut: "/images/favicon.svg",
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
   },
 };
 
@@ -62,8 +76,17 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} light h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <JsonLd data={travelAgencySchema()} />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <AnalyticsScripts />
+        <Providers>
+          <Suspense fallback={null}>
+            <PageViewTracker />
+          </Suspense>
+          {children}
+        </Providers>
       </body>
     </html>
   );

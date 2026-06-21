@@ -1,6 +1,14 @@
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { SITE_CONTACT } from "@/lib/site-config";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export const metadata = buildPageMetadata({
+  title: "Privacy Policy | Safar Sathi",
+  description: "How Safar Sathi collects, uses, and protects your personal data when you book tours, hotels, and vehicles.",
+  path: "/privacy",
+  noIndex: true,
+});
 
 export default function PrivacyPage() {
   return (

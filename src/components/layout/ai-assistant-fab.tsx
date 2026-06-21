@@ -7,6 +7,7 @@ import { TravelManagerPopup } from "@/components/ai/travel-manager-popup";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { trackAiAssistantOpen } from "@/lib/analytics";
 
 export function AiAssistantFab() {
   const pathname = usePathname();
@@ -26,7 +27,10 @@ export function AiAssistantFab() {
       <button
         type="button"
         aria-label={t(locale, "features", "aiAssistant")}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trackAiAssistantOpen();
+          setOpen(true);
+        }}
         className={cn(
           "fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full",
           "bg-white shadow-lg shadow-primary/25 ring-4 ring-background",

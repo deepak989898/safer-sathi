@@ -3,6 +3,16 @@ import { PageHero } from "@/components/customer/page-hero";
 import { Card, CardContent } from "@/components/ui/card";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { SITE_CONTACT } from "@/lib/site-config";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export const metadata = buildPageMetadata({
+  title: "About Safar Sathi | Trusted India Travel Partner",
+  description:
+    "Safar Sathi offers curated tour packages, hotels, and vehicles across India with 24/7 support and secure Razorpay booking.",
+  path: "/about",
+  keywords: ["about Safar Sathi", "India travel agency", "tour operator Delhi", "trusted travel partner"],
+  image: HERO_IMAGES.about,
+});
 
 const stats = [
   { label: "Happy Travelers", value: "50,000+", icon: Users },

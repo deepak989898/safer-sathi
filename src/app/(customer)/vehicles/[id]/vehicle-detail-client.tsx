@@ -20,6 +20,8 @@ import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Vehicle } from "@/types";
+import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
+import { trackBookingStarted } from "@/lib/analytics";
 import { toast } from "sonner";
 
 const MIN_KM = 50;
@@ -72,6 +74,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
 
     try {
       const title = localizedText(vehicle.name, locale);
+      trackBookingStarted("vehicle", vehicle.id, total);
       await completeCatalogBooking({
         customerName: name.trim(),
         customerEmail: email.trim(),
@@ -103,6 +106,12 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
 
   return (
     <>
+      <CatalogViewTracker
+        type="vehicle"
+        id={vehicle.id}
+        name={localizedText(vehicle.name, locale)}
+        price={vehicle.pricePerDay}
+      />
       <DetailPageHeader
         title={localizedText(vehicle.name, locale)}
         backHref="/vehicles"

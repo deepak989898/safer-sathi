@@ -21,6 +21,8 @@ import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { TourPackage } from "@/types";
+import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
+import { trackBookingStarted } from "@/lib/analytics";
 import { toast } from "sonner";
 
 export function PackageDetailClient({
@@ -57,6 +59,7 @@ export function PackageDetailClient({
 
     try {
       const title = localizedText(pkg.title, locale);
+      trackBookingStarted("package", pkg.id, total);
       await completeCatalogBooking({
         customerName: name.trim(),
         customerEmail: email.trim(),
@@ -79,6 +82,12 @@ export function PackageDetailClient({
 
   return (
     <>
+      <CatalogViewTracker
+        type="package"
+        id={pkg.slug}
+        name={localizedText(pkg.title, locale)}
+        price={pkg.price}
+      />
       <DetailPageHeader
         title={localizedText(pkg.title, locale)}
         backHref="/packages"
