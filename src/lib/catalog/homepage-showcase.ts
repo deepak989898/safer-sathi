@@ -62,7 +62,13 @@ export function toMobilePackageItems(
   );
   const merged = mergeShowcaseCatalog(packages, seed, limit);
 
-  return merged.map((pkg) => ({
+  // Always fill from full seed catalog so mobile home shows up to 20 cards
+  const filled =
+    merged.length >= limit
+      ? merged
+      : mergeShowcaseCatalog([], seed, limit);
+
+  return filled.map((pkg) => ({
     id: pkg.id,
     slug: pkg.slug,
     href: `/packages/${pkg.slug}`,
@@ -79,8 +85,10 @@ export function toMobileHotelItems(
 ): MobileShowcaseItem[] {
   const seed = getHotelsSeed().filter((h) => h.available !== false);
   const merged = mergeShowcaseCatalog(hotels, seed, limit);
+  const filled =
+    merged.length >= limit ? merged : mergeShowcaseCatalog([], seed, limit);
 
-  return merged.map((hotel) => ({
+  return filled.map((hotel) => ({
     id: hotel.id,
     slug: hotel.slug,
     href: `/hotels/${hotel.slug}`,
@@ -97,8 +105,10 @@ export function toMobileVehicleItems(
 ): MobileShowcaseItem[] {
   const seed = getVehiclesSeed().filter((v) => v.available !== false);
   const merged = mergeShowcaseCatalog(vehicles, seed, limit);
+  const filled =
+    merged.length >= limit ? merged : mergeShowcaseCatalog([], seed, limit);
 
-  return merged.map((vehicle) => ({
+  return filled.map((vehicle) => ({
     id: vehicle.id,
     slug: vehicle.id,
     href: `/vehicles/${vehicle.id}`,

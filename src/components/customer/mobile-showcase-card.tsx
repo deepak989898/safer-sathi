@@ -13,6 +13,8 @@ interface MobileShowcaseCardProps {
   price: number;
   locale: Locale;
   className?: string;
+  /** carousel = horizontal scroll strip; grid = 2-column mobile grid */
+  layout?: "carousel" | "grid";
 }
 
 export function MobileShowcaseCard({
@@ -23,12 +25,16 @@ export function MobileShowcaseCard({
   price,
   locale,
   className,
+  layout = "carousel",
 }: MobileShowcaseCardProps) {
   return (
     <Link
       href={href}
       className={cn(
-        "group relative block w-[168px] shrink-0 snap-start overflow-hidden rounded-[18px] shadow-md ring-1 ring-black/5",
+        "group relative block overflow-hidden rounded-[18px] shadow-md ring-1 ring-black/5",
+        layout === "grid"
+          ? "w-full"
+          : "w-[168px] shrink-0 snap-start",
         className
       )}
     >
@@ -37,7 +43,7 @@ export function MobileShowcaseCard({
           src={image}
           alt={title}
           fill
-          sizes="168px"
+          sizes={layout === "grid" ? "50vw" : "168px"}
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />

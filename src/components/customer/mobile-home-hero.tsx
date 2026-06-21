@@ -112,12 +112,17 @@ export function MobileHomeShowcase({
           <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
 
           <div className="mt-4">
-            <MobileShowcaseHeader title={mobileSection.title} href={mobileSection.href} />
+            <MobileShowcaseHeader
+              title={mobileSection.title}
+              href={mobileSection.href}
+              count={showcaseItems.length}
+            />
 
-            <div className="mobile-showcase-scroll -mx-4 flex flex-nowrap gap-3 overflow-x-auto px-4 pb-1">
+            <div className="grid grid-cols-2 gap-3">
               {showcaseItems.map((item) => (
                 <MobileShowcaseCard
                   key={`${mobileTab}-${item.slug}`}
+                  layout="grid"
                   href={item.href}
                   image={item.image}
                   title={item.title}
@@ -177,15 +182,22 @@ export function MobileShowcaseTabs({
 export function MobileShowcaseHeader({
   title,
   href,
+  count,
 }: {
   title: string;
   href: string;
+  count?: number;
 }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="font-serif text-xl font-bold leading-tight text-[#1e3a5f] dark:text-foreground">
-        {title}
-      </h2>
+      <div className="min-w-0">
+        <h2 className="font-serif text-xl font-bold leading-tight text-[#1e3a5f] dark:text-foreground">
+          {title}
+        </h2>
+        {count !== undefined && count > 0 ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">{count} available</p>
+        ) : null}
+      </div>
       <Link
         href={href}
         className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold shadow-sm dark:bg-card"
