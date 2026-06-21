@@ -268,8 +268,8 @@ export default function AiEnquiriesClient() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {sessions.map((session, index) => (
-              <VisitorSessionCard key={session.id} session={session} defaultOpen={index === 0} />
+            {sessions.map((session) => (
+              <VisitorSessionCard key={session.id} session={session} />
             ))}
           </div>
         )}

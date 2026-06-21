@@ -6,6 +6,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAuth } from "@/contexts/auth-context";
+import { listBookingsFromClient } from "@/lib/bookings/booking-client";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { Booking } from "@/types";
@@ -16,15 +17,39 @@ export default function BookingsAdminClient() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [loadSource, setLoadSource] = useState<"server" | "client" | null>(null);
+
   const loadBookings = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/bookings");
       const json = await res.json();
-      if (json.success) setBookings(json.data);
-      else toast.error(json.error ?? "Failed to load bookings");
+      let items: Booking[] = [];
+
+      if (json.success) {
+        items = json.data ?? [];
+      } else {
+        toast.error(json.error ?? "Failed to load bookings");
+      }
+
+      if (items.length === 0) {
+        const clientItems = await listBookingsFromClient(500);
+        if (clientItems.length > 0) {
+          items = clientItems;
+          setLoadSource("client");
+        } else {
+          setLoadSource(null);
+        }
+      } else {
+        setLoadSource("server");
+      }
+
+      setBookings(items);
     } catch {
-      toast.error("Failed to load bookings");
+      const clientItems = await listBookingsFromClient(500);
+      setBookings(clientItems);
+      setLoadSource(clientItems.length > 0 ? "client" : null);
+      if (clientItems.length === 0) toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
     }
@@ -100,6 +125,11 @@ export default function BookingsAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="p-6">
+        {loadSource === "client" && bookings.length > 0 && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Loaded via staff Firebase session (includes guest mobile bookings)
+          </p>
+        )}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading bookings...</p>
         ) : bookings.length === 0 ? (

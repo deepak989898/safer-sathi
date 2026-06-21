@@ -55,8 +55,11 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isOwner(resource.data.userId) || isStaff();
-      allow create: if isAuthenticated();
-      allow update: if isOwner(resource.data.userId) || isStaff();
+      // Guest checkout from mobile/web (same pattern as ai_assistant_enquiries)
+      allow create: if true;
+      allow update: if isStaff()
+        || isOwner(resource.data.userId)
+        || resource.data.userId == 'guest';
       allow delete: if isAdmin();
     }
 

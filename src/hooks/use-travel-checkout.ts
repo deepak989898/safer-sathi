@@ -15,6 +15,10 @@ import {
   trackPaymentSuccess,
   trackPurchase,
 } from "@/lib/analytics";
+import {
+  saveBookingToClient,
+  updateBookingPaymentOnClient,
+} from "@/lib/bookings/booking-client";
 import { toast } from "sonner";
 import type { CustomPackageQuote } from "@/types/travel-manager";
 import type { Booking, Hotel, ServiceType, Vehicle } from "@/types";
@@ -57,22 +61,39 @@ interface CreatedBooking {
   bookingNumber: string;
   amount: number;
   paidAmount?: number;
+  notes?: string;
 }
 
-async function markPaymentFailed(bookingId: string, reason: string) {
+async function persistBookingRecord(booking: Booking): Promise<void> {
+  const clientSaved = await saveBookingToClient(booking);
+  if (!clientSaved) {
+    console.warn("Client booking backup save failed for", booking.bookingNumber);
+  }
+}
+
+async function markPaymentFailed(
+  bookingId: string,
+  reason: string,
+  existingNotes?: string
+) {
+  const payload = {
+    paymentStatus: "failed" as const,
+    paymentFailureReason: reason,
+    lastPaymentAttemptAt: new Date().toISOString(),
+    notes: [existingNotes, `[Payment failed] ${reason}`].filter(Boolean).join("\n"),
+  };
+
   try {
     await fetch(`/api/bookings/${bookingId}/payment-status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        paymentStatus: "failed",
-        paymentFailureReason: reason,
-        lastPaymentAttemptAt: new Date().toISOString(),
-      }),
+      body: JSON.stringify(payload),
     });
   } catch {
-    // Best-effort — booking record already exists for admin review.
+    // Server may be unavailable — fall back to client Firestore.
   }
+
+  await updateBookingPaymentOnClient(bookingId, payload);
 }
 
 async function runPaymentForBooking(
@@ -112,7 +133,7 @@ async function runPaymentForBooking(
       detail
         ? `${orderJson.error ?? "Failed to create payment order"}: ${detail}`
         : (orderJson.error ?? "Failed to create payment order");
-    await markPaymentFailed(booking.id, message);
+    await markPaymentFailed(booking.id, message, booking.notes);
     throw new Error(message);
   }
 
@@ -138,7 +159,7 @@ async function runPaymentForBooking(
   } catch (error) {
     const reason =
       error instanceof Error ? error.message : "Payment cancelled or failed";
-    await markPaymentFailed(booking.id, reason);
+    await markPaymentFailed(booking.id, reason, booking.notes);
     trackPaymentFailed(reason, booking.id);
     throw new Error(
       `${reason} Your booking ${booking.bookingNumber} is saved — admin can follow up or you can retry payment from My Bookings.`
@@ -164,7 +185,7 @@ async function runPaymentForBooking(
   const verifyJson = await verifyRes.json();
   if (!verifyJson.success) {
     const failReason = verifyJson.error ?? "Payment verification failed";
-    await markPaymentFailed(booking.id, failReason);
+    await markPaymentFailed(booking.id, failReason, booking.notes);
     trackPaymentFailed(failReason, booking.id);
     throw new Error(
       `${failReason}. Booking ${booking.bookingNumber} is saved for admin review.`
@@ -266,8 +287,11 @@ export function useTravelCheckout() {
         );
       }
 
+      const created = bookingJson.data as Booking;
+      await persistBookingRecord(created);
+
       return runPaymentForBooking(
-        { ...bookingJson.data, amount },
+        { ...created, amount },
         amount,
         payAmount,
         serviceNameEn,
@@ -325,8 +349,11 @@ export function useTravelCheckout() {
         );
       }
 
+      const created = bookingJson.data as Booking;
+      await persistBookingRecord(created);
+
       return runPaymentForBooking(
-        { ...bookingJson.data, amount: input.amount },
+        { ...created, amount: input.amount },
         input.amount,
         payAmount,
         input.serviceName.en,
