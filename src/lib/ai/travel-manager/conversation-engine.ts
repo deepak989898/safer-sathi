@@ -140,6 +140,96 @@ function hotelCheckOutPrompt(checkIn: string, locale: Locale): string {
     : `✅ Check-in: ${display}\n\n📅 Check-out — use the calendar, tap nights below, or type a date (e.g. 25 Aug):`;
 }
 
+const HOTEL_BUDGET_TIERS = ["2000", "5000", "10000", "luxury"] as const;
+
+export function hotelBudgetQuickReplies(locale: Locale): QuickReply[] {
+  return [
+    {
+      id: "hb-all",
+      label: locale === "hi" ? "सभी होटल" : "All Hotels",
+      value: "__hotel_budget_all__",
+    },
+    { id: "hb-2", label: "₹2,000", value: "2000" },
+    { id: "hb-5", label: "₹5,000", value: "5000" },
+    { id: "hb-10", label: "₹10,000", value: "10000" },
+    { id: "hb-l", label: locale === "hi" ? "लक्ज़री" : "Luxury", value: "luxury" },
+    {
+      id: "hb-up",
+      label: locale === "hi" ? "बजट बढ़ाएं" : "Higher Budget",
+      value: "__hotel_budget_increase__",
+    },
+  ];
+}
+
+function resolveHotelBudgetInput(
+  text: string,
+  currentTier?: string
+): { tier?: string; clear?: boolean; increase?: boolean } | null {
+  if (text === "__hotel_budget_all__" || text === "skip" || text === "__skip_budget__") {
+    return { clear: true };
+  }
+  if (text === "__hotel_budget_increase__") {
+    return { increase: true };
+  }
+  if (HOTEL_BUDGET_TIERS.includes(text as (typeof HOTEL_BUDGET_TIERS)[number])) {
+    return { tier: text };
+  }
+
+  const lower = text.toLowerCase();
+  if (/^(2000|5000|10000)$/.test(lower.replace(/,/g, ""))) {
+    return { tier: lower.replace(/,/g, "") };
+  }
+  if (/luxury|लक्ज़री|लक्जरी/.test(lower)) {
+    return { tier: "luxury" };
+  }
+  if (/increase|badha|badh|zyada|higher|बढ़|बढा|budget increase|budged increase/i.test(lower)) {
+    return { increase: true };
+  }
+  if (/show all|all hotel|sab hotel|सभी|without budget|no filter|skip budget/i.test(lower)) {
+    return { clear: true };
+  }
+  return null;
+}
+
+function applyHotelBudgetInput(
+  state: TravelManagerState,
+  text: string
+): TravelManagerState {
+  const next = { ...state };
+  const resolved = resolveHotelBudgetInput(text, state.hotelBudgetTier);
+  if (!resolved) return next;
+
+  if (resolved.clear) {
+    delete next.hotelBudgetTier;
+    return next;
+  }
+  if (resolved.increase) {
+    const idx = state.hotelBudgetTier
+      ? HOTEL_BUDGET_TIERS.indexOf(state.hotelBudgetTier as (typeof HOTEL_BUDGET_TIERS)[number])
+      : -1;
+    const nextTier = HOTEL_BUDGET_TIERS[idx + 1];
+    if (nextTier) next.hotelBudgetTier = nextTier;
+    else delete next.hotelBudgetTier;
+    return next;
+  }
+  if (resolved.tier) {
+    next.hotelBudgetTier = resolved.tier;
+  }
+  return next;
+}
+
+function hotelResultsReply(locale: Locale, destination?: string, hasFilter?: boolean): string {
+  const dest = destination ?? "";
+  if (hasFilter) {
+    return locale === "hi"
+      ? `🏨 ${dest} — फ़िल्टर किए होटल। बुक करने के लिए कार्ड टैप करें। बजट बदलने के लिए नीचे चुनें:`
+      : `🏨 ${dest} — filtered hotels. Tap a card to book. Change budget below:`;
+  }
+  return locale === "hi"
+    ? `🏨 ${dest} के होटल (लाइव कीमतें)। बुक करने के लिए कार्ड टैप करें — चाहें तो नीचे से बजट फ़िल्टर करें:`
+    : `🏨 Hotels in ${dest} (live prices). Tap a card to book — filter by budget below if you like:`;
+}
+
 function parseDestination(text: string): string | null {
   const q = text.toLowerCase();
   for (const [key, val] of Object.entries(DESTINATIONS)) {
@@ -556,29 +646,24 @@ export function processConversationInput(
     case "guests": {
       next.guests = parsedGuests ?? ((text === "5+" ? 6 : Number(text)) || 2);
       if (next.intent === "hotel_only") {
-        next.step = "hotel_budget";
+        next.step = "hotel_results";
         return {
           state: next,
-          reply: t("Hotel budget per night?", "प्रति रात बजट?", locale),
-          quickReplies: [
-            { id: "hb-2", label: "₹2,000", value: "2000" },
-            { id: "hb-5", label: "₹5,000", value: "5000" },
-            { id: "hb-10", label: "₹10,000", value: "10000" },
-            { id: "hb-l", label: "Luxury", value: "luxury" },
-          ],
-          nextStep: "hotel_budget",
+          reply: hotelResultsReply(locale, next.destination, false),
+          quickReplies: hotelBudgetQuickReplies(locale),
+          nextStep: "hotel_results",
         };
       }
       return durationStepTransition(next, locale);
     }
 
     case "hotel_budget": {
-      next.hotelBudgetTier = text;
-      next.step = "hotel_results";
+      const withBudget = applyHotelBudgetInput(next, text);
+      withBudget.step = "hotel_results";
       return {
-        state: next,
-        reply: t("Hotels (live prices):", "होटल (लाइव कीमतें):", locale),
-        quickReplies: [],
+        state: withBudget,
+        reply: hotelResultsReply(locale, withBudget.destination, Boolean(withBudget.hotelBudgetTier)),
+        quickReplies: hotelBudgetQuickReplies(locale),
         nextStep: "hotel_results",
       };
     }
@@ -631,24 +716,70 @@ export function processConversationInput(
         nextStep: "customize",
       };
 
-    case "hotel_results":
-    case "vehicle_results": {
+    case "hotel_results": {
       if (text.startsWith("book_hotel:")) {
         next.selectedHotelId = text.replace("book_hotel:", "");
-      } else if (text.startsWith("book_vehicle:")) {
-        next.selectedVehicleId = text.replace("book_vehicle:", "");
-      } else {
         next.step = "booking_form";
+        return {
+          state: next,
+          reply: t(
+            "Share booking details — Name, Email, Phone, Travel Date:",
+            "बुकिंग विवरण — नाम, ईमेल, फ़ोन, यात्रा तिथि:",
+            locale
+          ),
+          quickReplies: [],
+          nextStep: "booking_form",
+        };
+      }
+
+      const budgetResolved = resolveHotelBudgetInput(text, next.hotelBudgetTier);
+      if (budgetResolved) {
+        const withBudget = applyHotelBudgetInput(next, text);
+        withBudget.step = "hotel_results";
+        return {
+          state: withBudget,
+          reply: hotelResultsReply(locale, withBudget.destination, Boolean(withBudget.hotelBudgetTier)),
+          quickReplies: hotelBudgetQuickReplies(locale),
+          nextStep: "hotel_results",
+        };
+      }
+
+      return {
+        state: next,
+        reply: t(
+          "Tap a hotel card to book, or choose a budget filter below.",
+          "बुक करने के लिए होटल कार्ड टैप करें, या नीचे से बजट फ़िल्टर चुनें।",
+          locale
+        ),
+        quickReplies: hotelBudgetQuickReplies(locale),
+        nextStep: "hotel_results",
+      };
+    }
+
+    case "vehicle_results": {
+      if (text.startsWith("book_vehicle:")) {
+        next.selectedVehicleId = text.replace("book_vehicle:", "");
+        next.step = "booking_form";
+        return {
+          state: next,
+          reply: t(
+            "Share booking details — Name, Email, Phone, Travel Date:",
+            "बुकिंग विवरण — नाम, ईमेल, फ़ोन, यात्रा तिथि:",
+            locale
+          ),
+          quickReplies: [],
+          nextStep: "booking_form",
+        };
       }
       return {
         state: next,
         reply: t(
-          "Share booking details — Name, Email, Phone, Travel Date:",
-          "बुकिंग विवरण — नाम, ईमेल, फ़ोन, यात्रा तिथि:",
+          "Tap a vehicle card to book.",
+          "बुक करने के लिए वाहन कार्ड टैप करें।",
           locale
         ),
         quickReplies: [],
-        nextStep: "booking_form",
+        nextStep: "vehicle_results",
       };
     }
 
@@ -847,13 +978,17 @@ export function getStepUiForState(
       };
     case "hotel_budget":
       return {
-        reply: t("Hotel budget per night?", "प्रति रात बजट?", locale),
-        quickReplies: [
-          { id: "hb-2", label: "₹2,000", value: "2000" },
-          { id: "hb-5", label: "₹5,000", value: "5000" },
-          { id: "hb-10", label: "₹10,000", value: "10000" },
-          { id: "hb-l", label: "Luxury", value: "luxury" },
-        ],
+        reply: t(
+          "Filter hotels by budget (optional):",
+          "बजट से होटल फ़िल्टर करें (वैकल्पिक):",
+          locale
+        ),
+        quickReplies: hotelBudgetQuickReplies(locale),
+      };
+    case "hotel_results":
+      return {
+        reply: hotelResultsReply(locale, state.destination, Boolean(state.hotelBudgetTier)),
+        quickReplies: hotelBudgetQuickReplies(locale),
       };
     default:
       return {

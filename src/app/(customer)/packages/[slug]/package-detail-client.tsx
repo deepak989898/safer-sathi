@@ -162,8 +162,182 @@ export function PackageDetailClient({
           <span className="font-medium text-foreground">{title}</span>
         </nav>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-          <PackageImageGallery images={pkg.images} alt={title} />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+          <div className="min-w-0 space-y-3">
+            <PackageImageGallery images={pkg.images} alt={title} />
+
+            <Tabs defaultValue="overview" className="min-w-0">
+              <TabsList className="h-auto w-full flex-wrap justify-start gap-0.5 border-b bg-transparent p-0">
+                {[
+                  { id: "overview", label: "Overview" },
+                  { id: "itinerary", label: "Itinerary" },
+                  { id: "inclusions", label: "Inclusions" },
+                  { id: "exclusions", label: "Exclusions" },
+                  { id: "hotels", label: "Hotels" },
+                  { id: "reviews", label: "Reviews" },
+                ].map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className={cn(
+                      "rounded-none border-b-2 border-transparent px-3 py-2 text-sm data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    )}
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="min-w-0">
+                  <TabsContent value="overview" className="mt-0 space-y-3">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {localizedText(pkg.description, locale)}
+                    </p>
+                    {pkg.transport && (
+                      <div className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3">
+                        <Bus className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <div>
+                          <h3 className="text-sm font-semibold">Transport</h3>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            {localizedText(pkg.transport, locale)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {highlights.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 text-base font-semibold text-[#0c2444]">Highlights</h3>
+                        <ul className="grid gap-1.5 sm:grid-cols-2">
+                          {highlights.map((item) => (
+                            <li key={item} className="flex items-start gap-2 text-sm">
+                              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="mb-1.5 text-sm font-semibold">Activities</h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pkg.activities.map((a) => (
+                          <Badge key={a} variant="secondary" className="text-xs">
+                            {a}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="itinerary" className="mt-0 space-y-2">
+                    {pkg.itinerary.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Detailed itinerary coming soon.</p>
+                    ) : (
+                      pkg.itinerary.map((day) => (
+                        <div key={day.day} className="rounded-lg border p-3">
+                          <h4 className="text-sm font-semibold text-primary">
+                            Day {day.day}: {localizedText(day.title, locale)}
+                          </h4>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {localizedText(day.description, locale)}
+                          </p>
+                          {day.activities.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {day.activities.map((a) => (
+                                <Badge key={a} variant="outline" className="text-xs">
+                                  {a}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="inclusions" className="mt-0">
+                    <ul className="space-y-1.5">
+                      {pkg.inclusions.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
+                          {localizedText(item, locale)}
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+
+                  <TabsContent value="exclusions" className="mt-0">
+                    <ul className="space-y-1.5">
+                      {pkg.exclusions.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                          {localizedText(item, locale)}
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+
+                  <TabsContent value="hotels" className="mt-0">
+                    <ul className="space-y-1.5">
+                      {pkg.hotels.map((h) => (
+                        <li
+                          key={h}
+                          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                        >
+                          <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          {h}
+                        </li>
+                      ))}
+                    </ul>
+                    {pkg.meals.length > 0 && (
+                      <div className="mt-3">
+                        <h3 className="mb-1.5 text-sm font-semibold">Meals</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {pkg.meals.map((meal) => (
+                            <Badge key={meal} variant="outline" className="text-xs">
+                              {meal}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="reviews" className="mt-0">
+                    <div className="rounded-lg border bg-card p-4 text-center">
+                      <RatingStars rating={pkg.rating} reviewCount={pkg.reviewCount} />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Verified reviews from travelers who booked this package.
+                      </p>
+                      <Link href="/reviews" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 inline-flex")}>
+                        Read all reviews
+                      </Link>
+                    </div>
+                  </TabsContent>
+                </div>
+
+                <aside className="hidden lg:block">
+                  <Card className="sticky top-24">
+                    <CardHeader className="pb-2 pt-4">
+                      <CardTitle className="text-sm font-semibold">Trip Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 pb-4 text-sm">
+                      <TripInfoRow label="Best Time to Visit" value={getBestTime(pkg.category)} />
+                      <TripInfoRow label="Package Type" value={getTourCategoryLabel(pkg.category)} />
+                      <TripInfoRow label="Tour Category" value={pkg.category} className="capitalize" />
+                      <TripInfoRow label="Difficulty Level" value={getDifficulty(pkg.category)} />
+                      <TripInfoRow
+                        label="Cancellation Policy"
+                        value="Free cancellation up to 7 days before travel"
+                      />
+                      <TripInfoRow label="Duration" value={localizedText(pkg.durationLabel, locale)} />
+                    </CardContent>
+                  </Card>
+                </aside>
+              </div>
+            </Tabs>
+          </div>
 
           <div className="lg:sticky lg:top-24 lg:self-start">
             <Card id="package-booking-form" className="overflow-hidden shadow-md">
@@ -342,178 +516,6 @@ export function PackageDetailClient({
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        <div className="mt-10">
-          <Tabs defaultValue="overview">
-            <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-              {[
-                { id: "overview", label: "Overview" },
-                { id: "itinerary", label: "Itinerary" },
-                { id: "inclusions", label: "Inclusions" },
-                { id: "exclusions", label: "Exclusions" },
-                { id: "hotels", label: "Hotels" },
-                { id: "reviews", label: "Reviews" },
-              ].map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className={cn(
-                    "rounded-none border-b-2 border-transparent px-4 py-2.5 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  )}
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-              <div>
-                <TabsContent value="overview" className="mt-0 space-y-6">
-                  <p className="leading-relaxed text-muted-foreground">
-                    {localizedText(pkg.description, locale)}
-                  </p>
-                  {pkg.transport && (
-                    <div className="flex items-start gap-2 rounded-xl border bg-muted/30 p-4">
-                      <Bus className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <div>
-                        <h3 className="font-semibold">Transport</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {localizedText(pkg.transport, locale)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {highlights.length > 0 && (
-                    <div>
-                      <h3 className="mb-3 text-lg font-semibold text-[#0c2444]">Highlights</h3>
-                      <ul className="grid gap-2 sm:grid-cols-2">
-                        {highlights.map((item) => (
-                          <li key={item} className="flex items-start gap-2 text-sm">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="mb-2 font-semibold">Activities</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {pkg.activities.map((a) => (
-                        <Badge key={a} variant="secondary">
-                          {a}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="itinerary" className="mt-0 space-y-4">
-                  {pkg.itinerary.length === 0 ? (
-                    <p className="text-muted-foreground">Detailed itinerary coming soon.</p>
-                  ) : (
-                    pkg.itinerary.map((day) => (
-                      <div key={day.day} className="rounded-xl border p-4">
-                        <h4 className="font-semibold text-primary">
-                          Day {day.day}: {localizedText(day.title, locale)}
-                        </h4>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {localizedText(day.description, locale)}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {day.activities.map((a) => (
-                            <Badge key={a} variant="outline" className="text-xs">
-                              {a}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </TabsContent>
-
-                <TabsContent value="inclusions" className="mt-0">
-                  <ul className="space-y-2.5">
-                    {pkg.inclusions.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                        {localizedText(item, locale)}
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-
-                <TabsContent value="exclusions" className="mt-0">
-                  <ul className="space-y-2.5">
-                    {pkg.exclusions.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <X className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                        {localizedText(item, locale)}
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-
-                <TabsContent value="hotels" className="mt-0">
-                  <ul className="space-y-2">
-                    {pkg.hotels.map((h) => (
-                      <li
-                        key={h}
-                        className="flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm"
-                      >
-                        <Check className="h-4 w-4 shrink-0 text-primary" />
-                        {h}
-                      </li>
-                    ))}
-                  </ul>
-                  {pkg.meals.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="mb-2 font-semibold">Meals</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {pkg.meals.map((meal) => (
-                          <Badge key={meal} variant="outline">
-                            {meal}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="reviews" className="mt-0">
-                  <div className="rounded-xl border bg-card p-6 text-center">
-                    <RatingStars rating={pkg.rating} reviewCount={pkg.reviewCount} />
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Verified reviews from travelers who booked this package.
-                    </p>
-                    <Link href="/reviews" className={cn(buttonVariants({ variant: "outline" }), "mt-4 inline-flex")}>
-                      Read all reviews
-                    </Link>
-                  </div>
-                </TabsContent>
-              </div>
-
-              <aside className="hidden lg:block">
-                <Card className="sticky top-24">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Trip Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <TripInfoRow label="Best Time to Visit" value={getBestTime(pkg.category)} />
-                    <TripInfoRow label="Package Type" value={getTourCategoryLabel(pkg.category)} />
-                    <TripInfoRow label="Tour Category" value={pkg.category} className="capitalize" />
-                    <TripInfoRow label="Difficulty Level" value={getDifficulty(pkg.category)} />
-                    <TripInfoRow
-                      label="Cancellation Policy"
-                      value="Free cancellation up to 7 days before travel"
-                    />
-                    <TripInfoRow label="Duration" value={localizedText(pkg.durationLabel, locale)} />
-                  </CardContent>
-                </Card>
-              </aside>
-            </div>
-          </Tabs>
         </div>
 
         {relatedPackages.length > 0 && (

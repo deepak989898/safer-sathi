@@ -12,6 +12,7 @@ import {
 import {
   getStepUiForState,
   getWelcomeMessage,
+  hotelBudgetQuickReplies,
   initialTravelManagerState,
   processConversationInput,
 } from "@/lib/ai/travel-manager/conversation-engine";
@@ -173,11 +174,30 @@ async function buildStepPayload(
 
   if (state.step === "hotel_results" && state.destination) {
     hotels = await searchHotelsForDestination(state.destination, state.hotelBudgetTier);
-    if (hotels.length === 0) {
+    if (hotels.length === 0 && state.hotelBudgetTier) {
+      hotels = await searchHotelsForDestination(state.destination, undefined);
+      if (hotels.length > 0) {
+        reply =
+          locale === "hi"
+            ? `इस बजट में होटल नहीं मिला। ${state.destination} के सभी उपलब्ध होटल दिखा रहे हैं — नीचे से बजट बढ़ाएं या फ़िल्टर बदलें:`
+            : `No hotels in this budget. Showing all available hotels in ${state.destination} — tap below to adjust budget:`;
+        quickReplies = hotelBudgetQuickReplies(locale);
+      } else {
+        reply =
+          locale === "hi"
+            ? `${state.destination} में कोई होटल नहीं मिला। दूसरा शहर आज़माएं।`
+            : `No hotels found in ${state.destination}. Try another city.`;
+        quickReplies = getStepUiForState(state, locale).quickReplies;
+      }
+    } else if (hotels.length === 0) {
       reply =
         locale === "hi"
-          ? "कोई होटल नहीं मिला। दूसरा शहर आज़माएं।"
-          : "No hotels found. Try another city.";
+          ? `${state.destination} में कोई होटल नहीं मिला। दूसरा शहर आज़माएं।`
+          : `No hotels found in ${state.destination}. Try another city.`;
+      quickReplies = getStepUiForState(state, locale).quickReplies;
+    }
+    if (hotels.length > 0 && quickReplies.length === 0) {
+      quickReplies = hotelBudgetQuickReplies(locale);
     }
   }
 
@@ -233,7 +253,9 @@ export async function runTravelManager(
     "hotel_destination",
     "hotel_dates",
     "hotel_budget",
+    "hotel_results",
     "vehicle_passengers",
+    "vehicle_results",
     "booking_form",
   ];
   const skipEnrich =
