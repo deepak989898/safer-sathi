@@ -1,12 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DetailPageHeader } from "@/components/customer/detail-page-header";
-import { ImageAutoSlider } from "@/components/ui/image-auto-slider";
-import { Calendar, Check, Fuel, Loader2, MapPin, Route, Users } from "lucide-react";
+import { PackageImageGallery } from "@/components/customer/package-image-gallery";
+import {
+  Calendar,
+  Check,
+  ChevronRight,
+  Fuel,
+  Loader2,
+  MapPin,
+  Route,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +32,7 @@ import type { Vehicle } from "@/types";
 import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
 import { trackBookingStarted } from "@/lib/analytics";
 import { toast } from "sonner";
-import { VehiclePricingPanel } from "@/components/vehicles/vehicle-pricing-panel";
-import { getEffectivePricePerKm } from "@/lib/vehicles/capacity";
+import { cn } from "@/lib/utils";
 import {
   calculateBillableKmFromOneWay,
   getVehicleDayInclusions,
@@ -33,6 +41,25 @@ import {
 } from "@/lib/vehicles/pricing-policy";
 
 const MIN_ONE_WAY_KM = 50;
+
+function InfoRow({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-2 last:border-0 last:pb-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn("max-w-[58%] text-right font-medium text-[#0c2444]", className)}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const { locale } = useAppStore();
@@ -51,6 +78,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const submitting = paying;
 
+  const title = localizedText(vehicle.name, locale);
   const pricePerKm = vehicle.pricePerKm ?? Math.round(vehicle.pricePerDay / 200);
 
   const days = useMemo(() => {
@@ -72,6 +100,11 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
   const total = bookingMode === "km" ? kmTotal : dayTotal;
   const payNow = calculatePayNowAmount(total, paymentPlan);
 
+  const canBook =
+    bookingMode === "day"
+      ? Boolean(startDate && endDate)
+      : Boolean(startDate && oneWayKm >= MIN_ONE_WAY_KM);
+
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
       toast.error("Please fill name, email and phone");
@@ -83,7 +116,6 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
     }
 
     try {
-      const title = localizedText(vehicle.name, locale);
       trackBookingStarted("vehicle", vehicle.id, total);
       await completeCatalogBooking({
         customerName: name.trim(),
@@ -109,100 +141,217 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
     }
   };
 
-  const canBook =
-    bookingMode === "day"
-      ? Boolean(startDate && endDate)
-      : Boolean(startDate && oneWayKm >= MIN_ONE_WAY_KM);
+  const categoryLabel = vehicle.category ?? vehicle.type.replace("_", " ");
 
   return (
     <>
       <CatalogViewTracker
         type="vehicle"
         id={vehicle.id}
-        name={localizedText(vehicle.name, locale)}
+        name={title}
         price={vehicle.pricePerDay}
       />
-      <DetailPageHeader
-        title={localizedText(vehicle.name, locale)}
-        backHref="/vehicles"
-        backLabel="Back to Vehicles"
-      />
-      <section className="container mx-auto px-4 py-10">
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-6">
-            <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
-              <ImageAutoSlider
-                images={vehicle.images}
-                alt={localizedText(vehicle.name, locale)}
-                sizes="100vw"
-              />
-            </div>
 
-            <div>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold md:text-3xl">
-                    {localizedText(vehicle.name, locale)}
-                  </h1>
-                  <p className="mt-1 flex items-center gap-1 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {vehicle.location}
-                  </p>
+      <section className="container mx-auto px-4 py-6 md:py-10">
+        <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-primary">
+            Home
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <Link href="/vehicles" className="hover:text-primary">
+            Vehicles
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="font-medium text-foreground">{title}</span>
+        </nav>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+          <div className="min-w-0 space-y-3">
+            <PackageImageGallery images={vehicle.images} alt={title} />
+
+            <Tabs defaultValue="overview" className="min-w-0">
+              <TabsList className="h-auto w-full flex-wrap justify-start gap-0.5 border-b bg-transparent p-0">
+                {[
+                  { id: "overview", label: "Overview" },
+                  { id: "features", label: "Features" },
+                  { id: "pricing", label: "Pricing" },
+                  { id: "reviews", label: "Reviews" },
+                ].map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className={cn(
+                      "rounded-none border-b-2 border-transparent px-3 py-2 text-sm data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    )}
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="min-w-0">
+                  <TabsContent value="overview" className="mt-0 space-y-3">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {localizedText(vehicle.description, locale)}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {vehicle.brand && (
+                        <Badge variant="outline" className="text-xs">
+                          {vehicle.brand}
+                        </Badge>
+                      )}
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {categoryLabel}
+                      </Badge>
+                      {vehicle.driverIncluded && (
+                        <Badge className="text-xs">Driver Included</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      {vehicle.location}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="features" className="mt-0">
+                    <ul className="grid gap-1.5 sm:grid-cols-2">
+                      {vehicle.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-sm">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+
+                  <TabsContent value="pricing" className="mt-0 space-y-3">
+                    <div className="rounded-lg border p-3">
+                      <h4 className="text-sm font-semibold text-[#0c2444]">Per Day Rental</h4>
+                      <p className="mt-1 text-lg font-bold text-primary">
+                        {formatCurrency(vehicle.pricePerDay, locale)}
+                        <span className="text-sm font-normal text-muted-foreground"> / day</span>
+                      </p>
+                      <ul className="mt-2 space-y-1">
+                        {getVehicleDayInclusions(locale, vehicle, pricePerKm).map((line) => (
+                          <li
+                            key={line}
+                            className="flex items-start gap-2 text-xs text-muted-foreground"
+                          >
+                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <h4 className="text-sm font-semibold text-[#0c2444]">Per KM Rental</h4>
+                      <p className="mt-1 text-lg font-bold text-primary">
+                        {formatCurrency(pricePerKm, locale)}
+                        <span className="text-sm font-normal text-muted-foreground"> / km</span>
+                      </p>
+                      <ul className="mt-2 space-y-1">
+                        {getVehicleKmInclusions(locale, vehicle, pricePerKm).map((line) => (
+                          <li
+                            key={line}
+                            className="flex items-start gap-2 text-xs text-muted-foreground"
+                          >
+                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="reviews" className="mt-0">
+                    <div className="rounded-lg border bg-card p-4 text-center">
+                      <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Verified reviews from travelers who rented this vehicle.
+                      </p>
+                      <Link
+                        href="/reviews"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 inline-flex")}
+                      >
+                        Read all reviews
+                      </Link>
+                    </div>
+                  </TabsContent>
                 </div>
-                <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
-              </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {vehicle.brand && (
-                  <Badge variant="outline">{vehicle.brand}</Badge>
-                )}
-                <Badge variant="secondary" className="capitalize">
-                  {vehicle.category ?? vehicle.type.replace("_", " ")}
-                </Badge>
-                <Badge variant="secondary">
-                  <Users className="mr-1 h-3 w-3" />
-                  {vehicle.seats} seats
-                </Badge>
-                <Badge variant="secondary">
-                  <Fuel className="mr-1 h-3 w-3" />
-                  {vehicle.fuelType}
-                </Badge>
-                {vehicle.driverIncluded && <Badge>Driver Included</Badge>}
+                <aside className="hidden lg:block">
+                  <Card className="sticky top-24">
+                    <CardHeader className="pb-2 pt-4">
+                      <CardTitle className="text-sm font-semibold">Vehicle Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 pb-4 text-sm">
+                      <InfoRow label="Seats" value={`${vehicle.seats} passengers`} />
+                      <InfoRow label="Fuel Type" value={vehicle.fuelType} />
+                      <InfoRow label="Category" value={categoryLabel} className="capitalize" />
+                      <InfoRow
+                        label="Driver"
+                        value={vehicle.driverIncluded ? "Included" : "On request"}
+                      />
+                      <InfoRow label="Location" value={vehicle.location} />
+                      <InfoRow
+                        label="Per Day"
+                        value={formatCurrency(vehicle.pricePerDay, locale)}
+                      />
+                      <InfoRow label="Per KM" value={formatCurrency(pricePerKm, locale)} />
+                    </CardContent>
+                  </Card>
+                </aside>
               </div>
-
-              <p className="mt-6 leading-relaxed text-muted-foreground">
-                {localizedText(vehicle.description, locale)}
-              </p>
-
-              <div className="mt-6">
-                <h3 className="font-semibold">Features</h3>
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {vehicle.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm">
-                      <Check className="h-4 w-4 text-primary" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            </Tabs>
           </div>
 
           <div className="lg:sticky lg:top-24 lg:self-start">
-            <Card>
-              <CardHeader>
-                <CardTitle>Book this vehicle</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(vehicle.pricePerDay, locale)} / day ·{" "}
-                  {formatCurrency(pricePerKm, locale)} / km
-                </p>
+            <Card id="vehicle-booking-form" className="overflow-hidden shadow-md">
+              <CardHeader className="space-y-4 border-b bg-muted/20 pb-5">
+                <div className="space-y-2">
+                  <CardTitle className="text-xl leading-snug text-[#0c2444] md:text-2xl">
+                    {title}
+                  </CardTitle>
+                  <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
+                </div>
+
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2.5">
+                    <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                    {vehicle.location}
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Users className="h-4 w-4 shrink-0 text-primary" />
+                    {vehicle.seats} seats
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Fuel className="h-4 w-4 shrink-0 text-primary" />
+                    {vehicle.fuelType}
+                    {vehicle.driverIncluded ? " · Driver included" : ""}
+                  </li>
+                </ul>
+
+                <div className="border-t pt-4">
+                  <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
+                  <p className="text-2xl font-bold text-[#0c2444]">
+                    {formatCurrency(vehicle.pricePerDay, locale)}
+                    <span className="text-sm font-normal text-muted-foreground"> / day</span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    or {formatCurrency(pricePerKm, locale)} / km
+                  </p>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+
+              <CardContent className="space-y-4 pt-5">
+                <p className="text-sm font-medium text-[#0c2444]">Booking details</p>
                 <div>
                   <Label>Full Name</Label>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
                     className="mt-1.5"
                   />
                 </div>
@@ -212,6 +361,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@email.com"
                     className="mt-1.5"
                   />
                 </div>
@@ -221,6 +371,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    placeholder="10-digit mobile"
                     className="mt-1.5"
                   />
                 </div>
@@ -234,15 +385,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     <TabsTrigger value="km">Per KM</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="day" className="mt-4 space-y-4">
-                    <ul className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
-                      {getVehicleDayInclusions(locale, vehicle, pricePerKm).map((line) => (
-                        <li key={line} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
+                  <TabsContent value="day" className="mt-3 space-y-3">
                     <div>
                       <Label>Pick-up Date</Label>
                       <Input
@@ -263,15 +406,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="km" className="mt-4 space-y-4">
-                    <ul className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
-                      {getVehicleKmInclusions(locale, vehicle, pricePerKm).map((line) => (
-                        <li key={line} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
+                  <TabsContent value="km" className="mt-3 space-y-3">
                     <div>
                       <Label>Travel Date</Label>
                       <Input
@@ -292,9 +427,8 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                         className="mt-1.5"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Round trip: {oneWayKm * 2} km (go + return) · billed{" "}
-                        {billableKm} km minimum {VEHICLE_MIN_KM_ROUND_TRIP} km ·{" "}
-                        {formatCurrency(pricePerKm, locale)}/km
+                        Round trip: {oneWayKm * 2} km · billed {billableKm} km (min{" "}
+                        {VEHICLE_MIN_KM_ROUND_TRIP} km)
                       </p>
                     </div>
                   </TabsContent>
@@ -311,7 +445,6 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                     className="mt-1.5"
                   />
                 </div>
-
                 <div>
                   <Label>Special Request</Label>
                   <Textarea
@@ -335,9 +468,6 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                       <span className="flex items-center gap-1">
                         <Route className="h-3.5 w-3.5" />
                         {formatCurrency(pricePerKm, locale)} × {billableKm} km
-                        <span className="block text-[10px] font-normal text-muted-foreground">
-                          ({oneWayKm} km one-way × 2, min {VEHICLE_MIN_KM_ROUND_TRIP} km)
-                        </span>
                       </span>
                       <span>{formatCurrency(kmTotal, locale)}</span>
                     </div>
@@ -362,7 +492,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
                 />
 
                 <Button
-                  className="w-full"
+                  className="w-full bg-[#f97316] hover:bg-[#ea580c]"
                   size="lg"
                   disabled={!canBook || submitting}
                   onClick={handleBook}

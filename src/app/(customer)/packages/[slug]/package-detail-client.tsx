@@ -13,7 +13,6 @@ import {
   Clock,
   Loader2,
   MapPin,
-  MessageCircle,
   Users,
   X,
 } from "lucide-react";
@@ -134,10 +133,6 @@ export function PackageDetailClient({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Booking failed");
     }
-  };
-
-  const scrollToBooking = () => {
-    document.getElementById("package-booking-form")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -390,30 +385,6 @@ export function PackageDetailClient({
                     </div>
                   )}
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="bg-[#f97316] hover:bg-[#ea580c]"
-                    disabled={submitting || !startDate}
-                    onClick={handleBook}
-                  >
-                    {submitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Calendar className="mr-2 h-4 w-4" />
-                    )}
-                    {t(locale, "common", "bookNow")}
-                  </Button>
-                  <Link
-                    href={`/contact?subject=${encodeURIComponent(title)}`}
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Enquire Now
-                  </Link>
-                </div>
               </CardHeader>
 
               <CardContent className="space-y-4 pt-5">
@@ -506,13 +477,6 @@ export function PackageDetailClient({
                   )}
                   {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
                 </Button>
-                <button
-                  type="button"
-                  onClick={scrollToBooking}
-                  className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
-                >
-                  Fill details above to complete booking
-                </button>
               </CardContent>
             </Card>
           </div>
