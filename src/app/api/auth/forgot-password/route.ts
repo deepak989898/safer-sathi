@@ -2,15 +2,15 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { deliverPasswordResetEmail } from "@/lib/email/password-reset-mail";
 import { isResendConfigured } from "@/lib/email/resend";
 import { isSmtpConfigured } from "@/lib/email/smtp";
-import { getAdminAuth, isAdminConfigured } from "@/lib/firebase/admin";
+import { getSafeFirebaseAdmin, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { appUrl } from "@/lib/site-config";
+import type { Auth } from "firebase-admin/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-async function generateResetLink(email: string): Promise<string> {
-  const auth = getAdminAuth();
+async function generateResetLink(auth: Auth, email: string): Promise<string> {
   const candidates = [
     appUrl("/login?reset=done"),
     "https://www.thesafarsathi.com/login?reset=done",
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       return apiError("Please enter a valid email address.", 400);
     }
 
-    if (!isAdminConfigured()) {
+    if (!isAdminEnvConfigured()) {
       return apiSuccess({
         sent: false,
         delivery: "firebase_client_fallback",
@@ -53,9 +53,30 @@ export async function POST(request: Request) {
       });
     }
 
+    const admin = await getSafeFirebaseAdmin();
+    if (!admin) {
+      return apiSuccess({
+        sent: false,
+        delivery: "firebase_client_fallback",
+        message: "Firebase Admin unavailable on server.",
+      });
+    }
+
+    let auth: Auth;
+    try {
+      auth = admin.getAdminAuth();
+    } catch (error) {
+      console.error("Firebase Admin auth init failed:", error);
+      return apiSuccess({
+        sent: false,
+        delivery: "firebase_client_fallback",
+        message: "Firebase Admin auth unavailable.",
+      });
+    }
+
     let userExists = false;
     try {
-      await getAdminAuth().getUserByEmail(email);
+      await auth.getUserByEmail(email);
       userExists = true;
     } catch {
       userExists = false;
@@ -68,8 +89,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const resetLink = await generateResetLink(email);
-
     if (!isResendConfigured() && !isSmtpConfigured()) {
       return apiSuccess({
         sent: false,
@@ -77,6 +96,8 @@ export async function POST(request: Request) {
         message: "No server email provider configured.",
       });
     }
+
+    const resetLink = await generateResetLink(auth, email);
 
     try {
       const result = await deliverPasswordResetEmail({ to: email, resetLink });
@@ -99,7 +120,7 @@ export async function POST(request: Request) {
       const detail =
         deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
       return apiError(
-        `Email delivery failed: ${detail}. Add RESEND_API_KEY on Vercel (recommended) or verify GoDaddy SMTP.`,
+        `Email delivery failed: ${detail}. Add RESEND_API_KEY on Vercel or verify GoDaddy SMTP.`,
         502
       );
     }

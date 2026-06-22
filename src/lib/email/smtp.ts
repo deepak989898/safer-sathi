@@ -1,5 +1,3 @@
-import nodemailer from "nodemailer";
-
 export function isSmtpConfigured(): boolean {
   return Boolean(
     process.env.SMTP_HOST?.trim() &&
@@ -30,7 +28,8 @@ function isSecurePort(port: number): boolean {
   return port === 465 || mode === "ssl" || mode === "true";
 }
 
-export function createSmtpTransport(host?: string) {
+export async function createSmtpTransport(host?: string) {
+  const nodemailer = (await import("nodemailer")).default;
   const port = getSmtpPort();
   const secure = isSecurePort(port);
   const mode = (process.env.SMTP_SECURE || "ssl").toLowerCase();
@@ -71,7 +70,7 @@ export async function sendViaSmtp(mail: {
 
   for (const host of hosts) {
     try {
-      const transport = createSmtpTransport(host);
+      const transport = await createSmtpTransport(host);
       await transport.sendMail({
         from: mail.from,
         to: mail.to,

@@ -255,43 +255,55 @@ export async function requestPasswordReset(email: string): Promise<void> {
       : appUrl("/login?reset=done");
 
   if (typeof window !== "undefined") {
-    const res = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalized }),
-    });
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      });
 
-    let json: {
-      success?: boolean;
-      error?: string;
-      data?: { sent?: boolean; delivery?: string };
-    } = {};
+      const text = await res.text();
+      let json: {
+        success?: boolean;
+        error?: string;
+        data?: { sent?: boolean; delivery?: string };
+      } = {};
+
+      try {
+        json = JSON.parse(text) as typeof json;
+      } catch {
+        json = {};
+      }
+
+      if (res.ok && json.data?.delivery === "firebase_client_fallback") {
+        await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+          url: continueUrl,
+          handleCodeInApp: false,
+        });
+        return;
+      }
+
+      if (res.ok && json.data?.sent) {
+        return;
+      }
+
+      if (res.status === 400 && json.error) {
+        throw new AuthError(json.error);
+      }
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+      console.warn("Server password reset unavailable, using Firebase client:", error);
+    }
 
     try {
-      json = await res.json();
-    } catch {
-      throw new AuthError(
-        "Password reset service error. Please try again or contact support@thesafarsathi.com."
-      );
-    }
-
-    if (!res.ok) {
-      throw new AuthError(json.error || "Could not send reset email.");
-    }
-
-    if (json.data?.delivery === "firebase_client_fallback") {
       await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
         url: continueUrl,
         handleCodeInApp: false,
       });
       return;
+    } catch (error) {
+      throw new Error(getFirebaseAuthErrorMessage(error));
     }
-
-    if (json.data?.sent) {
-      return;
-    }
-
-    throw new AuthError("Could not send reset email. Please try again.");
   }
 
   await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
@@ -392,6 +404,10 @@ export function getFirebaseAuthErrorMessage(error: unknown): string {
       return "Too many attempts. Please try again later.";
     case "auth/missing-email":
       return "Please enter your email address.";
+    case "auth/invalid-continue-uri":
+      return "Password reset is temporarily unavailable. Please contact support@thesafarsathi.com.";
+    case "auth/unauthorized-continue-uri":
+      return "Password reset is temporarily unavailable. Please contact support@thesafarsathi.com.";
     default:
       if (error instanceof AuthError) return error.message;
       return "Authentication failed. Please try again.";
