@@ -254,6 +254,44 @@ export async function requestPasswordReset(email: string): Promise<void> {
       ? `${window.location.origin}/login?reset=done`
       : appUrl("/login?reset=done");
 
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        data?: { sent?: boolean; delivery?: string };
+      };
+
+      if (res.ok && json.data?.delivery === "smtp" && json.data.sent) {
+        return;
+      }
+
+      if (res.ok && json.data?.delivery === "firebase_client_fallback") {
+        await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+          url: continueUrl,
+          handleCodeInApp: false,
+        });
+        return;
+      }
+
+      if (res.ok && json.data?.sent) {
+        return;
+      }
+
+      if (!res.ok) {
+        throw new AuthError(json.error || "Could not send reset email.");
+      }
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+      // Network or API unavailable — try Firebase client directly.
+    }
+  }
+
   try {
     await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
       url: continueUrl,
@@ -268,7 +306,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
     ) {
       throw error;
     }
-    // Do not reveal whether the email exists.
+    // Do not reveal whether the email exists when using client fallback.
   }
 }
 
