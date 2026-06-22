@@ -145,22 +145,34 @@ function VisitorSessionCard({ session }: { session: AiEnquiryVisitorSession }) {
           )}
 
           <div className="max-h-[min(70vh,560px)] space-y-3 overflow-y-auto p-4">
-            {session.chat.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn(
-                  "max-w-[92%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                  msg.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "mr-auto bg-background border shadow-sm"
-                )}
-              >
-                <p className="mb-1 text-[10px] font-medium opacity-70">
-                  {msg.role === "user" ? "Customer" : "Safar Sathi AI"} · {msg.timeLabel}
-                </p>
-                {msg.content}
-              </div>
-            ))}
+            {session.chat.map((msg) => {
+              const isCustomer = msg.role === "user";
+              return (
+                <div
+                  key={msg.id}
+                  className={cn("flex w-full", isCustomer ? "justify-start" : "justify-end")}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
+                      isCustomer
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background border shadow-sm"
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "mb-1 text-[10px] font-medium opacity-70",
+                        isCustomer ? "text-left" : "text-right"
+                      )}
+                    >
+                      {isCustomer ? "Customer" : "Safar Sathi AI"} · {msg.timeLabel}
+                    </p>
+                    {msg.content}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

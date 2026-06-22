@@ -31,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number;
   /** Show all rows on one page and hide pager controls */
   hidePagination?: boolean;
+  /** Remove outer card border when nested inside another panel */
+  nested?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -40,6 +42,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   pageSize = 10,
   hidePagination = false,
+  nested = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -72,7 +75,7 @@ export function DataTable<TData, TValue>({
           />
         </div>
       )}
-      <div className="rounded-xl border bg-card">
+      <div className={nested ? "overflow-x-auto" : "overflow-x-auto rounded-xl border bg-card"}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -135,7 +138,7 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
       )}
-      {hidePagination && data.length > 0 && (
+      {hidePagination && data.length > 0 && !nested && (
         <p className="text-sm text-muted-foreground">
           Showing all {table.getFilteredRowModel().rows.length} item
           {table.getFilteredRowModel().rows.length === 1 ? "" : "s"}

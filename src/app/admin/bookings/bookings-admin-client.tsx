@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bot,
+  ChevronDown,
+  ChevronRight,
   Globe,
   Loader2,
   Mail,
@@ -24,6 +26,7 @@ import {
   bookingSourceLabel,
   countBookingsByFilter,
   formatBookingDateTime,
+  groupBookingsByBookedDate,
   matchesBookingAdminFilter,
   searchBookings,
   sortBookingsNewestFirst,
@@ -50,6 +53,7 @@ export default function BookingsAdminClient() {
   const [loadSource, setLoadSource] = useState<"server" | "client" | null>(null);
   const [statusFilter, setStatusFilter] = useState<BookingAdminFilter>("all");
   const [search, setSearch] = useState("");
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -95,6 +99,39 @@ export default function BookingsAdminClient() {
     const searched = searchBookings(bookings, search);
     return searched.filter((b) => matchesBookingAdminFilter(b, statusFilter));
   }, [bookings, search, statusFilter]);
+
+  const groupedBookings = useMemo(
+    () => groupBookingsByBookedDate(filteredBookings),
+    [filteredBookings]
+  );
+
+  const groupDateKeys = useMemo(
+    () => groupedBookings.map((group) => group.dateKey).join("|"),
+    [groupedBookings]
+  );
+
+  useEffect(() => {
+    if (groupedBookings.length === 0) {
+      setExpandedDates(new Set());
+      return;
+    }
+
+    if (search.trim()) {
+      setExpandedDates(new Set(groupedBookings.map((group) => group.dateKey)));
+      return;
+    }
+
+    setExpandedDates(new Set([groupedBookings[0].dateKey]));
+  }, [groupDateKeys, search, groupedBookings]);
+
+  const toggleDateGroup = (dateKey: string) => {
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
+  };
 
   const columns: ColumnDef<Booking>[] = [
     {
@@ -311,12 +348,51 @@ export default function BookingsAdminClient() {
               : "No bookings match this filter or search."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <DataTable
-              columns={columns}
-              data={filteredBookings}
-              pageSize={15}
-            />
+          <div className="space-y-3">
+            {groupedBookings.map((group) => {
+              const expanded = expandedDates.has(group.dateKey);
+              return (
+                <div
+                  key={group.dateKey}
+                  className="overflow-hidden rounded-xl border bg-card"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleDateGroup(group.dateKey)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      {expanded ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-semibold text-[#0c2444]">{group.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {group.bookings.length} booking
+                          {group.bookings.length === 1 ? "" : "s"} · newest first
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      {group.bookings.length}
+                    </Badge>
+                  </button>
+
+                  {expanded && (
+                    <div className="border-t px-2 pb-2 pt-1">
+                      <DataTable
+                        columns={columns}
+                        data={group.bookings}
+                        hidePagination
+                        nested
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
