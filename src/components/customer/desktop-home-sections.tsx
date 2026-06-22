@@ -9,19 +9,21 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import { HotelCard } from "@/components/customer/hotel-card";
 import { PackageCard } from "@/components/customer/package-card";
+import { VehicleCard } from "@/components/customer/vehicle-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
 import { useAppStore } from "@/store/app-store";
-import type { Review, TourPackage } from "@/types";
+import type { Hotel, Review, TourPackage, Vehicle } from "@/types";
 
 const TRUST_ITEMS = [
-  { icon: BadgePercent, label: "Best Price Guarantee" },
-  { icon: Headphones, label: "24/7 Support" },
-  { icon: Users, label: "Trusted by 10K+" },
-  { icon: ShieldCheck, label: "Secure Booking" },
+  { icon: BadgePercent, label: "Best Price Guarantee", desc: "Get the best deals always" },
+  { icon: Headphones, label: "24/7 Support", desc: "We are here to help" },
+  { icon: Users, label: "Trusted by 10K+", desc: "Happy travelers" },
+  { icon: ShieldCheck, label: "Secure Booking", desc: "100% safe and secure" },
 ] as const;
 
 const POPULAR_DESTINATIONS = [
@@ -31,6 +33,7 @@ const POPULAR_DESTINATIONS = [
     price: 4999,
     image: TRAVEL_IMAGES.goldenTriangle,
     href: "/packages?query=Rajasthan",
+    imagePosition: "center",
   },
   {
     name: "Kerala",
@@ -38,6 +41,7 @@ const POPULAR_DESTINATIONS = [
     price: 5999,
     image: TRAVEL_IMAGES.keralaBackwaters,
     href: "/packages?query=Kerala",
+    imagePosition: "center",
   },
   {
     name: "Goa",
@@ -45,6 +49,7 @@ const POPULAR_DESTINATIONS = [
     price: 3999,
     image: TRAVEL_IMAGES.beachResort,
     href: "/packages?query=Goa",
+    imagePosition: "center top",
   },
   {
     name: "Himachal",
@@ -52,6 +57,7 @@ const POPULAR_DESTINATIONS = [
     price: 5499,
     image: TRAVEL_IMAGES.manaliAdventure,
     href: "/packages?query=Manali",
+    imagePosition: "center",
   },
   {
     name: "Kashmir",
@@ -59,21 +65,100 @@ const POPULAR_DESTINATIONS = [
     price: 6999,
     image: TRAVEL_IMAGES.charDham,
     href: "/packages?query=Kashmir",
+    imagePosition: "center",
+  },
+] as const;
+
+const FALLBACK_TESTIMONIALS = [
+  {
+    id: "demo-1",
+    userName: "Priya Sharma",
+    rating: 5,
+    comment: {
+      en: "Excellent trip to Jaipur! The hotel was amazing and the guide was very knowledgeable. Highly recommend Safar Sathi for Rajasthan tours.",
+      hi: "जयपुर की शानदार यात्रा! होटल बढ़िया था और गाइड बहुत जानकार था। राजस्थान टूर के लिए Safar Sathi की सिफारिश करती हूँ।",
+    },
+    tourLabel: "Jaipur Tour",
+  },
+  {
+    id: "demo-2",
+    userName: "Rahul Mehta",
+    rating: 5,
+    comment: {
+      en: "Booked a tempo traveller for our family trip to Manali. Clean vehicle, punctual driver, and great pricing. Will book again!",
+      hi: "मनाली परिवार यात्रा के लिए टेम्पो ट्रैवeller बुक किया। साफ वाहन, समय पर ड्राइवर और अच्छी कीमत। फिर बुक करूँगा!",
+    },
+    tourLabel: "Manali Trip",
+  },
+  {
+    id: "demo-3",
+    userName: "Anita Desai",
+    rating: 5,
+    comment: {
+      en: "Kerala backwaters package exceeded expectations. Houseboat experience was magical. Safar Sathi made everything seamless from booking to checkout.",
+      hi: "केरल बैकवॉटर पैकेज उम्मीद से बेहतर रहा। हाउसबोट अनुभव जादुई था। Safar Sathi ने बुकिंग से लेकर चेकआउट तक सब आसान बना दिया।",
+    },
+    tourLabel: "Kerala Package",
   },
 ] as const;
 
 interface DesktopHomeSectionsProps {
   featuredPackages: TourPackage[];
+  featuredHotels: Hotel[];
+  featuredVehicles: Vehicle[];
   reviews: Review[];
+}
+
+function serviceTypeLabel(serviceType: Review["serviceType"]): string {
+  const labels: Record<Review["serviceType"], string> = {
+    package: "Tour Package",
+    vehicle: "Vehicle Rental",
+    hotel: "Hotel Stay",
+    bus: "Bus Booking",
+    car_rental: "Car Rental",
+    tempo_traveller: "Tempo Traveller",
+    airport_pickup: "Airport Pickup",
+    holiday: "Holiday Package",
+  };
+  return labels[serviceType] ?? "Travel Booking";
 }
 
 export function DesktopHomeSections({
   featuredPackages,
+  featuredHotels,
+  featuredVehicles,
   reviews,
 }: DesktopHomeSectionsProps) {
   const { locale } = useAppStore();
   const topPackages = featuredPackages.slice(0, 4);
-  const topReviews = reviews.slice(0, 3);
+  const topHotels = featuredHotels.slice(0, 4);
+  const topVehicles = featuredVehicles.slice(0, 4);
+
+  const liveTestimonials = reviews.slice(0, 3).map((review) => ({
+    id: review.id,
+    userName: review.userName,
+    rating: review.rating,
+    comment: localizedText(review.comment, locale),
+    tourLabel: serviceTypeLabel(review.serviceType),
+  }));
+
+  const fallbackItems = FALLBACK_TESTIMONIALS.map((item) => ({
+    id: item.id,
+    userName: item.userName,
+    rating: item.rating,
+    comment: localizedText(item.comment, locale),
+    tourLabel: item.tourLabel,
+  }));
+
+  const testimonials =
+    liveTestimonials.length >= 3
+      ? liveTestimonials
+      : [
+          ...liveTestimonials,
+          ...fallbackItems.filter(
+            (item) => !liveTestimonials.some((live) => live.userName === item.userName)
+          ),
+        ].slice(0, 3);
 
   return (
     <section className="desktop-search-section-pad hidden bg-background md:block">
@@ -82,6 +167,11 @@ export function DesktopHomeSections({
 
         <SectionHeader
           title={locale === "hi" ? "लोकप्रिय गंतव्य" : "Popular Destinations"}
+          subtitle={
+            locale === "hi"
+              ? "सबसे पसंदीदा जगहें एक्सप्लोर करें"
+              : "Explore the most loved places"
+          }
           href="/packages"
           locale={locale}
         />
@@ -92,21 +182,20 @@ export function DesktopHomeSections({
               href={dest.href}
               className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="relative aspect-[4/5] overflow-hidden">
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <Image
                   src={dest.image}
                   alt={dest.name}
                   fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="20vw"
+                  className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                  style={{ objectPosition: dest.imagePosition }}
+                  sizes="(min-width: 768px) 20vw, 50vw"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-10">
-                  <p className="text-sm font-semibold text-white">
-                    From {formatCurrency(dest.price, locale)}
-                  </p>
-                </div>
+                <span className="absolute bottom-2.5 right-2.5 rounded-md bg-black/75 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                  From {formatCurrency(dest.price, locale)}
+                </span>
               </div>
-              <div className="p-3">
+              <div className="px-3 py-2.5">
                 <p className="font-semibold text-[#0c2444]">{dest.name}</p>
                 <p className="text-xs text-muted-foreground">{dest.subtitle}</p>
               </div>
@@ -114,18 +203,44 @@ export function DesktopHomeSections({
           ))}
         </div>
 
-        <div className="mt-14">
-          <SectionHeader
-            title={locale === "hi" ? "टॉप टूर पैकेज" : "Top Tour Packages"}
-            href="/packages"
-            locale={locale}
-          />
-          <div className="grid grid-cols-4 gap-5">
-            {topPackages.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
-            ))}
-          </div>
-        </div>
+        <CatalogSection
+          title={locale === "hi" ? "टॉप टूर पैकेज" : "Top Tour Packages"}
+          subtitle={
+            locale === "hi" ? "आपके लिए चुनिंदा पैकेज" : "Handpicked packages for you"
+          }
+          href="/packages"
+          locale={locale}
+        >
+          {topPackages.map((pkg) => (
+            <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
+          ))}
+        </CatalogSection>
+
+        <CatalogSection
+          title={locale === "hi" ? "टॉप होटल" : "Top Hotels"}
+          subtitle={
+            locale === "hi" ? "बेहतरीन रहने के विकल्प" : "Premium stays across India"
+          }
+          href="/hotels"
+          locale={locale}
+        >
+          {topHotels.map((hotel) => (
+            <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
+          ))}
+        </CatalogSection>
+
+        <CatalogSection
+          title={locale === "hi" ? "टॉप वाहन" : "Top Vehicles"}
+          subtitle={
+            locale === "hi" ? "हर यात्रा के लिए आरामदायक वाहन" : "Comfortable rides for every journey"
+          }
+          href="/vehicles"
+          locale={locale}
+        >
+          {topVehicles.map((vehicle) => (
+            <VehicleCard key={vehicle.id} vehicle={vehicle} locale={locale} />
+          ))}
+        </CatalogSection>
 
         <div className="mt-14 overflow-hidden rounded-2xl bg-[#0c2444] px-8 py-7 text-white shadow-lg">
           <div className="flex items-center justify-between gap-6">
@@ -155,54 +270,55 @@ export function DesktopHomeSections({
           </div>
         </div>
 
-        {topReviews.length > 0 && (
-          <div className="mt-14">
-            <h2 className="mb-8 text-center text-2xl font-bold text-[#0c2444] lg:text-3xl">
-              {locale === "hi" ? "यात्रियों की राय" : "What Our Travelers Say"}
-            </h2>
-            <div className="grid grid-cols-3 gap-5">
-              {topReviews.map((review) => (
-                <article
-                  key={review.id}
-                  className="rounded-2xl border bg-card p-6 shadow-sm"
-                >
-                  <div className="mb-3 flex gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < review.rating
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    ))}
+        <div className="mt-14">
+          <h2 className="mb-2 text-center text-2xl font-bold text-[#0c2444] lg:text-3xl">
+            {locale === "hi" ? "यात्रियों की राय" : "What Our Travelers Say"}
+          </h2>
+          <p className="mb-8 text-center text-sm text-muted-foreground">
+            {locale === "hi"
+              ? "हज़ारों खुश यात्रियों की वास्तविक प्रतिक्रिया"
+              : "Real feedback from thousands of happy travelers"}
+          </p>
+          <div className="grid grid-cols-3 gap-5">
+            {testimonials.map((item) => (
+              <article
+                key={item.id}
+                className="flex flex-col rounded-2xl border bg-white p-6 shadow-[0_4px_24px_rgba(12,36,68,0.08)]"
+              >
+                <div className="mb-4 flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${
+                        i < item.rating
+                          ? "fill-[#f97316] text-[#f97316]"
+                          : "text-muted-foreground/30"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="flex-1 text-sm leading-relaxed text-[#334155]">
+                  &ldquo;{item.comment}&rdquo;
+                </p>
+                <div className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                      {item.userName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-[#0c2444]">{item.userName}</p>
+                    <p className="text-xs text-muted-foreground">{item.tourLabel}</p>
                   </div>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    &ldquo;{localizedText(review.comment, locale)}&rdquo;
-                  </p>
-                  <div className="mt-5 flex items-center gap-3 border-t pt-4">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback className="bg-primary/10 text-xs text-primary">
-                        {review.userName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">{review.userName}</p>
-                      <p className="text-xs capitalize text-muted-foreground">
-                        {review.serviceType.replace("_", " ")}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                </div>
+              </article>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </section>
   );
@@ -216,28 +332,57 @@ function DesktopTrustBar() {
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <item.icon className="h-5 w-5" />
           </div>
-          <p className="text-sm font-semibold text-[#0c2444]">{item.label}</p>
+          <div>
+            <p className="text-sm font-semibold text-[#0c2444]">{item.label}</p>
+            <p className="text-xs text-muted-foreground">{item.desc}</p>
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
+function CatalogSection({
+  title,
+  subtitle,
+  href,
+  locale,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  href: string;
+  locale: "en" | "hi";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-14">
+      <SectionHeader title={title} subtitle={subtitle} href={href} locale={locale} />
+      <div className="grid grid-cols-4 gap-5">{children}</div>
+    </div>
+  );
+}
+
 function SectionHeader({
   title,
+  subtitle,
   href,
   locale,
 }: {
   title: string;
+  subtitle?: string;
   href: string;
   locale: "en" | "hi";
 }) {
   return (
     <div className="mb-6 flex items-end justify-between gap-4">
-      <h2 className="text-2xl font-bold text-[#0c2444] lg:text-3xl">{title}</h2>
+      <div>
+        <h2 className="text-2xl font-bold text-[#0c2444] lg:text-3xl">{title}</h2>
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+      </div>
       <Link
         href={href}
-        className="text-sm font-semibold text-primary hover:underline"
+        className="shrink-0 text-sm font-semibold text-primary hover:underline"
       >
         {locale === "hi" ? "सभी देखें" : "View All"}
       </Link>

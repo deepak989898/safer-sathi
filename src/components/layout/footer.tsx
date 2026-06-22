@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import {
+  FacebookIcon,
+  InstagramIcon,
+  TwitterIcon,
+  YoutubeIcon,
+} from "@/components/icons/social-icons";
 import { SITE_CONTACT } from "@/lib/site-config";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
@@ -25,10 +31,10 @@ const SUPPORT_LINKS = [
 ] as const;
 
 const SOCIAL_LINKS = [
-  { href: "https://facebook.com", label: "Facebook", text: "f" },
-  { href: "https://instagram.com", label: "Instagram", text: "ig" },
-  { href: "https://twitter.com", label: "Twitter", text: "x" },
-  { href: "https://youtube.com", label: "YouTube", text: "yt" },
+  { href: "https://facebook.com", label: "Facebook", Icon: FacebookIcon },
+  { href: "https://instagram.com", label: "Instagram", Icon: InstagramIcon },
+  { href: "https://twitter.com", label: "Twitter", Icon: TwitterIcon },
+  { href: "https://youtube.com", label: "YouTube", Icon: YoutubeIcon },
 ] as const;
 
 export function Footer() {
@@ -40,17 +46,22 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div>
             <div className="md:hidden">
-              <BrandLogo href="/" size="compact" />
+              <BrandLogo href="/" size="footer" />
             </div>
             <div className="hidden md:block">
-              <BrandLogo href="/" size="compact" onDarkSurface />
+              <BrandLogo
+                href="/"
+                size="footer"
+                onDarkSurface
+                imageClassName="h-[6.5rem] w-auto lg:h-[7.25rem]"
+              />
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground md:text-white/75">
               {locale === "hi"
                 ? "Safar Sathi — भारत भर में भरोसेमंद यात्रा बुकिंग। टूर, होटल, वाहन और बस — सब एक जगह।"
                 : "Safar Sathi — trusted travel booking across India. Tours, hotels, vehicles and buses — all in one place."}
             </p>
-            <div className="mt-5 flex items-center gap-2.5">
+            <div className="mt-5 flex items-center gap-3">
               {SOCIAL_LINKS.map((social) => (
                 <a
                   key={social.label}
@@ -58,13 +69,13 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full",
+                    "inline-flex h-10 w-10 items-center justify-center rounded-full",
                     "bg-primary/10 text-primary transition-colors hover:bg-primary/15",
                     "md:bg-white/10 md:text-white md:hover:bg-white/20"
                   )}
                   aria-label={social.label}
                 >
-                  <span className="text-xs font-bold uppercase">{social.text}</span>
+                  <social.Icon className="h-[18px] w-[18px]" />
                 </a>
               ))}
             </div>

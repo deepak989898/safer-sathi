@@ -18,6 +18,8 @@ interface HomeShowcaseProps {
 
 export function HomeShowcase({
   featuredPackages,
+  featuredHotels,
+  featuredVehicles,
   mobilePackages,
   mobileHotels,
   mobileVehicles,
@@ -33,7 +35,12 @@ export function HomeShowcase({
 
       <DesktopHomeHero />
 
-      <DesktopHomeSections featuredPackages={featuredPackages} reviews={reviews} />
+      <DesktopHomeSections
+        featuredPackages={featuredPackages}
+        featuredHotels={featuredHotels}
+        featuredVehicles={featuredVehicles}
+        reviews={reviews}
+      />
     </>
   );
 }
