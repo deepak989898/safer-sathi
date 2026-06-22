@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { PageHero } from "@/components/customer/page-hero";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar";
 import { PackageCard } from "@/components/customer/package-card";
 import { ListingLayout } from "@/components/customer/listing-filter-sort";
+import {
+  budgetTierOptions,
+  priceMatchesBudgetTiers,
+  toggleFilterId,
+  type BudgetTierId,
+} from "@/lib/catalog/budget-filters";
 import {
   PACKAGE_SORT_KEYS,
   sortPackages,
@@ -12,7 +17,6 @@ import {
 } from "@/lib/catalog/sort";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
-import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { TourPackage } from "@/types";
 
 const CATEGORIES = [
@@ -29,10 +33,11 @@ export default function PackagesClient({
 }: {
   initialPackages: TourPackage[];
 }) {
-  const { locale, searchFilters } = useAppStore();
+  const { locale, searchFilters, resetSearchFilters } = useAppStore();
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedBudget, setSelectedBudget] = useState<BudgetTierId[]>([]);
   const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
   useEffect(() => {
@@ -53,32 +58,41 @@ export default function PackagesClient({
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setQuery("");
     setPriceRange([0, maxPrice]);
     setSelectedCategories([]);
-  };
-
-  const filterProps = {
-    priceRange,
-    maxPrice,
-    onPriceChange: setPriceRange,
-    categories: CATEGORIES,
-    selectedCategories: selectedCategories,
-    onCategoryToggle: (id: string) =>
-      setSelectedCategories((prev) =>
-        prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-      ),
-    onClear: clearFilters,
-  };
+    setSelectedBudget([]);
+    setSortBy("price_asc");
+    resetSearchFilters();
+  }, [maxPrice, resetSearchFilters]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (query.trim()) count++;
     if (priceRange[0] > 0 || priceRange[1] < maxPrice) count++;
     if (selectedCategories.length > 0) count++;
+    if (selectedBudget.length > 0) count++;
     return count;
-  }, [query, priceRange, maxPrice, selectedCategories]);
+  }, [query, priceRange, maxPrice, selectedCategories, selectedBudget]);
+
+  const filterProps = {
+    priceRange,
+    maxPrice,
+    onPriceChange: setPriceRange,
+    budgetOptions: budgetTierOptions(locale),
+    selectedBudget,
+    onBudgetToggle: (id: string) =>
+      setSelectedBudget((prev) => toggleFilterId(prev, id) as BudgetTierId[]),
+    budgetLabel: locale === "hi" ? "बजट श्रेणी" : "Budget Category",
+    categories: CATEGORIES,
+    selectedCategories,
+    onCategoryToggle: (id: string) =>
+      setSelectedCategories((prev) => toggleFilterId(prev, id)),
+    categoryLabel: locale === "hi" ? "पैकेज श्रेणी" : "Package Category",
+    onClear: clearFilters,
+    hasActiveFilters: activeFilterCount > 0,
+  };
 
   const filtered = useMemo(() => {
     return initialPackages.filter((p) => {
@@ -90,9 +104,10 @@ export default function PackagesClient({
       const matchCat =
         selectedCategories.length === 0 ||
         selectedCategories.includes(p.category);
-      return matchQuery && matchPrice && matchCat;
+      const matchBudget = priceMatchesBudgetTiers(p.price, selectedBudget, maxPrice);
+      return matchQuery && matchPrice && matchCat && matchBudget;
     });
-  }, [initialPackages, query, priceRange, selectedCategories]);
+  }, [initialPackages, query, priceRange, selectedCategories, selectedBudget, maxPrice]);
 
   const sorted = useMemo(
     () => sortPackages(filtered, sortBy),
@@ -100,39 +115,47 @@ export default function PackagesClient({
   );
 
   return (
-    <>
-      <PageHero
-        title="Tour Packages"
-        subtitle="Curated experiences across India's most beautiful destinations"
-        image={HERO_IMAGES.packages}
-        compactOnMobile
-      />
-      <section className="container mx-auto px-4 py-6 md:py-10">
-        <div className="mb-6">
-          <SearchInput value={query} onChange={setQuery} placeholder="Search destinations..." />
+    <section className="container mx-auto px-4 py-6 md:py-10">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
+            {locale === "hi" ? "टूर पैकेज" : "Tour Packages"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {locale === "hi"
+              ? "भारत के सुंदर गंतव्यों के लिए क्यूरेटेड अनुभव"
+              : "Curated experiences across India's most beautiful destinations"}
+          </p>
         </div>
-        <ListingLayout
-          filterSidebar={<FilterSidebar {...filterProps} />}
-          mobileFilterPanel={<FilterSidebar {...filterProps} embedded />}
-          sortKeys={PACKAGE_SORT_KEYS}
-          sortValue={sortBy}
-          onSortChange={setSortBy}
-          activeFilterCount={activeFilterCount}
-          resultCount={sorted.length}
-        >
-          {sorted.length === 0 ? (
-            <p className="py-20 text-center text-muted-foreground">
-              {t(locale, "common", "noResults")}
-            </p>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {sorted.map((pkg) => (
-                <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
-              ))}
-            </div>
-          )}
-        </ListingLayout>
-      </section>
-    </>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search destinations..."
+          className="w-full md:max-w-sm"
+        />
+      </div>
+
+      <ListingLayout
+        filterSidebar={<FilterSidebar {...filterProps} />}
+        mobileFilterPanel={<FilterSidebar {...filterProps} embedded />}
+        sortKeys={PACKAGE_SORT_KEYS}
+        sortValue={sortBy}
+        onSortChange={setSortBy}
+        activeFilterCount={activeFilterCount}
+        resultCount={sorted.length}
+      >
+        {sorted.length === 0 ? (
+          <p className="py-20 text-center text-muted-foreground">
+            {t(locale, "common", "noResults")}
+          </p>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {sorted.map((pkg) => (
+              <PackageCard key={pkg.id} pkg={pkg} locale={locale} />
+            ))}
+          </div>
+        )}
+      </ListingLayout>
+    </section>
   );
 }

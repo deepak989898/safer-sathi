@@ -22,11 +22,48 @@ interface FilterSidebarProps {
   categories?: FilterOption[];
   selectedCategories?: string[];
   onCategoryToggle?: (id: string) => void;
+  categoryLabel?: string;
+  budgetOptions?: FilterOption[];
+  selectedBudget?: string[];
+  onBudgetToggle?: (id: string) => void;
+  budgetLabel?: string;
   onClear: () => void;
+  hasActiveFilters?: boolean;
   extraFilters?: React.ReactNode;
   /** Hide header row (used inside mobile collapse panel) */
   embedded?: boolean;
   className?: string;
+}
+
+function FilterCheckboxGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  if (options.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <Label>{label}</Label>
+      <div className="space-y-2">
+        {options.map((option) => (
+          <label key={option.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+            <Checkbox
+              checked={selected.includes(option.id)}
+              onCheckedChange={() => onToggle(option.id)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function FilterSidebar({
@@ -36,12 +73,34 @@ export function FilterSidebar({
   categories,
   selectedCategories = [],
   onCategoryToggle,
+  categoryLabel = "Category",
+  budgetOptions,
+  selectedBudget = [],
+  onBudgetToggle,
+  budgetLabel = "Budget",
   onClear,
+  hasActiveFilters = false,
   extraFilters,
   embedded = false,
   className,
 }: FilterSidebarProps) {
   const { locale } = useAppStore();
+
+  const header = (
+    <div className="flex items-center justify-between gap-2">
+      <h3 className={embedded ? "text-sm font-semibold" : "font-semibold"}>
+        {t(locale, "common", "filters")}
+      </h3>
+      <Button
+        variant={hasActiveFilters ? "secondary" : "ghost"}
+        size="sm"
+        onClick={onClear}
+        className={cn(hasActiveFilters && "text-primary")}
+      >
+        {t(locale, "common", "clearFilters")}
+      </Button>
+    </div>
+  );
 
   return (
     <aside
@@ -50,23 +109,7 @@ export function FilterSidebar({
         className
       )}
     >
-      {!embedded && (
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{t(locale, "common", "filters")}</h3>
-          <Button variant="ghost" size="sm" onClick={onClear}>
-            {t(locale, "common", "clearFilters")}
-          </Button>
-        </div>
-      )}
-
-      {embedded && (
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">{t(locale, "common", "filters")}</h3>
-          <Button variant="ghost" size="sm" onClick={onClear}>
-            {t(locale, "common", "clearFilters")}
-          </Button>
-        </div>
-      )}
+      {header}
 
       <div className="space-y-3">
         <Label>{t(locale, "common", "priceRange")}</Label>
@@ -78,24 +121,27 @@ export function FilterSidebar({
           onValueChange={(v) => onPriceChange(v as [number, number])}
         />
         <div className="flex justify-between text-sm text-muted-foreground">
-          <span>₹{priceRange[0].toLocaleString()}</span>
-          <span>₹{priceRange[1].toLocaleString()}</span>
+          <span>₹{priceRange[0].toLocaleString("en-IN")}</span>
+          <span>₹{priceRange[1].toLocaleString("en-IN")}</span>
         </div>
       </div>
 
-      {categories && categories.length > 0 && (
-        <div className="space-y-3">
-          <Label>Category</Label>
-          {categories.map((cat) => (
-            <label key={cat.id} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={selectedCategories.includes(cat.id)}
-                onCheckedChange={() => onCategoryToggle?.(cat.id)}
-              />
-              {cat.label}
-            </label>
-          ))}
-        </div>
+      {budgetOptions && budgetOptions.length > 0 && onBudgetToggle && (
+        <FilterCheckboxGroup
+          label={budgetLabel}
+          options={budgetOptions}
+          selected={selectedBudget}
+          onToggle={onBudgetToggle}
+        />
+      )}
+
+      {categories && categories.length > 0 && onCategoryToggle && (
+        <FilterCheckboxGroup
+          label={categoryLabel}
+          options={categories}
+          selected={selectedCategories}
+          onToggle={onCategoryToggle}
+        />
       )}
 
       {extraFilters}
@@ -107,17 +153,19 @@ export function SearchInput({
   value,
   onChange,
   placeholder,
+  className,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  className?: string;
 }) {
   return (
     <Input
       placeholder={placeholder ?? "Search..."}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="max-w-md"
+      className={cn("max-w-md", className)}
     />
   );
 }
