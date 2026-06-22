@@ -1,8 +1,39 @@
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
-import { sendPasswordResetMail } from "@/lib/email/password-reset-mail";
+import { deliverPasswordResetEmail } from "@/lib/email/password-reset-mail";
+import { isResendConfigured } from "@/lib/email/resend";
 import { isSmtpConfigured } from "@/lib/email/smtp";
 import { getAdminAuth, isAdminConfigured } from "@/lib/firebase/admin";
 import { appUrl } from "@/lib/site-config";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+async function generateResetLink(email: string): Promise<string> {
+  const auth = getAdminAuth();
+  const candidates = [
+    appUrl("/login?reset=done"),
+    "https://www.thesafarsathi.com/login?reset=done",
+    "https://safar-sathi-tour-booking.firebaseapp.com/login?reset=done",
+  ];
+
+  let lastError: unknown;
+  for (const url of [...new Set(candidates)]) {
+    try {
+      return await auth.generatePasswordResetLink(email, {
+        url,
+        handleCodeInApp: false,
+      });
+    } catch (error) {
+      lastError = error;
+      console.error(`generatePasswordResetLink failed for ${url}:`, error);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Could not generate password reset link.");
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +41,6 @@ export async function POST(request: Request) {
     if (parsed.error) return parsed.error;
 
     const email = parsed.data?.email?.trim().toLowerCase() ?? "";
-
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return apiError("Please enter a valid email address.", 400);
     }
@@ -19,14 +49,13 @@ export async function POST(request: Request) {
       return apiSuccess({
         sent: false,
         delivery: "firebase_client_fallback",
-        message: "Use Firebase client delivery.",
+        message: "Firebase Admin not configured on server.",
       });
     }
 
-    const auth = getAdminAuth();
     let userExists = false;
     try {
-      await auth.getUserByEmail(email);
+      await getAdminAuth().getUserByEmail(email);
       userExists = true;
     } catch {
       userExists = false;
@@ -39,35 +68,44 @@ export async function POST(request: Request) {
       });
     }
 
-    const resetLink = await auth.generatePasswordResetLink(email, {
-      url: appUrl("/login?reset=done"),
-      handleCodeInApp: false,
-    });
+    const resetLink = await generateResetLink(email);
 
-    if (!isSmtpConfigured()) {
+    if (!isResendConfigured() && !isSmtpConfigured()) {
       return apiSuccess({
         sent: false,
         delivery: "firebase_client_fallback",
-        message: "SMTP not configured — client will use Firebase email.",
+        message: "No server email provider configured.",
       });
     }
 
     try {
-      await sendPasswordResetMail({ to: email, resetLink });
+      const result = await deliverPasswordResetEmail({ to: email, resetLink });
+      if (result.delivery === "none") {
+        return apiSuccess({
+          sent: false,
+          delivery: "firebase_client_fallback",
+          message: "No server email provider configured.",
+        });
+      }
+
       return apiSuccess({
         sent: true,
-        delivery: "smtp",
+        delivery: result.delivery,
+        detail: result.detail,
         message: "Password reset email sent.",
       });
-    } catch (smtpError) {
-      console.error("Password reset SMTP error:", smtpError);
+    } catch (deliveryError) {
+      console.error("Password reset delivery error:", deliveryError);
+      const detail =
+        deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
       return apiError(
-        "Could not deliver the reset email. Please verify SMTP settings or contact support@thesafarsathi.com.",
+        `Email delivery failed: ${detail}. Add RESEND_API_KEY on Vercel (recommended) or verify GoDaddy SMTP.`,
         502
       );
     }
   } catch (error) {
     console.error("Forgot password error:", error);
-    return apiError("Failed to process password reset request.", 500);
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    return apiError(`Password reset failed: ${detail}`, 500);
   }
 }

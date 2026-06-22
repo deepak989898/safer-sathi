@@ -255,59 +255,49 @@ export async function requestPasswordReset(email: string): Promise<void> {
       : appUrl("/login?reset=done");
 
   if (typeof window !== "undefined") {
-    try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalized }),
-      });
-      const json = (await res.json()) as {
-        success?: boolean;
-        error?: string;
-        data?: { sent?: boolean; delivery?: string };
-      };
-
-      if (res.ok && json.data?.delivery === "smtp" && json.data.sent) {
-        return;
-      }
-
-      if (res.ok && json.data?.delivery === "firebase_client_fallback") {
-        await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
-          url: continueUrl,
-          handleCodeInApp: false,
-        });
-        return;
-      }
-
-      if (res.ok && json.data?.sent) {
-        return;
-      }
-
-      if (!res.ok) {
-        throw new AuthError(json.error || "Could not send reset email.");
-      }
-    } catch (error) {
-      if (error instanceof AuthError) throw error;
-      // Network or API unavailable — try Firebase client directly.
-    }
-  }
-
-  try {
-    await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
-      url: continueUrl,
-      handleCodeInApp: false,
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalized }),
     });
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (
-      code === "auth/invalid-email" ||
-      code === "auth/missing-email" ||
-      code === "auth/too-many-requests"
-    ) {
-      throw error;
+
+    let json: {
+      success?: boolean;
+      error?: string;
+      data?: { sent?: boolean; delivery?: string };
+    } = {};
+
+    try {
+      json = await res.json();
+    } catch {
+      throw new AuthError(
+        "Password reset service error. Please try again or contact support@thesafarsathi.com."
+      );
     }
-    // Do not reveal whether the email exists when using client fallback.
+
+    if (!res.ok) {
+      throw new AuthError(json.error || "Could not send reset email.");
+    }
+
+    if (json.data?.delivery === "firebase_client_fallback") {
+      await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+        url: continueUrl,
+        handleCodeInApp: false,
+      });
+      return;
+    }
+
+    if (json.data?.sent) {
+      return;
+    }
+
+    throw new AuthError("Could not send reset email. Please try again.");
   }
+
+  await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+    url: continueUrl,
+    handleCodeInApp: false,
+  });
 }
 
 export async function resolveAuthUser(
