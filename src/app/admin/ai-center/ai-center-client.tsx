@@ -4,18 +4,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  BarChart3,
   Check,
-  Loader2,
-  RefreshCw,
-  Sparkles,
-  Trash2,
-  X,
   FileText,
-  Settings,
-  ScrollText,
   Globe,
+  Loader2,
+  Mic,
   Package,
+  RefreshCw,
+  ScrollText,
+  Search,
+  Settings,
+  Shield,
+  Sparkles,
+  Star,
+  Trash2,
+  TrendingUp,
+  Users,
+  X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { AiCenterPhase3Tab } from "./ai-center-phase3-tab";
 import { AiCenterPackagesTab } from "./ai-center-packages-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
@@ -42,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import type {
@@ -53,6 +61,81 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+interface AiCenterNavTab {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface AiCenterNavSection {
+  id: string;
+  label: string;
+  description: string;
+  tabs: AiCenterNavTab[];
+}
+
+const AI_CENTER_NAV_SECTIONS: AiCenterNavSection[] = [
+  {
+    id: "seo-content",
+    label: "SEO & Blog",
+    description: "Discover keywords, generate SEO meta, and publish blogs.",
+    tabs: [
+      { id: "seo", label: "SEO Agent", icon: Globe },
+      { id: "keywords", label: "Keyword Research", icon: Search },
+      { id: "blog-writer", label: "Blog Writer", icon: FileText },
+      { id: "drafts", label: "Blog Drafts", icon: FileText },
+      { id: "scheduled", label: "Scheduled", icon: Check },
+      { id: "published", label: "Published", icon: Check },
+    ],
+  },
+  {
+    id: "products",
+    label: "Packages & Voice",
+    description: "AI package drafts and voice assistant settings.",
+    tabs: [
+      { id: "packages", label: "Package Generator", icon: Package },
+      { id: "voice", label: "Voice Assistant", icon: Mic },
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics & Reports",
+    description: "Track AI performance and export insights.",
+    tabs: [
+      { id: "analytics", label: "AI Analytics", icon: BarChart3 },
+      { id: "reports", label: "AI Reports", icon: BarChart3 },
+    ],
+  },
+  {
+    id: "phase3",
+    label: "Phase 3 Agents",
+    description: "Pricing, reviews, lead scoring, and fraud checks.",
+    tabs: [
+      { id: "phase3", label: "Phase 3 Hub", icon: Sparkles },
+      { id: "phase3-pricing", label: "Dynamic Pricing", icon: TrendingUp },
+      { id: "phase3-reviews", label: "Reviews", icon: Star },
+      { id: "phase3-leads", label: "Lead Scoring", icon: Users },
+      { id: "phase3-fraud", label: "Fraud Detection", icon: Shield },
+    ],
+  },
+  {
+    id: "system",
+    label: "System",
+    description: "Activity logs and global AI configuration.",
+    tabs: [
+      { id: "logs", label: "AI Logs", icon: ScrollText },
+      { id: "settings", label: "AI Settings", icon: Settings },
+    ],
+  },
+];
+
+const AI_CENTER_TAB_LOOKUP = new Map(
+  AI_CENTER_NAV_SECTIONS.flatMap((section) =>
+    section.tabs.map((tab) => [tab.id, { ...tab, section }] as const)
+  )
+);
 
 interface Stats {
   keywordsTotal: number;
@@ -173,6 +256,8 @@ export default function AiCenterClient() {
     () => blogs.filter((b) => b.status === "rejected"),
     [blogs]
   );
+
+  const activeTabMeta = AI_CENTER_TAB_LOOKUP.get(activeTab);
 
   const runKeywordResearch = async () => {
     setBusy(true);
@@ -328,27 +413,75 @@ export default function AiCenterClient() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="flex h-auto flex-wrap gap-1">
-            <TabsTrigger value="seo">SEO Agent</TabsTrigger>
-            <TabsTrigger value="keywords">Keyword Research</TabsTrigger>
-            <TabsTrigger value="blog-writer">Blog Writer</TabsTrigger>
-            <TabsTrigger value="drafts">Blog Drafts</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-            <TabsTrigger value="published">Published</TabsTrigger>
-            <TabsTrigger value="packages">Package Generator</TabsTrigger>
-            <TabsTrigger value="voice">Voice Assistant</TabsTrigger>
-            <TabsTrigger value="analytics">AI Analytics</TabsTrigger>
-            <TabsTrigger value="reports">AI Reports</TabsTrigger>
-            <TabsTrigger value="phase3-pricing">Dynamic Pricing</TabsTrigger>
-            <TabsTrigger value="phase3-reviews">Reviews</TabsTrigger>
-            <TabsTrigger value="phase3-leads">Lead Scoring</TabsTrigger>
-            <TabsTrigger value="phase3-fraud">Fraud Detection</TabsTrigger>
-            <TabsTrigger value="phase3">Phase 3 Hub</TabsTrigger>
-            <TabsTrigger value="logs">AI Logs</TabsTrigger>
-            <TabsTrigger value="settings">AI Settings</TabsTrigger>
-          </TabsList>
+          <div className="grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
+            <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+              {AI_CENTER_NAV_SECTIONS.map((section) => (
+                <div key={section.id} className="rounded-xl border bg-card p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {section.label}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/80">
+                    {section.description}
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {section.tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      let badge: number | null = null;
+                      if (tab.id === "keywords") badge = pendingKeywords.length;
+                      if (tab.id === "drafts") badge = draftBlogs.length;
+                      if (tab.id === "scheduled") badge = scheduledBlogs.length;
+                      if (tab.id === "published") badge = publishedBlogs.length;
 
-          <TabsContent value="seo" className="space-y-4">
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveTab(tab.id)}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-foreground/80 hover:bg-muted"
+                          )}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{tab.label}</span>
+                          </span>
+                          {badge !== null && badge > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                "h-5 min-w-5 shrink-0 px-1.5 text-[10px]",
+                                isActive && "bg-primary-foreground/20 text-primary-foreground"
+                              )}
+                            >
+                              {badge}
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </aside>
+
+            <div className="min-w-0 space-y-4">
+              {activeTabMeta && (
+                <div className="rounded-xl border bg-muted/25 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {activeTabMeta.section.label}
+                  </p>
+                  <h2 className="text-lg font-semibold text-[#0c2444]">{activeTabMeta.label}</h2>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {activeTabMeta.section.description}
+                  </p>
+                </div>
+              )}
+
+          <TabsContent value="seo" className="mt-0 space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -566,7 +699,7 @@ export default function AiCenterClient() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="mt-0">
             {settings && (
               <Card>
                 <CardHeader>
@@ -758,6 +891,8 @@ export default function AiCenterClient() {
               </Card>
             )}
           </TabsContent>
+            </div>
+          </div>
         </Tabs>
       </div>
 

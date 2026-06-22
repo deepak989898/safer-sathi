@@ -19,6 +19,7 @@ import {
   logoutUser,
   registerCustomer,
   registerStaff,
+  requestPasswordReset,
   resolveAuthUser,
   suspendUserAccount,
 } from "@/lib/auth/auth-service";
@@ -45,6 +46,7 @@ interface AuthContextValue {
     password: string;
   }) => Promise<string>;
   registerStaffMember: (input: RegisterStaffInput) => Promise<boolean>;
+  forgotPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUsers: () => Promise<User[]>;
   approveUser: (userId: string) => Promise<void>;
@@ -133,6 +135,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const forgotPassword = useCallback(async (email: string) => {
+    try {
+      await requestPasswordReset(email);
+    } catch (error) {
+      throw new Error(getFirebaseAuthErrorMessage(error));
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await logoutUser();
     setUser(null);
@@ -163,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       registerStaffMember,
+      forgotPassword,
       logout,
       refreshUsers,
       approveUser,
@@ -174,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       registerStaffMember,
+      forgotPassword,
       logout,
       refreshUsers,
       approveUser,

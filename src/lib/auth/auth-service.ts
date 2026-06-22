@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   type User as FirebaseUser,
@@ -13,6 +14,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { COLLECTIONS, getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase/client";
+import { appUrl } from "@/lib/site-config";
 import type { User, UserRole } from "@/types";
 import { isStaffRole } from "./constants";
 import { canManageUser } from "./permissions";
@@ -232,6 +234,44 @@ export async function logoutUser(): Promise<void> {
   await signOut(getFirebaseAuth());
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    throw new AuthError("Please enter your email address.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new AuthError("Please enter a valid email address.");
+  }
+
+  if (!isFirebaseConfigured()) {
+    throw new AuthError(
+      "Password reset is not available in demo mode. Please contact support."
+    );
+  }
+
+  const continueUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/login?reset=done`
+      : appUrl("/login?reset=done");
+
+  try {
+    await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+      url: continueUrl,
+      handleCodeInApp: false,
+    });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (
+      code === "auth/invalid-email" ||
+      code === "auth/missing-email" ||
+      code === "auth/too-many-requests"
+    ) {
+      throw error;
+    }
+    // Do not reveal whether the email exists.
+  }
+}
+
 export async function resolveAuthUser(
   firebaseUser: FirebaseUser | null
 ): Promise<User | null> {
@@ -322,6 +362,8 @@ export function getFirebaseAuthErrorMessage(error: unknown): string {
       return "Invalid email or password. Register first if you are new.";
     case "auth/too-many-requests":
       return "Too many attempts. Please try again later.";
+    case "auth/missing-email":
+      return "Please enter your email address.";
     default:
       if (error instanceof AuthError) return error.message;
       return "Authentication failed. Please try again.";
