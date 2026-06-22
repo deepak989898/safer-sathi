@@ -16,7 +16,7 @@ import {
   processConversationInput,
 } from "@/lib/ai/travel-manager/conversation-engine";
 import type { Locale } from "@/types";
-import type { CustomPackageQuote, TravelManagerResponse, TravelManagerState } from "@/types/travel-manager";
+import type { CustomPackageQuote, TravelManagerResponse, TravelManagerState, TravelManagerStep } from "@/types/travel-manager";
 
 const SYSTEM_EN = `You are Safar Sathi AI Travel Manager — a professional human-like Indian travel agent.
 Use ONLY live catalog prices in context. Never invent prices. Be warm and concise.
@@ -223,7 +223,21 @@ export async function runTravelManager(
   const newState = { ...transition.state, step: transition.nextStep };
   const payload = await buildStepPayload(newState, locale, transition.reply, transition.quickReplies);
 
+  const structuredSteps: TravelManagerStep[] = [
+    "destination",
+    "pickup_city",
+    "trip_type",
+    "activities",
+    "duration",
+    "guests",
+    "hotel_destination",
+    "hotel_dates",
+    "hotel_budget",
+    "vehicle_passengers",
+    "booking_form",
+  ];
   const skipEnrich =
+    structuredSteps.includes(newState.step) ||
     newState.step === "package_tiers" ||
     newState.step === "package_review" ||
     newState.step === "customize";

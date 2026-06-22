@@ -18,6 +18,8 @@ interface HeroSliderProps {
   compact?: boolean;
   /** Left-aligned serif title, lighter overlay — mobile reference layout */
   mobileReferenceLayout?: boolean;
+  /** Desktop homepage reference — left title, navy text, bridge-friendly overlay */
+  desktopReferenceLayout?: boolean;
 }
 
 export function HeroSlider({
@@ -27,6 +29,7 @@ export function HeroSlider({
   className,
   compact = false,
   mobileReferenceLayout = false,
+  desktopReferenceLayout = false,
 }: HeroSliderProps) {
   const [index, setIndex] = useState(0);
   const activeSlide = slides[index] ?? slides[0];
@@ -48,6 +51,7 @@ export function HeroSlider({
       className={cn(
         "relative flex items-center justify-center md:min-h-[580px]",
         mobileReferenceLayout && "overflow-x-hidden",
+        desktopReferenceLayout && "overflow-hidden pb-28 lg:pb-32",
         compact ? "min-h-[420px] sm:min-h-[480px]" : "min-h-[520px] sm:min-h-[560px]",
         className
       )}
@@ -68,7 +72,11 @@ export function HeroSlider({
           <div
             className={cn(
               "absolute inset-0",
-              mobileReferenceLayout ? "hero-slider-overlay-reference" : "hero-slider-overlay"
+              mobileReferenceLayout
+                ? "hero-slider-overlay-reference"
+                : desktopReferenceLayout
+                  ? "hero-slider-overlay-desktop-reference"
+                  : "hero-slider-overlay"
             )}
           />
         </div>
@@ -79,7 +87,9 @@ export function HeroSlider({
           "container relative z-10 mx-auto px-4 py-10 md:py-20",
           mobileReferenceLayout
             ? "flex min-h-0 flex-col justify-start pb-2 pt-24 text-left sm:pt-28"
-            : "text-center"
+            : desktopReferenceLayout
+              ? "flex min-h-0 flex-col justify-center pb-8 pt-28 text-left lg:pt-32"
+              : "text-center"
         )}
       >
         {activeSlide.title && (
@@ -87,25 +97,39 @@ export function HeroSlider({
             className={cn(
               mobileReferenceLayout
                 ? "mobile-hero-title max-w-[16rem] font-serif text-[1.65rem] font-bold leading-[1.12] tracking-tight sm:max-w-md sm:text-4xl"
-                : "text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-4xl md:text-5xl lg:text-6xl"
+                : desktopReferenceLayout
+                  ? "max-w-xl font-serif text-4xl font-bold leading-tight tracking-tight text-[#0c2444] lg:max-w-2xl lg:text-5xl"
+                  : "text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-4xl md:text-5xl lg:text-6xl"
             )}
           >
             {activeSlide.title}
           </h1>
         )}
         {activeSlide.subtitle && !mobileReferenceLayout && (
-          <p className="mx-auto mt-3 max-w-2xl text-base text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)] sm:mt-4 sm:text-lg md:text-white/95">
+          <p
+            className={cn(
+              desktopReferenceLayout
+                ? "mt-4 max-w-lg text-base leading-relaxed text-[#334155] lg:text-lg"
+                : "mx-auto mt-3 max-w-2xl text-base text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)] sm:mt-4 sm:text-lg md:text-white/95"
+            )}
+          >
             {activeSlide.subtitle}
           </p>
         )}
         {children && (
-          <div className={cn("mt-5 md:mt-10", mobileReferenceLayout && "mt-4 w-full")}>
+          <div
+            className={cn(
+              "mt-5 md:mt-10",
+              mobileReferenceLayout && "mt-4 w-full",
+              desktopReferenceLayout && "mt-6 md:mt-8"
+            )}
+          >
             {children}
           </div>
         )}
       </div>
 
-      {slides.length > 1 && !mobileReferenceLayout && (
+      {slides.length > 1 && !mobileReferenceLayout && !desktopReferenceLayout && (
         <>
           <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
             {slides.map((slide, slideIndex) => (

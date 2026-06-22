@@ -64,6 +64,8 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { AiChatDatePicker } from "@/components/ai/ai-chat-date-picker";
+import { formatDisplayDate } from "@/lib/ai/travel-manager/parse-user-input";
 
 interface ChatEntry {
   id: string;
@@ -867,6 +869,21 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
                 {aiLocale === "hi" ? "सोच रहा हूं…" : "Thinking…"}
               </div>
             )}
+
+            {tmState?.step === "hotel_dates" && !loading && (
+              <AiChatDatePicker
+                mode={tmState.travelDate ? "check_out" : "check_in"}
+                locale={aiLocale}
+                checkInDate={tmState.travelDate}
+                disabled={loading}
+                onSelect={(iso) => {
+                  void sendMessage(iso, {
+                    displayText: formatDisplayDate(iso, aiLocale),
+                  });
+                }}
+              />
+            )}
+
             <div ref={scrollRef} />
           </div>
         </div>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { TryAssistantButton } from "@/components/ai/try-assistant-button";
 import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
-import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
+import { getHotels, getPackages, getReviews, getVehicles } from "@/lib/data-service";
 import {
   buildHomepageHotels,
   buildHomepagePackages,
@@ -18,10 +18,11 @@ import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [packages, hotels, vehicles] = await Promise.all([
+  const [packages, hotels, vehicles, reviews] = await Promise.all([
     getPackages(),
     getHotels(),
     getVehicles(),
+    getReviews(),
   ]);
 
   const featuredPackages = buildHomepagePackages(packages);
@@ -41,13 +42,14 @@ export default async function HomePage() {
         mobilePackages={mobilePackages}
         mobileHotels={mobileHotels}
         mobileVehicles={mobileVehicles}
+        reviews={reviews}
       />
 
       <div className="container mx-auto px-4 pb-5 md:hidden">
         <MobileFeatureCard />
       </div>
 
-      <ImageBannerSection className="py-5 pb-6 md:py-12" image={HERO_IMAGES.cta}>
+      <ImageBannerSection className="py-5 pb-6 md:hidden md:py-12" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-lg font-bold md:text-3xl">Ready for Your Next Adventure?</h2>
           <p className="mx-auto mt-1.5 max-w-xl text-xs text-primary-foreground/90 md:mt-3 md:text-base">

@@ -4,6 +4,14 @@ import {
   type UserLocationInfo,
 } from "@/lib/ai/travel-manager/geo-language";
 import { getNativeLanguageAcknowledgment } from "@/lib/ai/travel-manager/native-languages";
+import {
+  addDaysToIso,
+  formatDisplayDate,
+  isAcknowledgment,
+  isIsoAfter,
+  parseFlexibleDate,
+  parseNightsFromText,
+} from "@/lib/ai/travel-manager/parse-user-input";
 import type { Locale } from "@/types";
 import type {
   QuickReply,
@@ -105,6 +113,31 @@ function pickupReplies(locale: Locale): QuickReply[] {
     ...PICKUP_CITIES.map((c, i) => ({ id: `pick-${i}`, label: c, value: c })),
     { id: "pick-custom", label: t("Custom City", "अन्य शहर", locale), value: "custom_city" },
   ];
+}
+
+function guestCountReplies(locale: Locale): QuickReply[] {
+  return ["1", "2", "3", "4", "5+"].map((n) => ({ id: `g-${n}`, label: n, value: n }));
+}
+
+function hotelNightChips(locale: Locale): QuickReply[] {
+  return [1, 2, 3, 4, 5].map((n) => ({
+    id: `n-${n}`,
+    label: locale === "hi" ? `${n} रात` : `${n} night${n > 1 ? "s" : ""}`,
+    value: String(n),
+  }));
+}
+
+function hotelCheckInPrompt(locale: Locale): string {
+  return locale === "hi"
+    ? "📅 चेक-इन तारीख — कैलेंडर से चुनें या तारीख टाइप करें (जैसे 25 Aug या 2026-08-25):"
+    : "📅 Check-in date — pick from the calendar or type a date (e.g. 25 Aug or 2026-08-25):";
+}
+
+function hotelCheckOutPrompt(checkIn: string, locale: Locale): string {
+  const display = formatDisplayDate(checkIn, locale);
+  return locale === "hi"
+    ? `✅ चेक-इन: ${display}\n\n📅 चेक-आउट — कैलेंडर से चुनें, रातें चुनें (नीचे), या तारीख टाइप करें (जैसे 25 को):`
+    : `✅ Check-in: ${display}\n\n📅 Check-out — use the calendar, tap nights below, or type a date (e.g. 25 Aug):`;
 }
 
 function parseDestination(text: string): string | null {
@@ -450,37 +483,72 @@ export function processConversationInput(
       next.step = "hotel_dates";
       return {
         state: next,
-        reply: t("Check-in date (YYYY-MM-DD):", "चेक-इन (YYYY-MM-DD):", locale),
+        reply: hotelCheckInPrompt(locale),
         quickReplies: [],
         nextStep: "hotel_dates",
       };
     }
 
     case "hotel_dates": {
-      if (!next.travelDate && /\d{4}-\d{2}-\d{2}/.test(text)) {
-        next.travelDate = text;
+      if (!next.travelDate) {
+        const checkIn = parseFlexibleDate(text);
+        if (checkIn) {
+          next.travelDate = checkIn;
+          return {
+            state: next,
+            reply: hotelCheckOutPrompt(checkIn, locale),
+            quickReplies: hotelNightChips(locale),
+            nextStep: "hotel_dates",
+          };
+        }
         return {
           state: next,
-          reply: t("Check-out date (YYYY-MM-DD):", "चेक-आउट (YYYY-MM-DD):", locale),
+          reply: isAcknowledgment(text)
+            ? t(
+                "Please pick check-in from the calendar or type a date.",
+                "कृपया कैलेंडर से चेक-इन चुनें या तारीख टाइप करें।",
+                locale
+              )
+            : hotelCheckInPrompt(locale),
           quickReplies: [],
           nextStep: "hotel_dates",
         };
       }
-      if (next.travelDate && /\d{4}-\d{2}-\d{2}/.test(text)) {
-        next.checkOutDate = text;
+
+      const nights = parseNightsFromText(text, { checkoutPhase: true });
+      if (nights) {
+        next.checkOutDate = addDaysToIso(next.travelDate, nights);
         next.step = "guests";
         return {
           state: next,
           reply: t("How many guests?", "कितने मेहमान?", locale),
-          quickReplies: ["1", "2", "3", "4", "5+"].map((n) => ({ id: `g-${n}`, label: n, value: n })),
+          quickReplies: guestCountReplies(locale),
           nextStep: "guests",
         };
       }
-      next.travelDate = text;
+
+      const checkOut = parseFlexibleDate(text, { referenceCheckIn: next.travelDate });
+      if (checkOut && isIsoAfter(checkOut, next.travelDate)) {
+        next.checkOutDate = checkOut;
+        next.step = "guests";
+        return {
+          state: next,
+          reply: t("How many guests?", "कितने मेहमान?", locale),
+          quickReplies: guestCountReplies(locale),
+          nextStep: "guests",
+        };
+      }
+
       return {
         state: next,
-        reply: t("Check-out date (YYYY-MM-DD):", "चेक-आउट (YYYY-MM-DD):", locale),
-        quickReplies: [],
+        reply: isAcknowledgment(text)
+          ? hotelCheckOutPrompt(next.travelDate, locale)
+          : t(
+              "Please pick check-out from the calendar, tap nights (1–5), or type a date like 25 Aug.",
+              "कृपया कैलेंडर से चेक-आउट चुनें, रातें टैप करें (1–5), या तारीख टाइप करें (जैसे 25 Aug)।",
+              locale
+            ),
+        quickReplies: hotelNightChips(locale),
         nextStep: "hotel_dates",
       };
     }
@@ -589,7 +657,10 @@ export function processConversationInput(
       else if (/^\d{10}$/.test(text.replace(/\D/g, "").slice(-10)))
         next.customerPhone = text.replace(/\D/g, "").slice(-10);
       else if (!next.customerName) next.customerName = text;
-      else if (!next.travelDate && /\d{4}-\d{2}-\d{2}/.test(text)) next.travelDate = text;
+      else if (!next.travelDate) {
+        const parsedDate = parseFlexibleDate(text);
+        if (parsedDate) next.travelDate = parsedDate;
+      }
       else if (parsedGuests) next.guests = parsedGuests;
       else if (text.length > 3) next.specialRequest = text;
 
@@ -751,6 +822,37 @@ export function getStepUiForState(
           { id: "p3", label: "8-12", value: "8-12" },
           { id: "p4", label: "13-20", value: "13-20" },
           { id: "p5", label: "20+", value: "20+" },
+        ],
+      };
+    case "hotel_destination":
+      return {
+        reply: t("Which city for your hotel stay?", "किस शहर में होटल चाहिए?", locale),
+        quickReplies: destinationReplies(locale),
+      };
+    case "hotel_dates":
+      if (state.travelDate) {
+        return {
+          reply: hotelCheckOutPrompt(state.travelDate, locale),
+          quickReplies: hotelNightChips(locale),
+        };
+      }
+      return {
+        reply: hotelCheckInPrompt(locale),
+        quickReplies: [],
+      };
+    case "guests":
+      return {
+        reply: t("How many guests?", "कितने मेहमान?", locale),
+        quickReplies: guestCountReplies(locale),
+      };
+    case "hotel_budget":
+      return {
+        reply: t("Hotel budget per night?", "प्रति रात बजट?", locale),
+        quickReplies: [
+          { id: "hb-2", label: "₹2,000", value: "2000" },
+          { id: "hb-5", label: "₹5,000", value: "5000" },
+          { id: "hb-10", label: "₹10,000", value: "10000" },
+          { id: "hb-l", label: "Luxury", value: "luxury" },
         ],
       };
     default:

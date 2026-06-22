@@ -26,7 +26,7 @@ const searchTabs: {
 
 interface SearchWidgetProps {
   onExpandChange?: (expanded: boolean) => void;
-  variant?: "default" | "mobile-pill";
+  variant?: "default" | "mobile-pill" | "desktop-bridge";
 }
 
 export function SearchWidget({
@@ -108,9 +108,17 @@ export function SearchWidget({
 
   const activeTabMeta = searchTabs.find((tab) => tab.id === activeTab)!;
   const isMobilePill = variant === "mobile-pill";
+  const isDesktopBridge = variant === "desktop-bridge";
 
   const searchButton = (tab: SearchTabId, href: string) => (
-    <Button size="lg" className="w-full" onClick={() => runSearch(tab, href)}>
+    <Button
+      size="lg"
+      className={cn(
+        "w-full",
+        isDesktopBridge && "h-11 rounded-xl bg-[#0c2444] px-8 hover:bg-[#0a1d38]"
+      )}
+      onClick={() => runSearch(tab, href)}
+    >
       <Search className="mr-2 h-4 w-4" />
       {t(locale, "hero", "search")}
     </Button>
@@ -120,9 +128,22 @@ export function SearchWidget({
 
   const searchForm = (
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SearchTabId)}>
-      <TabsList className="mb-3 w-full justify-start md:mb-4">
+      <TabsList
+        className={cn(
+          "mb-3 w-full justify-start md:mb-4",
+          isDesktopBridge && "h-auto gap-1 bg-transparent p-0"
+        )}
+      >
         {searchTabs.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} className="flex-1 gap-1.5 text-xs sm:flex-none sm:text-sm">
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className={cn(
+              "flex-1 gap-1.5 text-xs sm:flex-none sm:text-sm",
+              isDesktopBridge &&
+                "rounded-lg border border-transparent px-4 py-2 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-none"
+            )}
+          >
             <tab.icon className="h-4 w-4 shrink-0" />
             {tab.label}
           </TabsTrigger>
@@ -292,6 +313,14 @@ export function SearchWidget({
     return (
       <div className="mobile-search-pill">
         {!expanded ? pillTrigger : expandedMobilePanel}
+      </div>
+    );
+  }
+
+  if (isDesktopBridge) {
+    return (
+      <div className="desktop-search-card rounded-[1.25rem] border border-slate-100 bg-white p-5 shadow-[0_16px_48px_rgba(12,36,68,0.14)] lg:p-6">
+        {searchForm}
       </div>
     );
   }
