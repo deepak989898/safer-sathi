@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { markAiAssistantSeen } from "@/lib/ai/assistant-prompt";
+import { trackAiAssistantOpen } from "@/lib/analytics";
 
 interface TryAssistantButtonProps {
   size?: "default" | "sm" | "lg";
@@ -32,12 +34,22 @@ export function TryAssistantButton({
         size={size}
         variant={variant}
         className={cn(showIcon && "gap-2", className)}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          markAiAssistantSeen();
+          trackAiAssistantOpen();
+          setOpen(true);
+        }}
       >
         {showIcon && <AiAssistantIcon size={20} className="h-5 w-5" />}
         {t(locale, "features", "aiAssistant")}
       </Button>
-      <TravelManagerPopup open={open} onOpenChange={setOpen} />
+      <TravelManagerPopup
+        open={open}
+        onOpenChange={(next) => {
+          if (next) markAiAssistantSeen();
+          setOpen(next);
+        }}
+      />
     </>
   );
 }
