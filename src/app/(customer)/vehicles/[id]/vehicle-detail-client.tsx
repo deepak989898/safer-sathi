@@ -43,6 +43,16 @@ import {
 
 const MIN_ONE_WAY_KM = 50;
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function tomorrowIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function InfoRow({
   label,
   value,
@@ -74,8 +84,8 @@ export function VehicleDetailClient({
   const router = useRouter();
   const { completeCatalogBooking, paying } = useTravelCheckout();
   const [bookingMode, setBookingMode] = useState<"day" | "km">("day");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(todayIso);
+  const [endDate, setEndDate] = useState(tomorrowIso);
   const [guests, setGuests] = useState("1");
   const [distanceKm, setDistanceKm] = useState(String(MIN_ONE_WAY_KM));
   const [name, setName] = useState(user?.name ?? "");
@@ -107,18 +117,22 @@ export function VehicleDetailClient({
   const total = bookingMode === "km" ? kmTotal : dayTotal;
   const payNow = calculatePayNowAmount(total, paymentPlan);
 
-  const canBook =
-    bookingMode === "day"
-      ? Boolean(startDate && endDate)
-      : Boolean(startDate && oneWayKm >= MIN_ONE_WAY_KM);
-
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
       toast.error("Please fill name, email and phone");
       return;
     }
-    if (!canBook) {
-      toast.error("Please complete booking dates and details");
+    if (bookingMode === "day") {
+      if (!startDate || !endDate) {
+        toast.error("Please select pick-up and return dates");
+        return;
+      }
+      if (new Date(endDate) < new Date(startDate)) {
+        toast.error("Return date must be on or after pick-up date");
+        return;
+      }
+    } else if (!startDate) {
+      toast.error("Please select your travel date");
       return;
     }
 
@@ -397,6 +411,7 @@ export function VehicleDetailClient({
                       <Label>Pick-up Date</Label>
                       <Input
                         type="date"
+                        min={todayIso()}
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="mt-1.5"
@@ -406,6 +421,7 @@ export function VehicleDetailClient({
                       <Label>Return Date</Label>
                       <Input
                         type="date"
+                        min={startDate || todayIso()}
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="mt-1.5"
@@ -418,6 +434,7 @@ export function VehicleDetailClient({
                       <Label>Travel Date</Label>
                       <Input
                         type="date"
+                        min={todayIso()}
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="mt-1.5"
@@ -499,9 +516,16 @@ export function VehicleDetailClient({
                 />
 
                 <Button
-                  className="w-full bg-[#f97316] hover:bg-[#ea580c]"
+                  type="button"
+                  className={cn(
+                    "h-12 w-full border-0 text-base font-bold text-white shadow-lg",
+                    "bg-gradient-to-r from-orange-500 to-orange-600",
+                    "shadow-orange-500/35 hover:from-orange-600 hover:to-orange-700",
+                    "focus-visible:ring-orange-500/50",
+                    "disabled:opacity-80"
+                  )}
                   size="lg"
-                  disabled={!canBook || submitting}
+                  disabled={submitting}
                   onClick={handleBook}
                 >
                   {submitting ? (
