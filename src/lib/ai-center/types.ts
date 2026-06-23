@@ -58,6 +58,8 @@ export interface SeoKeyword {
   destination?: string;
   seoScore: number;
   status: KeywordStatus;
+  /** Where the keyword idea came from */
+  source?: "google_suggest" | "google_serp" | "template" | "ai";
   createdAt: string;
   updatedAt?: string;
   approvedAt?: string;

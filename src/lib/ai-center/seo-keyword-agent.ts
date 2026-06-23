@@ -1,4 +1,5 @@
 import { getHotels, getPackages, getVehicles } from "@/lib/data-service";
+import { discoverGoogleKeywords } from "@/lib/ai-center/google-keyword-research";
 import { routeCompletion } from "@/lib/ai/router";
 import type {
   KeywordCategory,
@@ -104,7 +105,8 @@ function hashKeyword(keyword: string): number {
 function buildKeywordRecord(
   keyword: string,
   category: KeywordCategory,
-  destination?: string
+  destination?: string,
+  source: SeoKeyword["source"] = "template"
 ): SeoKeyword {
   const seed = hashKeyword(keyword);
   const searchVolume = 800 + (seed % 9200);
@@ -123,6 +125,7 @@ function buildKeywordRecord(
     destination,
     seoScore: computeSeoScore({ searchVolume, competition, trendScore }),
     status: "pending",
+    source,
     createdAt: now,
   };
 }
@@ -165,6 +168,8 @@ export interface KeywordResearchResult {
   keywords: SeoKeyword[];
   poolSize: number;
   excludedExisting: number;
+  googleSuggestCount: number;
+  googleSerpCount: number;
 }
 
 export async function generateKeywordResearch(
@@ -185,21 +190,34 @@ export async function generateKeywordResearch(
   const excludeSet = new Set(excludeKeywords.map((k) => k.toLowerCase().trim()));
   const rotation = excludeKeywords.length;
 
-  let candidates = buildCandidatePool(destinations, excludeSet, rotation);
-  let poolSize = candidates.length;
+  const googleDiscovery = await discoverGoogleKeywords(
+    destinations,
+    excludeSet,
+    Math.max(limit * 3, 20)
+  );
 
-  // Second pass with shifted rotation if not enough fresh keywords
+  let candidates: SeoKeyword[] = [...googleDiscovery.keywords];
+  const seen = new Set(candidates.map((c) => c.keyword.toLowerCase()));
+
+  const templatePool = buildCandidatePool(destinations, excludeSet, rotation);
+  for (const c of templatePool) {
+    const key = c.keyword.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    candidates.push(c);
+  }
+
   if (candidates.length < limit) {
     const extra = buildCandidatePool(destinations, excludeSet, rotation + 7);
-    const seen = new Set(candidates.map((c) => c.keyword.toLowerCase()));
     for (const c of extra) {
       const key = c.keyword.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       candidates.push(c);
     }
-    poolSize = candidates.length;
   }
+
+  let poolSize = candidates.length;
 
   candidates.sort((a, b) => b.seoScore - a.seoScore);
   let selected = candidates.slice(0, limit);
@@ -236,7 +254,7 @@ export async function generateKeywordResearch(
         if (!key || seen.has(key)) continue;
         seen.add(key);
         selected.push(
-          buildKeywordRecord(kw, "travel_guides", destinations[rotation % destinations.length])
+          buildKeywordRecord(kw, "travel_guides", destinations[rotation % destinations.length], "ai")
         );
       }
       selected = selected
@@ -252,5 +270,7 @@ export async function generateKeywordResearch(
     keywords: selected.slice(0, limit),
     poolSize,
     excludedExisting: excludeKeywords.length,
+    googleSuggestCount: googleDiscovery.suggestCount,
+    googleSerpCount: googleDiscovery.serpCount,
   };
 }

@@ -286,13 +286,17 @@ export default function AiCenterClient() {
       if (!json.success) throw new Error(json.error);
       const count = json.data.count as number;
       const existingTotal = json.data.existingTotal as number | undefined;
+      const googleSuggestCount = json.data.googleSuggestCount as number | undefined;
       if (count === 0) {
         toast.message("No new keywords added", {
-          description: `You already have ${existingTotal ?? "your"} saved keywords. The system skipped duplicates and picked the next ideas — try again for more, or delete unused keywords in Keyword Research.`,
+          description: `You already have ${existingTotal ?? "your"} saved keywords. Run again for the next batch, or delete unused keywords in Keyword Research.`,
         });
       } else {
+        const fromGoogle = googleSuggestCount
+          ? ` ${googleSuggestCount} ideas fetched from Google Search.`
+          : "";
         toast.success(`Added ${count} new keyword${count === 1 ? "" : "s"}`, {
-          description: `${existingTotal ?? count} total in your keyword library.`,
+          description: `${existingTotal ?? count} total in library.${fromGoogle}`,
         });
       }
       await loadAll();
@@ -525,17 +529,18 @@ export default function AiCenterClient() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Automatically discovers tour, hotel, vehicle & destination keywords. When you approve a keyword,
-                  AI generates SEO title, description, slug, FAQ, OpenGraph & schema markup into Firebase.
+                  Discovers keywords from <strong>Google Search autocomplete</strong> (real queries people type),
+                  plus your packages, hotels & destinations. When you approve a keyword, AI generates SEO title,
+                  description, slug, FAQ, OpenGraph & schema markup into Firebase.
                 </p>
                 <Button onClick={() => void runKeywordResearch()} disabled={busy}>
                   {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Run Keyword Research
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Adds up to {settings?.keywordsPerDay ?? 10} <strong>new</strong> keywords per run (not a daily limit).
-                  If you see &quot;0 added&quot;, those ideas are already in your library — run again for the next batch,
-                  or delete unused keywords under Keyword Research.
+                  Adds up to {settings?.keywordsPerDay ?? 10} <strong>new</strong> keywords per run.
+                  Sources: Google Search suggestions (always) · template fallbacks · optional SerpAPI if{" "}
+                  <code className="rounded bg-muted px-1">SERP_API_KEY</code> is set in Vercel env.
                 </p>
                 <div className="grid gap-3 md:grid-cols-2">
                   {seoMeta.slice(0, 6).map((meta) => (
@@ -1065,6 +1070,35 @@ function StatPill({ label, value }: { label: string; value: number }) {
   );
 }
 
+function KeywordSourceBadge({ source }: { source?: SeoKeyword["source"] }) {
+  if (!source || source === "template") {
+    return (
+      <Badge variant="outline" className="font-normal text-muted-foreground">
+        Template
+      </Badge>
+    );
+  }
+  if (source === "google_suggest") {
+    return (
+      <Badge variant="secondary" className="font-normal">
+        Google
+      </Badge>
+    );
+  }
+  if (source === "google_serp") {
+    return (
+      <Badge variant="secondary" className="font-normal">
+        Google SERP
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="font-normal">
+      AI
+    </Badge>
+  );
+}
+
 function KeywordTable({
   title,
   items,
@@ -1101,6 +1135,7 @@ function KeywordTable({
               <th className="p-2">Trend</th>
               <th className="p-2">Category</th>
               <th className="p-2">SEO</th>
+              <th className="p-2">Source</th>
               <th className="p-2">Actions</th>
             </tr>
           </thead>
@@ -1113,6 +1148,9 @@ function KeywordTable({
                 <td className="p-2">{kw.trendScore}</td>
                 <td className="p-2">{kw.category.replace(/_/g, " ")}</td>
                 <td className="p-2">{kw.seoScore}</td>
+                <td className="p-2">
+                  <KeywordSourceBadge source={kw.source} />
+                </td>
                 <td className="p-2">
                   <div className="flex flex-wrap gap-1">
                     {!hideActions && kw.status === "pending" && (

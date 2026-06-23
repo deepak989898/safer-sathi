@@ -52,6 +52,8 @@ export async function POST(request: Request) {
       count: result.added.length,
       duplicatesSkipped: result.duplicatesSkipped,
       poolExhausted: result.poolExhausted,
+      googleSuggestCount: result.googleSuggestCount,
+      googleSerpCount: result.googleSerpCount,
       existingTotal: listKeywords().length,
     });
   } catch (err) {
