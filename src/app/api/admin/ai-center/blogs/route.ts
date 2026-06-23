@@ -4,6 +4,7 @@ import {
   hydrateAiCenterStore,
   listBlogs,
 } from "@/lib/ai-center/repository";
+import { attachBlogViewCounts } from "@/lib/blog-analytics/repository";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { z } from "zod";
 
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
       | "rejected"
       | null;
 
-    return apiSuccess({ blogs: listBlogs(status ?? undefined) });
+    const blogs = await attachBlogViewCounts(listBlogs(status ?? undefined));
+    return apiSuccess({ blogs });
   } catch (err) {
     console.error("List blogs error:", err);
     return apiError("Failed to list blogs", 500);

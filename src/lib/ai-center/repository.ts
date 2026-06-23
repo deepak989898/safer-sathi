@@ -219,16 +219,25 @@ export async function fetchPublishedBlogBySlug(slug: string): Promise<AiBlogPost
   }
 }
 
-export async function runKeywordGeneration(actorId?: string): Promise<SeoKeyword[]> {
+export async function runKeywordGeneration(actorId?: string): Promise<{
+  added: SeoKeyword[];
+  duplicatesSkipped: number;
+  poolExhausted: boolean;
+}> {
   const start = Date.now();
   await hydrateAiCenterStore();
   const settings = getAiCenterSettings();
   const limit = settings.keywordsPerDay;
+  const existingKeywords = keywordCache.map((k) => k.keyword);
 
   try {
-    const generated = await generateKeywordResearch(limit);
-    const existing = new Set(keywordCache.map((k) => k.keyword.toLowerCase()));
+    const { keywords: generated, poolSize } = await generateKeywordResearch(
+      limit,
+      existingKeywords
+    );
+    const existing = new Set(existingKeywords.map((k) => k.toLowerCase()));
     const fresh = generated.filter((k) => !existing.has(k.keyword.toLowerCase()));
+    const duplicatesSkipped = generated.length - fresh.length;
 
     for (const kw of fresh) {
       keywordCache = mergeCache(keywordCache, kw);
@@ -237,7 +246,10 @@ export async function runKeywordGeneration(actorId?: string): Promise<SeoKeyword
 
     await addAiCenterLog({
       type: "keyword_generated",
-      message: `Generated ${fresh.length} keywords`,
+      message:
+        fresh.length > 0
+          ? `Added ${fresh.length} new keywords (${existingKeywords.length} already in library)`
+          : `No new keywords — ${existingKeywords.length} already saved, ${poolSize} fresh ideas in pool`,
       durationMs: Date.now() - start,
     });
 
@@ -247,7 +259,11 @@ export async function runKeywordGeneration(actorId?: string): Promise<SeoKeyword
       }
     }
 
-    return fresh;
+    return {
+      added: fresh,
+      duplicatesSkipped,
+      poolExhausted: fresh.length === 0 && poolSize === 0,
+    };
   } catch (error) {
     await addAiCenterLog({
       type: "error",

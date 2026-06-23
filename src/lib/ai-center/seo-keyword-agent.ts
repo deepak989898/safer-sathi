@@ -19,6 +19,27 @@ const DESTINATIONS = [
   "Delhi",
   "Lucknow",
   "Mumbai",
+  "Nainital",
+  "Mussoorie",
+  "Agra",
+  "Varanasi",
+  "Amritsar",
+  "Ooty",
+  "Munnar",
+  "Leh",
+];
+
+const PICKUP_CITIES = [
+  "Delhi",
+  "Lucknow",
+  "Mumbai",
+  "Bangalore",
+  "Jaipur",
+  "Chandigarh",
+  "Kolkata",
+  "Hyderabad",
+  "Pune",
+  "Ahmedabad",
 ];
 
 const KEYWORD_TEMPLATES: Record<
@@ -31,34 +52,46 @@ const KEYWORD_TEMPLATES: Record<
     `${ctx.dest} Honeymoon Package`,
     `Budget ${ctx.dest} Tour Package`,
     `${ctx.dest} Family Tour Package`,
+    `${ctx.dest} Group Tour From ${ctx.city}`,
+    `${ctx.dest} Adventure Tour Package`,
   ],
   hotels: (ctx) => [
     `Best Hotels In ${ctx.dest}`,
     `Luxury Hotels In ${ctx.dest}`,
     `Budget Hotels In ${ctx.dest}`,
     `${ctx.dest} Resort Booking`,
+    `${ctx.dest} Homestay Booking`,
+    `Couple Friendly Hotels In ${ctx.dest}`,
   ],
   vehicles: (ctx) => [
     `Taxi Service In ${ctx.city}`,
     `Tempo Traveller In ${ctx.city}`,
     `Car Rental In ${ctx.dest}`,
     `SUV Rental For ${ctx.dest} Trip`,
+    `${ctx.city} To ${ctx.dest} Cab Fare`,
+    `Innova Rental For ${ctx.dest}`,
   ],
   destinations: (ctx) => [
     `Best Places To Visit In ${ctx.dest}`,
     `Top Attractions In ${ctx.dest}`,
     `Things To Do In ${ctx.dest}`,
+    `${ctx.dest} Sightseeing Places`,
+    `Famous Tourist Spots In ${ctx.dest}`,
   ],
   travel_guides: (ctx) => [
     `Best Time To Visit ${ctx.dest}`,
     `${ctx.dest} Travel Guide`,
     `${ctx.dest} Trip Cost`,
     `How To Reach ${ctx.dest}`,
+    `${ctx.dest} Weather By Month`,
+    `${ctx.dest} Itinerary 5 Days`,
   ],
   local: (ctx) => [
     `${ctx.dest} Weekend Getaway From ${ctx.city}`,
     `${ctx.city} To ${ctx.dest} Distance`,
     `${ctx.dest} Local Sightseeing`,
+    `${ctx.dest} Road Trip From ${ctx.city}`,
+    `${ctx.dest} Package With Cab`,
   ],
 };
 
@@ -94,19 +127,11 @@ function buildKeywordRecord(
   };
 }
 
-export async function generateKeywordResearch(limit = 10): Promise<SeoKeyword[]> {
-  const [packages, hotels, vehicles] = await Promise.all([
-    getPackages(),
-    getHotels(),
-    getVehicles(),
-  ]);
-
-  const destSet = new Set<string>(DESTINATIONS);
-  packages.slice(0, 8).forEach((p) => p.cities.forEach((c) => destSet.add(c)));
-  hotels.slice(0, 5).forEach((h) => destSet.add(h.city));
-  const destinations = [...destSet].slice(0, 12);
-  const pickupCities = ["Delhi", "Lucknow", "Mumbai", "Bangalore", "Jaipur"];
-
+function buildCandidatePool(
+  destinations: string[],
+  excludeSet: Set<string>,
+  rotation: number
+): SeoKeyword[] {
   const categories: KeywordCategory[] = [
     "tour_packages",
     "hotels",
@@ -121,18 +146,59 @@ export async function generateKeywordResearch(limit = 10): Promise<SeoKeyword[]>
 
   for (const dest of destinations) {
     for (const category of categories) {
-      const city = pickupCities[hashKeyword(dest + category) % pickupCities.length];
+      const city =
+        PICKUP_CITIES[(hashKeyword(dest + category) + rotation) % PICKUP_CITIES.length];
       const phrases = KEYWORD_TEMPLATES[category]({ dest, city });
       for (const phrase of phrases) {
         const key = phrase.toLowerCase();
-        if (seen.has(key)) continue;
+        if (seen.has(key) || excludeSet.has(key)) continue;
         seen.add(key);
         candidates.push(buildKeywordRecord(phrase, category, dest));
-        if (candidates.length >= limit * 3) break;
       }
-      if (candidates.length >= limit * 3) break;
     }
-    if (candidates.length >= limit * 3) break;
+  }
+
+  return candidates;
+}
+
+export interface KeywordResearchResult {
+  keywords: SeoKeyword[];
+  poolSize: number;
+  excludedExisting: number;
+}
+
+export async function generateKeywordResearch(
+  limit = 10,
+  excludeKeywords: string[] = []
+): Promise<KeywordResearchResult> {
+  const [packages, hotels, vehicles] = await Promise.all([
+    getPackages(),
+    getHotels(),
+    getVehicles(),
+  ]);
+
+  const destSet = new Set<string>(DESTINATIONS);
+  packages.forEach((p) => p.cities.forEach((c) => destSet.add(c)));
+  hotels.forEach((h) => destSet.add(h.city));
+  const destinations = [...destSet];
+
+  const excludeSet = new Set(excludeKeywords.map((k) => k.toLowerCase().trim()));
+  const rotation = excludeKeywords.length;
+
+  let candidates = buildCandidatePool(destinations, excludeSet, rotation);
+  let poolSize = candidates.length;
+
+  // Second pass with shifted rotation if not enough fresh keywords
+  if (candidates.length < limit) {
+    const extra = buildCandidatePool(destinations, excludeSet, rotation + 7);
+    const seen = new Set(candidates.map((c) => c.keyword.toLowerCase()));
+    for (const c of extra) {
+      const key = c.keyword.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(c);
+    }
+    poolSize = candidates.length;
   }
 
   candidates.sort((a, b) => b.seoScore - a.seoScore);
@@ -143,33 +209,48 @@ export async function generateKeywordResearch(limit = 10): Promise<SeoKeyword[]>
       packages: packages.slice(0, 5).map((p) => p.title.en),
       hotels: hotels.slice(0, 5).map((h) => h.name.en),
       vehicles: vehicles.slice(0, 5).map((v) => v.name.en),
+      alreadyUsed: excludeKeywords.slice(0, 20),
     };
     const { content } = await routeCompletion(
-      "You are Safar Sathi SEO keyword researcher for Indian travel. Return JSON array of 5 high-value long-tail keywords only.",
+      "You are Safar Sathi SEO keyword researcher for Indian travel. Return JSON array of NEW long-tail keywords not in alreadyUsed list.",
       [
         {
           role: "user",
-          content: `Suggest 5 keywords for tour packages, hotels, vehicles in India. Context: ${JSON.stringify(context)}. Return JSON: {"keywords":["..."]}`,
+          content: `Suggest ${limit} NEW unique India travel SEO keywords (tours, hotels, cabs). Do NOT repeat: ${JSON.stringify(context.alreadyUsed)}. Context: ${JSON.stringify({ packages: context.packages, hotels: context.hotels })}. Return JSON: {"keywords":["..."]}`,
         },
       ],
-      async () => JSON.stringify({ keywords: selected.slice(0, 5).map((k) => k.keyword) }),
-      { maxTokens: 300, timeoutMs: 8000 }
+      async () =>
+        JSON.stringify({
+          keywords: selected.slice(0, Math.min(5, limit)).map((k) => k.keyword),
+        }),
+      { maxTokens: 400, timeoutMs: 8000 }
     );
     const parsed = JSON.parse(content) as { keywords?: string[] };
     if (parsed.keywords?.length) {
-      for (const kw of parsed.keywords.slice(0, 5)) {
-        const key = kw.toLowerCase();
-        if (seen.has(key)) continue;
+      const seen = new Set([
+        ...excludeSet,
+        ...selected.map((k) => k.keyword.toLowerCase()),
+      ]);
+      for (const kw of parsed.keywords) {
+        const key = kw.toLowerCase().trim();
+        if (!key || seen.has(key)) continue;
         seen.add(key);
         selected.push(
-          buildKeywordRecord(kw, "travel_guides", destinations[0])
+          buildKeywordRecord(kw, "travel_guides", destinations[rotation % destinations.length])
         );
       }
-      selected = selected.sort((a, b) => b.seoScore - a.seoScore).slice(0, limit);
+      selected = selected
+        .filter((k) => !excludeSet.has(k.keyword.toLowerCase()))
+        .sort((a, b) => b.seoScore - a.seoScore)
+        .slice(0, limit);
     }
   } catch {
-    // rule-based fallback is enough
+    // rule-based pool is enough
   }
 
-  return selected.slice(0, limit);
+  return {
+    keywords: selected.slice(0, limit),
+    poolSize,
+    excludedExisting: excludeKeywords.length,
+  };
 }

@@ -108,6 +108,7 @@ export interface AiBlogPost {
   imagePrompts: BlogImagePrompt[];
   faq: { question: string; answer: string }[];
   wordCount: number;
+  viewCount?: number;
   status: BlogStatus;
   scheduledAt?: string;
   publishedAt?: string;

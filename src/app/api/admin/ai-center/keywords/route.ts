@@ -45,8 +45,15 @@ export async function POST(request: Request) {
     const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
     if (roleCheck.error) return roleCheck.error;
 
-    const keywords = await runKeywordGeneration(parsed.data.actorId);
-    return apiSuccess({ keywords, count: keywords.length });
+    await hydrateAiCenterStore();
+    const result = await runKeywordGeneration(parsed.data.actorId);
+    return apiSuccess({
+      keywords: result.added,
+      count: result.added.length,
+      duplicatesSkipped: result.duplicatesSkipped,
+      poolExhausted: result.poolExhausted,
+      existingTotal: listKeywords().length,
+    });
   } catch (err) {
     console.error("Generate keywords error:", err);
     return apiError(err instanceof Error ? err.message : "Failed to generate keywords", 500);

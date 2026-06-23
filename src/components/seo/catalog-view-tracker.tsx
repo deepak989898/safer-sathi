@@ -33,6 +33,12 @@ export function CatalogViewTracker({ type, id, name, price }: CatalogViewTracker
         break;
       case "blog":
         trackBlogView(id, name);
+        void fetch("/api/analytics/blog-view", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: id, title: name }),
+          keepalive: true,
+        });
         break;
     }
   }, [type, id, name, price]);

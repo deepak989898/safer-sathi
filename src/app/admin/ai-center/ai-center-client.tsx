@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Check,
+  Eye,
   FileText,
   Globe,
   Loader2,
@@ -260,7 +261,10 @@ export default function AiCenterClient() {
     [blogs]
   );
   const publishedBlogs = useMemo(
-    () => blogs.filter((b) => b.status === "published"),
+    () =>
+      blogs
+        .filter((b) => b.status === "published")
+        .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0)),
     [blogs]
   );
   const rejectedBlogs = useMemo(
@@ -280,7 +284,17 @@ export default function AiCenterClient() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      toast.success(`Generated ${json.data.count} keywords`);
+      const count = json.data.count as number;
+      const existingTotal = json.data.existingTotal as number | undefined;
+      if (count === 0) {
+        toast.message("No new keywords added", {
+          description: `You already have ${existingTotal ?? "your"} saved keywords. The system skipped duplicates and picked the next ideas — try again for more, or delete unused keywords in Keyword Research.`,
+        });
+      } else {
+        toast.success(`Added ${count} new keyword${count === 1 ? "" : "s"}`, {
+          description: `${existingTotal ?? count} total in your keyword library.`,
+        });
+      }
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Keyword research failed");
@@ -518,6 +532,11 @@ export default function AiCenterClient() {
                   {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Run Keyword Research
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                  Adds up to {settings?.keywordsPerDay ?? 10} <strong>new</strong> keywords per run (not a daily limit).
+                  If you see &quot;0 added&quot;, those ideas are already in your library — run again for the next batch,
+                  or delete unused keywords under Keyword Research.
+                </p>
                 <div className="grid gap-3 md:grid-cols-2">
                   {seoMeta.slice(0, 6).map((meta) => (
                     <div key={meta.id} className="rounded-lg border p-3 text-sm">
@@ -629,15 +648,16 @@ export default function AiCenterClient() {
           <TabsContent value="published">
             <BlogTable
               title="Published Blogs"
+              subtitle="Sorted by page views — see which blogs perform best"
               blogs={publishedBlogs}
               busy={busy}
               onEdit={openBlogEditor}
               onApprove={() => {}}
               onReject={() => {}}
               onPublish={() => {}}
-              onRegenerate={() => {}}
+              onRegenerate={(id) => void blogAction(id, "regenerate")}
               onDelete={(id) => void deleteBlog(id)}
-              readOnly
+              publishedOnly
             />
           </TabsContent>
 
@@ -925,7 +945,17 @@ export default function AiCenterClient() {
       <Dialog open={!!editBlog} onOpenChange={(o) => !o && setEditBlog(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Blog</DialogTitle>
+            <DialogTitle>
+              Edit Blog
+              {editBlog?.status === "published" && (
+                <Badge className="ml-2 align-middle" variant="secondary">
+                  Published — saves go live
+                  {typeof editBlog.viewCount === "number" ? (
+                    <> · {editBlog.viewCount.toLocaleString("en-IN")} views</>
+                  ) : null}
+                </Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {editBlog && (
             <div className="space-y-3">
@@ -1011,6 +1041,8 @@ export default function AiCenterClient() {
                 void blogAction(editBlog.id, "update", {
                   title: editBlog.title,
                   content: editBlog.content,
+                  excerpt: editBlog.excerpt,
+                  metaTitle: editBlog.title,
                   metaDescription: editBlog.metaDescription,
                   featuredImage: editBlog.featuredImage,
                 })
@@ -1117,6 +1149,7 @@ function KeywordTable({
 
 function BlogTable({
   title,
+  subtitle,
   blogs,
   busy,
   onEdit,
@@ -1126,9 +1159,11 @@ function BlogTable({
   onRegenerate,
   onDelete,
   publishOnly,
+  publishedOnly,
   readOnly,
 }: {
   title: string;
+  subtitle?: string;
   blogs: AiBlogPost[];
   busy: boolean;
   onEdit: (b: AiBlogPost) => void;
@@ -1138,11 +1173,17 @@ function BlogTable({
   onRegenerate: (id: string) => void;
   onDelete: (id: string) => void;
   publishOnly?: boolean;
+  publishedOnly?: boolean;
   readOnly?: boolean;
 }) {
   return (
     <Card>
-      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {subtitle ? (
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        ) : null}
+      </CardHeader>
       <CardContent className="space-y-3">
         {blogs.map((blog) => (
           <div key={blog.id} className="rounded-lg border p-4">
@@ -1161,25 +1202,34 @@ function BlogTable({
                 <p className="text-xs text-muted-foreground mt-1">
                   {blog.wordCount} words · {blog.keyword} · /blog/{blog.slug}
                 </p>
-                <StatusBadge status={blog.status === "published" ? "success" : "pending"} label={blog.status.replace(/_/g, " ")} />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={blog.status === "published" ? "success" : "pending"} label={blog.status.replace(/_/g, " ")} />
+                  {publishedOnly && (
+                    <Badge variant="outline" className="gap-1 font-normal">
+                      <Eye className="h-3 w-3" />
+                      {(blog.viewCount ?? 0).toLocaleString("en-IN")} page view
+                      {(blog.viewCount ?? 0) === 1 ? "" : "s"}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap gap-1">
-                {!readOnly && (
+                {(!readOnly || publishedOnly) && (
                   <Button size="sm" variant="outline" onClick={() => onEdit(blog)}>Edit</Button>
                 )}
-                {!readOnly && !publishOnly && blog.status === "pending_approval" && (
+                {!readOnly && !publishOnly && !publishedOnly && blog.status === "pending_approval" && (
                   <>
                     <Button size="sm" disabled={busy} onClick={() => onApprove(blog.id)}>Approve</Button>
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => onReject(blog.id)}>Reject</Button>
                   </>
                 )}
-                {!readOnly && (blog.status === "approved" || publishOnly) && (
+                {!readOnly && !publishedOnly && (blog.status === "approved" || publishOnly) && (
                   <Button size="sm" disabled={busy} onClick={() => onPublish(blog.id)}>Publish</Button>
                 )}
                 {!readOnly && !publishOnly && (
                   <Button size="sm" variant="secondary" disabled={busy} onClick={() => onRegenerate(blog.id)}>Regenerate</Button>
                 )}
-                {!readOnly && (
+                {(!readOnly || publishedOnly) && (
                   <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDelete(blog.id)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
