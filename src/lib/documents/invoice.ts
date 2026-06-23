@@ -1,6 +1,10 @@
 import { jsPDF } from "jspdf";
 import { SITE_CONTACT, SITE_NAME, appUrl } from "@/lib/site-config";
 import { loadInvoiceLogo } from "@/lib/documents/invoice-logo";
+import {
+  loadInvoiceServiceImage,
+  type InvoiceServiceImage,
+} from "@/lib/documents/invoice-service-image";
 import type { Booking } from "@/types";
 
 export interface InvoiceData {
@@ -10,29 +14,31 @@ export interface InvoiceData {
   gstNumber?: string;
 }
 
-// ─── Colours ───────────────────────────────────────────────────────────────
-const NAVY      = [12, 36, 68] as const;
-const ORANGE    = [249, 115, 22] as const;
-const GREEN     = [22, 163, 74] as const;
-const GREEN_BG  = [240, 253, 244] as const;
-const GREEN_BR  = [187, 247, 208] as const;
-const AMBER     = [249, 168, 37] as const;
-const AMBER_BG  = [254, 252, 232] as const;
-const AMBER_BR  = [253, 230, 138] as const;
-const RED       = [220, 38, 38] as const;
-const GRAY_MID  = [100, 116, 139] as const;
+// Brand palette
+const NAVY = [12, 36, 68] as const;
+const ORANGE = [249, 115, 22] as const;
+const GREEN = [22, 163, 74] as const;
+const GREEN_BG = [240, 253, 244] as const;
+const GREEN_BR = [187, 247, 208] as const;
+const RED = [220, 38, 38] as const;
+const GRAY = [100, 116, 139] as const;
 const GRAY_LITE = [248, 250, 252] as const;
-const BORDER    = [226, 232, 240] as const;
-const WHITE     = [255, 255, 255] as const;
+const BORDER = [226, 232, 240] as const;
+const WHITE = [255, 255, 255] as const;
+const SKY = [219, 234, 254] as const;
+const AMBER_BG = [255, 251, 235] as const;
+const AMBER_BR = [253, 230, 138] as const;
 
-// Page dims (A4 portrait mm)
 const PW = 210;
 const PH = 297;
-const ML = 11;   // margin left
-const MR = 11;   // margin right
-const CW = PW - ML - MR; // 188 mm
+const ML = 10;
+const MR = 10;
+const CW = PW - ML - MR;
+const BOTTOM_BAR_H = 12;
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+type RGB = readonly [number, number, number];
+type Align = "left" | "center" | "right";
+
 function inr(n: number): string {
   return "\u20b9" + n.toLocaleString("en-IN");
 }
@@ -50,19 +56,46 @@ function fmtDate(value: string): string {
 }
 
 function numToWords(n: number): string {
-  const ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
-    "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
-  const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  const ones = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen",
+  ];
+  const tens = [
+    "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety",
+  ];
   if (n === 0) return "Zero";
   if (n < 20) return ones[n];
-  if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
-  if (n < 1000) return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + numToWords(n % 100) : "");
-  if (n < 100000) return numToWords(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + numToWords(n % 1000) : "");
-  if (n < 10000000) return numToWords(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + numToWords(n % 100000) : "");
-  return numToWords(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + numToWords(n % 10000000) : "");
+  if (n < 100) {
+    return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
+  }
+  if (n < 1000) {
+    return (
+      ones[Math.floor(n / 100)] +
+      " Hundred" +
+      (n % 100 ? " " + numToWords(n % 100) : "")
+    );
+  }
+  if (n < 100000) {
+    return (
+      numToWords(Math.floor(n / 1000)) +
+      " Thousand" +
+      (n % 1000 ? " " + numToWords(n % 1000) : "")
+    );
+  }
+  if (n < 10000000) {
+    return (
+      numToWords(Math.floor(n / 100000)) +
+      " Lakh" +
+      (n % 100000 ? " " + numToWords(n % 100000) : "")
+    );
+  }
+  return (
+    numToWords(Math.floor(n / 10000000)) +
+    " Crore" +
+    (n % 10000000 ? " " + numToWords(n % 10000000) : "")
+  );
 }
-
-type Align = "left" | "center" | "right";
 
 function txt(
   doc: jsPDF,
@@ -70,7 +103,7 @@ function txt(
   x: number,
   y: number,
   size: number,
-  color: readonly number[],
+  color: RGB,
   bold = false,
   align: Align = "left",
   italic = false
@@ -82,559 +115,607 @@ function txt(
   doc.text(text, x, y, { align });
 }
 
-function fillBox(
+function box(
   doc: jsPDF,
-  x: number, y: number, w: number, h: number,
-  fill: readonly number[],
-  stroke?: readonly number[],
-  r = 2,
-  lw = 0.3
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: RGB,
+  stroke?: RGB,
+  r = 2
 ) {
   doc.setFillColor(fill[0], fill[1], fill[2]);
   if (stroke) {
     doc.setDrawColor(stroke[0], stroke[1], stroke[2]);
-    doc.setLineWidth(lw);
+    doc.setLineWidth(0.25);
     doc.roundedRect(x, y, w, h, r, r, "FD");
   } else {
     doc.roundedRect(x, y, w, h, r, r, "F");
   }
 }
 
-function hline(
+function sectionHeader(
   doc: jsPDF,
-  x1: number, y: number, x2: number,
-  color: readonly number[] = BORDER,
-  lw = 0.25
+  x: number,
+  y: number,
+  w: number,
+  title: string,
+  color: RGB
 ) {
+  doc.setFillColor(color[0], color[1], color[2]);
+  doc.roundedRect(x, y, w, 7, 2, 2, "F");
+  doc.rect(x, y + 4, w, 3, "F");
+  doc.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
+  doc.circle(x + 5, y + 3.5, 2.5, "F");
+  txt(doc, title, x + 9.5, y + 5.2, 6.8, WHITE, true);
+}
+
+function wrap(doc: jsPDF, text: string, maxW: number): string[] {
+  return doc.splitTextToSize(text, maxW) as string[];
+}
+
+function hline(doc: jsPDF, x1: number, y: number, x2: number, color: RGB = BORDER, lw = 0.2) {
   doc.setDrawColor(color[0], color[1], color[2]);
   doc.setLineWidth(lw);
   doc.line(x1, y, x2, y);
 }
 
-// ─── Main generator ────────────────────────────────────────────────────────
+function vline(doc: jsPDF, x: number, y1: number, y2: number, color: RGB = BORDER) {
+  doc.setDrawColor(color[0], color[1], color[2]);
+  doc.setLineWidth(0.2);
+  doc.line(x, y1, x, y2);
+}
+
+function drawDestinationPanel(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  label: string,
+  image: InvoiceServiceImage | null,
+  serviceType: Booking["serviceType"]
+) {
+  box(doc, x, y, w, h, SKY, BORDER, 3);
+
+  const pad = 1.5;
+  const labelH = 7;
+  const imgX = x + pad;
+  const imgY = y + pad;
+  const imgW = w - pad * 2;
+  const imgH = h - pad * 2 - labelH;
+
+  if (image) {
+    try {
+      doc.addImage(
+        `data:image/${image.format.toLowerCase()};base64,${image.base64}`,
+        image.format,
+        imgX,
+        imgY,
+        imgW,
+        imgH,
+        undefined,
+        "FAST"
+      );
+    } catch {
+      drawDestinationIcon(doc, x, y, w, h, serviceType, labelH);
+      return;
+    }
+  } else {
+    drawDestinationIcon(doc, x, y, w, h, serviceType, labelH);
+  }
+
+  box(doc, x + 2, y + h - labelH - 1, w - 4, labelH, NAVY, undefined, 2);
+  const svcLabel = wrap(doc, label, w - 8)[0] ?? label;
+  txt(doc, svcLabel, x + w / 2, y + h - 3.5, 6, WHITE, true, "center");
+}
+
+function drawDestinationIcon(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  serviceType: Booking["serviceType"],
+  labelH: number
+) {
+  const iconY = y + (h - labelH) / 2 - 2;
+  doc.setFillColor(191, 219, 254);
+  doc.circle(x + w / 2, iconY, 10, "F");
+  doc.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
+  doc.circle(x + w / 2, iconY, 8, "F");
+  const svcIcon = serviceType.includes("vehicle")
+    ? "CAR"
+    : serviceType.includes("hotel")
+      ? "HTL"
+      : "PKG";
+  txt(doc, svcIcon, x + w / 2, iconY + 1.5, 7, NAVY, true, "center");
+}
+
+function drawWatermark(doc: jsPDF, logo: Awaited<ReturnType<typeof loadInvoiceLogo>>) {
+  if (logo) {
+    try {
+      doc.saveGraphicsState();
+      doc.setGState(doc.GState({ opacity: 0.045 }));
+      doc.addImage(
+        `data:image/${logo.format.toLowerCase()};base64,${logo.base64}`,
+        logo.format,
+        PW / 2 - 50,
+        PH / 2 - 20,
+        100,
+        40
+      );
+      doc.restoreGraphicsState();
+      return;
+    } catch {
+      // fall through
+    }
+  }
+  doc.setTextColor(241, 245, 249);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(46);
+  doc.text("SAFAR SATHI", PW / 2, PH / 2, { align: "center", angle: 28 });
+}
+
+function drawQrPlaceholder(doc: jsPDF, x: number, y: number, size: number, seed: string) {
+  box(doc, x, y, size, size, WHITE, BORDER, 2);
+  const cells = 11;
+  const pad = 2.2;
+  const cell = (size - pad * 2) / cells;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      const corner =
+        (r < 4 && c < 4) || (r < 4 && c > cells - 5) || (r > cells - 5 && c < 4);
+      const fill = corner || ((hash + r * 17 + c * 31) % 5 < 2);
+      if (fill) {
+        doc.rect(x + pad + c * cell, y + pad + r * cell, cell - 0.15, cell - 0.15, "F");
+      }
+    }
+  }
+}
+
+function buildLineItems(booking: Booking, travelRange: string) {
+  const typeLabel = booking.serviceType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const items: Array<{
+    no: string;
+    title: string;
+    subtitle: string;
+    details: string;
+    detailSub: string;
+    qty: number;
+    unitPrice: number;
+    amount: number;
+    icon: string;
+  }> = [
+    {
+      no: "01",
+      title: booking.serviceName.en,
+      subtitle: travelRange,
+      details: typeLabel,
+      detailSub: `${booking.guests} traveler${booking.guests !== 1 ? "s" : ""}`,
+      qty: 1,
+      unitPrice: booking.amount,
+      amount: booking.amount,
+      icon: booking.serviceType.includes("vehicle")
+        ? "V"
+        : booking.serviceType.includes("hotel")
+          ? "H"
+          : booking.serviceType.includes("package")
+            ? "P"
+            : "S",
+    },
+  ];
+
+  if (booking.notes?.trim()) {
+    items.push({
+      no: "02",
+      title: "Special requests / add-ons",
+      subtitle: booking.notes.trim().slice(0, 60),
+      details: "Included",
+      detailSub: "As per booking",
+      qty: 1,
+      unitPrice: 0,
+      amount: 0,
+      icon: "+",
+    });
+  }
+
+  return items;
+}
+
 export async function generateInvoice(
   booking: Booking,
   options?: Partial<InvoiceData>
 ): Promise<Uint8Array> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const logo = await loadInvoiceLogo();
+  const [logo, serviceImage] = await Promise.all([
+    loadInvoiceLogo(),
+    loadInvoiceServiceImage(booking),
+  ]);
 
   const gstNumber = options?.gstNumber ?? "07AABCS1234F1Z5";
   const companyName = options?.companyName ?? `${SITE_NAME} Tours & Travels`;
-
   const invoiceDate = fmtDate(new Date().toISOString());
   const travelRange = booking.endDate
     ? `${fmtDate(booking.startDate)} – ${fmtDate(booking.endDate)}`
     : fmtDate(booking.startDate);
-  const balanceDue = Math.max(0, booking.amount - (booking.paidAmount ?? 0));
-  const isPaid = balanceDue <= 0;
-  const subtotal = booking.amount;
-  const gstAmt = Math.round(subtotal * 0.05);
-  const totalAmt = subtotal + gstAmt;
+
   const paidAmt = booking.paidAmount ?? 0;
+  const balanceDue = Math.max(0, booking.amount - paidAmt);
+  const isPaid = balanceDue <= 0 && paidAmt > 0;
+  const isPartial = paidAmt > 0 && balanceDue > 0;
 
-  // Invoice number from booking number
-  const invoiceNo = `SS/INV/${new Date().getFullYear()}/${booking.bookingNumber.replace(/SS-\d{4}-/, "")}`;
+  // GST inclusive — total always matches booking.amount
+  const totalAmt = booking.amount;
+  const taxable = Math.round(totalAmt / 1.05);
+  const gstAmt = totalAmt - taxable;
 
-  // ─── WATERMARK ────────────────────────────────────────────────────────────
-  if (logo) {
-    try {
-      doc.saveGraphicsState();
-      doc.setGState(doc.GState({ opacity: 0.05 }));
-      doc.addImage(
-        `data:image/${logo.format.toLowerCase()};base64,${logo.base64}`,
-        logo.format,
-        PW / 2 - 55, PH / 2 - 22, 110, 44
-      );
-      doc.restoreGraphicsState();
-    } catch { /* skip */ }
-  }
+  const invoiceNo = `SS/INV/${new Date().getFullYear()}/${booking.bookingNumber.replace(/^SS-\d{4}-/, "")}`;
+  const myBookingsUrl = appUrl("/my-bookings");
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // HEADER (y: 8–48)
-  // Left half: logo + brand name  |  Right half: INVOICE details box
-  // ──────────────────────────────────────────────────────────────────────────
-  const headerY = 8;
+  drawWatermark(doc, logo);
 
-  // Background light circle for logo
+  // Page frame
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(ML - 1.5, 7, CW + 3, PH - 14 - BOTTOM_BAR_H, 3, 3, "S");
+
+  // ── HEADER ────────────────────────────────────────────────────────────────
+  const hy = 10;
+
   doc.setFillColor(241, 245, 249);
-  doc.circle(28, headerY + 18, 18, "F");
+  doc.circle(26, hy + 17, 16, "F");
 
-  // Logo image or text fallback
   if (logo) {
     try {
       doc.addImage(
         `data:image/${logo.format.toLowerCase()};base64,${logo.base64}`,
         logo.format,
-        13, headerY + 8, 30, 20
+        12,
+        hy + 9,
+        28,
+        18
       );
     } catch {
-      txt(doc, "SS", 28, headerY + 22, 18, NAVY, true, "center");
+      txt(doc, "SS", 26, hy + 20, 16, NAVY, true, "center");
     }
   } else {
-    // Plain text logo fallback
-    txt(doc, "Safar", 13, headerY + 15, 14, NAVY, true);
-    txt(doc, "Sathi", 36, headerY + 15, 14, ORANGE, true);
-    txt(doc, "Travel with Trust", 13, headerY + 22, 8, GRAY_MID);
+    txt(doc, "Safar", 12, hy + 16, 13, NAVY, true);
+    txt(doc, "Sathi", 30, hy + 16, 13, ORANGE, true);
   }
 
-  // Brand name (right of logo circle)
-  const brandX = 51;
-  txt(doc, "Safar ", brandX, headerY + 14, 19, NAVY, true);
-  // "Sathi" in orange right after
+  const bx = 48;
+  txt(doc, "Safar ", bx, hy + 13, 18, NAVY, true);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(19);
+  doc.setFontSize(18);
   doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  const safarW = doc.getTextWidth("Safar ");
-  doc.text("Sathi", brandX + safarW, headerY + 14);
+  doc.text("Sathi", bx + doc.getTextWidth("Safar "), hy + 13);
+  txt(doc, "Travel with Trust", bx, hy + 19, 8, GRAY);
+  hline(doc, bx, hy + 21, bx + 58);
+  txt(doc, "TRAVEL  |  COMFORT  |  TRUST", bx, hy + 26, 6.2, GRAY);
 
-  txt(doc, "Travel with Trust", brandX, headerY + 21, 8.5, GRAY_MID);
+  const invX = 116;
+  const invW = PW - invX - MR;
+  const invH = 38;
+  box(doc, invX, hy, invW, invH, GRAY_LITE, BORDER, 3);
 
-  // Thin line under tagline
-  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
-  doc.setLineWidth(0.3);
-  doc.line(brandX, headerY + 23, brandX + 60, headerY + 23);
-
-  // Tagline row
-  txt(doc, "TRAVEL   |   COMFORT   |   TRUST", brandX, headerY + 29, 6.5, GRAY_MID);
-
-  // ── INVOICE box (right side) ──────────────────────────────────────────────
-  const invBoxX = 118;
-  const invBoxW = PW - invBoxX - MR;  // ~81mm
-  const invBoxH = 40;
-
-  fillBox(doc, invBoxX, headerY, invBoxW, invBoxH, GRAY_LITE, BORDER, 3);
-
-  // Dot decoration (top-right of box)
   doc.setFillColor(209, 213, 219);
-  for (let row = 0; row < 4; row++) {
-    for (let col = 0; col < 4; col++) {
-      doc.circle(invBoxX + invBoxW - 16 + col * 4, headerY + 4 + row * 4, 0.6, "F");
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 5; c++) {
+      doc.circle(invX + invW - 18 + c * 3.5, hy + 3 + r * 3.5, 0.55, "F");
     }
   }
 
-  // "INVOICE" title
-  txt(doc, "INVOICE", invBoxX + invBoxW - 4, headerY + 13, 20, NAVY, true, "right");
+  txt(doc, "INVOICE", invX + invW - 5, hy + 12, 19, NAVY, true, "right");
 
-  // Detail rows inside invoice box
-  const ivRows: [string, string][] = [
-    ["Invoice No.", `:  ${invoiceNo}`],
-    ["Invoice Date", `:  ${invoiceDate}`],
-    ["Booking ID", `:  ${booking.bookingNumber}`],
+  const meta: [string, string][] = [
+    ["Invoice No.", invoiceNo],
+    ["Invoice Date", invoiceDate],
+    ["Booking ID", booking.bookingNumber],
   ];
-  let ivY = headerY + 21;
-  for (const [k, v] of ivRows) {
-    txt(doc, k, invBoxX + 4, ivY, 7, GRAY_MID);
-    txt(doc, v, invBoxX + 30, ivY, 7, NAVY, true);
-    ivY += 5.5;
+  let my = hy + 19;
+  for (const [k, v] of meta) {
+    txt(doc, k, invX + 5, my, 6.8, GRAY);
+    txt(doc, v, invX + 30, my, 6.8, NAVY, true);
+    my += 5;
   }
 
-  // Payment status badge
-  const statusText = isPaid ? "Paid" : balanceDue < booking.amount ? "Partial" : "Pending";
-  const badgeBg  = isPaid ? GREEN_BG : [255, 247, 237] as const;
-  const badgeBr  = isPaid ? GREEN_BR : [254, 215, 170] as const;
-  const badgeClr = isPaid ? GREEN : ORANGE;
-  txt(doc, "Payment Status", invBoxX + 4, ivY, 7, GRAY_MID);
-  fillBox(doc, invBoxX + 30, ivY - 4.5, 22, 6, badgeBg, badgeBr, 2);
-  txt(doc, statusText, invBoxX + 41, ivY, 7, badgeClr, true, "center");
+  const statusLabel = isPaid ? "Paid" : isPartial ? "Partial" : "Pending";
+  const statusBg = isPaid ? GREEN_BG : isPartial ? AMBER_BG : [254, 242, 242] as const;
+  const statusBr = isPaid ? GREEN_BR : isPartial ? AMBER_BR : [254, 202, 202] as const;
+  const statusClr = isPaid ? GREEN : isPartial ? ORANGE : RED;
+  txt(doc, "Payment Status", invX + 5, my, 6.8, GRAY);
+  box(doc, invX + 30, my - 4.2, 20, 5.5, statusBg, statusBr, 2);
+  txt(doc, statusLabel, invX + 40, my, 6.8, statusClr, true, "center");
 
-  // ── Orange divider ─────────────────────────────────────────────────────────
-  const divY = headerY + invBoxH + 4;
+  const divY = hy + invH + 4;
   doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.rect(ML, divY, CW, 1.2, "F");
+  doc.rect(ML, divY, CW, 1, "F");
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // SECTION 2: BILL TO | TRIP DETAILS | SERVICE IMAGE  (y: divY+5 … +40)
-  // ──────────────────────────────────────────────────────────────────────────
-  const s2Y = divY + 5;
-  const s2H = 40;
+  // ── BILL TO | TRIP | IMAGE ───────────────────────────────────────────────
+  const sY = divY + 4;
+  const sH = 38;
+  const col1 = 56;
+  const col2 = 66;
+  const col3 = CW - col1 - col2 - 4;
+  const x1 = ML;
+  const x2 = x1 + col1 + 2;
+  const x3 = x2 + col2 + 2;
 
-  // Column widths: 58 | 66 | 60 → total 184 (CW fits)
-  const btW  = 58;
-  const tdW  = 68;
-  const imgW = CW - btW - tdW - 4;  // ~58mm
-  const btX  = ML;
-  const tdX  = btX + btW + 2;
-  const imgX = tdX + tdW + 2;
-
-  // ── BILL TO ───────────────────────────────────────────────────────────────
-  fillBox(doc, btX, s2Y, btW, s2H, GRAY_LITE, BORDER, 2);
-  // Navy header bar
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.roundedRect(btX, s2Y, btW, 7, 2, 2, "F");
-  doc.rect(btX, s2Y + 4, btW, 3, "F"); // square bottom corners of header
-  // Person icon circle
-  doc.setFillColor(255, 255, 255);
-  doc.circle(btX + 5.5, s2Y + 3.5, 2.8, "F");
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.circle(btX + 5.5, s2Y + 3.5, 1.2, "F");
-  txt(doc, "BILL TO", btX + 10, s2Y + 5, 7, WHITE, true);
-
-  txt(doc, booking.customerName, btX + 3, s2Y + 14, 9, NAVY, true);
-  const btLines: [string, string][] = [
-    ["\u260e", booking.customerPhone],
-    ["\u2709", booking.customerEmail],
-    ["\u25ce", SITE_CONTACT.addressLine1],
-    ["", SITE_CONTACT.addressLine2],
+  box(doc, x1, sY, col1, sH, GRAY_LITE, BORDER, 2);
+  sectionHeader(doc, x1, sY, col1, "BILL TO", NAVY);
+  txt(doc, booking.customerName, x1 + 3, sY + 12, 9, NAVY, true);
+  const billLines = [
+    `Ph: ${booking.customerPhone}`,
+    `Email: ${booking.customerEmail}`,
   ];
-  let bty = s2Y + 21;
-  for (const [icon, line] of btLines) {
-    if (icon) {
-      txt(doc, icon + " " + line, btX + 3, bty, 7, GRAY_MID);
-    } else {
-      txt(doc, "   " + line, btX + 3, bty, 7, GRAY_MID);
+  let by = sY + 18;
+  for (const line of billLines) {
+    for (const part of wrap(doc, line, col1 - 6)) {
+      txt(doc, part, x1 + 3, by, 6.8, GRAY);
+      by += 4.5;
     }
-    bty += 5;
   }
 
-  // ── TRIP DETAILS ──────────────────────────────────────────────────────────
-  fillBox(doc, tdX, s2Y, tdW, s2H, GRAY_LITE, BORDER, 2);
-  // Orange header bar
-  doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.roundedRect(tdX, s2Y, tdW, 7, 2, 2, "F");
-  doc.rect(tdX, s2Y + 4, tdW, 3, "F");
-  // Suitcase icon circle
-  doc.setFillColor(255, 255, 255);
-  doc.circle(tdX + 5.5, s2Y + 3.5, 2.8, "F");
-  doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.rect(tdX + 3.8, s2Y + 2.5, 3.4, 2.5, "F");
-  txt(doc, "TRIP DETAILS", tdX + 10, s2Y + 5, 7, WHITE, true);
-
-  const tripRows: [string, string][] = [
-    ["Service",      booking.serviceName.en],
-    ["Type",         booking.serviceType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())],
-    ["Travel Date",  travelRange],
-    ["Travelers",    `${booking.guests} Adult${booking.guests !== 1 ? "s" : ""}`],
-    ["Booking Date", fmtDate(booking.createdAt)],
+  box(doc, x2, sY, col2, sH, GRAY_LITE, BORDER, 2);
+  sectionHeader(doc, x2, sY, col2, "TRIP DETAILS", ORANGE);
+  const trip: [string, string][] = [
+    ["Service", booking.serviceName.en],
+    ["Type", booking.serviceType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())],
+    ["Travel Date", travelRange],
+    ["Travelers", `${booking.guests} Adult${booking.guests !== 1 ? "s" : ""}`],
+    ["Booked On", fmtDate(booking.createdAt)],
   ];
-  let tdy = s2Y + 13;
-  for (const [k, v] of tripRows) {
-    txt(doc, k, tdX + 3, tdy, 7, GRAY_MID);
-    txt(doc, ":", tdX + 26, tdy, 7, GRAY_MID);
-    const maxLen = 22;
-    const display = v.length > maxLen ? v.substring(0, maxLen - 1) + "\u2026" : v;
-    txt(doc, display, tdX + 29, tdy, 7, NAVY, true);
-    tdy += 5;
+  let ty = sY + 12;
+  for (const [k, v] of trip) {
+    txt(doc, k, x2 + 3, ty, 6.5, GRAY);
+    for (const [i, part] of wrap(doc, v, col2 - 30).entries()) {
+      txt(doc, part, x2 + 24, ty + i * 4.2, 6.5, NAVY, true);
+    }
+    ty += 5.2;
   }
 
-  // ── Image / Destination panel ──────────────────────────────────────────────
-  fillBox(doc, imgX, s2Y, imgW, s2H, [220, 232, 249] as const, BORDER, 3);
-  // Diagonal stripe texture (decorative)
-  doc.setDrawColor(200, 215, 240);
-  doc.setLineWidth(0.2);
-  for (let i = 0; i <= imgW + s2H; i += 6) {
-    doc.line(imgX + Math.max(0, i - s2H), s2Y + Math.min(i, s2H), imgX + Math.min(i, imgW), s2Y + Math.max(0, i - imgW));
-  }
+  drawDestinationPanel(
+    doc,
+    x3,
+    sY,
+    col3,
+    sH,
+    booking.serviceName.en,
+    serviceImage,
+    booking.serviceType
+  );
 
-  // Icon circle (centre of image)
-  const iconCX = imgX + imgW / 2;
-  const iconCY = s2Y + 14;
-  doc.setFillColor(255, 255, 255);
-  doc.circle(iconCX, iconCY, 9, "F");
-  // Service icon initial(s)
-  const svcInitial = booking.serviceType.startsWith("vehicle") ? "CAR"
-    : booking.serviceType.startsWith("hotel") ? "HTL"
-    : booking.serviceType.startsWith("package") ? "PKG"
-    : "SRV";
-  txt(doc, svcInitial, iconCX, iconCY + 2, 7, NAVY, true, "center");
-
-  // Service name at bottom of panel
-  fillBox(doc, imgX + 2, s2Y + s2H - 8, imgW - 4, 6, NAVY, undefined, 2);
-  const svcLabel = booking.serviceName.en.length > 20
-    ? booking.serviceName.en.substring(0, 19) + "\u2026"
-    : booking.serviceName.en;
-  txt(doc, "\u25cf  " + svcLabel, imgX + imgW / 2, s2Y + s2H - 4, 6.5, WHITE, true, "center");
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // SERVICE TABLE  (y: s2Y + s2H + 6 …)
-  // ──────────────────────────────────────────────────────────────────────────
-  const tblY = s2Y + s2H + 5;
-
-  // Header row
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.roundedRect(ML, tblY, CW, 8, 2, 2, "F");
-  doc.rect(ML, tblY + 4, CW, 4, "F");
-
-  // Column positions (x left edge)
-  const C = {
-    num:     ML + 4,
-    desc:    ML + 14,
-    details: ML + 80,
-    qty:     ML + 122,
-    uPrice:  ML + 138,
-    amount:  ML + CW - 2,
+  // ── TABLE ───────────────────────────────────────────────────────────────
+  const tblY = sY + sH + 4;
+  const cols = {
+    num: ML + 3,
+    desc: ML + 12,
+    details: ML + 78,
+    qty: ML + 118,
+    unit: ML + 132,
+    amt: ML + CW - 3,
   };
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
-  doc.text("#",               C.num,     tblY + 5.5);
-  doc.text("DESCRIPTION",     C.desc,    tblY + 5.5);
-  doc.text("DETAILS",         C.details, tblY + 5.5);
-  doc.text("QTY",             C.qty,     tblY + 5.5);
-  doc.text("UNIT PRICE",      C.uPrice,  tblY + 5.5);
-  doc.text("AMOUNT",          C.amount,  tblY + 5.5, { align: "right" });
-
-  // Single data row
-  const rowH = 16;
-  const rowY = tblY + 8;
-  fillBox(doc, ML, rowY, CW, rowH, WHITE, BORDER, 0);
-  hline(doc, ML, rowY + rowH, ML + CW, BORDER);
-
-  // Row number
-  txt(doc, "01", C.num, rowY + 6, 8, NAVY, true, "center");
-
-  // Icon circle
-  doc.setFillColor(239, 246, 255);
-  doc.circle(C.desc + 5, rowY + 7, 4.5, "F");
-  txt(doc, svcInitial[0], C.desc + 5, rowY + 8.5, 7, NAVY, true, "center");
-
-  // Description
-  const descMaxLen = 28;
-  const descLine1 = booking.serviceName.en.length > descMaxLen
-    ? booking.serviceName.en.substring(0, descMaxLen - 1) + "\u2026"
-    : booking.serviceName.en;
-  txt(doc, descLine1, C.desc + 12, rowY + 6, 8, NAVY, true);
-  txt(doc, travelRange, C.desc + 12, rowY + 12, 6.5, GRAY_MID);
-
-  // Details
-  const typeLabel = booking.serviceType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  txt(doc, typeLabel, C.details, rowY + 6, 7, GRAY_MID);
-  txt(doc, `${booking.guests} Guest${booking.guests !== 1 ? "s" : ""}`, C.details, rowY + 12, 7, GRAY_MID);
-
-  // Qty
-  txt(doc, String(booking.guests), C.qty + 5, rowY + 8, 8.5, NAVY, true, "center");
-
-  // Unit price
-  txt(doc, inr(booking.amount), C.uPrice + 12, rowY + 8, 8, NAVY, true, "center");
-
-  // Amount
-  txt(doc, inr(booking.amount), C.amount, rowY + 8, 9, NAVY, true, "right");
-
-  // Empty row spacer row
-  const row2Y = rowY + rowH;
-  fillBox(doc, ML, row2Y, CW, 8, [252, 252, 253] as const, BORDER, 0);
-  hline(doc, ML, row2Y + 8, ML + CW, BORDER);
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // PAYMENT INFO  |  THANK YOU  |  TOTALS  (y: row2Y+8+6 …)
-  // ──────────────────────────────────────────────────────────────────────────
-  const psecY = row2Y + 8 + 5;
-  const psecH = 52;
-
-  // Column widths: 58 | 56 | rest
-  const piW = 58;
-  const tyW = 56;
-  const totW = CW - piW - tyW - 4;
-  const piX  = ML;
-  const tyX  = piX + piW + 2;
-  const totX = tyX + tyW + 2;
-
-  // ── PAYMENT INFORMATION ───────────────────────────────────────────────────
-  fillBox(doc, piX, psecY, piW, psecH, GRAY_LITE, BORDER, 2);
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.roundedRect(piX, psecY, piW, 7, 2, 2, "F");
-  doc.rect(piX, psecY + 4, piW, 3, "F");
-  // Credit card icon circles
-  doc.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
-  doc.rect(piX + 3, psecY + 2, 5, 3.5, "F");
-  txt(doc, "PAYMENT INFORMATION", piX + 3, psecY + 5.5, 5.5, WHITE, true);
+  doc.roundedRect(ML, tblY, CW, 7.5, 2, 2, "F");
+  doc.rect(ML, tblY + 4, CW, 3.5, "F");
+  txt(doc, "#", cols.num, tblY + 5.2, 6.5, WHITE, true);
+  txt(doc, "DESCRIPTION", cols.desc, tblY + 5.2, 6.5, WHITE, true);
+  txt(doc, "DETAILS", cols.details, tblY + 5.2, 6.5, WHITE, true);
+  txt(doc, "QTY", cols.qty, tblY + 5.2, 6.5, WHITE, true);
+  txt(doc, "UNIT PRICE", cols.unit, tblY + 5.2, 6.5, WHITE, true);
+  txt(doc, "AMOUNT", cols.amt, tblY + 5.2, 6.5, WHITE, true, "right");
 
-  const payDate = booking.updatedAt ? fmtDate(booking.updatedAt) : invoiceDate;
+  const items = buildLineItems(booking, travelRange);
+  let rowY = tblY + 7.5;
+  const rowH = 14;
+
+  for (const item of items) {
+    box(doc, ML, rowY, CW, rowH, WHITE, BORDER, 0);
+    vline(doc, ML + 10, rowY, rowY + rowH);
+    vline(doc, ML + 74, rowY, rowY + rowH);
+    vline(doc, ML + 116, rowY, rowY + rowH);
+    vline(doc, ML + 130, rowY, rowY + rowH);
+    vline(doc, ML + 158, rowY, rowY + rowH);
+
+    txt(doc, item.no, cols.num + 2, rowY + 6, 7.5, NAVY, true, "center");
+    doc.setFillColor(239, 246, 255);
+    doc.circle(cols.desc + 4, rowY + 6.5, 4, "F");
+    txt(doc, item.icon, cols.desc + 4, rowY + 7.5, 6.5, NAVY, true, "center");
+
+    txt(doc, item.title, cols.desc + 10, rowY + 5.5, 7.5, NAVY, true);
+    txt(doc, item.subtitle, cols.desc + 10, rowY + 10.5, 6, GRAY);
+    txt(doc, item.details, cols.details, rowY + 5.5, 6.5, GRAY);
+    txt(doc, item.detailSub, cols.details, rowY + 10.5, 6, GRAY);
+    txt(doc, String(item.qty), cols.qty + 4, rowY + 7.5, 7.5, NAVY, true, "center");
+    txt(doc, item.unitPrice > 0 ? inr(item.unitPrice) : "-", cols.unit + 10, rowY + 7.5, 7, NAVY, true, "center");
+    txt(doc, item.amount > 0 ? inr(item.amount) : "-", cols.amt, rowY + 7.5, 8, NAVY, true, "right");
+
+    rowY += rowH;
+  }
+
+  // spacer row
+  box(doc, ML, rowY, CW, 6, [252, 252, 253] as const, BORDER, 0);
+  rowY += 6;
+
+  // ── PAYMENT | THANK YOU | TOTALS ────────────────────────────────────────
+  const pY = rowY + 4;
+  const pH = 48;
+  const pW1 = 56;
+  const pW2 = 54;
+  const pW3 = CW - pW1 - pW2 - 4;
+  const pX1 = ML;
+  const pX2 = pX1 + pW1 + 2;
+  const pX3 = pX2 + pW2 + 2;
+
+  box(doc, pX1, pY, pW1, pH, GRAY_LITE, BORDER, 2);
+  sectionHeader(doc, pX1, pY, pW1, "PAYMENT INFORMATION", NAVY);
   const payRows: [string, string][] = [
-    ["Payment Method",  "Online / Razorpay"],
-    ["Transaction ID",  booking.bookingNumber],
-    ["Amount Paid",     inr(paidAmt)],
-    ["Payment Date",    payDate],
+    ["Method", "Online / Razorpay"],
+    ["Txn ID", booking.bookingNumber],
+    ["Paid", inr(paidAmt)],
+    ["Date", fmtDate(booking.updatedAt ?? booking.createdAt)],
   ];
-  let py = psecY + 14;
+  let py = pY + 12;
   for (const [k, v] of payRows) {
-    txt(doc, k, piX + 3, py, 6.5, GRAY_MID);
-    txt(doc, ":", piX + 30, py, 6.5, GRAY_MID);
-    txt(doc, v, piX + 32, py, 6.5, NAVY, true);
-    py += 6;
+    txt(doc, k, pX1 + 3, py, 6.2, GRAY);
+    for (const [i, part] of wrap(doc, v, pW1 - 22).entries()) {
+      txt(doc, part, pX1 + 18, py + i * 4, 6.2, NAVY, true);
+    }
+    py += 5.5;
   }
+  const badgeText = isPaid
+    ? "Paid Successfully"
+    : isPartial
+      ? `Partial — ${inr(balanceDue)} due`
+      : "Payment Pending";
+  const badgeClr = isPaid ? GREEN : isPartial ? ORANGE : RED;
+  const badgeBg = isPaid ? GREEN_BG : isPartial ? AMBER_BG : [254, 242, 242] as const;
+  const badgeBr = isPaid ? GREEN_BR : isPartial ? AMBER_BR : [254, 202, 202] as const;
+  box(doc, pX1 + 3, pY + pH - 8.5, pW1 - 6, 6.5, badgeBg, badgeBr, 2);
+  txt(doc, badgeText, pX1 + pW1 / 2, pY + pH - 4.5, 6.5, badgeClr, true, "center");
 
-  // Paid badge
-  fillBox(doc, piX + 3, psecY + psecH - 9, piW - 6, 7, isPaid ? GREEN_BG : [255, 247, 237], isPaid ? GREEN_BR : [254, 215, 170] as const, 2);
-  const paidBadgeText = isPaid ? "\u2713  Paid Successfully" : "\u23f3  Partial Payment";
-  const paidBadgeColor = isPaid ? GREEN : ORANGE;
-  txt(doc, paidBadgeText, piX + piW / 2, psecY + psecH - 4.5, 7, paidBadgeColor, true, "center");
-
-  // ── THANK YOU QUOTE ───────────────────────────────────────────────────────
-  fillBox(doc, tyX, psecY, tyW, psecH, AMBER_BG, AMBER_BR, 2);
-
-  // Large quotation marks
-  txt(doc, "\u201c", tyX + 4, psecY + 12, 22, AMBER, true);
-  txt(doc, "\u201d", tyX + tyW - 8, psecY + 22, 22, AMBER, true);
-
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
-  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-  const qLines = [
-    "Thank you for",
-    "choosing Safar Sathi.",
-    "We look forward",
-    "to serving you again.",
+  box(doc, pX2, pY, pW2, pH, AMBER_BG, AMBER_BR, 2);
+  txt(doc, "\u201c", pX2 + 4, pY + 11, 20, ORANGE, true);
+  txt(doc, "\u201d", pX2 + pW2 - 7, pY + 20, 20, ORANGE, true);
+  const quote = [
+    "Thank you for choosing",
+    "Safar Sathi.",
+    "We look forward to",
+    "serving you again.",
   ];
-  let qy = psecY + 20;
-  for (const line of qLines) {
-    doc.text(line, tyX + tyW / 2, qy, { align: "center" });
-    qy += 5.5;
+  let qy = pY + 18;
+  for (const line of quote) {
+    txt(doc, line, pX2 + pW2 / 2, qy, 7, NAVY, false, "center", true);
+    qy += 5;
   }
-  // Cursive-style signature
-  doc.setFont("helvetica", "bolditalic");
-  doc.setFontSize(9);
-  doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.text("Team Safar Sathi", tyX + tyW / 2, psecY + psecH - 5, { align: "center" });
+  txt(doc, "Team Safar Sathi", pX2 + pW2 / 2, pY + pH - 5, 8.5, ORANGE, true, "center", true);
 
-  // ── TOTALS BOX ────────────────────────────────────────────────────────────
-  fillBox(doc, totX, psecY, totW, psecH, GRAY_LITE, BORDER, 2);
-
-  const totInner = [
-    { label: "Subtotal",        value: inr(subtotal),  clr: NAVY as readonly number[],      bold: false },
-    { label: "Discount",        value: "- " + inr(0),  clr: RED  as readonly number[],      bold: false },
-    { label: "Taxable Amount",  value: inr(subtotal),  clr: NAVY as readonly number[],      bold: false },
-    { label: "GST (5%)",        value: inr(gstAmt),    clr: NAVY as readonly number[],      bold: false },
+  box(doc, pX3, pY, pW3, pH, GRAY_LITE, BORDER, 2);
+  const totals: [string, string, RGB][] = [
+    ["Subtotal", inr(taxable), NAVY],
+    ["Discount", "- " + inr(0), RED],
+    ["Taxable Amount", inr(taxable), NAVY],
+    ["GST (5%)", inr(gstAmt), NAVY],
   ];
-
-  let totRowY = psecY + 9;
-  for (const row of totInner) {
-    txt(doc, row.label, totX + 4, totRowY, 7.5, GRAY_MID);
-    txt(doc, row.value, totX + totW - 4, totRowY, 7.5, row.clr, row.bold, "right");
-    hline(doc, totX + 3, totRowY + 2.5, totX + totW - 3, BORDER);
-    totRowY += 8.5;
+  let totY = pY + 8;
+  for (const [label, value, clr] of totals) {
+    txt(doc, label, pX3 + 4, totY, 7, GRAY);
+    txt(doc, value, pX3 + pW3 - 4, totY, 7, clr, false, "right");
+    hline(doc, pX3 + 3, totY + 2, pX3 + pW3 - 3);
+    totY += 7.5;
   }
-
-  // Total amount navy box
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(totX, totRowY - 1, totW, 12, "F");
-  txt(doc, "TOTAL AMOUNT", totX + 4, totRowY + 4.5, 7.5, WHITE, true);
-  txt(doc, inr(totalAmt), totX + totW - 4, totRowY + 4.5, 10, ORANGE as readonly number[], true, "right");
+  doc.rect(pX3, totY - 1, pW3, 11, "F");
+  txt(doc, "TOTAL AMOUNT", pX3 + 4, totY + 4, 7, WHITE, true);
+  txt(doc, inr(totalAmt), pX3 + pW3 - 4, totY + 4, 10, ORANGE, true, "right");
+  const words = `(Rupees ${numToWords(totalAmt)} Only)`;
+  for (const [i, part] of wrap(doc, words, pW3 - 8).entries()) {
+    txt(doc, part, pX3 + 4, totY + 8 + i * 3.5, 5, [200, 210, 225], false);
+  }
 
-  // Amount in words (small, below total)
-  const words = numToWords(totalAmt);
-  const wordsLine = `(${words} Only)`;
-  txt(doc, wordsLine.length > 36 ? wordsLine.substring(0, 35) + "\u2026" : wordsLine,
-    totX + 4, totRowY + 9.5, 5.5, [190, 200, 215], false);
+  // ── FOOTER (anchored above bottom bar) ──────────────────────────────────
+  const barY = PH - BOTTOM_BAR_H;
+  const fY = pY + pH + 6;
+  const fH = barY - fY - 3;
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // FOOTER  (y: psecY + psecH + 8 …)
-  // ──────────────────────────────────────────────────────────────────────────
-  const fY = psecY + psecH + 7;
-
-  // Orange top border
   doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.rect(ML, fY, CW, 0.8, "F");
+  doc.rect(ML, fY, CW, 0.7, "F");
 
-  const fH = 42;
-  const fColW = CW / 3;
+  const fCol = CW / 3;
+  const f1 = ML;
+  const f2 = ML + fCol;
+  const f3 = ML + fCol * 2;
 
-  // ── LEFT: Terms & Conditions ───────────────────────────────────────────────
-  const tncX = ML;
-  txt(doc, "TERMS & CONDITIONS", tncX + 1, fY + 8, 7.5, NAVY, true);
-  hline(doc, tncX, fY + 10, tncX + fColW - 2, ORANGE, 0.5);
-
+  txt(doc, "TERMS & CONDITIONS", f1 + 1, fY + 7, 7, NAVY, true);
+  hline(doc, f1, fY + 8.5, f1 + fCol - 3, ORANGE, 0.4);
   const terms = [
-    "Full payment received for the above booking.",
-    "Cancellations subject to our cancellation policy.",
-    "Please carry valid photo ID during travel.",
-    "For queries, contact our 24/7 support.",
-    `GST No.: ${gstNumber}`,
+    "Payment as per booking confirmation.",
+    "Cancellations per Safar Sathi policy.",
+    "Carry valid photo ID during travel.",
+    "24/7 support: " + SITE_CONTACT.phone,
+    `GSTIN: ${gstNumber}`,
   ];
-  let termy = fY + 16;
+  let tY = fY + 13;
   for (const t of terms) {
-    txt(doc, "\u2022  " + t, tncX + 2, termy, 6.5, GRAY_MID);
-    termy += 5.5;
-  }
-
-  // ── MIDDLE: Scan & Download ────────────────────────────────────────────────
-  const scanX = ML + fColW;
-  txt(doc, "SCAN & DOWNLOAD", scanX + fColW / 2, fY + 8, 7.5, NAVY, true, "center");
-  hline(doc, scanX, fY + 10, scanX + fColW - 2, ORANGE, 0.5);
-  txt(doc, "Scan the QR code to", scanX + fColW / 2, fY + 15, 6.5, GRAY_MID, false, "center");
-  txt(doc, "download your itinerary", scanX + fColW / 2, fY + 20, 6.5, GRAY_MID, false, "center");
-
-  // QR placeholder
-  const qrX = scanX + (fColW - 22) / 2;
-  const qrY = fY + 22;
-  fillBox(doc, qrX, qrY, 22, 22, WHITE, BORDER, 2);
-  // Simple QR-like pattern
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  for (let qi = 0; qi < 5; qi++) {
-    for (let qj = 0; qj < 5; qj++) {
-      const cell = [
-        [1,1,1,1,1],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,0,1],[1,1,1,1,1],
-      ];
-      if (cell[qi]?.[qj]) {
-        doc.rect(qrX + 3 + qj * 3.2, qrY + 3 + qi * 3.2, 2.8, 2.8, "F");
-      }
+    for (const part of wrap(doc, "\u2022 " + t, fCol - 6)) {
+      txt(doc, part, f1 + 2, tY, 6, GRAY);
+      tY += 4.5;
     }
   }
-  txt(doc, appUrl("/my-bookings").replace("https://www.", "").replace("https://", ""),
-    scanX + fColW / 2, qrY + 25, 5.5, GRAY_MID, false, "center");
 
-  // ── RIGHT: Contact & Social ────────────────────────────────────────────────
-  const cntX = ML + fColW * 2;
-  txt(doc, "WE ARE HERE TO HELP", cntX + 1, fY + 8, 7.5, NAVY, true);
-  hline(doc, cntX, fY + 10, cntX + fColW, ORANGE, 0.5);
+  txt(doc, "SCAN & DOWNLOAD", f2 + fCol / 2, fY + 7, 7, NAVY, true, "center");
+  hline(doc, f2, fY + 8.5, f2 + fCol - 3, ORANGE, 0.4);
+  txt(doc, "Scan to open My Bookings", f2 + fCol / 2, fY + 13, 6, GRAY, false, "center");
+  const qrSize = Math.min(22, fH - 18);
+  drawQrPlaceholder(doc, f2 + (fCol - qrSize) / 2, fY + 16, qrSize, booking.id + booking.bookingNumber);
+  txt(
+    doc,
+    myBookingsUrl.replace(/^https?:\/\/(www\.)?/, ""),
+    f2 + fCol / 2,
+    fY + 16 + qrSize + 4,
+    5.5,
+    GRAY,
+    false,
+    "center"
+  );
 
-  const cntRows: [string, string][] = [
-    ["\u260e", SITE_CONTACT.phone],
-    ["\u2709", SITE_CONTACT.email],
-    ["\u25cb", appUrl().replace("https://", "")],
+  txt(doc, "WE ARE HERE TO HELP", f3 + 1, fY + 7, 7, NAVY, true);
+  hline(doc, f3, fY + 8.5, f3 + fCol - 2, ORANGE, 0.4);
+  const contacts = [
+    ["24/7 Support", SITE_CONTACT.phone],
+    ["Email", SITE_CONTACT.email],
+    ["Website", appUrl().replace(/^https?:\/\//, "")],
   ];
-  let cy = fY + 16;
-  for (const [icon, value] of cntRows) {
-    // Icon circle
+  let cY = fY + 13;
+  for (const [k, v] of contacts) {
     doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.circle(cntX + 5, cy - 1.5, 3, "F");
-    txt(doc, icon, cntX + 5, cy, 5.5, WHITE, true, "center");
-    txt(doc, value, cntX + 11, cy, 7, GRAY_MID);
-    cy += 7;
+    doc.circle(f3 + 5, cY - 1.2, 2.8, "F");
+    txt(doc, k.slice(0, 1), f3 + 5, cY, 5, WHITE, true, "center");
+    txt(doc, `${k}: ${v}`, f3 + 10, cY, 6.2, GRAY);
+    cY += 6.5;
   }
-
-  // Social icons row
-  txt(doc, "FOLLOW US", cntX + 1, cy + 3, 7, NAVY, true);
-  const socials: [string, readonly number[]][] = [
-    ["f", [59, 89, 152]],
-    ["in", [0, 119, 181]],
-    ["t", [29, 161, 242]],
-    ["yt", [255, 0, 0]],
+  txt(doc, "FOLLOW US", f3 + 1, cY + 1, 6.5, NAVY, true);
+  const socialColors: RGB[] = [
+    [59, 89, 152],
+    [0, 119, 181],
+    [29, 161, 242],
+    [255, 0, 0],
   ];
-  let sx = cntX + 2;
-  for (const [letter, color] of socials) {
+  let sx = f3 + 2;
+  for (const color of socialColors) {
     doc.setFillColor(color[0], color[1], color[2]);
-    doc.circle(sx + 4, cy + 10, 4, "F");
-    txt(doc, letter, sx + 4, cy + 11.5, 5.5, WHITE, true, "center");
-    sx += 12;
+    doc.circle(sx + 4, cY + 7, 3.5, "F");
+    sx += 11;
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // BOTTOM BAR
-  // ──────────────────────────────────────────────────────────────────────────
-  const barY = PH - 14;
+  // ── BOTTOM BAR ────────────────────────────────────────────────────────────
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(0, barY, PW, 14, "F");
-
-  // Location pin circle
+  doc.rect(0, barY, PW, BOTTOM_BAR_H, "F");
   doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.circle(16, barY + 7, 3.5, "F");
-  txt(doc, "\u25cf", 16, barY + 8.5, 7, WHITE, true, "center");
-
-  txt(doc, SITE_CONTACT.addressFull, 23, barY + 8.5, 7, [180, 195, 215], false);
-
-  const copyrightYear = new Date().getFullYear();
-  txt(doc, `\u00a9 ${copyrightYear} ${companyName}. All rights reserved.`,
-    PW - MR, barY + 8.5, 6.5, [148, 163, 184], false, "right");
-
-  // Plane decoration on right
+  doc.circle(14, barY + BOTTOM_BAR_H / 2, 3, "F");
+  txt(doc, SITE_CONTACT.addressFull, 20, barY + 7.8, 6.5, [186, 198, 214]);
+  txt(
+    doc,
+    `\u00a9 ${new Date().getFullYear()} ${companyName}. All rights reserved.`,
+    PW - MR,
+    barY + 7.8,
+    6,
+    [148, 163, 184],
+    false,
+    "right"
+  );
   doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
-  doc.rect(PW - 22, barY, 22, 14, "F");
-  txt(doc, "\u2708", PW - 11, barY + 8.5, 11, WHITE, true, "center");
+  doc.rect(PW - 20, barY, 20, BOTTOM_BAR_H, "F");
+  txt(doc, "\u2708", PW - 10, barY + 7.8, 10, WHITE, true, "center");
 
-  const arrayBuffer = doc.output("arraybuffer");
-  return new Uint8Array(arrayBuffer);
+  return new Uint8Array(doc.output("arraybuffer"));
 }
 
 export async function generateInvoiceBase64(booking: Booking): Promise<string> {
