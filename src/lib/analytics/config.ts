@@ -11,3 +11,9 @@ export const ANALYTICS_ENABLED =
   typeof window !== "undefined"
     ? Boolean(GA_MEASUREMENT_ID || CLARITY_PROJECT_ID)
     : Boolean(GA_MEASUREMENT_ID || CLARITY_PROJECT_ID);
+
+/** Microsoft Clarity project dashboard (recordings, heatmaps, deeper analytics). */
+export function getClarityDashboardUrl(projectId = CLARITY_PROJECT_ID): string | null {
+  if (!projectId) return null;
+  return `https://clarity.microsoft.com/projects/view/${projectId}/home`;
+}

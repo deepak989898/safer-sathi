@@ -74,7 +74,7 @@ export async function PATCH(
         const existing = getBlogById(id);
         if (!existing) return apiError("Blog not found", 404);
         const settings = getAiCenterSettings();
-        const regenerated = regenerateBlogContent(existing, settings.blogWordLimit);
+        const regenerated = await regenerateBlogContent(existing, settings);
         const blog = await updateBlog(id, regenerated);
         return apiSuccess({ blog });
       }

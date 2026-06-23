@@ -9,6 +9,8 @@ interface MetricCardProps {
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
   iconClassName?: string;
+  compact?: boolean;
+  valueClassName?: string;
 }
 
 export function MetricCard({
@@ -18,21 +20,47 @@ export function MetricCard({
   changeType = "neutral",
   icon: Icon,
   iconClassName,
+  compact = false,
+  valueClassName,
 }: MetricCardProps) {
   return (
-    <Card className="shadow-sm">
-      <CardContent className="flex items-start justify-between pt-6">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-semibold tracking-tight">{value}</p>
+    <Card className={cn("shadow-sm", compact && "shadow-none")}>
+      <CardContent
+        className={cn(
+          "flex items-start justify-between",
+          compact ? "p-3 pt-3" : "pt-6"
+        )}
+      >
+        <div className={cn(compact ? "min-w-0 space-y-0.5" : "space-y-2")}>
+          <p
+            className={cn(
+              "font-medium text-muted-foreground",
+              compact ? "truncate text-[11px] leading-tight" : "text-sm"
+            )}
+            title={title}
+          >
+            {title}
+          </p>
+          <p
+            className={cn(
+              "font-semibold tracking-tight",
+              compact ? "truncate text-base leading-snug" : "text-2xl",
+              valueClassName
+            )}
+            title={value}
+          >
+            {value}
+          </p>
           {change && (
             <p
               className={cn(
-                "text-xs font-medium",
+                "font-medium",
+                compact ? "truncate text-[10px] leading-tight" : "text-xs",
                 changeType === "positive" && "text-emerald-600 dark:text-emerald-400",
                 changeType === "negative" && "text-destructive",
                 changeType === "neutral" && "text-muted-foreground"
               )}
+              title={change}
             >
               {change}
             </p>
@@ -40,11 +68,12 @@ export function MetricCard({
         </div>
         <div
           className={cn(
-            "flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary",
+            "flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary",
+            compact ? "size-8 rounded-md" : "size-11 rounded-xl",
             iconClassName
           )}
         >
-          <Icon className="size-5" />
+          <Icon className={compact ? "size-3.5" : "size-5"} />
         </div>
       </CardContent>
     </Card>

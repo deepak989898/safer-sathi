@@ -8,6 +8,12 @@ import type {
   SeoKeyword,
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
+import {
+  buildDistanceSection,
+  formatReferencesMarkdown,
+  getDestinationBlogReference,
+  resolveDestinationName,
+} from "@/lib/ai-center/blog-reference-data";
 import { estimateWordCount, slugify } from "@/lib/ai-center/utils";
 
 const IMAGE_POOL = [
@@ -17,6 +23,19 @@ const IMAGE_POOL = [
   HERO_IMAGES.blog,
   HERO_IMAGES.assistant,
 ];
+
+const SYSTEM_PROMPT = `You are an expert Indian travel content writer for Safar Sathi.
+Write helpful, factual SEO blog posts in clean Markdown.
+
+STRICT RULES:
+- Use each H2 heading (##) ONLY ONCE — never repeat a section title
+- NEVER create filler sections like "More About [place]" or duplicate conclusions
+- Mention "Safar Sathi" at most twice (introduction + one soft CTA in conclusion)
+- Write for travellers, not sales copy — specific names, distances, months, prices
+- Include practical details: how to reach, best time, real attractions, local food
+- End with "## Sources & Further Reading" using the provided reference links as markdown links
+- Target the requested word count naturally without padding or repetition
+- Use bullet lists and short paragraphs for readability`;
 
 function buildImagePrompts(keyword: string, destination?: string): BlogImagePrompt[] {
   const dest = destination ?? "India";
@@ -48,32 +67,116 @@ function buildImagePrompts(keyword: string, destination?: string): BlogImageProm
     {
       id: "banner",
       label: "Travel Banner",
-      prompt: `Safar Sathi style travel banner for ${keyword}, bus and mountains, professional`,
+      prompt: `Professional travel banner for ${keyword}, Indian landscape, editorial`,
       url: IMAGE_POOL[4],
     },
   ];
 }
 
-function buildSections(keyword: string, destination?: string, wordLimit = 1500): string {
-  const dest = destination ?? "India";
-  const sections = [
-    `# ${keyword}\n\nDiscover everything you need to plan an unforgettable trip with Safar Sathi — India's trusted travel partner for live-priced packages, hotels, and vehicles.`,
-    `## Introduction\n\n${keyword} is one of the most searched travel topics for Indian travellers. Whether you are planning a family vacation, honeymoon, or adventure trip to ${dest}, Safar Sathi helps you compare live prices and book instantly.`,
-    `## Best Time To Visit\n\nThe best time to visit ${dest} depends on your travel style. October to March is ideal for most hill stations and heritage cities. Summer months suit high-altitude escapes, while monsoon lovers enjoy lush greenery in Kerala and Goa.`,
-    `## Top Attractions\n\nExplore iconic landmarks, local markets, viewpoints, and cultural sites. Popular highlights include scenic valleys, heritage forts, lakes, beaches, and adventure hubs. Safar Sathi packages include curated sightseeing with professional drivers.`,
-    `## Hotels & Where To Stay\n\nFrom budget guesthouses to 5-star resorts, ${dest} offers stays for every budget. Safar Sathi shows live hotel prices with star ratings, amenities, and room types — book directly with instant confirmation.`,
-    `## Adventure Activities\n\nAdventure seekers can enjoy trekking, river rafting, paragliding, camping, jeep safaris, and snow activities depending on the season. Our AI Travel Assistant can customize activities in your package tier.`,
-    `## Budget & Package Options\n\nSafar Sathi offers Budget, Standard, Premium, and Luxury tiers with live Firebase pricing. Typical packages include hotel, vehicle, meals, and sightseeing. No hidden charges — pay securely via Razorpay.`,
-    `## Travel Tips\n\n- Book early during peak season (Diwali, New Year, summer holidays)\n- Carry valid ID for hotel check-in\n- Confirm pickup city and travel dates in advance\n- Use Safar Sathi AI Assistant for Hindi/English trip planning\n- Compare 4 live package tiers before booking`,
-    `## FAQ\n\n**How do I book ${keyword}?**\nUse Safar Sathi website or AI Travel Assistant to select destination, duration, and package tier.\n\n**Are prices live?**\nYes — hotel and vehicle prices are fetched live from our catalog.`,
-    `## Conclusion\n\nReady to explore ${dest}? Browse Safar Sathi tour packages, hotels, and vehicles — or chat with our AI Travel Assistant for a personalized itinerary. Travel | Comfort | Trust.`,
-  ];
+/** Remove duplicate ## sections (keeps first occurrence). */
+export function dedupeMarkdownSections(markdown: string): string {
+  const chunks = markdown.split(/(?=^##\s)/m);
+  const seen = new Set<string>();
+  const kept: string[] = [];
 
-  let content = sections.join("\n\n");
-  while (estimateWordCount(content) < wordLimit * 0.85) {
-    content += `\n\n## More About ${dest}\n\n${dest} continues to be a favourite among Indian travellers for its unique culture, cuisine, and landscapes. Safar Sathi curates itineraries with local expertise and transparent pricing.`;
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^##\s+(.+?)(?:\n|$)/);
+    if (!match) {
+      kept.push(chunk);
+      continue;
+    }
+    const key = match[1].toLowerCase().replace(/\s+/g, " ").trim();
+    if (key.startsWith("more about")) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    kept.push(chunk.endsWith("\n") ? chunk : `${chunk}\n`);
   }
-  return content.slice(0, wordLimit * 6);
+
+  return kept.join("").trim();
+}
+
+function buildReferenceContext(keyword: string, destination?: string): string {
+  const ref = getDestinationBlogReference(keyword, destination);
+  const dest = resolveDestinationName(keyword, destination);
+  const links = ref.references.map((r) => `- ${r.title}: ${r.url}`).join("\n");
+
+  return `DESTINATION: ${dest} (${ref.state})
+BEST TIME: ${ref.bestTime}
+HOW TO REACH: ${ref.howToReach}
+LOCAL FOOD: ${ref.localFood}
+TOP ATTRACTIONS: ${ref.attractions.join("; ")}
+ACTIVITIES: ${ref.activities.join("; ")}
+TYPICAL BUDGET: ${ref.avgBudgetPerDay}
+TRAVEL TIPS: ${ref.travelTips.join("; ")}
+REFERENCE LINKS (use in Sources section):
+${links}`;
+}
+
+function buildSections(
+  keyword: string,
+  destination: string | undefined,
+  wordLimit: number
+): string {
+  const ref = getDestinationBlogReference(keyword, destination);
+  const dest = resolveDestinationName(keyword, destination);
+  const distanceBlock = buildDistanceSection(keyword);
+
+  const sections: string[] = [
+    `# ${keyword}`,
+    `## Introduction\n\nPlanning **${keyword}**? ${dest} in ${ref.state} rewards travellers with distinct seasons, local cuisine, and well-known sights. This guide covers practical timing, routes, places to see, and budget — so you can plan confidently before you book.`,
+    distanceBlock ?? "",
+    `## Best Time To Visit\n\n${ref.bestTime}`,
+    `## How To Reach\n\n${ref.howToReach}`,
+    `## Top Attractions\n\n${ref.attractions.map((a) => `- ${a}`).join("\n")}`,
+    `## Things To Do\n\n${ref.activities.map((a) => `- ${a}`).join("\n")}`,
+    `## Local Food & Culture\n\n${ref.localFood}`,
+    `## Where To Stay\n\n${dest} has hostels, mid-range hotels, and boutique stays. Old-town or central areas save daily travel time; book early for Christmas–New Year, Diwali, and summer weekends. Compare star rating, breakfast inclusion, and parking before paying.`,
+    `## Budget & Trip Cost\n\nTypical spend: **${ref.avgBudgetPerDay}** (excluding flights). Couples and families can lower cost with off-season dates, weekday stays, and shared cabs for sightseeing.`,
+    `## Travel Tips\n\n${ref.travelTips.map((t) => `- ${t}`).join("\n")}`,
+    `## FAQ\n\n**How many days are enough for ${dest}?**\nMost first-time visitors plan 3–5 nights to cover main sights without rushing.\n\n**Is ${dest} safe for solo travellers?**\nStick to registered operators, share itinerary with family, and avoid isolated areas at night.\n\n**Can I book packages online?**\nYes — compare hotel, cab, and itinerary inclusions before payment.`,
+    `## Conclusion\n\n${dest} works well for families, couples, and adventure groups when you match season to activities. Use the tips above to plan dates and routes — Safar Sathi can help you compare live packages when you are ready to book.`,
+    formatReferencesMarkdown(ref.references),
+  ].filter(Boolean);
+
+  let content = dedupeMarkdownSections(sections.join("\n\n"));
+  const words = estimateWordCount(content);
+  if (words > wordLimit * 1.15) {
+    content = content.split(/\s+/).slice(0, wordLimit).join(" ");
+  }
+  return content;
+}
+
+function buildUserPrompt(
+  keyword: SeoKeyword,
+  wordLimit: number,
+  referenceContext: string
+): string {
+  return `Write a ${wordLimit}-word Markdown blog for this SEO keyword.
+
+KEYWORD: ${keyword.keyword}
+CATEGORY: ${keyword.category}
+DESTINATION HINT: ${keyword.destination ?? "infer from keyword"}
+
+REFERENCE DATA (use facts; do not invent contradictory details):
+${referenceContext}
+
+STRUCTURE (each ## heading once only):
+1. Introduction
+2. Best Time To Visit
+3. How To Reach
+4. Top Attractions (specific bullets)
+5. Things To Do
+6. Local Food & Culture
+7. Where To Stay
+8. Budget & Trip Cost
+9. Travel Tips
+10. FAQ (3 questions)
+11. Conclusion (one brief Safar Sathi mention max)
+12. Sources & Further Reading (markdown links from references)
+
+If the keyword mentions distance between two cities, add a "Distance & Route Overview" section with km, hours, and transport table near the top.`;
 }
 
 export interface GenerateBlogInput {
@@ -89,31 +192,55 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
   const now = new Date().toISOString();
   const slug = seoMeta?.slug ?? slugify(keyword.keyword);
   const title = input.titleOverride ?? seoMeta?.seoTitle ?? keyword.keyword;
-  let content = input.contentOverride ?? buildSections(keyword.keyword, keyword.destination, settings.blogWordLimit);
+  const dest = resolveDestinationName(keyword.keyword, keyword.destination);
+  const referenceContext = buildReferenceContext(keyword.keyword, keyword.destination);
+
+  let content =
+    input.contentOverride ??
+    buildSections(keyword.keyword, keyword.destination, settings.blogWordLimit);
 
   try {
     const { content: aiContent, provider } = await routeCompletion(
-      `You are Safar Sathi AI Blog Writer. Write a ${settings.blogWordLimit}-word SEO travel blog in markdown with sections: Introduction, Best Time, Top Attractions, Hotels, Adventure, Budget, Travel Tips, FAQ, Conclusion. Indian travel focus.`,
+      SYSTEM_PROMPT,
       [
         {
           role: "user",
-          content: `Keyword: ${keyword.keyword}\nDestination: ${keyword.destination ?? "India"}\nCategory: ${keyword.category}`,
+          content: buildUserPrompt(keyword, settings.blogWordLimit, referenceContext),
         },
       ],
       async () => content,
-      { maxTokens: 2500, timeoutMs: 12000 }
+      { maxTokens: 4000, timeoutMs: 25_000 }
     );
     if (provider !== "rule-based" && aiContent.length > 400) {
-      content = aiContent;
+      content = dedupeMarkdownSections(aiContent);
+      if (!content.toLowerCase().includes("sources & further reading")) {
+        const ref = getDestinationBlogReference(keyword.keyword, keyword.destination);
+        content += `\n\n${formatReferencesMarkdown(ref.references)}`;
+      }
     }
   } catch {
     // keep rule-based content
   }
 
+  content = dedupeMarkdownSections(content);
   const wordCount = estimateWordCount(content);
   const faq = seoMeta?.faq ?? [
-    { question: `What is ${keyword.keyword}?`, answer: `A complete travel guide for ${keyword.destination ?? "India"} by Safar Sathi.` },
+    {
+      question: `What is the best time for ${dest}?`,
+      answer: getDestinationBlogReference(keyword.keyword, keyword.destination).bestTime.slice(0, 200),
+    },
+    {
+      question: `How do I reach ${dest}?`,
+      answer: getDestinationBlogReference(keyword.keyword, keyword.destination).howToReach.slice(0, 200),
+    },
   ];
+
+  const plainExcerpt = content
+    .replace(/^#.+$/gm, "")
+    .replace(/^##.+$/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 
   return {
     id: `blog_${slug}_${Date.now()}`,
@@ -122,13 +249,13 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     keyword: keyword.keyword,
     keywordId: keyword.id,
     category: keyword.category as KeywordCategory,
-    destination: keyword.destination,
+    destination: dest,
     metaTitle: seoMeta?.seoTitle ?? title,
-    metaDescription: seoMeta?.seoDescription ?? content.slice(0, 155),
-    excerpt: content.replace(/^#.+$/m, "").slice(0, 220).trim() + "...",
+    metaDescription: seoMeta?.seoDescription ?? plainExcerpt.slice(0, 155),
+    excerpt: plainExcerpt.slice(0, 220).trim() + (plainExcerpt.length > 220 ? "…" : ""),
     content,
-    featuredImage: buildImagePrompts(keyword.keyword, keyword.destination)[0].url,
-    imagePrompts: buildImagePrompts(keyword.keyword, keyword.destination),
+    featuredImage: buildImagePrompts(keyword.keyword, dest)[0].url,
+    imagePrompts: buildImagePrompts(keyword.keyword, dest),
     faq,
     wordCount,
     status: settings.autoDraftEnabled ? "pending_approval" : "draft",
@@ -137,16 +264,36 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
   };
 }
 
-export function regenerateBlogContent(
+export async function regenerateBlogContent(
   blog: AiBlogPost,
-  wordLimit: AiCenterSettings["blogWordLimit"]
-): AiBlogPost {
-  const content = buildSections(blog.keyword, blog.destination, wordLimit);
+  settings: AiCenterSettings
+): Promise<AiBlogPost> {
+  const keyword: SeoKeyword = {
+    id: blog.keywordId ?? blog.id,
+    keyword: blog.keyword,
+    searchVolume: 1000,
+    competition: "medium",
+    trendScore: 50,
+    category: blog.category,
+    destination: blog.destination,
+    seoScore: 60,
+    status: "approved",
+    createdAt: blog.createdAt,
+  };
+
+  const fresh = await generateBlogPost({
+    keyword,
+    settings,
+    titleOverride: blog.title,
+  });
+
   return {
     ...blog,
-    content,
-    wordCount: estimateWordCount(content),
-    excerpt: content.slice(0, 220).trim() + "...",
+    content: fresh.content,
+    wordCount: fresh.wordCount,
+    excerpt: fresh.excerpt,
+    metaDescription: fresh.metaDescription,
+    destination: fresh.destination,
     updatedAt: new Date().toISOString(),
   };
 }

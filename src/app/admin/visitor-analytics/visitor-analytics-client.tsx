@@ -6,6 +6,7 @@ import {
   Calendar,
   ChevronDown,
   Clock,
+  ExternalLink,
   Eye,
   Globe,
   Loader2,
@@ -18,9 +19,10 @@ import {
 import { AdminHeader } from "@/components/admin/admin-header";
 import { MetricCard } from "@/components/admin/metric-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
+import { CLARITY_PROJECT_ID, getClarityDashboardUrl } from "@/lib/analytics/config";
 import {
   eventTypeLabel,
   formatDuration,
@@ -228,6 +230,7 @@ export default function VisitorAnalyticsClient() {
   }, [load]);
 
   const stats = data?.stats;
+  const clarityUrl = getClarityDashboardUrl();
 
   const subtitle = useMemo(() => {
     if (!data) return "Track visitors, searches, clicks, sources, and exit pages";
@@ -241,21 +244,57 @@ export default function VisitorAnalyticsClient() {
         description={subtitle}
         adminName={user?.name ?? "Admin"}
       />
-      <div className="space-y-6 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            Own analytics — see who visited, what they searched, where they clicked, traffic source,
-            exit page, and time on site. Grouped by day (IST).
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="max-w-3xl text-xs text-muted-foreground sm:text-sm">
+            Visitor sessions by day (IST). For heatmaps, session recordings, and scroll maps, use
+            Microsoft Clarity.
           </p>
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <div className="flex flex-wrap items-center gap-2">
+            {clarityUrl ? (
+              <a
+                href={clarityUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open Microsoft Clarity
+              </a>
             ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="sm" disabled title="Set NEXT_PUBLIC_CLARITY_ID in env">
+                Clarity not configured
+              </Button>
             )}
-            Refresh
-          </Button>
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
+
+        {clarityUrl && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-100">
+            <span>
+              <strong>Microsoft Clarity</strong> connected
+              {CLARITY_PROJECT_ID ? ` · Project ${CLARITY_PROJECT_ID}` : ""} — view clicks, rage
+              clicks, recordings &amp; funnels in detail.
+            </span>
+            <a
+              href={clarityUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-sky-700 underline-offset-2 hover:underline dark:text-sky-300"
+            >
+              Go to Clarity dashboard
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        )}
 
         {loading && !data ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
@@ -264,8 +303,9 @@ export default function VisitorAnalyticsClient() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
               <MetricCard
+                compact
                 title="Visitors Today"
                 value={String(stats?.visitorsToday ?? 0)}
                 change={`Yesterday: ${stats?.visitorsYesterday ?? 0}`}
@@ -273,37 +313,42 @@ export default function VisitorAnalyticsClient() {
                 icon={Users}
               />
               <MetricCard
+                compact
                 title="Online Now"
                 value={String(stats?.onlineNow ?? 0)}
-                change="Active in last 2 min"
+                change="Last 2 min"
                 changeType="neutral"
                 icon={Activity}
               />
               <MetricCard
-                title="Page Views Today"
+                compact
+                title="Page Views"
                 value={String(stats?.pageViewsToday ?? 0)}
-                change="All pages"
+                change="Today"
                 changeType="neutral"
                 icon={Eye}
               />
               <MetricCard
-                title="Avg. Time Today"
+                compact
+                title="Avg. Time"
                 value={formatDuration(stats?.avgDurationTodaySec ?? 0)}
                 change="Per session"
                 changeType="neutral"
                 icon={Clock}
               />
               <MetricCard
-                title="Top Source Today"
+                compact
+                title="Top Source"
                 value={stats?.topSourceToday ?? "—"}
-                change="Traffic source"
+                change="Today"
                 changeType="neutral"
                 icon={Globe}
               />
               <MetricCard
-                title="Top Exit Page"
-                value={stats?.topExitPageToday?.slice(0, 28) ?? "—"}
-                change="Where visitors left"
+                compact
+                title="Top Exit"
+                value={stats?.topExitPageToday ?? "—"}
+                change="Where left"
                 changeType="neutral"
                 icon={LogOut}
               />
