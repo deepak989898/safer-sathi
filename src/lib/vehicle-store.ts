@@ -3,10 +3,11 @@ import {
   loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
+  readCatalogItem,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
-import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { isCatalogPublished } from "@/lib/catalog/publish";
+import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { getSeedVehicles } from "@/data/seed-catalog";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
@@ -22,17 +23,47 @@ function upsertInMemory(vehicle: Vehicle): Vehicle {
   return vehicle;
 }
 
+function dedupeVehiclesBySlug(vehicles: Vehicle[]): Vehicle[] {
+  const byKey = new Map<string, Vehicle>();
+  for (const vehicle of vehicles) {
+    const key = vehicle.slug ?? vehicle.id;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, vehicle);
+      continue;
+    }
+    const existingTs = existing.updatedAt ? Date.parse(existing.updatedAt) : 0;
+    const nextTs = vehicle.updatedAt ? Date.parse(vehicle.updatedAt) : 0;
+    if (nextTs >= existingTs) byKey.set(key, vehicle);
+  }
+  return Array.from(byKey.values());
+}
+
 export async function hydrateVehiclesStore(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
   hydratePromise = (async () => {
     const seed = getSeedVehicles();
     const remote = await loadCatalogCollection<Vehicle>(VEHICLES_COLLECTION);
-    if (remote.length === 0) {
-      vehiclesStore = await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed);
-    } else {
-      vehiclesStore = mergeCatalogById(remote, seed);
+
+    if (remote === null) {
+      if (vehiclesStore.length === 0) {
+        vehiclesStore = seed;
+      }
+      return;
     }
+
+    if (remote.length > 0) {
+      vehiclesStore = dedupeVehiclesBySlug(remote);
+      return;
+    }
+
+    if (!isAdminEnvConfigured()) {
+      vehiclesStore = seed;
+      return;
+    }
+
+    vehiclesStore = await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed);
   })();
 
   return hydratePromise;
@@ -77,11 +108,19 @@ export async function updateVehicleInStore(
 ): Promise<Vehicle | null> {
   const existing = getVehicleByIdAdmin(id);
   if (!existing) return null;
-  return upsertVehicleInStore({
+
+  const merged: Vehicle = {
     ...existing,
     ...updates,
     id: existing.id,
-  });
+    updatedAt: new Date().toISOString(),
+  };
+
+  await persistCatalogItem(VEHICLES_COLLECTION, merged);
+
+  const fromDb = await readCatalogItem<Vehicle>(VEHICLES_COLLECTION, id);
+  const saved = upsertInMemory(fromDb ?? merged);
+  return saved;
 }
 
 export async function deleteVehicleFromStore(id: string): Promise<boolean> {

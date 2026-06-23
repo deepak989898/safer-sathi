@@ -3,10 +3,11 @@ import {
   loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
+  readCatalogItem,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
-import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { isCatalogPublished } from "@/lib/catalog/publish";
+import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { getSeedPackages } from "@/data/seed-catalog";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { PackagePublishStatus, TourPackage } from "@/types";
@@ -28,11 +29,23 @@ export async function hydratePackagesStore(): Promise<void> {
   hydratePromise = (async () => {
     const seed = getSeedPackages();
     const remote = await loadCatalogCollection<TourPackage>(PACKAGES_COLLECTION);
-    if (remote.length === 0) {
-      packagesStore = await seedCatalogIfEmpty(PACKAGES_COLLECTION, seed);
-    } else {
-      packagesStore = mergeCatalogById(remote, seed);
+
+    if (remote === null) {
+      if (packagesStore.length === 0) packagesStore = seed;
+      return;
     }
+
+    if (remote.length > 0) {
+      packagesStore = remote;
+      return;
+    }
+
+    if (!isAdminEnvConfigured()) {
+      packagesStore = seed;
+      return;
+    }
+
+    packagesStore = await seedCatalogIfEmpty(PACKAGES_COLLECTION, seed);
   })();
 
   return hydratePromise;
@@ -87,11 +100,16 @@ export async function updatePackageInStore(
   const existing = getPackageByIdAdmin(id);
   if (!existing) return null;
 
-  return upsertPackageInStore({
+  const merged: TourPackage = {
     ...existing,
     ...updates,
     id: existing.id,
-  });
+    updatedAt: new Date().toISOString(),
+  };
+
+  await persistCatalogItem(PACKAGES_COLLECTION, merged);
+  const fromDb = await readCatalogItem<TourPackage>(PACKAGES_COLLECTION, id);
+  return upsertInMemory(fromDb ?? merged);
 }
 
 export async function approvePackageInStore(

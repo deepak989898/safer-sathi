@@ -3,10 +3,11 @@ import {
   loadCatalogCollection,
   persistCatalogItem,
   persistCatalogItemsBatch,
+  readCatalogItem,
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
-import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
 import { isCatalogPublished } from "@/lib/catalog/publish";
+import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { getSeedHotels } from "@/data/seed-catalog";
 import { getHotelsSeed } from "@/data/hotels-seed";
 import type { Hotel } from "@/types";
@@ -28,11 +29,23 @@ export async function hydrateHotelsStore(): Promise<void> {
   hydratePromise = (async () => {
     const seed = getSeedHotels();
     const remote = await loadCatalogCollection<Hotel>(HOTELS_COLLECTION);
-    if (remote.length === 0) {
-      hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
-    } else {
-      hotelsStore = mergeCatalogById(remote, seed);
+
+    if (remote === null) {
+      if (hotelsStore.length === 0) hotelsStore = seed;
+      return;
     }
+
+    if (remote.length > 0) {
+      hotelsStore = remote;
+      return;
+    }
+
+    if (!isAdminEnvConfigured()) {
+      hotelsStore = seed;
+      return;
+    }
+
+    hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
   })();
 
   return hydratePromise;
@@ -77,11 +90,17 @@ export async function updateHotelInStore(
 ): Promise<Hotel | null> {
   const existing = getHotelByIdAdmin(id);
   if (!existing) return null;
-  return upsertHotelInStore({
+
+  const merged: Hotel = {
     ...existing,
     ...updates,
     id: existing.id,
-  });
+    updatedAt: new Date().toISOString(),
+  };
+
+  await persistCatalogItem(HOTELS_COLLECTION, merged);
+  const fromDb = await readCatalogItem<Hotel>(HOTELS_COLLECTION, id);
+  return upsertInMemory(fromDb ?? merged);
 }
 
 export async function deleteHotelFromStore(id: string): Promise<boolean> {

@@ -45,6 +45,13 @@ const vehicleTypes: VehicleType[] = [
   "bus",
 ];
 
+function parsePriceInput(value: string, fallback?: number): number {
+  const cleaned = value.replace(/,/g, "").trim();
+  if (!cleaned) return fallback ?? 0;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : (fallback ?? 0);
+}
+
 const emptyForm = {
   name: "",
   nameHi: "",
@@ -85,7 +92,7 @@ export default function VehiclesAdminClient() {
   const loadVehicles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/vehicles");
+      const res = await fetch("/api/admin/vehicles", { cache: "no-store" });
       const json = await res.json();
       if (json.success) setVehicles(json.data);
       else toast.error(json.error ?? "Failed to load vehicles");
@@ -196,8 +203,10 @@ export default function VehiclesAdminClient() {
     category: f.category || existing?.category,
     type: f.type,
     seats: Number(f.seats) || 4,
-    pricePerDay: Number(f.pricePerDay) || existing?.pricePerDay || 0,
-    pricePerKm: f.pricePerKm ? Number(f.pricePerKm) : existing?.pricePerKm,
+    pricePerDay: parsePriceInput(f.pricePerDay, existing?.pricePerDay),
+    pricePerKm: f.pricePerKm
+      ? parsePriceInput(f.pricePerKm, existing?.pricePerKm)
+      : existing?.pricePerKm,
     location: f.location || "Delhi NCR",
     description: { en: f.description, hi: f.description },
     images: f.images
@@ -284,8 +293,28 @@ export default function VehiclesAdminClient() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Update failed");
+      const updated = json.data as Vehicle;
       toast.success("Vehicle updated");
-      setSelected(json.data);
+      setSelected(updated);
+      setForm({
+        name: updated.name.en,
+        nameHi: updated.name.hi,
+        slug: updated.slug ?? "",
+        brand: updated.brand ?? "",
+        category: updated.category ?? "",
+        type: updated.type,
+        seats: String(updated.seats),
+        pricePerDay: String(updated.pricePerDay),
+        pricePerKm: updated.pricePerKm ? String(updated.pricePerKm) : "",
+        location: updated.location,
+        description: localizedText(updated.description, "en"),
+        images: updated.images.join("\n"),
+        features: updated.features.join(", "),
+        fuelType: updated.fuelType,
+        driverIncluded: updated.driverIncluded,
+        available: updated.available,
+        status: updated.status ?? (updated.available ? "active" : "inactive"),
+      });
       loadVehicles();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");

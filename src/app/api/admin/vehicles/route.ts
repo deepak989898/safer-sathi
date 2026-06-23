@@ -10,6 +10,8 @@ import { VEHICLES_SEED_COUNT } from "@/data/vehicles-seed";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import type { Vehicle, VehicleStatus } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await reloadVehiclesStore();

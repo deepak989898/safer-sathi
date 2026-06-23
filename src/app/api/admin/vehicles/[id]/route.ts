@@ -9,6 +9,9 @@ import {
   updateVehicleInStore,
 } from "@/lib/vehicle-store";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import { CatalogPersistenceError } from "@/lib/catalog/persistence";
+
+export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   actorRole: actorRoleSchema,
@@ -43,9 +46,12 @@ export async function PATCH(
 
     const updated = await updateVehicleInStore(id, parsed.data.updates as never);
     if (!updated) return apiError("Vehicle not found", 404);
-    await reloadVehiclesStore();
-    return apiSuccess(getVehicleByIdAdmin(id) ?? updated);
+    return apiSuccess(updated);
   } catch (err) {
+    if (err instanceof CatalogPersistenceError) {
+      console.error("Vehicle persist error:", err);
+      return apiError(err.message, 503);
+    }
     console.error("Update vehicle error:", err);
     return apiError("Failed to update vehicle", 500);
   }
