@@ -1,17 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAuth } from "@/contexts/auth-context";
 import type { AdminNotification } from "@/lib/admin/notifications";
 import { cn } from "@/lib/utils";
@@ -90,84 +88,96 @@ export function AdminNotificationsBell() {
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) void loadNotifications();
+      }}
+    >
+      <PopoverTrigger
+        aria-label="Open notifications"
         render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            onClick={() => void loadNotifications()}
-          />
+          <Button variant="ghost" size="icon" className="relative h-9 w-9" />
         }
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+          <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between px-2 py-1.5">
-          <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="z-[200] w-80 max-h-[min(70vh,420px)] overflow-hidden p-0"
+      >
+        <div className="flex items-center justify-between border-b px-3 py-2.5">
+          <p className="text-sm font-semibold">Notifications</p>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 text-xs"
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               onClick={() => void markAllRead()}
             >
               <CheckCheck className="size-3.5" />
               Mark all read
-            </Button>
+            </button>
           )}
         </div>
-        <DropdownMenuSeparator />
-        {loading && notifications.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading...
-          </div>
-        ) : notifications.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            No notifications yet.
-          </p>
-        ) : (
-          notifications.slice(0, 12).map((notification) => (
-            <DropdownMenuItem
-              key={notification.id}
-              className="flex cursor-pointer flex-col items-start gap-0.5 p-3"
-              onClick={() => openNotification(notification)}
-            >
-              <span
-                className={cn(
-                  "text-sm leading-snug",
-                  !notification.read && "font-semibold"
-                )}
-              >
-                {notification.title}
-              </span>
-              <span className="line-clamp-2 text-xs text-muted-foreground">
-                {notification.message}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {formatWhen(notification.createdAt)}
-              </span>
-            </DropdownMenuItem>
-          ))
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="justify-center text-xs text-primary"
-          onClick={() => {
-            setOpen(false);
-            router.push("/admin/bookings");
-          }}
-        >
-          View all bookings
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+
+        <div className="max-h-[min(55vh,340px)] overflow-y-auto">
+          {loading && notifications.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading...
+            </div>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
+              No notifications yet.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {notifications.slice(0, 12).map((notification) => (
+                <li key={notification.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-3 text-left transition-colors hover:bg-muted/60"
+                    onClick={() => openNotification(notification)}
+                  >
+                    <span
+                      className={cn(
+                        "text-sm leading-snug",
+                        !notification.read && "font-semibold text-foreground"
+                      )}
+                    >
+                      {notification.title}
+                    </span>
+                    <span className="line-clamp-2 text-xs text-muted-foreground">
+                      {notification.message}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatWhen(notification.createdAt)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="border-t px-3 py-2">
+          <Link
+            href="/admin/bookings"
+            className="block text-center text-xs font-medium text-primary hover:underline"
+            onClick={() => setOpen(false)}
+          >
+            View all bookings
+          </Link>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
