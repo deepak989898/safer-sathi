@@ -11,10 +11,10 @@ import type {
 import {
   buildDistanceSection,
   buildSafarSathiBookingCta,
-  formatReferencesMarkdown,
   getDestinationBlogReference,
   resolveDestinationName,
 } from "@/lib/ai-center/blog-reference-data";
+import { stripSourcesSection } from "@/lib/ai-center/blog-content";
 import { estimateWordCount, slugify } from "@/lib/ai-center/utils";
 import { appUrl } from "@/lib/site-config";
 
@@ -35,11 +35,12 @@ STRICT RULES:
 - Mention "Safar Sathi" at most twice (introduction + one soft CTA in conclusion)
 - Write for travellers, not sales copy — specific names, distances, months, prices
 - Include practical details: how to reach, best time, real attractions, local food
-- End with "## Sources & Further Reading" using the provided reference links as markdown links
+- End with "## Book on Safar Sathi" using only Safar Sathi booking URLs from the prompt
+- Do NOT add a Sources, References, or Further Reading section
+- Do NOT link to Wikipedia, tourism boards, or any external website
 - Target the requested word count naturally without padding or repetition
 - Use bullet lists and short paragraphs for readability
-- For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites
-- Wikipedia and official tourism board links are OK in the Sources section only`;
+- For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites`;
 
 function buildImagePrompts(keyword: string, destination?: string): BlogImagePrompt[] {
   const dest = destination ?? "India";
@@ -104,7 +105,6 @@ export function dedupeMarkdownSections(markdown: string): string {
 function buildReferenceContext(keyword: string, destination?: string): string {
   const ref = getDestinationBlogReference(keyword, destination);
   const dest = resolveDestinationName(keyword, destination);
-  const links = ref.references.map((r) => `- ${r.title}: ${r.url}`).join("\n");
 
   return `DESTINATION: ${dest} (${ref.state})
 BEST TIME: ${ref.bestTime}
@@ -120,9 +120,7 @@ SAFAR SATHI BOOKING LINKS (use these for any booking/package/hotel CTAs):
 - Vehicles: ${appUrl("/vehicles")}
 - AI Assistant: ${appUrl("/assistant")}
 - Booking: ${appUrl("/booking")}
-- Homepage: ${appUrl()}
-REFERENCE LINKS (Sources section only — not for booking):
-${links}`;
+- Homepage: ${appUrl()}`;
 }
 
 function buildSections(
@@ -149,7 +147,6 @@ function buildSections(
     `## FAQ\n\n**How many days are enough for ${dest}?**\nMost first-time visitors plan 3–5 nights to cover main sights without rushing.\n\n**Is ${dest} safe for solo travellers?**\nStick to registered operators, share itinerary with family, and avoid isolated areas at night.\n\n**Can I book packages online?**\nYes — compare hotel, cab, and itinerary inclusions before payment.`,
     `## Conclusion\n\n${dest} works well for families, couples, and adventure groups when you match season to activities. Use the tips above to plan dates and routes — Safar Sathi can help you compare live packages when you are ready to book.`,
     buildSafarSathiBookingCta(dest),
-    formatReferencesMarkdown(ref.references),
   ].filter(Boolean);
 
   let content = dedupeMarkdownSections(sections.join("\n\n"));
@@ -187,7 +184,8 @@ STRUCTURE (each ## heading once only):
 10. FAQ (3 questions)
 11. Conclusion (one brief Safar Sathi mention max)
 12. Book on Safar Sathi (use only Safar Sathi booking URLs from reference data)
-13. Sources & Further Reading (markdown links from references — Wikipedia/tourism only)
+
+Do NOT include Sources, References, or external links.
 
 If the keyword mentions distance between two cities, add a "Distance & Route Overview" section with km, hours, and transport table near the top.`;
 }
@@ -247,16 +245,14 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
       if (!content.toLowerCase().includes("book on safar sathi")) {
         content += `\n\n${buildSafarSathiBookingCta(dest)}`;
       }
-      if (!content.toLowerCase().includes("sources & further reading")) {
-        const ref = getDestinationBlogReference(keyword.keyword, keyword.destination);
-        content += `\n\n${formatReferencesMarkdown(ref.references)}`;
-      }
     }
   } catch {
     // keep rule-based content
   }
 
-  content = sanitizeBookingLinks(dedupeMarkdownSections(content));
+  content = stripSourcesSection(
+    sanitizeBookingLinks(dedupeMarkdownSections(content))
+  );
   const wordCount = estimateWordCount(content);
   const faq = seoMeta?.faq ?? [
     {
