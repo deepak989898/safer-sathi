@@ -299,6 +299,10 @@ export interface AiCenterSettings {
   keywordsPerDay: number;
   autoDraftEnabled: boolean;
   autoPublishEnabled: boolean;
+  /** Blog Writer: auto-generate blogs for all approved keywords without drafts */
+  autoBlogGenerateEnabled: boolean;
+  /** Blog Drafts: auto-approve all pending drafts */
+  autoBlogApproveEnabled: boolean;
   approvalRequired: boolean;
   packageAutoDraftEnabled: boolean;
   packageApprovalRequired: boolean;
@@ -329,6 +333,8 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   keywordsPerDay: 10,
   autoDraftEnabled: false,
   autoPublishEnabled: false,
+  autoBlogGenerateEnabled: false,
+  autoBlogApproveEnabled: false,
   approvalRequired: true,
   packageAutoDraftEnabled: false,
   packageApprovalRequired: true,

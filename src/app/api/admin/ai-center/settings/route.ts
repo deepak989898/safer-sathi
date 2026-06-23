@@ -27,6 +27,8 @@ const settingsSchema = z.object({
   keywordsPerDay: z.number().min(1).max(50).optional(),
   autoDraftEnabled: z.boolean().optional(),
   autoPublishEnabled: z.boolean().optional(),
+  autoBlogGenerateEnabled: z.boolean().optional(),
+  autoBlogApproveEnabled: z.boolean().optional(),
   approvalRequired: z.boolean().optional(),
   packageAutoDraftEnabled: z.boolean().optional(),
   packageApprovalRequired: z.boolean().optional(),

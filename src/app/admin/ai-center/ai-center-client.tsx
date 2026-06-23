@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -202,6 +202,7 @@ export default function AiCenterClient() {
   const [settings, setSettings] = useState<AiCenterSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [editBlog, setEditBlog] = useState<AiBlogPost | null>(null);
+  const autoRunRef = useRef<{ tab: string; signature: string } | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -333,16 +334,25 @@ export default function AiCenterClient() {
     await loadAll();
   };
 
-  const generateBlog = async (keywordId: string) => {
+  const generateBlog = async (keywordId: string, silent = false) => {
+    const res = await fetch("/api/admin/ai-center/blogs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actorRole, actorId, keywordId }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    if (!silent) {
+      toast.success("Blog draft generated");
+      await loadAll();
+    }
+    return json.data.blog as AiBlogPost;
+  };
+
+  const generateBlogClick = async (keywordId: string) => {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/blogs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, keywordId }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      await generateBlog(keywordId, true);
       toast.success("Blog draft generated");
       await loadAll();
     } catch (e) {
@@ -351,6 +361,175 @@ export default function AiCenterClient() {
       setBusy(false);
     }
   };
+
+  const runAutoGenerateAll = useCallback(async () => {
+    const targets = approvedKeywordsWithoutBlog(keywords, blogs);
+    if (targets.length === 0) return;
+    setBusy(true);
+    try {
+      for (const kw of targets) {
+        await generateBlog(kw.id, true);
+      }
+      toast.success(`Auto-generated ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Auto generate failed");
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }, [keywords, blogs, actorRole, actorId, loadAll]);
+
+  const runAutoApproveAll = useCallback(async () => {
+    const targets = blogs.filter(
+      (b) => b.status === "pending_approval" || b.status === "draft"
+    );
+    if (targets.length === 0) return;
+    setBusy(true);
+    try {
+      for (const blog of targets) {
+        const res = await fetch(`/api/admin/ai-center/blogs/${blog.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actorRole, actorId, action: "approve" }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+      }
+      toast.success(`Auto-approved ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Auto approve failed");
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }, [blogs, actorRole, actorId, loadAll]);
+
+  const runAutoPublishAll = useCallback(async () => {
+    const targets = blogs.filter((b) => b.status === "approved");
+    if (targets.length === 0) return;
+    setBusy(true);
+    try {
+      for (const blog of targets) {
+        const res = await fetch(`/api/admin/ai-center/blogs/${blog.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actorRole, actorId, action: "publish" }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+      }
+      toast.success(`Auto-published ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Auto publish failed");
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }, [blogs, actorRole, actorId, loadAll]);
+
+  const saveAutomationToggle = async (
+    field: "autoBlogGenerateEnabled" | "autoBlogApproveEnabled" | "autoPublishEnabled",
+    enabled: boolean,
+    runBatch?: () => Promise<void>
+  ) => {
+    if (!settings) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          actorId,
+          [field]: enabled,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setSettings(json.data);
+      if (field === "autoBlogGenerateEnabled" && !enabled) {
+        autoRunRef.current = null;
+      }
+      if (field === "autoBlogApproveEnabled" && !enabled) {
+        autoRunRef.current = null;
+      }
+      if (field === "autoPublishEnabled" && !enabled) {
+        autoRunRef.current = null;
+      }
+      toast.success(enabled ? "Automation turned on" : "Automation turned off");
+      if (enabled && runBatch) {
+        if (field === "autoBlogGenerateEnabled") {
+          autoRunRef.current = {
+            tab: "blog-writer",
+            signature: blogWriterKeywords.map((k) => k.id).join(","),
+          };
+        } else if (field === "autoBlogApproveEnabled") {
+          autoRunRef.current = {
+            tab: "drafts",
+            signature: draftBlogs.map((b) => b.id).join(","),
+          };
+        } else if (field === "autoPublishEnabled") {
+          autoRunRef.current = {
+            tab: "scheduled",
+            signature: scheduledBlogs.map((b) => b.id).join(","),
+          };
+        }
+        await runBatch();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save automation setting");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!settings?.autoBlogGenerateEnabled) return;
+    if (activeTab !== "blog-writer" || busy || blogWriterKeywords.length === 0) return;
+    const signature = blogWriterKeywords.map((k) => k.id).join(",");
+    if (
+      autoRunRef.current?.tab === "blog-writer" &&
+      autoRunRef.current.signature === signature
+    ) {
+      return;
+    }
+    autoRunRef.current = { tab: "blog-writer", signature };
+    void runAutoGenerateAll();
+  }, [
+    activeTab,
+    settings?.autoBlogGenerateEnabled,
+    blogWriterKeywords,
+    busy,
+    runAutoGenerateAll,
+  ]);
+
+  useEffect(() => {
+    if (!settings?.autoBlogApproveEnabled) return;
+    if (activeTab !== "drafts" || busy || draftBlogs.length === 0) return;
+    const signature = draftBlogs.map((b) => b.id).join(",");
+    if (autoRunRef.current?.tab === "drafts" && autoRunRef.current.signature === signature) {
+      return;
+    }
+    autoRunRef.current = { tab: "drafts", signature };
+    void runAutoApproveAll();
+  }, [activeTab, settings?.autoBlogApproveEnabled, draftBlogs, busy, runAutoApproveAll]);
+
+  useEffect(() => {
+    if (!settings?.autoPublishEnabled) return;
+    if (activeTab !== "scheduled" || busy || scheduledBlogs.length === 0) return;
+    const signature = scheduledBlogs.map((b) => b.id).join(",");
+    if (
+      autoRunRef.current?.tab === "scheduled" &&
+      autoRunRef.current.signature === signature
+    ) {
+      return;
+    }
+    autoRunRef.current = { tab: "scheduled", signature };
+    void runAutoPublishAll();
+  }, [activeTab, settings?.autoPublishEnabled, scheduledBlogs, busy, runAutoPublishAll]);
 
   const openBlogEditor = (blog: AiBlogPost) => {
     const imagePrompts = getBlogImagePrompts(blog.keyword, blog.destination);
@@ -406,6 +585,8 @@ export default function AiCenterClient() {
           keywordsPerDay: settings.keywordsPerDay,
           autoDraftEnabled: settings.autoDraftEnabled,
           autoPublishEnabled: settings.autoPublishEnabled,
+          autoBlogGenerateEnabled: settings.autoBlogGenerateEnabled,
+          autoBlogApproveEnabled: settings.autoBlogApproveEnabled,
           approvalRequired: true,
         }),
       });
@@ -569,7 +750,7 @@ export default function AiCenterClient() {
               onApprove={(id) => void keywordAction(id, "approve")}
               onReject={(id) => void keywordAction(id, "reject")}
               onDelete={(id) => void deleteKeyword(id)}
-              onGenerateBlog={(id) => void generateBlog(id)}
+              onGenerateBlog={(id) => void generateBlogClick(id)}
               showGenerate
             />
             <div className="mt-6">
@@ -581,7 +762,7 @@ export default function AiCenterClient() {
                 onApprove={() => {}}
                 onReject={() => {}}
                 onDelete={(id) => void deleteKeyword(id)}
-                onGenerateBlog={(id) => void generateBlog(id)}
+                onGenerateBlog={(id) => void generateBlogClick(id)}
                 showGenerate
                 hideActions
               />
@@ -597,6 +778,19 @@ export default function AiCenterClient() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <BlogAutomationBar
+                  label="Auto Generate"
+                  description="When on, all keywords below are generated automatically (one by one)."
+                  enabled={settings?.autoBlogGenerateEnabled ?? false}
+                  disabled={busy || !settings}
+                  onToggle={(enabled) =>
+                    void saveAutomationToggle(
+                      "autoBlogGenerateEnabled",
+                      enabled,
+                      enabled ? runAutoGenerateAll : undefined
+                    )
+                  }
+                />
                 <p className="text-sm text-muted-foreground">
                   Select an approved keyword and generate a full SEO blog ({settings?.blogWordLimit ?? 1500} words)
                   with image prompts, FAQ, and meta tags.
@@ -611,7 +805,7 @@ export default function AiCenterClient() {
                   blogWriterKeywords.map((kw) => (
                     <div key={kw.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
                       <span className="font-medium">{kw.keyword}</span>
-                      <Button size="sm" disabled={busy} onClick={() => void generateBlog(kw.id)}>
+                      <Button size="sm" disabled={busy} onClick={() => void generateBlogClick(kw.id)}>
                         Generate Blog
                       </Button>
                     </div>
@@ -622,6 +816,20 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="drafts">
+            <BlogAutomationBar
+              className="mb-4"
+              label="Auto Approve"
+              description="When on, all drafts and pending blogs are approved automatically."
+              enabled={settings?.autoBlogApproveEnabled ?? false}
+              disabled={busy || !settings}
+              onToggle={(enabled) =>
+                void saveAutomationToggle(
+                  "autoBlogApproveEnabled",
+                  enabled,
+                  enabled ? runAutoApproveAll : undefined
+                )
+              }
+            />
             <BlogTable
               title="Drafts & Pending Approval"
               blogs={draftBlogs}
@@ -636,6 +844,20 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="scheduled">
+            <BlogAutomationBar
+              className="mb-4"
+              label="Auto Publish"
+              description="When on, all approved blogs in this list are published automatically."
+              enabled={settings?.autoPublishEnabled ?? false}
+              disabled={busy || !settings}
+              onToggle={(enabled) =>
+                void saveAutomationToggle(
+                  "autoPublishEnabled",
+                  enabled,
+                  enabled ? runAutoPublishAll : undefined
+                )
+              }
+            />
             <BlogTable
               title="Approved — Ready to Publish"
               blogs={scheduledBlogs}
@@ -1059,6 +1281,40 @@ export default function AiCenterClient() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function BlogAutomationBar({
+  label,
+  description,
+  enabled,
+  disabled,
+  className,
+  onToggle,
+}: {
+  label: string;
+  description: string;
+  enabled: boolean;
+  disabled?: boolean;
+  className?: string;
+  onToggle: (enabled: boolean) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3",
+        className
+      )}
+    >
+      <div>
+        <p className="font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{enabled ? "On" : "Off"}</span>
+        <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggle} />
+      </div>
+    </div>
   );
 }
 
