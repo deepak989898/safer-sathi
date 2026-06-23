@@ -1,8 +1,6 @@
 import { resolveFirebaseAdminCredentials } from "@/lib/firebase/resolve-admin-credentials";
 
-type AdminModule = typeof import("./admin");
-
-let adminModule: AdminModule | null = null;
+let dbReady = false;
 let lastInitError: string | null = null;
 
 export function isAdminEnvConfigured(): boolean {
@@ -20,60 +18,47 @@ export function getFirebaseAdminStatus(): {
 } {
   return {
     configured: isAdminEnvConfigured(),
-    ready: adminModule !== null && lastInitError === null,
+    ready: dbReady && lastInitError === null,
     error: lastInitError,
   };
 }
 
-export async function getSafeFirebaseAdmin(): Promise<AdminModule | null> {
+export async function getSafeAdminDb() {
   if (!isAdminEnvConfigured()) {
     lastInitError = "Firebase Admin credentials are not configured on the server.";
+    dbReady = false;
     return null;
   }
 
-  if (adminModule) return adminModule;
-
   try {
-    adminModule = await import("./admin");
+    const { getAdminDb } = await import("@/lib/firebase/admin-db");
+    const db = getAdminDb();
     lastInitError = null;
-    return adminModule;
-  } catch (error) {
-    lastInitError =
-      error instanceof Error ? error.message : "Firebase Admin module failed to load.";
-    console.error("Firebase Admin module failed to load:", error);
-    adminModule = null;
-    return null;
-  }
-}
-
-export async function getSafeAdminDb() {
-  const admin = await getSafeFirebaseAdmin();
-  if (!admin) return null;
-
-  try {
-    const db = admin.getAdminDb();
-    lastInitError = null;
+    dbReady = true;
     return db;
   } catch (error) {
     lastInitError =
       error instanceof Error ? error.message : "Firebase Admin Firestore init failed.";
     console.error("Firebase Admin DB init failed:", error);
-    adminModule = null;
+    dbReady = false;
     return null;
   }
 }
 
+/** Loads firebase-admin/auth only when needed (e.g. password reset). */
 export async function getSafeAdminAuth() {
-  const admin = await getSafeFirebaseAdmin();
-  if (!admin) return null;
+  if (!isAdminEnvConfigured()) {
+    lastInitError = "Firebase Admin credentials are not configured on the server.";
+    return null;
+  }
 
   try {
-    return admin.getAdminAuth();
+    const { getAdminAuth } = await import("@/lib/firebase/admin-auth");
+    return getAdminAuth();
   } catch (error) {
     lastInitError =
       error instanceof Error ? error.message : "Firebase Admin Auth init failed.";
     console.error("Firebase Admin Auth init failed:", error);
-    adminModule = null;
     return null;
   }
 }

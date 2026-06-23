@@ -1,4 +1,5 @@
-import { isAdminConfigured, getAdminDb } from "@/lib/firebase/admin";
+import { isAdminConfigured } from "@/lib/firebase/admin-app";
+import { getAdminDb } from "@/lib/firebase/admin-db";
 import type { AuditLog, UserRole } from "@/types";
 
 const demoAuditLogs: AuditLog[] = [];

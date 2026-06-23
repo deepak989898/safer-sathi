@@ -2,7 +2,7 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { deliverPasswordResetEmail } from "@/lib/email/password-reset-mail";
 import { isResendConfigured } from "@/lib/email/resend";
 import { isSmtpConfigured } from "@/lib/email/smtp";
-import { getSafeFirebaseAdmin, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { getSafeAdminAuth, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { appUrl } from "@/lib/site-config";
 import type { Auth } from "firebase-admin/auth";
 
@@ -53,24 +53,12 @@ export async function POST(request: Request) {
       });
     }
 
-    const admin = await getSafeFirebaseAdmin();
-    if (!admin) {
+    const auth = await getSafeAdminAuth();
+    if (!auth) {
       return apiSuccess({
         sent: false,
         delivery: "firebase_client_fallback",
-        message: "Firebase Admin unavailable on server.",
-      });
-    }
-
-    let auth: Auth;
-    try {
-      auth = admin.getAdminAuth();
-    } catch (error) {
-      console.error("Firebase Admin auth init failed:", error);
-      return apiSuccess({
-        sent: false,
-        delivery: "firebase_client_fallback",
-        message: "Firebase Admin auth unavailable.",
+        message: "Firebase Admin auth unavailable on server.",
       });
     }
 
