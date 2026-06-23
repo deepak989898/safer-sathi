@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { PageViewTracker } from "@/components/analytics/page-view-tracker";
+import { VisitorTracker } from "@/components/analytics/visitor-tracker";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Providers } from "@/components/providers";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -91,6 +92,7 @@ export default function RootLayout({
         <Providers>
           <Suspense fallback={null}>
             <PageViewTracker />
+            <VisitorTracker />
           </Suspense>
           {children}
         </Providers>

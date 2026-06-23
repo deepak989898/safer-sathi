@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   BarChart3,
   Building2,
   Bus,
@@ -55,6 +56,12 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
         href: "/admin/analytics",
         label: "Analytics",
         icon: BarChart3,
+        roles: ["super_admin", "manager"],
+      },
+      {
+        href: "/admin/visitor-analytics",
+        label: "Visitor Analytics",
+        icon: Activity,
         roles: ["super_admin", "manager"],
       },
     ],
