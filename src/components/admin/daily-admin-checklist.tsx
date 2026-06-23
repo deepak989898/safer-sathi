@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
-  ArrowRight,
   CalendarCheck,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   MessageSquare,
   Package,
@@ -19,17 +21,18 @@ interface DailyAdminChecklistProps {
   checklist: AdminDailyChecklist;
 }
 
-const categoryStyles = {
-  booking: "border-l-blue-500",
-  ai_enquiry: "border-l-violet-500",
-  approval: "border-l-amber-500",
-} as const;
-
 export function DailyAdminChecklist({ checklist }: DailyAdminChecklistProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const allClear =
     checklist.pendingBookings === 0 &&
     checklist.unconvertedAiChats === 0 &&
     checklist.pendingApprovals === 0;
+
+  const totalActions =
+    checklist.pendingBookings +
+    checklist.unconvertedAiChats +
+    checklist.pendingApprovals;
 
   const summaryCards = [
     {
@@ -64,94 +67,93 @@ export function DailyAdminChecklist({ checklist }: DailyAdminChecklistProps) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-lg">
+              {expanded ? (
+                <ChevronDown className="size-5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="size-5 text-muted-foreground" />
+              )}
               <ClipboardList className="size-5 text-primary" />
               Daily Admin Checklist
             </CardTitle>
             <CardDescription>
-              Action items that need your attention today — no need to open multiple pages.
+              {expanded
+                ? "Summary counts — open the bell icon for booking alerts and pending actions."
+                : totalActions > 0
+                  ? `${totalActions} item${totalActions === 1 ? "" : "s"} need attention — click to expand`
+                  : "All clear — click to expand summary"}
             </CardDescription>
           </div>
-          {allClear && (
+          {allClear ? (
             <Badge variant="outline" className="gap-1 border-emerald-500/30 text-emerald-600">
               <CheckCircle2 className="size-3.5" />
               All clear
             </Badge>
+          ) : (
+            <Badge variant="secondary" className="tabular-nums">
+              {totalActions}
+            </Badge>
           )}
-        </div>
+        </button>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {summaryCards.map((card) => (
-            <Link
-              key={card.label}
-              href={card.href}
-              className={cn(
-                "rounded-xl border p-4 transition-colors hover:bg-muted/40",
-                card.count > 0 && "ring-1 ring-primary/10"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className={cn("rounded-lg p-2", card.bg)}>
-                  <card.icon className={cn("size-4", card.tone)} />
-                </div>
-                <span className={cn("text-2xl font-semibold tabular-nums", card.count > 0 && card.tone)}>
-                  {card.count}
-                </span>
-              </div>
-              <p className="mt-3 text-sm font-medium">{card.label}</p>
-              <p className="text-xs text-muted-foreground">{card.hint}</p>
-            </Link>
-          ))}
-        </div>
 
-        {checklist.items.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Top actions</p>
-            <ul className="divide-y rounded-xl border">
-              {checklist.items.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
+      {expanded && (
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {summaryCards.map((card) => (
+              <Link
+                key={card.label}
+                href={card.href}
+                className={cn(
+                  "rounded-xl border p-4 transition-colors hover:bg-muted/40",
+                  card.count > 0 && "ring-1 ring-primary/10"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className={cn("rounded-lg p-2", card.bg)}>
+                    <card.icon className={cn("size-4", card.tone)} />
+                  </div>
+                  <span
                     className={cn(
-                      "flex items-start justify-between gap-3 border-l-4 px-4 py-3 transition-colors hover:bg-muted/40",
-                      categoryStyles[item.category]
+                      "text-2xl font-semibold tabular-nums",
+                      card.count > 0 && card.tone
                     )}
                   >
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
-                      {item.subtitle && (
-                        <p className="line-clamp-2 text-xs text-muted-foreground">{item.subtitle}</p>
-                      )}
-                    </div>
-                    <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                    {card.count}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-medium">{card.label}</p>
+                <p className="text-xs text-muted-foreground">{card.hint}</p>
+              </Link>
+            ))}
           </div>
-        ) : (
-          <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            Nothing urgent right now. Check back after new bookings or AI chats come in.
-          </div>
-        )}
 
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" render={<Link href="/admin/bookings" />}>
-            Open bookings
-          </Button>
-          <Button variant="outline" size="sm" render={<Link href="/admin/ai-enquiries" />}>
-            Open AI enquiries
-          </Button>
-          {checklist.pendingApprovals > 0 && (
-            <Button variant="outline" size="sm" render={<Link href="/admin/packages" />}>
-              Review approvals
+          <div className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            Pending booking confirmations, payment issues, and other alerts appear in the
+            notification bell at the top right.
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" render={<Link href="/admin/bookings" />}>
+              Open bookings
             </Button>
-          )}
-        </div>
-      </CardContent>
+            <Button variant="outline" size="sm" render={<Link href="/admin/ai-enquiries" />}>
+              Open AI enquiries
+            </Button>
+            {checklist.pendingApprovals > 0 && (
+              <Button variant="outline" size="sm" render={<Link href="/admin/packages" />}>
+                Review approvals
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

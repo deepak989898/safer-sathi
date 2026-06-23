@@ -22,6 +22,10 @@ import {
 } from "@/lib/payments/booking-payment";
 import { useAppStore, useBookingCart } from "@/store/app-store";
 import { formatCurrency, localizedText } from "@/lib/i18n";
+import {
+  postPaymentPath,
+  postPaymentSuccessMessage,
+} from "@/lib/bookings/post-payment-navigation";
 import { isDemoPaymentMode } from "@/lib/payments/razorpay-client";
 import type { Booking } from "@/types";
 import { toast } from "sonner";
@@ -97,7 +101,7 @@ export function BookingCheckoutClient() {
     if (!cart.serviceId || !form.name || !form.email || !form.phone) return;
 
     try {
-      await completeCatalogBooking({
+      const result = await completeCatalogBooking({
         customerName: form.name,
         customerEmail: form.email,
         customerPhone: form.phone,
@@ -116,7 +120,10 @@ export function BookingCheckoutClient() {
 
       clearCart();
       setStep(1);
-      router.push("/my-bookings");
+      toast.success(
+        postPaymentSuccessMessage(result.booking.bookingNumber, Boolean(user))
+      );
+      router.push(postPaymentPath(Boolean(user)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Booking failed. Please try again.");
     }
@@ -126,8 +133,11 @@ export function BookingCheckoutClient() {
     if (!pendingBooking) return;
 
     try {
-      await payExistingBooking(pendingBooking, paymentPlan);
-      router.push("/my-bookings");
+      const result = await payExistingBooking(pendingBooking, paymentPlan);
+      toast.success(
+        postPaymentSuccessMessage(result.booking.bookingNumber, Boolean(user))
+      );
+      router.push(postPaymentPath(Boolean(user)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment failed. Please try again.");
     }

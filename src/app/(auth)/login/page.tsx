@@ -56,7 +56,8 @@ function LoginForm() {
         </div>
         <CardTitle className="text-2xl">Welcome to Safar Sathi</CardTitle>
         <CardDescription>
-          Sign in with your registered email and password
+          Sign in with your registered email and password. After a confirmed booking, use your
+          latest Booking ID (e.g. SS-2026-123456) as your password until you change it.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,7 +92,7 @@ function LoginForm() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder="Booking ID or password"
                 className="pl-10 pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -192,6 +192,16 @@ async function runPaymentForBooking(
     );
   }
 
+  await updateBookingPaymentOnClient(booking.id, {
+    status: "confirmed",
+    paymentStatus:
+      paymentPlan === "full" || payAmount >= totalAmount ? "paid" : "partial",
+    paidAmount: payAmount,
+    paymentPlan,
+    paymentFailureReason: undefined,
+    lastPaymentAttemptAt: new Date().toISOString(),
+  });
+
   trackPaymentSuccess(payAmount, booking.id, serviceType);
   trackPurchase(payAmount, {
     item_id: booking.id,
@@ -203,12 +213,6 @@ async function runPaymentForBooking(
 
   if (isDemoPaymentMode(order.keyId, order.demo)) {
     toast.info("Demo payment mode — booking confirmed locally.");
-  } else if (paymentPlan === "advance" && payAmount < totalAmount) {
-    toast.success(
-      `Advance received for booking ${booking.bookingNumber}. Balance can be paid later.`
-    );
-  } else {
-    toast.success(`Payment successful! Booking ${booking.bookingNumber} confirmed.`);
   }
 
   return { booking, payment, demo: order.demo, payAmount };

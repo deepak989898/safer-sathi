@@ -88,6 +88,9 @@ export interface User {
   segment?: "vip" | "regular" | "new" | "at_risk";
   totalBookings?: number;
   totalSpent?: number;
+  /** Latest booking number used as temporary login password until customer changes it. */
+  lastBookingNumber?: string;
+  passwordIsBookingId?: boolean;
 }
 
 export type VehicleStatus = "active" | "inactive" | "maintenance";

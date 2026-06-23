@@ -55,6 +55,22 @@ const FILTER_OPTIONS: { id: BookingAdminFilter; label: string }[] = [
   { id: "cancelled", label: "Cancelled" },
 ];
 
+function mergeBookings(server: Booking[], client: Booking[]): Booking[] {
+  const map = new Map<string, Booking>();
+  for (const booking of client) map.set(booking.id, booking);
+  for (const booking of server) {
+    const existing = map.get(booking.id);
+    if (!existing) {
+      map.set(booking.id, booking);
+      continue;
+    }
+    const serverTime = booking.updatedAt ?? booking.createdAt;
+    const clientTime = existing.updatedAt ?? existing.createdAt;
+    map.set(booking.id, serverTime >= clientTime ? booking : existing);
+  }
+  return Array.from(map.values());
+}
+
 export default function BookingsAdminClient() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -63,7 +79,50 @@ export default function BookingsAdminClient() {
   const [statusFilter, setStatusFilter] = useState<BookingAdminFilter>("all");
   const [search, setSearch] = useState("");
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
+
+  const updateBookingStatus = useCallback(
+    async (
+      booking: Booking,
+      updates: { status?: Booking["status"]; paymentStatus?: Booking["paymentStatus"] },
+      sendConfirmation = false
+    ) => {
+      if (!user?.role) {
+        toast.error("You must be signed in as staff");
+        return;
+      }
+      setUpdatingBookingId(booking.id);
+      try {
+        const res = await fetch(`/api/admin/bookings/${booking.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actorRole: user.role,
+            ...updates,
+            sendConfirmation,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error ?? "Failed to update booking");
+        }
+        const updated = json.data as Booking;
+        setBookings((prev) =>
+          sortBookingsNewestFirst(
+            prev.map((item) => (item.id === updated.id ? updated : item))
+          )
+        );
+        toast.success(`Booking ${booking.bookingNumber} updated`);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not update booking");
+      } finally {
+        setUpdatingBookingId(null);
+      }
+    },
+    [user?.role]
+  );
 
   const sendInvoice = useCallback(
     async (booking: Booking, channel: "email" | "whatsapp" | "both") => {
@@ -136,16 +195,15 @@ export default function BookingsAdminClient() {
         toast.error(json.error ?? "Failed to load bookings");
       }
 
-      if (items.length === 0) {
-        const clientItems = await listBookingsFromClient(500);
-        if (clientItems.length > 0) {
-          items = clientItems;
-          setLoadSource("client");
-        } else {
-          setLoadSource(null);
-        }
-      } else {
+      const clientItems = await listBookingsFromClient(500);
+      items = mergeBookings(items, clientItems);
+
+      if (json.success && (json.data?.length ?? 0) > 0) {
         setLoadSource("server");
+      } else if (clientItems.length > 0) {
+        setLoadSource("client");
+      } else {
+        setLoadSource(null);
       }
 
       setBookings(sortBookingsNewestFirst(items));
@@ -153,7 +211,6 @@ export default function BookingsAdminClient() {
       const clientItems = await listBookingsFromClient(500);
       setBookings(sortBookingsNewestFirst(clientItems));
       setLoadSource(clientItems.length > 0 ? "client" : null);
-      if (clientItems.length === 0) toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
     }
@@ -334,10 +391,10 @@ export default function BookingsAdminClient() {
     },
     {
       id: "actions",
-      header: "Invoice",
+      header: "Actions",
       cell: ({ row }) => {
         const booking = row.original;
-        const busy = sendingInvoiceId === booking.id;
+        const busy = sendingInvoiceId === booking.id || updatingBookingId === booking.id;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -349,9 +406,37 @@ export default function BookingsAdminClient() {
               ) : (
                 <MoreHorizontal className="h-3.5 w-3.5" />
               )}
-              Send
+              Actions
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent align="end" className="w-56">
+              {booking.status !== "confirmed" && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    void updateBookingStatus(booking, { status: "confirmed" }, true)
+                  }
+                >
+                  Confirm booking
+                </DropdownMenuItem>
+              )}
+              {booking.status !== "cancelled" && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    void updateBookingStatus(booking, { status: "cancelled" })
+                  }
+                >
+                  Mark cancelled
+                </DropdownMenuItem>
+              )}
+              {booking.paymentStatus !== "paid" && booking.status === "confirmed" && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    void updateBookingStatus(booking, { paymentStatus: "paid" })
+                  }
+                >
+                  Mark payment paid
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={!booking.customerEmail || busy}
                 onClick={() => void sendInvoice(booking, "email")}
@@ -393,65 +478,93 @@ export default function BookingsAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-4 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {FILTER_OPTIONS.map((opt) => {
-              const count =
-                opt.id === "all"
-                  ? bookings.length
-                  : countBookingsByFilter(bookings, opt.id);
-              const active = statusFilter === opt.id;
-              return (
-                <Button
-                  key={opt.id}
-                  type="button"
-                  size="sm"
-                  variant={active ? "default" : "outline"}
-                  className="h-8"
-                  onClick={() => setStatusFilter(opt.id)}
-                >
-                  {opt.label}
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "ml-1.5 h-5 min-w-5 px-1.5 text-[10px]",
-                      active && "bg-primary-foreground/20 text-primary-foreground"
-                    )}
-                  >
-                    {count}
-                  </Badge>
-                </Button>
-              );
-            })}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void loadBookings()}
-            disabled={loading}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded((v) => !v)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
           >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Refresh
-          </Button>
-        </div>
+            <div className="flex min-w-0 items-center gap-2">
+              {filtersExpanded ? (
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+              <div>
+                <p className="font-semibold text-[#0c2444]">Filters & search</p>
+                <p className="text-xs text-muted-foreground">
+                  {statusFilter === "all" ? "All bookings" : FILTER_OPTIONS.find((f) => f.id === statusFilter)?.label}
+                  {search.trim() ? ` · "${search.trim()}"` : ""}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                void loadBookings();
+              }}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </button>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search name, email, phone, booking ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          {filtersExpanded && (
+            <div className="space-y-4 border-t px-4 py-4">
+              <div className="flex flex-wrap gap-2">
+                {FILTER_OPTIONS.map((opt) => {
+                  const count =
+                    opt.id === "all"
+                      ? bookings.length
+                      : countBookingsByFilter(bookings, opt.id);
+                  const active = statusFilter === opt.id;
+                  return (
+                    <Button
+                      key={opt.id}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      className="h-8"
+                      onClick={() => setStatusFilter(opt.id)}
+                    >
+                      {opt.label}
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "ml-1.5 h-5 min-w-5 px-1.5 text-[10px]",
+                          active && "bg-primary-foreground/20 text-primary-foreground"
+                        )}
+                      >
+                        {count}
+                      </Badge>
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <div className="relative max-w-md">
+                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search name, email, phone, booking ID..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {loadSource === "client" && bookings.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Loaded via staff Firebase session (includes guest mobile bookings)
+            Merged with staff Firebase session data (includes guest mobile bookings)
           </p>
         )}
 

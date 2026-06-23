@@ -12,3 +12,9 @@ export const actorRoleSchema = z.enum([
 export function requireStaffRole(role: z.infer<typeof actorRoleSchema>) {
   return ["super_admin", "manager"].includes(role);
 }
+
+export function requireBookingsStaffRole(role: z.infer<typeof actorRoleSchema>) {
+  return ["super_admin", "manager", "sales_agent", "support_agent", "driver"].includes(
+    role
+  );
+}

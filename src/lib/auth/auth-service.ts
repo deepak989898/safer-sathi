@@ -1,8 +1,11 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   type User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -67,6 +70,10 @@ function mapFirestoreUser(id: string, data: Record<string, unknown>): User {
     segment: data.segment as User["segment"],
     totalBookings: Number(data.totalBookings ?? 0),
     totalSpent: Number(data.totalSpent ?? 0),
+    lastBookingNumber: data.lastBookingNumber
+      ? String(data.lastBookingNumber)
+      : undefined,
+    passwordIsBookingId: data.passwordIsBookingId === true,
     createdAt: String(data.createdAt ?? new Date().toISOString()),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };
@@ -309,6 +316,38 @@ export async function requestPasswordReset(email: string): Promise<void> {
   await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
     url: continueUrl,
     handleCodeInApp: false,
+  });
+}
+
+export async function changeCustomerPassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  if (input.newPassword.length < 6) {
+    throw new AuthError("New password must be at least 6 characters.");
+  }
+
+  if (!isFirebaseConfigured()) {
+    throw new AuthError("Change password is not available in demo mode.");
+  }
+
+  const auth = getFirebaseAuth();
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser?.email) {
+    throw new AuthError("You must be signed in to change your password.");
+  }
+
+  const credential = EmailAuthProvider.credential(
+    firebaseUser.email,
+    input.currentPassword
+  );
+  await reauthenticateWithCredential(firebaseUser, credential);
+  await updatePassword(firebaseUser, input.newPassword);
+
+  const ref = doc(getFirebaseDb(), COLLECTIONS.users, firebaseUser.uid);
+  await updateDoc(ref, {
+    passwordIsBookingId: false,
+    updatedAt: new Date().toISOString(),
   });
 }
 

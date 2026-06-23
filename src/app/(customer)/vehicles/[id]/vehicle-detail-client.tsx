@@ -26,6 +26,10 @@ import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import {
+  postPaymentPath,
+  postPaymentSuccessMessage,
+} from "@/lib/bookings/post-payment-navigation";
 import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-payment";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
@@ -138,7 +142,7 @@ export function VehicleDetailClient({
 
     try {
       trackBookingStarted("vehicle", vehicle.id, total);
-      await completeCatalogBooking({
+      const result = await completeCatalogBooking({
         customerName: name.trim(),
         customerEmail: email.trim(),
         customerPhone: phone.trim(),
@@ -156,7 +160,10 @@ export function VehicleDetailClient({
         userId: user?.id,
         notes: specialRequest.trim() || undefined,
       });
-      router.push("/my-bookings");
+      toast.success(
+        postPaymentSuccessMessage(result.booking.bookingNumber, Boolean(user))
+      );
+      router.push(postPaymentPath(Boolean(user)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Booking failed");
     }

@@ -16,8 +16,10 @@ export function buildBookingConfirmationContent(input: {
   isFullyPaid: boolean;
   balanceDue: number;
   invoiceUrl?: string;
+  loginEmail?: string;
+  loginPassword?: string;
 }) {
-  const { booking, isFullyPaid, balanceDue, invoiceUrl } = input;
+  const { booking, isFullyPaid, balanceDue, invoiceUrl, loginEmail, loginPassword } = input;
   const serviceName = booking.serviceName.en;
   const travelDate = booking.endDate
     ? `${booking.startDate} to ${booking.endDate}`
@@ -47,6 +49,16 @@ export function buildBookingConfirmationContent(input: {
     "Your PDF invoice is attached to this email.",
     invoiceUrl ? `Download invoice: ${invoiceUrl}` : "",
     "",
+    loginEmail && loginPassword
+      ? [
+          "--- Your Safar Sathi login ---",
+          `Email: ${loginEmail}`,
+          `Password: ${loginPassword} (your latest Booking ID)`,
+          `Sign in: ${appUrl("/login")}`,
+          "You can change your password after signing in from My Bookings.",
+          "",
+        ].join("\n")
+      : "",
     `View bookings: ${appUrl("/my-bookings")}`,
     "",
     "Thank you for choosing Safar Sathi!",
@@ -88,6 +100,17 @@ export function buildBookingConfirmationContent(input: {
             ? `<a href="${invoiceUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">Download Invoice</a>`
             : ""
         }
+        ${
+          loginEmail && loginPassword
+            ? `<div style="margin-top:24px;padding:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
+          <p style="margin:0 0 8px;color:#0c2444;font-weight:600;font-size:14px;">Your Safar Sathi login</p>
+          <p style="margin:0 0 4px;color:#334155;font-size:13px;"><strong>Email:</strong> ${loginEmail}</p>
+          <p style="margin:0 0 12px;color:#334155;font-size:13px;"><strong>Password:</strong> ${loginPassword} <span style="color:#64748b;">(your latest Booking ID)</span></p>
+          <a href="${appUrl("/login")}" style="display:inline-block;background:#0c2444;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;">Sign in to My Bookings</a>
+          <p style="margin:12px 0 0;color:#64748b;font-size:11px;">You can change your password after signing in.</p>
+        </div>`
+            : ""
+        }
         <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
           Questions? Email support@thesafarsathi.com or call +91 9217290871.
         </p>
@@ -103,6 +126,8 @@ export async function deliverBookingConfirmationEmail(input: {
   pdf: Uint8Array;
   isFullyPaid: boolean;
   balanceDue: number;
+  loginEmail?: string;
+  loginPassword?: string;
 }): Promise<{ delivery: BookingConfirmationDelivery; detail?: string }> {
   const invoiceUrl = getInvoiceDownloadUrl(input.booking.id, input.booking.customerEmail);
   const { subject, text, html } = buildBookingConfirmationContent({
@@ -110,6 +135,8 @@ export async function deliverBookingConfirmationEmail(input: {
     isFullyPaid: input.isFullyPaid,
     balanceDue: input.balanceDue,
     invoiceUrl,
+    loginEmail: input.loginEmail,
+    loginPassword: input.loginPassword,
   });
   const filename = getInvoiceFilename(input.booking.bookingNumber);
   const attachment = {

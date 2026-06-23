@@ -39,9 +39,13 @@ export async function updateBookingPaymentOnClient(
   bookingId: string,
   updates: {
     paymentStatus: PaymentStatus;
+    status?: Booking["status"];
+    paidAmount?: number;
+    paymentPlan?: Booking["paymentPlan"];
     paymentFailureReason?: string;
     lastPaymentAttemptAt?: string;
     notes?: string;
+    userId?: string;
   }
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
@@ -62,6 +66,10 @@ export async function updateBookingPaymentOnClient(
     console.warn("updateBookingPaymentOnClient failed:", error);
     return false;
   }
+}
+
+export async function syncBookingOnClient(booking: Booking): Promise<boolean> {
+  return saveBookingToClient(booking);
 }
 
 export async function listBookingsFromClient(max = 500): Promise<Booking[]> {

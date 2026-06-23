@@ -66,6 +66,8 @@ export async function sendBookingConfirmationNotifications(input: {
   booking: Booking;
   isFullyPaid?: boolean;
   channels?: Array<"email" | "whatsapp" | "sms">;
+  loginEmail?: string;
+  loginPassword?: string;
 }): Promise<BookingNotificationResult> {
   const booking = input.booking;
   const balanceDue = getBalanceDue(booking.amount, booking.paidAmount ?? 0);
@@ -81,6 +83,8 @@ export async function sendBookingConfirmationNotifications(input: {
         pdf,
         isFullyPaid,
         balanceDue,
+        loginEmail: input.loginEmail,
+        loginPassword: input.loginPassword,
       });
     } catch (error) {
       result.email = {

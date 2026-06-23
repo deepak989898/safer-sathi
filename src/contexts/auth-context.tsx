@@ -12,6 +12,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   approveUserAccount,
   AuthError,
+  changeCustomerPassword,
   getFirebaseAuthErrorMessage,
   isStaffRegistrationInProgress,
   listAllUsers,
@@ -47,6 +48,7 @@ interface AuthContextValue {
   }) => Promise<string>;
   registerStaffMember: (input: RegisterStaffInput) => Promise<boolean>;
   forgotPassword: (email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUsers: () => Promise<User[]>;
   approveUser: (userId: string) => Promise<void>;
@@ -143,6 +145,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      try {
+        await changeCustomerPassword({ currentPassword, newPassword });
+        setUser((prev) =>
+          prev ? { ...prev, passwordIsBookingId: false, updatedAt: new Date().toISOString() } : prev
+        );
+      } catch (error) {
+        throw new Error(getFirebaseAuthErrorMessage(error));
+      }
+    },
+    []
+  );
+
   const logout = useCallback(async () => {
     await logoutUser();
     setUser(null);
@@ -174,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       registerStaffMember,
       forgotPassword,
+      changePassword,
       logout,
       refreshUsers,
       approveUser,
@@ -186,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       registerStaffMember,
       forgotPassword,
+      changePassword,
       logout,
       refreshUsers,
       approveUser,

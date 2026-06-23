@@ -1,6 +1,6 @@
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface AdminHeaderProps {
@@ -34,10 +34,7 @@ export function AdminHeader({
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search..." className="w-64 pl-9" />
         </div>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="size-4" />
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary" />
-        </Button>
+        <AdminNotificationsBell />
         <div className="flex items-center gap-3 border-l pl-4">
           <Avatar className="size-8">
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">

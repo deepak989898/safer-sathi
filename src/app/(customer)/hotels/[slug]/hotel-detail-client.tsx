@@ -23,6 +23,10 @@ import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import {
+  postPaymentPath,
+  postPaymentSuccessMessage,
+} from "@/lib/bookings/post-payment-navigation";
 import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-payment";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
@@ -118,7 +122,7 @@ export function HotelDetailClient({
     try {
       const roomName = selectedRoom ? localizedText(selectedRoom.name, locale) : "Standard";
       trackBookingStarted("hotel", hotel.id, total);
-      await completeCatalogBooking({
+      const result = await completeCatalogBooking({
         customerName: name.trim(),
         customerEmail: email.trim(),
         customerPhone: phone.trim(),
@@ -133,7 +137,10 @@ export function HotelDetailClient({
         userId: user?.id,
         notes: `Room type: ${roomName} (${selectedRoom?.type ?? "standard"})`,
       });
-      router.push("/my-bookings");
+      toast.success(
+        postPaymentSuccessMessage(result.booking.bookingNumber, Boolean(user))
+      );
+      router.push(postPaymentPath(Boolean(user)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Booking failed");
     }

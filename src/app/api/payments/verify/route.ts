@@ -2,8 +2,13 @@ import { z } from "zod";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { getBookingById, updateBooking } from "@/lib/data-service";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
+import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
+import { createAdminNotification } from "@/lib/admin/notifications";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   razorpayOrderId: z.string().min(1),
@@ -40,6 +45,13 @@ export async function POST(request: Request) {
           paymentFailureReason: "Payment verification failed",
           lastPaymentAttemptAt: new Date().toISOString(),
         });
+        await createAdminNotification({
+          type: "payment_failed",
+          title: "Payment verification failed",
+          message: `Booking payment could not be verified.`,
+          href: "/admin/bookings",
+          bookingId: parsed.data.bookingId,
+        });
       }
       return apiError("Payment verification failed", 400);
     }
@@ -66,15 +78,27 @@ export async function POST(request: Request) {
 
       const bookingForNotify = updated ?? {
         ...existing,
-        paymentStatus: isFullyPaid ? "paid" : "partial",
+        paymentStatus: isFullyPaid ? ("paid" as const) : ("partial" as const),
         paidAmount: newPaidTotal,
         status: "confirmed" as const,
       };
+
+      const loginProvision = await provisionCustomerBookingLogin(bookingForNotify);
+
+      await createAdminNotification({
+        type: "booking_confirmed",
+        title: `Booking confirmed — ${bookingForNotify.bookingNumber}`,
+        message: `${bookingForNotify.customerName} · ${bookingForNotify.serviceName.en} · ${isFullyPaid ? "Paid in full" : "Partial payment"}`,
+        href: "/admin/bookings",
+        bookingId: bookingForNotify.id,
+      });
 
       await sendBookingConfirmationNotifications({
         booking: bookingForNotify,
         isFullyPaid,
         channels: ["email", "whatsapp", "sms"],
+        loginEmail: loginProvision?.email,
+        loginPassword: loginProvision?.loginPassword,
       });
     }
 

@@ -4,9 +4,13 @@ import {
   generateBookingNumber,
   getBookings,
 } from "@/lib/data-service";
+import { createAdminNotification } from "@/lib/admin/notifications";
 import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
 import { calculateAdvanceAmount } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
   customerName: z.string().min(1),
@@ -105,6 +109,14 @@ export async function POST(request: Request) {
         packagePrice: parsed.data.amount,
       });
     }
+
+    await createAdminNotification({
+      type: "booking_pending",
+      title: `New booking — ${booking.bookingNumber}`,
+      message: `${booking.customerName} · ${parsed.data.serviceName.en} · awaiting payment`,
+      href: "/admin/bookings",
+      bookingId: booking.id,
+    });
 
     return apiSuccess(booking, 201);
   } catch (err) {

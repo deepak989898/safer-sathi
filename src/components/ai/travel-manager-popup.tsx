@@ -38,6 +38,10 @@ import {
 } from "@/lib/ai/travel-manager/api-payload";
 import { useAiTravelContext, getLocalAiPreferences, saveLocalAiPreferences } from "@/hooks/use-ai-travel-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
+import {
+  postPaymentPath,
+  postPaymentSuccessMessage,
+} from "@/lib/bookings/post-payment-navigation";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import {
   calculatePayNowAmount,
@@ -475,8 +479,10 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     }
 
     try {
+      let paymentResult;
+
       if (packageQuote?.totalAmount) {
-        await completeBooking({
+        paymentResult = await completeBooking({
           ...bookingForm,
           customerName: bookingForm.name,
           customerEmail: email,
@@ -489,7 +495,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         });
       } else if (vehicle && !hotel) {
         const title = localizedText(vehicle.name, aiLocale);
-        await completeCatalogBooking({
+        paymentResult = await completeCatalogBooking({
           customerName: bookingForm.name.trim(),
           customerEmail: email,
           customerPhone: phoneDigits,
@@ -507,7 +513,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         });
       } else if (hotel && !vehicle) {
         const title = localizedText(hotel.name, aiLocale);
-        await completeCatalogBooking({
+        paymentResult = await completeCatalogBooking({
           customerName: bookingForm.name.trim(),
           customerEmail: email,
           customerPhone: phoneDigits,
@@ -522,7 +528,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           notes: bookingForm.specialRequest || undefined,
         });
       } else {
-        await completeBooking({
+        paymentResult = await completeBooking({
           ...bookingForm,
           customerName: bookingForm.name,
           customerEmail: email,
@@ -534,7 +540,11 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           paymentPlan,
         });
       }
-      router.push("/my-bookings");
+
+      toast.success(
+        postPaymentSuccessMessage(paymentResult.booking.bookingNumber, Boolean(user))
+      );
+      router.push(postPaymentPath(Boolean(user)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment failed");
     }

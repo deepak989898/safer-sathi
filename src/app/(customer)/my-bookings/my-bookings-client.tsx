@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Calendar, Loader2, MapPin, Users } from "lucide-react";
+import { ChangePasswordCard } from "@/components/customer/change-password-card";
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/auth-context";
+import { listBookingsFromClient } from "@/lib/bookings/booking-client";
 import { useAppStore } from "@/store/app-store";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
@@ -31,18 +35,64 @@ const statusColors: Record<BookingStatus, string> = {
   refunded: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
 };
 
-export default function MyBookingsClient({
-  bookings,
-}: {
-  bookings: Booking[];
-}) {
+export default function MyBookingsClient() {
+  const { user } = useAuth();
   const { locale } = useAppStore();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userId = user.id;
+    const userEmail = user.email.toLowerCase();
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/bookings?userId=${encodeURIComponent(userId)}`);
+        const json = await res.json();
+        let items: Booking[] = json.success ? (json.data ?? []) : [];
+
+        items = items.filter(
+          (booking) =>
+            booking.userId === userId ||
+            booking.customerEmail.toLowerCase() === userEmail
+        );
+
+        if (items.length === 0) {
+          const clientItems = await listBookingsFromClient(200);
+          items = clientItems.filter(
+            (booking) =>
+              booking.userId === userId ||
+              booking.customerEmail.toLowerCase() === userEmail
+          );
+        }
+
+        if (!cancelled) {
+          setBookings(
+            items.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const visibleBookings = useMemo(() => bookings, [bookings]);
 
   const filterByStatus = (statuses: BookingStatus[]) =>
-    bookings.filter((b) => statuses.includes(b.status));
+    visibleBookings.filter((b) => statuses.includes(b.status));
 
   const tabs = [
-    { value: "all", label: "All", items: bookings },
+    { value: "all", label: "All", items: visibleBookings },
     {
       value: "upcoming",
       label: t(locale, "common", "upcoming"),
@@ -69,6 +119,13 @@ export default function MyBookingsClient({
       />
 
       <section className="container mx-auto px-4 py-10">
+        <ChangePasswordCard />
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+            Loading your bookings...
+          </div>
+        ) : (
         <Tabs defaultValue="all">
           <TabsList className="mb-6">
             {tabs.map((tab) => (
@@ -171,6 +228,7 @@ export default function MyBookingsClient({
             </TabsContent>
           ))}
         </Tabs>
+        )}
       </section>
     </>
   );
