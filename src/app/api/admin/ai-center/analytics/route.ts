@@ -5,7 +5,21 @@ import {
   listAnalyticsSnapshots,
   listPhase2Logs,
 } from "@/lib/ai-center/analytics-service";
+import type { AiAnalyticsSnapshot } from "@/lib/ai-center/types";
 import { apiError, apiSuccess } from "@/lib/api-response";
+
+function normalizeSnapshot(raw: AiAnalyticsSnapshot): AiAnalyticsSnapshot {
+  return {
+    ...raw,
+    revenueByMonth: raw.revenueByMonth ?? [],
+    bookingsByMonth: raw.bookingsByMonth ?? [],
+    insights: raw.insights ?? [],
+    topDestinations: raw.topDestinations ?? [],
+    topHotels: raw.topHotels ?? [],
+    topVehicles: raw.topVehicles ?? [],
+    topPackages: raw.topPackages ?? [],
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -19,9 +33,11 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get("dateTo") ?? undefined;
     const refresh = searchParams.get("refresh") === "true";
 
-    const snapshot = refresh
-      ? await buildAnalyticsSnapshot(dateFrom, dateTo)
-      : listAnalyticsSnapshots()[0] ?? (await buildAnalyticsSnapshot(dateFrom, dateTo));
+    const snapshot = normalizeSnapshot(
+      refresh
+        ? await buildAnalyticsSnapshot(dateFrom, dateTo)
+        : listAnalyticsSnapshots()[0] ?? (await buildAnalyticsSnapshot(dateFrom, dateTo))
+    );
 
     return apiSuccess({
       snapshot,

@@ -100,7 +100,7 @@ const AI_CENTER_NAV_SECTIONS: AiCenterNavSection[] = [
     ],
   },
   {
-    id: "analytics",
+    id: "analytics-reports",
     label: "Analytics & Reports",
     description: "Track AI performance and export insights.",
     tabs: [
@@ -644,6 +644,7 @@ export default function AiCenterClient() {
               actorId={actorId}
               busy={busy}
               setBusy={setBusy}
+              reportsOnly
             />
           </TabsContent>
 

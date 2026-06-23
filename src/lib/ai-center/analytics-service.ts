@@ -1,9 +1,9 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { listAllUsers } from "@/lib/auth/auth-service";
+import { listUsersForAdmin } from "@/lib/analytics-service";
 import { getBookings } from "@/lib/data-service";
-import { getAdminHotels, hydrateHotelsStore } from "@/lib/hotel-store";
-import { getPublishedPackages, hydratePackagesStore } from "@/lib/package-store";
-import { getAdminVehicles, hydrateVehiclesStore } from "@/lib/vehicle-store";
+import { hydrateHotelsStore } from "@/lib/hotel-store";
+import { hydratePackagesStore } from "@/lib/package-store";
+import { hydrateVehiclesStore } from "@/lib/vehicle-store";
 import type {
   AiAnalyticsInsight,
   AiAnalyticsSnapshot,
@@ -139,31 +139,9 @@ function buildInsights(
     insights.push({
       id: "ins_top_dest",
       category: "demand",
-      title: `${topDest.name} Demand`,
-      insight: `${topDest.name} packages are trending with ${topDest.count} bookings.`,
+      title: `${topDest.name} Bookings`,
+      insight: `${topDest.name} is your most booked service with ${topDest.count} booking${topDest.count === 1 ? "" : "s"}.`,
       impact: "high",
-      trend: "up",
-    });
-  }
-
-  if (topDest?.name.toLowerCase().includes("manali")) {
-    insights.push({
-      id: "ins_manali",
-      category: "demand",
-      title: "Manali Bookings",
-      insight: "Manali bookings increased by 25% this month.",
-      impact: "high",
-      trend: "up",
-    });
-  }
-
-  if (topDest?.name.toLowerCase().includes("kashmir")) {
-    insights.push({
-      id: "ins_kashmir",
-      category: "demand",
-      title: "Kashmir Demand",
-      insight: "Kashmir demand is increasing — consider adding more inventory.",
-      impact: "medium",
       trend: "up",
     });
   }
@@ -179,14 +157,19 @@ function buildInsights(
     });
   }
 
-  insights.push({
-    id: "ins_goa",
-    category: "marketing",
-    title: "Goa Packages",
-    insight: "Goa packages are trending for honeymoon and family segments.",
-    impact: "medium",
-    trend: "up",
-  });
+  const pendingCount = bookings.filter(
+    (b) => b.paymentStatus === "pending" || b.paymentStatus === "partial"
+  ).length;
+  if (pendingCount > 0) {
+    insights.push({
+      id: "ins_pending_payments",
+      category: "operations",
+      title: "Pending Payments",
+      insight: `${pendingCount} booking${pendingCount === 1 ? "" : "s"} need payment follow-up.`,
+      impact: pendingCount >= 5 ? "high" : "medium",
+      trend: "neutral",
+    });
+  }
 
   return insights;
 }
@@ -211,39 +194,31 @@ export async function buildAnalyticsSnapshot(
   const weekStart = new Date(now.getTime() - 7 * 86400000);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [bookings, users, packages, vehicles, hotels] = await Promise.all([
+  const [bookings, users] = await Promise.all([
     getBookings(),
-    listAllUsers(),
-    Promise.resolve(getPublishedPackages()),
-    Promise.resolve(getAdminVehicles()),
-    Promise.resolve(getAdminHotels()),
+    listUsersForAdmin(),
   ]);
 
   const filtered = bookings.filter((b) => inRange(b.createdAt, from, to));
   const customers = users.filter((u) => u.role === "customer");
   const returningCustomers = customers.filter((c) => (c.totalBookings ?? 0) > 1).length;
 
-  const destinationCounts: Record<string, number> = {};
-  for (const pkg of packages) {
-    for (const city of pkg.cities) {
-      destinationCounts[city] = (destinationCounts[city] ?? 0) + 1;
-    }
-  }
-  const topDestinations = Object.entries(destinationCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  const topHotels = hotels
-    .slice(0, 5)
-    .map((h) => ({ name: h.name.en, count: h.reviewCount || 1 }));
-  const topVehicles = vehicles
-    .filter((v) => v.available)
-    .slice(0, 5)
-    .map((v) => ({ name: v.name.en, count: v.reviewCount || 1 }));
-  const topPackages = packages
-    .slice(0, 5)
-    .map((p) => ({ name: p.title.en, count: p.reviewCount || 1 }));
+  const bookingSource = filtered.length > 0 ? filtered : bookings;
+  const topDestinations = topFromBookings(bookingSource, "serviceName");
+  const topVehicles = topFromBookings(
+    bookingSource.filter((b) =>
+      ["vehicle", "car_rental", "tempo_traveller", "bus", "airport_pickup"].includes(b.serviceType)
+    ),
+    "serviceName"
+  );
+  const topHotels = topFromBookings(
+    bookingSource.filter((b) => b.serviceType === "hotel"),
+    "serviceName"
+  );
+  const topPackages = topFromBookings(
+    bookingSource.filter((b) => b.serviceType === "package" || b.serviceType === "holiday"),
+    "serviceName"
+  );
 
   const revenueByMonth = Array.from({ length: 6 }, (_, i) => {
     const date = new Date();
@@ -293,9 +268,9 @@ export async function buildAnalyticsSnapshot(
     topHotels,
     topVehicles,
     topPackages,
-    mostSearchedDestination: topDestinations[0]?.name ?? "Manali",
+    mostSearchedDestination: topDestinations[0]?.name ?? "—",
     mostViewedHotel: topHotels[0]?.name ?? "—",
-    mostViewedVehicle: topVehicles[0]?.name ?? "Toyota Innova Crysta",
+    mostViewedVehicle: topVehicles[0]?.name ?? "—",
     averageBookingValue: avgValue,
     returningCustomers,
     revenueByMonth,

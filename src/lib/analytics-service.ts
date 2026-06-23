@@ -2,11 +2,7 @@ import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe"
 import { listAllUsers } from "@/lib/auth/auth-service";
 import { getBookings } from "@/lib/data-service";
 import { getAdminHotels, hydrateHotelsStore } from "@/lib/hotel-store";
-import {
-  getAdminPackages,
-  getPublishedPackages,
-  hydratePackagesStore,
-} from "@/lib/package-store";
+import { getAdminPackages, hydratePackagesStore } from "@/lib/package-store";
 import { getAdminVehicles, hydrateVehiclesStore } from "@/lib/vehicle-store";
 import { buildAdminDailyChecklist } from "@/lib/admin/daily-checklist";
 import type { User, UserRole } from "@/types";
@@ -30,7 +26,7 @@ function mapAdminUser(id: string, data: Record<string, unknown>): User {
   };
 }
 
-async function listUsersForAdmin(): Promise<User[]> {
+export async function listUsersForAdmin(): Promise<User[]> {
   if (isAdminEnvConfigured()) {
     try {
       const db = await getSafeAdminDb();
@@ -56,15 +52,13 @@ export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {
     hydrateHotelsStore(),
   ]);
 
-  const [bookings, users, publishedPackages, allPackages, vehicles, hotels] =
-    await Promise.all([
-      getBookings(),
-      listUsersForAdmin(),
-      Promise.resolve(getPublishedPackages()),
-      Promise.resolve(getAdminPackages()),
-      Promise.resolve(getAdminVehicles()),
-      Promise.resolve(getAdminHotels()),
-    ]);
+  const [bookings, users, allPackages, vehicles, hotels] = await Promise.all([
+    getBookings(),
+    listUsersForAdmin(),
+    Promise.resolve(getAdminPackages()),
+    Promise.resolve(getAdminVehicles()),
+    Promise.resolve(getAdminHotels()),
+  ]);
 
   const totalRevenue = bookings
     .filter((b) => b.paymentStatus === "paid" || b.paymentStatus === "partial")
@@ -83,15 +77,19 @@ export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {
     });
     return {
       month: key,
-      revenue: monthBookings.reduce((s, b) => s + b.amount, 0),
+      revenue: monthBookings
+        .filter((b) => b.paymentStatus === "paid" || b.paymentStatus === "partial")
+        .reduce((s, b) => s + b.amount, 0),
     };
   });
 
   const destinationCounts: Record<string, number> = {};
-  for (const pkg of publishedPackages) {
-    for (const city of pkg.cities) {
-      destinationCounts[city] = (destinationCounts[city] ?? 0) + 1;
-    }
+  for (const booking of bookings) {
+    const name =
+      typeof booking.serviceName === "object"
+        ? booking.serviceName.en
+        : String(booking.serviceName);
+    destinationCounts[name] = (destinationCounts[name] ?? 0) + 1;
   }
   const topDestinations = Object.entries(destinationCounts)
     .map(([name, count]) => ({ name, count }))
