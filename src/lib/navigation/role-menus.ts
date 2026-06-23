@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
-  Bot,
   Building2,
   Bus,
   CalendarCheck,
@@ -117,12 +116,6 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
         label: "AI Enquiries",
         icon: MessageSquare,
         roles: ["super_admin", "manager", "sales_agent", "support_agent"],
-      },
-      {
-        href: "/admin/ai-agents",
-        label: "AI Agents",
-        icon: Bot,
-        roles: ["super_admin", "manager"],
       },
     ],
   },
