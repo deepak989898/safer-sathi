@@ -7,15 +7,20 @@ import {
   upsertVehicleInStore,
 } from "@/lib/vehicle-store";
 import { VEHICLES_SEED_COUNT } from "@/data/vehicles-seed";
+import { getFirebaseAdminStatus } from "@/lib/firebase/admin-safe";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import type { Vehicle, VehicleStatus } from "@/types";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     await reloadVehiclesStore();
-    return apiSuccess(getAdminVehicles());
+    return apiSuccess({
+      vehicles: getAdminVehicles(),
+      firebase: getFirebaseAdminStatus(),
+    });
   } catch (err) {
     console.error("List vehicles error:", err);
     return apiError("Failed to list vehicles", 500);

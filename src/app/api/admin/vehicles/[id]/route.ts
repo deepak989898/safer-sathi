@@ -11,6 +11,7 @@ import {
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { CatalogPersistenceError } from "@/lib/catalog/persistence";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({

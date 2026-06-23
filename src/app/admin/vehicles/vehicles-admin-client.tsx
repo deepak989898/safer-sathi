@@ -94,8 +94,10 @@ export default function VehiclesAdminClient() {
     try {
       const res = await fetch("/api/admin/vehicles", { cache: "no-store" });
       const json = await res.json();
-      if (json.success) setVehicles(json.data);
-      else toast.error(json.error ?? "Failed to load vehicles");
+      if (json.success) {
+        const data = json.data;
+        setVehicles(Array.isArray(data) ? data : (data.vehicles ?? []));
+      } else toast.error(json.error ?? "Failed to load vehicles");
     } catch {
       toast.error("Failed to load vehicles");
     } finally {
@@ -106,6 +108,23 @@ export default function VehiclesAdminClient() {
   useEffect(() => {
     loadVehicles();
   }, [loadVehicles]);
+
+  useEffect(() => {
+    fetch("/api/admin/firebase-status", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (!json.success) return;
+        const { configured, firestoreConnected, error } = json.data ?? {};
+        if (!configured || !firestoreConnected) {
+          toast.error(
+            error ??
+              "Firebase is not connected. Vehicle saves will not persist until FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set on Vercel.",
+            { duration: 12000 }
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const drafts = vehicles.filter((v) => v.publishStatus === "draft");
   const pending = vehicles.filter((v) => v.publishStatus === "pending_approval");

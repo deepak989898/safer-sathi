@@ -1,10 +1,21 @@
-import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import {
+  getFirebaseAdminInitError,
+  getSafeAdminDb,
+  isAdminEnvConfigured,
+} from "@/lib/firebase/admin-safe";
 
 export class CatalogPersistenceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CatalogPersistenceError";
   }
+}
+
+function firebaseUnavailableMessage(action: string): string {
+  const detail = getFirebaseAdminInitError();
+  return detail
+    ? `${action}: Firebase Admin unavailable — ${detail}`
+    : `${action}: Firebase Admin DB unavailable. Check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY on Vercel.`;
 }
 
 export function sanitizeForFirestore<T>(value: T): T {
@@ -65,7 +76,7 @@ export async function persistCatalogItem<T extends { id: string }>(
   const db = await getSafeAdminDb();
   if (!db) {
     throw new CatalogPersistenceError(
-      `Cannot persist ${collection}/${item.id}: Firebase Admin DB unavailable`
+      firebaseUnavailableMessage(`Cannot persist ${collection}/${item.id}`)
     );
   }
 
@@ -94,7 +105,7 @@ export async function persistCatalogItemsBatch<T extends { id: string }>(
   const db = await getSafeAdminDb();
   if (!db) {
     throw new CatalogPersistenceError(
-      `Cannot batch persist ${collection}: Firebase Admin DB unavailable`
+      firebaseUnavailableMessage(`Cannot batch persist ${collection}`)
     );
   }
 
@@ -123,7 +134,7 @@ export async function deleteCatalogItem(
   const db = await getSafeAdminDb();
   if (!db) {
     throw new CatalogPersistenceError(
-      `Cannot delete ${collection}/${id}: Firebase Admin DB unavailable`
+      firebaseUnavailableMessage(`Cannot delete ${collection}/${id}`)
     );
   }
 
