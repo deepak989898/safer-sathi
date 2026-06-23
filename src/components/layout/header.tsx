@@ -8,7 +8,6 @@ import {
   Globe,
   Hotel,
   LayoutDashboard,
-  Mic,
   Moon,
   Package,
   Sun,
@@ -37,7 +36,6 @@ const navLinks = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },
   { href: "/bus-booking", label: "bus", icon: Bus },
-  { href: "/ai-voice", label: "aiVoice", icon: Mic },
 ];
 
 function isNavActive(pathname: string, href: string) {

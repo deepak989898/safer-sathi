@@ -18,8 +18,8 @@ export function AiCenterVoiceTab({ settings }: { settings: AiCenterSettings | nu
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Human-like voice assistant with Hindi & English speech-to-text and text-to-speech.
-            Supports tour, hotel, vehicle, price, weather, and Razorpay booking flow.
+            Voice chat is built into the Travel Assistant. Users tap the mic for a natural
+            back-and-forth conversation in Hindi or English — listen, reply, and speak automatically.
           </p>
           <ul className="grid gap-2 text-sm md:grid-cols-2">
             <li className="flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /> Speech to Text (hi-IN / en-IN)</li>
@@ -37,8 +37,8 @@ export function AiCenterVoiceTab({ settings }: { settings: AiCenterSettings | nu
               {settings.voiceAutoDetectLanguage ? "ON" : "OFF"}
             </p>
           )}
-          <Link href="/ai-voice" target="_blank">
-            <Button>Open Voice Assistant</Button>
+          <Link href="/ai-assistant" target="_blank">
+            <Button>Open AI Assistant</Button>
           </Link>
         </CardContent>
       </Card>

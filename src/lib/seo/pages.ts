@@ -18,7 +18,6 @@ export const STATIC_SEO_PAGES = [
   { path: "/reviews", priority: 0.65, changeFrequency: "weekly" as const },
   { path: "/gallery", priority: 0.5, changeFrequency: "monthly" as const },
   { path: "/ai-assistant", priority: 0.7, changeFrequency: "monthly" as const },
-  { path: "/ai-voice", priority: 0.65, changeFrequency: "monthly" as const },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly" as const },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" as const },
 ] as const;

@@ -19,7 +19,6 @@ const QUICK_LINKS = [
   { href: "/vehicles", label: "Vehicles" },
   { href: "/hotels", label: "Hotels" },
   { href: "/bus-booking", label: "Bus Booking" },
-  { href: "/ai-voice", label: "Voice Assistant" },
 ] as const;
 
 const SUPPORT_LINKS = [

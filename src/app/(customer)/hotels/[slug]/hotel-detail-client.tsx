@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PackageImageGallery } from "@/components/customer/package-image-gallery";
-import { Calendar, Check, ChevronRight, Loader2, MapPin, Star, Users } from "lucide-react";
+import { Check, ChevronRight, MapPin, Star, Users } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
+import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -77,6 +78,7 @@ export function HotelDetailClient({
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
+  const [bookingExpanded, setBookingExpanded] = useState(false);
   const submitting = paying;
 
   const title = localizedText(hotel.name, locale);
@@ -355,125 +357,123 @@ export function HotelDetailClient({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 pt-5">
-                <p className="text-sm font-medium text-[#0c2444]">Booking details</p>
-                <div>
-                  <Label>Full Name</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@email.com"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="10-digit mobile"
-                    className="mt-1.5"
-                  />
-                </div>
-                {hotel.rooms.length > 0 && (
-                  <div>
-                    <Label>Room Type</Label>
-                    <Select
-                      value={selectedRoomId}
-                      onValueChange={(value) => value && selectRoom(value)}
-                    >
-                      <SelectTrigger className="mt-1.5 w-full">
-                        <SelectValue placeholder="Select room type">
-                          {selectedRoom ? roomLabel(selectedRoom) : "Select room type"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {hotel.rooms.map((room) => (
-                          <SelectItem key={room.id} value={room.id}>
-                            {roomLabel(room)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div>
-                  <Label>{t(locale, "hero", "checkIn")}</Label>
-                  <Input
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>{t(locale, "hero", "checkOut")}</Label>
-                  <Input
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>{t(locale, "hero", "guests")}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={selectedRoom?.maxGuests ?? 4}
-                    value={guests}
-                    onChange={(e) => setGuests(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div className="rounded-lg bg-muted/50 p-4">
-                  <div className="flex justify-between text-sm">
-                    <span>
-                      {formatCurrency(pricePerNight, locale)} × {nights} nights
-                    </span>
-                    <span>{formatCurrency(total, locale)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{formatCurrency(total, locale)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                    <span>Pay now</span>
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(payNow, locale)}
-                    </span>
-                  </div>
-                </div>
-                <PaymentPlanSelector
-                  totalAmount={total}
-                  value={paymentPlan}
-                  onChange={setPaymentPlan}
+              <CardContent className="pt-5">
+                <CollapsibleBookingForm
                   locale={locale}
-                />
-                <Button
-                  className="w-full bg-[#f97316] hover:bg-[#ea580c]"
-                  size="lg"
-                  disabled={!checkIn || !checkOut || submitting}
-                  onClick={handleBook}
+                  expanded={bookingExpanded}
+                  onExpandedChange={setBookingExpanded}
+                  payNow={payNow}
+                  submitting={submitting}
+                  submitDisabled={!checkIn || !checkOut}
+                  onSubmit={handleBook}
+                  scrollTargetId="hotel-booking-form"
+                  submitClassName="bg-[#f97316] hover:bg-[#ea580c]"
                 >
-                  {submitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Calendar className="mr-2 h-4 w-4" />
+                  <div>
+                    <Label>Full Name</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your name"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@email.com"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="10-digit mobile"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  {hotel.rooms.length > 0 && (
+                    <div>
+                      <Label>Room Type</Label>
+                      <Select
+                        value={selectedRoomId}
+                        onValueChange={(value) => value && selectRoom(value)}
+                      >
+                        <SelectTrigger className="mt-1.5 w-full">
+                          <SelectValue placeholder="Select room type">
+                            {selectedRoom ? roomLabel(selectedRoom) : "Select room type"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hotel.rooms.map((room) => (
+                            <SelectItem key={room.id} value={room.id}>
+                              {roomLabel(room)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
-                  {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
-                </Button>
+                  <div>
+                    <Label>{t(locale, "hero", "checkIn")}</Label>
+                    <Input
+                      type="date"
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t(locale, "hero", "checkOut")}</Label>
+                    <Input
+                      type="date"
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t(locale, "hero", "guests")}</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={selectedRoom?.maxGuests ?? 4}
+                      value={guests}
+                      onChange={(e) => setGuests(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-4">
+                    <div className="flex justify-between text-sm">
+                      <span>
+                        {formatCurrency(pricePerNight, locale)} × {nights} nights
+                      </span>
+                      <span>{formatCurrency(total, locale)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between font-bold">
+                      <span>Total</span>
+                      <span className="text-primary">{formatCurrency(total, locale)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                      <span>Pay now</span>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(payNow, locale)}
+                      </span>
+                    </div>
+                  </div>
+                  <PaymentPlanSelector
+                    totalAmount={total}
+                    value={paymentPlan}
+                    onChange={setPaymentPlan}
+                    locale={locale}
+                  />
+                </CollapsibleBookingForm>
               </CardContent>
             </Card>
           </div>

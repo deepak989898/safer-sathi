@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, Mic, MicOff, Send, X, Check, Fuel, MapPin, Users } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, Volume2, X, Check, Fuel, MapPin, Users } from "lucide-react";
 import { AiAssistantIcon } from "@/components/icons/ai-assistant-icon";
 import {
   Dialog,
@@ -28,7 +28,6 @@ import { mainMenuReplies } from "@/lib/ai/travel-manager/conversation-engine";
 import {
   buildInstantWelcomeMessage,
   getNativeLanguageOption,
-  getSpeechRecognitionLang,
   NATIVE_LANGUAGE_OPTIONS,
 } from "@/lib/ai/travel-manager/native-languages";
 import { formatChatUserMessage } from "@/types/ai-enquiry";
@@ -69,6 +68,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AiChatDatePicker } from "@/components/ai/ai-chat-date-picker";
+import { useContinuousVoice } from "@/hooks/use-continuous-voice";
 import { formatDisplayDate } from "@/lib/ai/travel-manager/parse-user-input";
 
 interface ChatEntry {
@@ -101,7 +101,6 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [listening, setListening] = useState(false);
   const [tmState, setTmState] = useState<TravelManagerState | undefined>();
   const [userLocation, setUserLocation] = useState<UserLocationInfo | undefined>();
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
@@ -124,7 +123,6 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   });
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const userInteractedRef = useRef(false);
   const tmStateRef = useRef<TravelManagerState | undefined>(undefined);
 
@@ -263,7 +261,6 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       setMessages([]);
       setInput("");
       setLoading(false);
-      setListening(false);
       setTmState(undefined);
       setUserLocation(undefined);
       setQuickReplies([]);
@@ -339,8 +336,8 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
   const sendMessage = async (
     text: string,
     options?: { silent?: boolean; displayText?: string }
-  ) => {
-    if (!text.trim() || loading) return;
+  ): Promise<string | undefined> => {
+    if (!text.trim() || loading) return undefined;
 
     userInteractedRef.current = true;
     const userDisplay = options?.displayText?.trim() || formatChatUserMessage(text);
@@ -396,6 +393,7 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
       } catch (storageError) {
         console.warn("Could not save AI preferences locally:", storageError);
       }
+      return data.reply as string;
     } catch (error) {
       console.error("AI Travel Manager request failed:", error);
       setQuickReplies(
@@ -406,10 +404,32 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
             : []
       );
       toast.error(aiLocale === "hi" ? "त्रुटि, पुनः प्रयास करें" : "Error, please try again");
+      return undefined;
     } finally {
       setLoading(false);
     }
   };
+
+  const {
+    voiceActive,
+    listening,
+    speaking,
+    speak,
+    toggleVoiceMode,
+    stopVoiceMode,
+  } = useContinuousVoice({
+    locale: aiLocale,
+    nativeLanguage,
+    pauseListening: paying,
+    onTranscript: async (text) => {
+      const reply = await sendMessage(text);
+      if (reply) await speak(reply);
+    },
+  });
+
+  useEffect(() => {
+    if (!open) stopVoiceMode();
+  }, [open, stopVoiceMode]);
 
   const resolveSelectedHotel = useCallback(
     () => hotels.find((h) => h.id === tmState?.selectedHotelId) ?? selectedBookingHotel ?? undefined,
@@ -550,33 +570,23 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
     }
   };
 
-  const toggleVoice = () => {
-    if (typeof window === "undefined") return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      toast.error(aiLocale === "hi" ? "वॉइस समर्थित नहीं" : "Voice not supported in this browser");
-      return;
-    }
-    if (listening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setListening(false);
-      return;
-    }
-    const rec = new SR();
-    rec.lang = getSpeechRecognitionLang(aiLocale, nativeLanguage);
-    rec.interimResults = false;
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript?.trim() ?? "";
-      setInput(transcript);
-      if (transcript.length >= 2) {
-        void sendMessage(transcript);
+  const handleVoiceToggle = () => {
+    try {
+      if (voiceActive) {
+        toggleVoiceMode();
+        return;
       }
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
+      toggleVoiceMode();
+      toast.message(
+        aiLocale === "hi"
+          ? "वॉइस चैट शुरू — बोलिए, मैं सुन रहा हूँ"
+          : "Voice chat on — speak naturally, I'm listening"
+      );
+    } catch {
+      toast.error(
+        aiLocale === "hi" ? "यह ब्राउज़र वॉइस सपोर्ट नहीं करता" : "Voice not supported in this browser"
+      );
+    }
   };
 
   const showPackageQuote =
@@ -927,22 +937,51 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
         )}
 
         <form
-          className="flex shrink-0 items-center gap-2 border-t bg-background p-3"
+          className="flex shrink-0 flex-col gap-2 border-t bg-background p-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void sendMessage(input);
+            if (!voiceActive) void sendMessage(input);
           }}
         >
+          {voiceActive && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
+              {speaking ? (
+                <>
+                  <Volume2 className="h-4 w-4 shrink-0 animate-pulse" />
+                  {aiLocale === "hi" ? "जवाब बोल रहा हूँ…" : "Speaking reply…"}
+                </>
+              ) : listening ? (
+                <>
+                  <Mic className="h-4 w-4 shrink-0 animate-pulse" />
+                  {aiLocale === "hi" ? "सुन रहा हूँ — बोलिए" : "Listening — speak now"}
+                </>
+              ) : loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  {aiLocale === "hi" ? "सोच रहा हूँ…" : "Thinking…"}
+                </>
+              ) : (
+                <>
+                  <Mic className="h-4 w-4 shrink-0" />
+                  {aiLocale === "hi" ? "वॉइस चैट चालू" : "Voice chat active"}
+                </>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant={listening ? "default" : "outline"}
+            variant={voiceActive ? "default" : listening ? "default" : "outline"}
             size="icon"
             className="h-10 w-10 shrink-0"
-            onClick={toggleVoice}
-            aria-label="Voice input"
+            onClick={handleVoiceToggle}
+            disabled={loading || paying}
+            aria-label={voiceActive ? "Stop voice chat" : "Start voice chat"}
           >
-            {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            {voiceActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
+          {!voiceActive && (
+            <>
           <Input
             placeholder={
               nativeLanguage
@@ -961,6 +1000,9 @@ export function TravelManagerPopup({ open, onOpenChange }: TravelManagerPopupPro
           <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={loading || !input.trim()}>
             <Send className="h-4 w-4" />
           </Button>
+            </>
+          )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -1459,24 +1501,4 @@ function VehicleDetailsDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-// Web Speech API types
-interface SpeechRecognition extends EventTarget {
-  lang: string;
-  interimResults: boolean;
-  start(): void;
-  stop(): void;
-  onresult: ((ev: SpeechRecognitionEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-}
-interface SpeechRecognitionEvent {
-  results: { [index: number]: { [index: number]: { transcript: string } } };
-}
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
 }

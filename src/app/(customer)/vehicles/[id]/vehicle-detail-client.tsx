@@ -5,17 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PackageImageGallery } from "@/components/customer/package-image-gallery";
 import {
-  Calendar,
   Check,
   ChevronRight,
   Fuel,
-  Loader2,
   MapPin,
   Route,
   Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
+import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -97,6 +96,7 @@ export function VehicleDetailClient({
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
+  const [bookingExpanded, setBookingExpanded] = useState(false);
   const submitting = paying;
 
   const title = localizedText(vehicle.name, locale);
@@ -372,176 +372,171 @@ export function VehicleDetailClient({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 pt-5">
-                <p className="text-sm font-medium text-[#0c2444]">Booking details</p>
-                <div>
-                  <Label>Full Name</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@email.com"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="10-digit mobile"
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <Tabs
-                  value={bookingMode}
-                  onValueChange={(v) => setBookingMode(v as "day" | "km")}
-                >
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="day">Per Day</TabsTrigger>
-                    <TabsTrigger value="km">Per KM</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="day" className="mt-3 space-y-3">
-                    <div>
-                      <Label>Pick-up Date</Label>
-                      <Input
-                        type="date"
-                        min={todayIso()}
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div>
-                      <Label>Return Date</Label>
-                      <Input
-                        type="date"
-                        min={startDate || todayIso()}
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="mt-1.5"
-                      />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="km" className="mt-3 space-y-3">
-                    <div>
-                      <Label>Travel Date</Label>
-                      <Input
-                        type="date"
-                        min={todayIso()}
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div>
-                      <Label>One-way distance (km)</Label>
-                      <Input
-                        type="number"
-                        min={MIN_ONE_WAY_KM}
-                        step={5}
-                        value={distanceKm}
-                        onChange={(e) => setDistanceKm(e.target.value)}
-                        className="mt-1.5"
-                      />
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Round trip: {oneWayKm * 2} km · billed {billableKm} km (min{" "}
-                        {VEHICLE_MIN_KM_ROUND_TRIP} km)
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-
-                <div>
-                  <Label>Passengers</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={vehicle.seats}
-                    value={guests}
-                    onChange={(e) => setGuests(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Special Request</Label>
-                  <Textarea
-                    value={specialRequest}
-                    onChange={(e) => setSpecialRequest(e.target.value)}
-                    className="mt-1.5 min-h-[60px]"
-                    placeholder="Pickup location, child seat, etc."
-                  />
-                </div>
-
-                <div className="rounded-lg bg-muted/50 p-4">
-                  {bookingMode === "day" ? (
-                    <div className="flex justify-between text-sm">
-                      <span>
-                        {formatCurrency(vehicle.pricePerDay, locale)} × {days} days
-                      </span>
-                      <span>{formatCurrency(dayTotal, locale)}</span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between text-sm">
-                      <span className="flex items-center gap-1">
-                        <Route className="h-3.5 w-3.5" />
-                        {formatCurrency(pricePerKm, locale)} × {billableKm} km
-                      </span>
-                      <span>{formatCurrency(kmTotal, locale)}</span>
-                    </div>
-                  )}
-                  <div className="mt-2 flex justify-between font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{formatCurrency(total, locale)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                    <span>Pay now</span>
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(payNow, locale)}
-                    </span>
-                  </div>
-                </div>
-
-                <PaymentPlanSelector
-                  totalAmount={total}
-                  value={paymentPlan}
-                  onChange={setPaymentPlan}
+              <CardContent className="pt-5">
+                <CollapsibleBookingForm
                   locale={locale}
-                />
-
-                <Button
-                  type="button"
-                  className={cn(
-                    "h-12 w-full border-0 text-base font-bold text-white shadow-lg",
+                  expanded={bookingExpanded}
+                  onExpandedChange={setBookingExpanded}
+                  payNow={payNow}
+                  submitting={submitting}
+                  onSubmit={handleBook}
+                  scrollTargetId="vehicle-booking-form"
+                  submitClassName={cn(
+                    "h-12 border-0 text-base font-bold text-white shadow-lg",
                     "bg-gradient-to-r from-orange-500 to-orange-600",
                     "shadow-orange-500/35 hover:from-orange-600 hover:to-orange-700",
                     "focus-visible:ring-orange-500/50",
                     "disabled:opacity-80"
                   )}
-                  size="lg"
-                  disabled={submitting}
-                  onClick={handleBook}
                 >
-                  {submitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Calendar className="mr-2 h-4 w-4" />
-                  )}
-                  {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
-                </Button>
+                  <div>
+                    <Label>Full Name</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your name"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@email.com"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="10-digit mobile"
+                      className="mt-1.5"
+                    />
+                  </div>
+
+                  <Tabs
+                    value={bookingMode}
+                    onValueChange={(v) => setBookingMode(v as "day" | "km")}
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="day">Per Day</TabsTrigger>
+                      <TabsTrigger value="km">Per KM</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="day" className="mt-3 space-y-3">
+                      <div>
+                        <Label>Pick-up Date</Label>
+                        <Input
+                          type="date"
+                          min={todayIso()}
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label>Return Date</Label>
+                        <Input
+                          type="date"
+                          min={startDate || todayIso()}
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="mt-1.5"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="km" className="mt-3 space-y-3">
+                      <div>
+                        <Label>Travel Date</Label>
+                        <Input
+                          type="date"
+                          min={todayIso()}
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label>One-way distance (km)</Label>
+                        <Input
+                          type="number"
+                          min={MIN_ONE_WAY_KM}
+                          step={5}
+                          value={distanceKm}
+                          onChange={(e) => setDistanceKm(e.target.value)}
+                          className="mt-1.5"
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Round trip: {oneWayKm * 2} km · billed {billableKm} km (min{" "}
+                          {VEHICLE_MIN_KM_ROUND_TRIP} km)
+                        </p>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
+                  <div>
+                    <Label>Passengers</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={vehicle.seats}
+                      value={guests}
+                      onChange={(e) => setGuests(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Special Request</Label>
+                    <Textarea
+                      value={specialRequest}
+                      onChange={(e) => setSpecialRequest(e.target.value)}
+                      className="mt-1.5 min-h-[60px]"
+                      placeholder="Pickup location, child seat, etc."
+                    />
+                  </div>
+
+                  <div className="rounded-lg bg-muted/50 p-4">
+                    {bookingMode === "day" ? (
+                      <div className="flex justify-between text-sm">
+                        <span>
+                          {formatCurrency(vehicle.pricePerDay, locale)} × {days} days
+                        </span>
+                        <span>{formatCurrency(dayTotal, locale)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="flex items-center gap-1">
+                          <Route className="h-3.5 w-3.5" />
+                          {formatCurrency(pricePerKm, locale)} × {billableKm} km
+                        </span>
+                        <span>{formatCurrency(kmTotal, locale)}</span>
+                      </div>
+                    )}
+                    <div className="mt-2 flex justify-between font-bold">
+                      <span>Total</span>
+                      <span className="text-primary">{formatCurrency(total, locale)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                      <span>Pay now</span>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(payNow, locale)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <PaymentPlanSelector
+                    totalAmount={total}
+                    value={paymentPlan}
+                    onChange={setPaymentPlan}
+                    locale={locale}
+                  />
+                </CollapsibleBookingForm>
               </CardContent>
             </Card>
           </div>

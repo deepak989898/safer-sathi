@@ -7,17 +7,15 @@ import { PackageCard } from "@/components/customer/package-card";
 import { PackageImageGallery } from "@/components/customer/package-image-gallery";
 import {
   Bus,
-  Calendar,
   Check,
   ChevronRight,
   Clock,
-  Loader2,
   MapPin,
   Users,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
+import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -96,6 +95,7 @@ export function PackageDetailClient({
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
+  const [bookingExpanded, setBookingExpanded] = useState(false);
   const submitting = paying;
   const total = pkg.price * Number(guests || 1);
   const payNow = calculatePayNowAmount(total, paymentPlan);
@@ -394,96 +394,93 @@ export function PackageDetailClient({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 pt-5">
-                <p className="text-sm font-medium text-[#0c2444]">Booking details</p>
-                <div>
-                  <Label>Full Name</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@email.com"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="10-digit mobile"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Travel Date</Label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Guests</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={guests}
-                    onChange={(e) => setGuests(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Special Request</Label>
-                  <Textarea
-                    value={specialRequest}
-                    onChange={(e) => setSpecialRequest(e.target.value)}
-                    placeholder="Dietary needs, room preference, etc."
-                    className="mt-1.5 min-h-[72px]"
-                  />
-                </div>
-                <div className="rounded-lg bg-muted/50 p-4">
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{formatCurrency(total, locale)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                    <span>Pay now</span>
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(payNow, locale)}
-                    </span>
-                  </div>
-                </div>
-                <PaymentPlanSelector
-                  totalAmount={total}
-                  value={paymentPlan}
-                  onChange={setPaymentPlan}
+              <CardContent className="pt-5">
+                <CollapsibleBookingForm
                   locale={locale}
-                />
-                <Button
-                  className="w-full"
-                  size="lg"
-                  disabled={submitting || !startDate}
-                  onClick={handleBook}
+                  expanded={bookingExpanded}
+                  onExpandedChange={setBookingExpanded}
+                  payNow={payNow}
+                  submitting={submitting}
+                  submitDisabled={!startDate}
+                  onSubmit={handleBook}
+                  scrollTargetId="package-booking-form"
                 >
-                  {submitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Calendar className="mr-2 h-4 w-4" />
-                  )}
-                  {t(locale, "common", "bookNow")} · {formatCurrency(payNow, locale)}
-                </Button>
+                  <div>
+                    <Label>Full Name</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your name"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@email.com"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="10-digit mobile"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Travel Date</Label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Guests</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={guests}
+                      onChange={(e) => setGuests(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Special Request</Label>
+                    <Textarea
+                      value={specialRequest}
+                      onChange={(e) => setSpecialRequest(e.target.value)}
+                      placeholder="Dietary needs, room preference, etc."
+                      className="mt-1.5 min-h-[72px]"
+                    />
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-4">
+                    <div className="flex justify-between font-bold">
+                      <span>Total</span>
+                      <span className="text-primary">{formatCurrency(total, locale)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                      <span>Pay now</span>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(payNow, locale)}
+                      </span>
+                    </div>
+                  </div>
+                  <PaymentPlanSelector
+                    totalAmount={total}
+                    value={paymentPlan}
+                    onChange={setPaymentPlan}
+                    locale={locale}
+                  />
+                </CollapsibleBookingForm>
               </CardContent>
             </Card>
           </div>

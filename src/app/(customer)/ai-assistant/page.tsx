@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef, useState } from "react";
-import { Send, User } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Mic, MicOff, Send, User, Volume2 } from "lucide-react";
 import { AssistantIcon } from "@/components/icons/assistant-icon";
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app-store";
+import { useContinuousVoice } from "@/hooks/use-continuous-voice";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -51,72 +52,122 @@ export default function AIAssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef(messages);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const suggestions = SUGGESTIONS_HI;
 
-  const sendMessage = async (text: string) => {
-    if (!text.trim() || loading) return;
+  const sendMessage = useCallback(
+    async (text: string): Promise<string | undefined> => {
+      if (!text.trim() || loading) return undefined;
 
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const history = [...messages, userMsg]
-        .filter((m) => m.role !== "system")
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      const res = await fetch("/api/ai/travel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, locale: aiLocale, history }),
-      });
-
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.error ?? "Failed to get response");
-      }
-
-      const reply: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: json.data.reply,
-        packages: json.data.recommendations?.packages ?? [],
-        vehicles: json.data.recommendations?.vehicles ?? [],
+      const userMsg: ChatMessage = {
+        id: Date.now().toString(),
+        role: "user",
+        content: text,
         timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, reply]);
-    } catch {
-      toast.error(
-        aiLocale === "hi"
-          ? "सहायक से संपर्क नहीं हो पाया। कृपया पुनः प्रयास करें।"
-          : "Could not reach assistant. Please try again."
-      );
-      setMessages((prev) => [
-        ...prev,
-        {
+      const history = [...messagesRef.current, userMsg]
+        .filter((m) => m.role !== "system")
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/ai/travel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, locale: aiLocale, history }),
+        });
+
+        const json = await res.json();
+
+        if (!json.success) {
+          throw new Error(json.error ?? "Failed to get response");
+        }
+
+        const reply: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content:
-            aiLocale === "hi"
-              ? "क्षमा करें, अभी कनेक्शन में समस्या है। कृपया दोबारा प्रयास करें या सीधे पैकेज और वाहन पेज देखें।"
-              : "Sorry, I'm having trouble connecting right now. Please try again or browse our packages and vehicles directly.",
+          content: json.data.reply,
+          packages: json.data.recommendations?.packages ?? [],
+          vehicles: json.data.recommendations?.vehicles ?? [],
           timestamp: new Date().toISOString(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
+        };
+
+        setMessages((prev) => [...prev, reply]);
+        return json.data.reply as string;
+      } catch {
+        toast.error(
+          aiLocale === "hi"
+            ? "सहायक से संपर्क नहीं हो पाया। कृपया पुनः प्रयास करें।"
+            : "Could not reach assistant. Please try again."
+        );
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            content:
+              aiLocale === "hi"
+                ? "क्षमा करें, अभी कनेक्शन में समस्या है। कृपया दोबारा प्रयास करें।"
+                : "Sorry, I'm having trouble connecting right now. Please try again.",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        return undefined;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aiLocale, loading]
+  );
+
+  const {
+    voiceActive,
+    listening,
+    speaking,
+    speak,
+    toggleVoiceMode,
+    stopVoiceMode,
+  } = useContinuousVoice({
+    locale: aiLocale,
+    onTranscript: async (text) => {
+      const reply = await sendMessage(text);
+      if (reply) await speak(reply);
+    },
+  });
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading, speaking]);
+
+  const handleVoiceToggle = () => {
+    try {
+      if (voiceActive) {
+        toggleVoiceMode();
+        return;
+      }
+      toggleVoiceMode();
+      toast.message(
+        aiLocale === "hi"
+          ? "वॉइस चैट शुरू — बोलिए, मैं सुन रहा हूँ"
+          : "Voice chat on — speak naturally, I'm listening"
+      );
+    } catch {
+      toast.error(
+        aiLocale === "hi" ? "यह ब्राउज़र वॉइस सपोर्ट नहीं करता" : "Voice not supported in this browser"
+      );
     }
   };
+
+  useEffect(() => () => stopVoiceMode(), [stopVoiceMode]);
 
   return (
     <>
@@ -150,8 +201,8 @@ export default function AIAssistantPage() {
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
                   {siteLocale === "hi"
-                    ? "गंतव्य, पैकेज, वाहन, होटल, बजट और यात्रा कार्यक्रम के बारे में पूछें। आप हिंदी में अपनी पूछताछ भी कर सकते हैं।"
-                    : "Ask about destinations, packages, vehicles, hotels, budgets, and itineraries across India."}
+                    ? "गंतव्य, पैकेज, वाहन, होटल के बारे में पूछें। माइक दबाकर बातचीत शुरू करें — जैसे दो लोग बात करते हैं।"
+                    : "Ask about destinations, packages, vehicles, and hotels. Tap the mic for a natural voice conversation."}
                 </p>
               </CardContent>
             </Card>
@@ -250,32 +301,72 @@ export default function AIAssistantPage() {
             </ScrollArea>
 
             <div className="border-t p-3 sm:p-4">
+              {voiceActive && (
+                <div className="mb-3 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  {speaking ? (
+                    <>
+                      <Volume2 className="h-4 w-4 shrink-0 animate-pulse" />
+                      {aiLocale === "hi" ? "जवाब बोल रहा हूँ…" : "Speaking reply…"}
+                    </>
+                  ) : listening ? (
+                    <>
+                      <Mic className="h-4 w-4 shrink-0 animate-pulse" />
+                      {aiLocale === "hi" ? "सुन रहा हूँ — बोलिए" : "Listening — speak now"}
+                    </>
+                  ) : loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                      {aiLocale === "hi" ? "सोच रहा हूँ…" : "Thinking…"}
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-4 w-4 shrink-0" />
+                      {aiLocale === "hi" ? "वॉइस चैट चालू" : "Voice chat active"}
+                    </>
+                  )}
+                </div>
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  sendMessage(input);
+                  if (!voiceActive) void sendMessage(input);
                 }}
                 className="flex gap-2"
               >
-                <Input
-                  placeholder={
-                    aiLocale === "hi"
-                      ? "गंतव्य, पैकेज, वाहन के बारे में पूछें..."
-                      : "Ask about destinations, packages, vehicles..."
-                  }
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={loading}
-                  className="min-h-10"
-                />
                 <Button
-                  type="submit"
+                  type="button"
                   size="icon"
+                  variant={voiceActive ? "default" : "outline"}
                   className="h-10 w-10 shrink-0"
-                  disabled={loading || !input.trim()}
+                  disabled={loading}
+                  onClick={handleVoiceToggle}
+                  aria-label={voiceActive ? "Stop voice chat" : "Start voice chat"}
                 >
-                  <Send className="h-4 w-4" />
+                  {voiceActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
+                {!voiceActive && (
+                  <>
+                    <Input
+                      placeholder={
+                        aiLocale === "hi"
+                          ? "गंतव्य, पैकेज, वाहन के बारे में पूछें..."
+                          : "Ask about destinations, packages, vehicles..."
+                      }
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      disabled={loading}
+                      className="min-h-10"
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      className="h-10 w-10 shrink-0"
+                      disabled={loading || !input.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </form>
             </div>
           </Card>
