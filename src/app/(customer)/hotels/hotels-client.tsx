@@ -16,6 +16,7 @@ import {
   sortHotels,
   type CatalogSortKey,
 } from "@/lib/catalog/sort";
+import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import type { Hotel } from "@/types";

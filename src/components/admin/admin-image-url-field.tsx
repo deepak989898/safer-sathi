@@ -31,7 +31,7 @@ interface AdminImageUrlFieldProps {
 
 export function AdminImageUrlField({
   label = "Images",
-  hint = "First image is the main photo on the website. Upload from computer or paste URLs (one per line).",
+  hint = "First image is the main photo on the website. Upload from computer or paste URLs (one per line). Uploaded images are set as the main photo.",
   value,
   onChange,
   folder,
@@ -58,12 +58,13 @@ export function AdminImageUrlField({
     const nextUrls = [...urls];
 
     try {
+      const uploaded: string[] = [];
       for (let i = 0; i < files.length; i++) {
         setProgress({ current: i + 1, total: files.length });
         const url = await uploadAdminImageFile(files[i], folder, actorRole);
-        nextUrls.push(url);
+        uploaded.push(url);
       }
-      onChange(nextUrls.join("\n"));
+      onChange([...uploaded, ...nextUrls].join("\n"));
       toast.success(
         files.length === 1 ? "Image uploaded and compressed" : `${files.length} images uploaded`
       );

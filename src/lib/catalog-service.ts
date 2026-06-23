@@ -26,8 +26,14 @@ import {
   getRelatedBlogPosts,
   hydrateBlogStore,
 } from "@/lib/blog-store";
+import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
+
+function normalizeHotelForCatalog(hotel: Hotel): Hotel {
+  const priceFrom = syncHotelPriceFrom(hotel);
+  return priceFrom === hotel.priceFrom ? hotel : { ...hotel, priceFrom };
+}
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
   await reloadVehiclesStore();
@@ -99,7 +105,7 @@ export async function getPackageById(id: string): Promise<TourPackage | null> {
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
   await reloadHotelsStore();
-  let results = getPublishedHotels();
+  let results = getPublishedHotels().map(normalizeHotelForCatalog);
   if (filters?.starRating) {
     results = results.filter((h) => h.starRating >= filters.starRating!);
   }
@@ -122,7 +128,8 @@ export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
 
 export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
   await reloadHotelsStore();
-  return getHotelBySlugPublished(slug);
+  const hotel = getHotelBySlugPublished(slug);
+  return hotel ? normalizeHotelForCatalog(hotel) : null;
 }
 
 export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute[]> {

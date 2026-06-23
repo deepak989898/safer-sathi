@@ -35,6 +35,7 @@ import {
   canGenerateMarketHotels,
 } from "@/lib/auth/constants";
 import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
+import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { Hotel, HotelStatus, PackagePublishStatus } from "@/types";
 import { toast } from "sonner";
@@ -195,6 +196,11 @@ export default function HotelsAdminClient() {
         throw new Error("Invalid rooms JSON");
       }
     }
+    const images = f.images.split("\n").map((s) => s.trim()).filter(Boolean);
+    const priceFrom = syncHotelPriceFrom({
+      priceFrom: Number(f.priceFrom) || 0,
+      rooms,
+    });
     return {
       slug: f.slug || existing?.slug,
       name: { en: f.name, hi: f.nameHi || f.name },
@@ -204,10 +210,10 @@ export default function HotelsAdminClient() {
       location: f.location,
       address: f.address,
       starRating: Number(f.starRating) || 4,
-      priceFrom: Number(f.priceFrom) || 0,
+      priceFrom,
       description: { en: f.description, hi: f.description },
       amenities: f.amenities.split(",").map((s) => s.trim()).filter(Boolean),
-      images: f.images.split("\n").map((s) => s.trim()).filter(Boolean),
+      images,
       rooms,
       featured: f.featured,
       status: f.status,

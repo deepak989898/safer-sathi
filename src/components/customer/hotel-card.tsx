@@ -7,8 +7,10 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { RatingStars } from "@/components/customer/rating-stars";
 import type { Hotel, Locale } from "@/types";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
+import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 
 export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
+  const fromPrice = getEffectiveHotelPriceFrom(hotel);
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <Link href={`/hotels/${hotel.slug}`} className="block">
@@ -47,7 +49,7 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
         <div>
           <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
           <p className="text-lg font-bold text-primary">
-            {formatCurrency(hotel.priceFrom, locale)}
+            {formatCurrency(fromPrice, locale)}
             <span className="text-xs font-normal text-muted-foreground">
               {" "}
               / {t(locale, "common", "perNight")}

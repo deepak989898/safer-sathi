@@ -1,4 +1,5 @@
 import type { Hotel, HotelRoom, LocalizedString } from "@/types";
+import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 
 function enHi(en: string, hi?: string): LocalizedString {
   return { en, hi: hi ?? en };
@@ -86,6 +87,7 @@ function buildRooms(hotelId: string, base: number): HotelRoom[] {
 function buildHotel(cfg: HotelSeedConfig): Hotel {
   const now = new Date().toISOString();
   const country = cfg.country ?? "India";
+  const rooms = buildRooms(cfg.id, cfg.price);
   return {
     id: cfg.id,
     slug: cfg.slug,
@@ -99,8 +101,8 @@ function buildHotel(cfg: HotelSeedConfig): Hotel {
     images: imagePaths(cfg.slug),
     amenities: [...AMENITIES],
     description: enHi(cfg.description),
-    priceFrom: cfg.price,
-    rooms: buildRooms(cfg.id, cfg.price),
+    priceFrom: syncHotelPriceFrom({ priceFrom: cfg.price, rooms }),
+    rooms,
     rating: cfg.rating,
     reviewCount: cfg.reviewCount,
     featured: cfg.featured ?? cfg.starRating >= 5,

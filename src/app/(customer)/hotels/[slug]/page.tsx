@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAllHotelSlugs, getHotelBySlug, getHotels } from "@/lib/catalog-service";
+import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { localizedText } from "@/lib/i18n";
 import { buildPageMetadata, stripHtml } from "@/lib/seo/metadata";
 import { breadcrumbSchema, hotelSchema } from "@/lib/seo/schema";
@@ -28,12 +29,13 @@ export async function generateMetadata({
 
   const name = localizedText(hotel.name, "en");
   const description = stripHtml(localizedText(hotel.description, "en")).slice(0, 155);
+  const fromPrice = getEffectiveHotelPriceFrom(hotel);
 
   return buildPageMetadata({
     title: `${name} Hotel Booking | Safar Sathi`,
     description:
       description ||
-      `Book ${name} in ${hotel.city}. ${hotel.starRating}★ hotel from ₹${hotel.priceFrom}/night with instant confirmation.`,
+      `Book ${name} in ${hotel.city}. ${hotel.starRating}★ hotel from ₹${fromPrice}/night with instant confirmation.`,
     path: `/hotels/${slug}`,
     image: hotel.images[0],
     keywords: [
@@ -72,6 +74,7 @@ export default async function HotelDetailPage({
   const name = localizedText(hotel.name, "en");
   const description = stripHtml(localizedText(hotel.description, "en"));
   const pageUrl = appUrl(`/hotels/${slug}`);
+  const fromPrice = getEffectiveHotelPriceFrom(hotel);
 
   return (
     <>
@@ -82,7 +85,7 @@ export default async function HotelDetailPage({
             description,
             url: pageUrl,
             image: hotel.images[0],
-            priceFrom: hotel.priceFrom,
+            priceFrom: fromPrice,
             starRating: hotel.starRating,
             city: hotel.city,
             rating: hotel.rating,

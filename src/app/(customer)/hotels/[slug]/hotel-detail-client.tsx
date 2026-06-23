@@ -28,6 +28,10 @@ import {
   postPaymentSuccessMessage,
 } from "@/lib/bookings/post-payment-navigation";
 import { calculatePayNowAmount, type PaymentPlan } from "@/lib/payments/booking-payment";
+import {
+  getCheapestHotelRoom,
+  getEffectiveHotelPriceFrom,
+} from "@/lib/catalog/hotel-pricing";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel, HotelRoom } from "@/types";
@@ -76,13 +80,14 @@ export function HotelDetailClient({
   const submitting = paying;
 
   const title = localizedText(hotel.name, locale);
-  const defaultRoom = hotel.rooms[0] ?? null;
+  const fromPrice = getEffectiveHotelPriceFrom(hotel);
+  const defaultRoom = getCheapestHotelRoom(hotel);
   const [selectedRoomId, setSelectedRoomId] = useState(defaultRoom?.id ?? "");
 
   const selectedRoom: HotelRoom | null =
     hotel.rooms.find((r) => r.id === selectedRoomId) ?? defaultRoom;
 
-  const pricePerNight = selectedRoom?.pricePerNight ?? hotel.priceFrom;
+  const pricePerNight = selectedRoom?.pricePerNight ?? fromPrice;
 
   const selectRoom = (roomId: string) => {
     setSelectedRoomId(roomId);
@@ -156,7 +161,7 @@ export function HotelDetailClient({
         type="hotel"
         id={hotel.slug ?? hotel.id}
         name={title}
-        price={hotel.priceFrom}
+        price={fromPrice}
       />
 
       <section className="container mx-auto px-4 py-6 md:py-10">
@@ -341,7 +346,7 @@ export function HotelDetailClient({
                 <div className="border-t pt-4">
                   <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
                   <p className="text-2xl font-bold text-[#0c2444]">
-                    {formatCurrency(pricePerNight, locale)}
+                    {formatCurrency(fromPrice, locale)}
                     <span className="text-sm font-normal text-muted-foreground">
                       {" "}
                       / {t(locale, "common", "perNight")}
