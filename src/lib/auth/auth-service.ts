@@ -16,6 +16,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import { isBookingIdPassword } from "@/lib/auth/booking-login-credentials";
 import { COLLECTIONS, getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase/client";
 import { appUrl } from "@/lib/site-config";
 import type { User, UserRole } from "@/types";
@@ -216,11 +217,39 @@ export async function loginUser(
     return user;
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+  const trimmedPassword = password.trim();
+
+  if (typeof window !== "undefined" && isBookingIdPassword(trimmedPassword)) {
+    try {
+      const res = await fetch("/api/auth/booking-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          bookingNumber: trimmedPassword,
+        }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        if (res.status === 404 || res.status === 400) {
+          throw new AuthError(
+            json.error ??
+              "Invalid email or Booking ID. Use the Booking ID from your confirmation email."
+          );
+        }
+      }
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+      console.warn("Booking login provision request failed:", error);
+    }
+  }
+
   const auth = getFirebaseAuth();
   const credential = await signInWithEmailAndPassword(
     auth,
-    email.toLowerCase().trim(),
-    password
+    normalizedEmail,
+    trimmedPassword
   );
 
   const profile = await getUserProfile(credential.user.uid);

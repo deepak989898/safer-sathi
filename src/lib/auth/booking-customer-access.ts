@@ -18,7 +18,7 @@ export async function provisionCustomerBookingLogin(
   if (!auth || !db) return null;
 
   const email = booking.customerEmail.toLowerCase().trim();
-  const loginPassword = booking.bookingNumber;
+  const loginPassword = booking.bookingNumber.trim();
   const now = new Date().toISOString();
   let userId: string;
   let created = false;

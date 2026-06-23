@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
+import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
 import { getBookingById } from "@/lib/data-service";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
@@ -37,6 +39,11 @@ export async function POST(
     }
 
     const balanceDue = getBalanceDue(booking.amount, booking.paidAmount ?? 0);
+    const loginProvision =
+      booking.status === "confirmed"
+        ? await provisionCustomerBookingLogin(booking)
+        : null;
+    const loginCredentials = resolveBookingLoginCredentials(booking, loginProvision);
     const channels =
       parsed.data.channel === "both"
         ? (["email", "whatsapp"] as const)
@@ -53,6 +60,8 @@ export async function POST(
       booking,
       isFullyPaid: balanceDue <= 0,
       channels: [...channels],
+      loginEmail: loginCredentials.loginEmail,
+      loginPassword: loginCredentials.loginPassword,
     });
 
     return apiSuccess({

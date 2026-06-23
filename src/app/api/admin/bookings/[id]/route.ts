@@ -2,6 +2,7 @@ import { z } from "zod";
 import { actorRoleSchema, requireBookingsStaffRole } from "@/lib/admin/api-auth";
 import { createAdminNotification } from "@/lib/admin/notifications";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
+import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
 import { getBookingById, updateBooking } from "@/lib/data-service";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
@@ -72,12 +73,16 @@ export async function PATCH(
 
       if (parsed.data.sendConfirmation) {
         const balanceDue = getBalanceDue(updated.amount, updated.paidAmount ?? 0);
+        const loginCredentials = resolveBookingLoginCredentials(
+          updated,
+          loginProvision
+        );
         await sendBookingConfirmationNotifications({
           booking: updated,
           isFullyPaid: balanceDue <= 0,
           channels: ["email", "whatsapp", "sms"],
-          loginEmail: loginProvision?.email,
-          loginPassword: loginProvision?.loginPassword,
+          loginEmail: loginCredentials.loginEmail,
+          loginPassword: loginCredentials.loginPassword,
         });
       }
     } else if (updated.status === "cancelled") {

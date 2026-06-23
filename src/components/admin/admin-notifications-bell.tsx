@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ function formatWhen(iso: string): string {
 }
 
 export function AdminNotificationsBell() {
+  const router = useRouter();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -82,6 +83,12 @@ export function AdminNotificationsBell() {
     setUnreadCount(0);
   };
 
+  const openNotification = (notification: AdminNotification) => {
+    if (!notification.read) void markRead(notification.id);
+    setOpen(false);
+    router.push(notification.href);
+  };
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
@@ -131,11 +138,7 @@ export function AdminNotificationsBell() {
             <DropdownMenuItem
               key={notification.id}
               className="flex cursor-pointer flex-col items-start gap-0.5 p-3"
-              onClick={() => {
-                if (!notification.read) void markRead(notification.id);
-                setOpen(false);
-              }}
-              render={<Link href={notification.href} />}
+              onClick={() => openNotification(notification)}
             >
               <span
                 className={cn(
@@ -157,8 +160,10 @@ export function AdminNotificationsBell() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="justify-center text-xs text-primary"
-          onClick={() => setOpen(false)}
-          render={<Link href="/admin/bookings" />}
+          onClick={() => {
+            setOpen(false);
+            router.push("/admin/bookings");
+          }}
         >
           View all bookings
         </DropdownMenuItem>

@@ -479,32 +479,31 @@ export default function BookingsAdminClient() {
       />
       <div className="space-y-4 p-4 md:p-6">
         <div className="overflow-hidden rounded-xl border bg-card">
-          <button
-            type="button"
-            onClick={() => setFiltersExpanded((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-          >
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded((v) => !v)}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
+            >
               {filtersExpanded ? (
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
               ) : (
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               )}
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold text-[#0c2444]">Filters & search</p>
                 <p className="text-xs text-muted-foreground">
-                  {statusFilter === "all" ? "All bookings" : FILTER_OPTIONS.find((f) => f.id === statusFilter)?.label}
+                  {statusFilter === "all"
+                    ? "All bookings"
+                    : FILTER_OPTIONS.find((f) => f.id === statusFilter)?.label}
                   {search.trim() ? ` · "${search.trim()}"` : ""}
                 </p>
               </div>
-            </div>
+            </button>
             <Button
               variant="outline"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                void loadBookings();
-              }}
+              onClick={() => void loadBookings()}
               disabled={loading}
             >
               {loading ? (
@@ -514,7 +513,7 @@ export default function BookingsAdminClient() {
               )}
               Refresh
             </Button>
-          </button>
+          </div>
 
           {filtersExpanded && (
             <div className="space-y-4 border-t px-4 py-4">

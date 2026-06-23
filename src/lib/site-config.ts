@@ -29,7 +29,7 @@ export const PRODUCTION_DOMAIN = "www.thesafarsathi.com";
 export const SITE_CONTACT = {
   phone: "+91 9217290871",
   phoneTel: "+919217290871",
-  email: "support@thesafarsafari.com",
+  email: "support@thesafarsathi.com",
   addressLine1: "352 Travel Hub, Connaught Place",
   addressLine2: "New Delhi 110001, India",
   addressFull: "352 Travel Hub, Connaught Place, New Delhi 110001, India",

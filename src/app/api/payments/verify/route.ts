@@ -3,6 +3,7 @@ import { verifyPayment } from "@/lib/payments/razorpay";
 import { getBookingById, updateBooking } from "@/lib/data-service";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
+import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
 import { createAdminNotification } from "@/lib/admin/notifications";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -84,6 +85,10 @@ export async function POST(request: Request) {
       };
 
       const loginProvision = await provisionCustomerBookingLogin(bookingForNotify);
+      const loginCredentials = resolveBookingLoginCredentials(
+        bookingForNotify,
+        loginProvision
+      );
 
       await createAdminNotification({
         type: "booking_confirmed",
@@ -97,8 +102,8 @@ export async function POST(request: Request) {
         booking: bookingForNotify,
         isFullyPaid,
         channels: ["email", "whatsapp", "sms"],
-        loginEmail: loginProvision?.email,
-        loginPassword: loginProvision?.loginPassword,
+        loginEmail: loginCredentials.loginEmail,
+        loginPassword: loginCredentials.loginPassword,
       });
     }
 

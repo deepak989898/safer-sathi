@@ -20,6 +20,11 @@ export function buildBookingConfirmationContent(input: {
   loginPassword?: string;
 }) {
   const { booking, isFullyPaid, balanceDue, invoiceUrl, loginEmail, loginPassword } = input;
+  const credentials = {
+    loginEmail: (loginEmail ?? booking.customerEmail).toLowerCase().trim(),
+    loginPassword: loginPassword ?? booking.bookingNumber,
+  };
+  const loginUrl = appUrl("/login?redirect=/my-bookings");
   const serviceName = booking.serviceName.en;
   const travelDate = booking.endDate
     ? `${booking.startDate} to ${booking.endDate}`
@@ -49,16 +54,12 @@ export function buildBookingConfirmationContent(input: {
     "Your PDF invoice is attached to this email.",
     invoiceUrl ? `Download invoice: ${invoiceUrl}` : "",
     "",
-    loginEmail && loginPassword
-      ? [
-          "--- Your Safar Sathi login ---",
-          `Email: ${loginEmail}`,
-          `Password: ${loginPassword} (your latest Booking ID)`,
-          `Sign in: ${appUrl("/login")}`,
-          "You can change your password after signing in from My Bookings.",
-          "",
-        ].join("\n")
-      : "",
+    "--- Your Safar Sathi login ---",
+    `Login email: ${credentials.loginEmail}`,
+    `Password (Booking ID): ${credentials.loginPassword}`,
+    `Sign in: ${loginUrl}`,
+    "You can change your password after signing in from My Bookings.",
+    "",
     `View bookings: ${appUrl("/my-bookings")}`,
     "",
     "Thank you for choosing Safar Sathi!",
@@ -97,20 +98,21 @@ export function buildBookingConfirmationContent(input: {
         </p>
         ${
           invoiceUrl
-            ? `<a href="${invoiceUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">Download Invoice</a>`
+            ? `<a href="${invoiceUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;margin-right:8px;">Download Invoice</a>`
             : ""
         }
-        ${
-          loginEmail && loginPassword
-            ? `<div style="margin-top:24px;padding:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
-          <p style="margin:0 0 8px;color:#0c2444;font-weight:600;font-size:14px;">Your Safar Sathi login</p>
-          <p style="margin:0 0 4px;color:#334155;font-size:13px;"><strong>Email:</strong> ${loginEmail}</p>
-          <p style="margin:0 0 12px;color:#334155;font-size:13px;"><strong>Password:</strong> ${loginPassword} <span style="color:#64748b;">(your latest Booking ID)</span></p>
-          <a href="${appUrl("/login")}" style="display:inline-block;background:#0c2444;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;">Sign in to My Bookings</a>
-          <p style="margin:12px 0 0;color:#64748b;font-size:11px;">You can change your password after signing in.</p>
-        </div>`
-            : ""
-        }
+        <div style="margin-top:24px;padding:18px;background:linear-gradient(135deg,#f0f9ff 0%,#fff7ed 100%);border:1px solid #bae6fd;border-radius:10px;">
+          <p style="margin:0 0 12px;color:#0c2444;font-weight:700;font-size:15px;">Your Safar Sathi login details</p>
+          <p style="margin:0 0 6px;color:#64748b;font-size:12px;">Copy and use these to sign in and view your bookings:</p>
+          <div style="margin:10px 0;padding:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
+            <p style="margin:0 0 8px;color:#334155;font-size:13px;"><strong>Login email:</strong></p>
+            <p style="margin:0 0 12px;padding:8px 10px;background:#f8fafc;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:14px;color:#0c2444;word-break:break-all;">${credentials.loginEmail}</p>
+            <p style="margin:0 0 8px;color:#334155;font-size:13px;"><strong>Password (your Booking ID):</strong></p>
+            <p style="margin:0;padding:8px 10px;background:#f8fafc;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:14px;color:#0c2444;word-break:break-all;">${credentials.loginPassword}</p>
+          </div>
+          <a href="${loginUrl}" style="display:inline-block;background:#0c2444;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;">Sign in to My Bookings</a>
+          <p style="margin:12px 0 0;color:#64748b;font-size:11px;line-height:1.5;">If you book again later, your password updates to your latest Booking ID. You can set a personal password from My Bookings after signing in.</p>
+        </div>
         <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
           Questions? Email support@thesafarsathi.com or call +91 9217290871.
         </p>
