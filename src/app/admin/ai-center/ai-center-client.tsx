@@ -61,6 +61,13 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
+import { approvedKeywordsWithoutBlog, keywordHasBlog } from "@/lib/ai-center/utils";
+import {
+  getBlogFeaturedImage,
+  getBlogImagePrompts,
+  resolveBlogImageKey,
+} from "@/lib/ai-center/blog-destination-images";
+import { SafeImage } from "@/components/ui/safe-image";
 import { cn } from "@/lib/utils";
 
 interface AiCenterNavTab {
@@ -240,6 +247,10 @@ export default function AiCenterClient() {
     () => keywords.filter((k) => k.status === "approved"),
     [keywords]
   );
+  const blogWriterKeywords = useMemo(
+    () => approvedKeywordsWithoutBlog(keywords, blogs),
+    [keywords, blogs]
+  );
   const draftBlogs = useMemo(
     () => blogs.filter((b) => b.status === "draft" || b.status === "pending_approval"),
     [blogs]
@@ -321,6 +332,15 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const openBlogEditor = (blog: AiBlogPost) => {
+    const imagePrompts = getBlogImagePrompts(blog.keyword, blog.destination);
+    setEditBlog({
+      ...blog,
+      imagePrompts,
+      featuredImage: getBlogFeaturedImage(blog.keyword, blog.destination),
+    });
   };
 
   const blogAction = async (
@@ -532,6 +552,7 @@ export default function AiCenterClient() {
               <KeywordTable
                 title="Approved Keywords"
                 items={approvedKeywords}
+                blogs={blogs}
                 busy={busy}
                 onApprove={() => {}}
                 onReject={() => {}}
@@ -556,10 +577,14 @@ export default function AiCenterClient() {
                   Select an approved keyword and generate a full SEO blog ({settings?.blogWordLimit ?? 1500} words)
                   with image prompts, FAQ, and meta tags.
                 </p>
-                {approvedKeywords.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Approve keywords first.</p>
+                {blogWriterKeywords.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {approvedKeywords.length === 0
+                      ? "Approve keywords first."
+                      : "All approved keywords already have blog drafts. Open Blog Drafts to review them."}
+                  </p>
                 ) : (
-                  approvedKeywords.map((kw) => (
+                  blogWriterKeywords.map((kw) => (
                     <div key={kw.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
                       <span className="font-medium">{kw.keyword}</span>
                       <Button size="sm" disabled={busy} onClick={() => void generateBlog(kw.id)}>
@@ -577,7 +602,7 @@ export default function AiCenterClient() {
               title="Drafts & Pending Approval"
               blogs={draftBlogs}
               busy={busy}
-              onEdit={setEditBlog}
+              onEdit={openBlogEditor}
               onApprove={(id) => void blogAction(id, "approve")}
               onReject={(id) => void blogAction(id, "reject")}
               onPublish={(id) => void blogAction(id, "publish")}
@@ -591,7 +616,7 @@ export default function AiCenterClient() {
               title="Approved — Ready to Publish"
               blogs={scheduledBlogs}
               busy={busy}
-              onEdit={setEditBlog}
+              onEdit={openBlogEditor}
               onApprove={() => {}}
               onReject={(id) => void blogAction(id, "reject")}
               onPublish={(id) => void blogAction(id, "publish")}
@@ -606,7 +631,7 @@ export default function AiCenterClient() {
               title="Published Blogs"
               blogs={publishedBlogs}
               busy={busy}
-              onEdit={setEditBlog}
+              onEdit={openBlogEditor}
               onApprove={() => {}}
               onReject={() => {}}
               onPublish={() => {}}
@@ -927,11 +952,52 @@ export default function AiCenterClient() {
                 />
               </div>
               <div>
-                <Label>Image prompts</Label>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  {editBlog.imagePrompts.map((img) => (
-                    <p key={img.id}>🖼 {img.label}: {img.prompt}</p>
-                  ))}
+                <Label>Blog images</Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Matched to keyword &quot;{editBlog.keyword}&quot; →{" "}
+                  <span className="font-medium capitalize">
+                    {resolveBlogImageKey(editBlog.keyword, editBlog.destination)}
+                  </span>
+                  . Click an image to set it as the featured hero on the live blog.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {editBlog.imagePrompts.map((img) => {
+                    const isFeatured = editBlog.featuredImage === img.url;
+                    return (
+                      <button
+                        key={img.id}
+                        type="button"
+                        className={cn(
+                          "overflow-hidden rounded-lg border text-left transition-colors",
+                          isFeatured
+                            ? "border-primary ring-2 ring-primary/30"
+                            : "hover:border-primary/50"
+                        )}
+                        onClick={() =>
+                          setEditBlog({ ...editBlog, featuredImage: img.url })
+                        }
+                      >
+                        <div className="relative aspect-video w-full bg-muted">
+                          <SafeImage
+                            src={img.url}
+                            alt={img.label}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 100vw, 280px"
+                          />
+                        </div>
+                        <div className="space-y-0.5 p-2">
+                          <p className="text-xs font-medium">
+                            {img.label}
+                            {isFeatured ? " · Featured" : ""}
+                          </p>
+                          <p className="line-clamp-2 text-[10px] text-muted-foreground">
+                            {img.prompt}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -946,6 +1012,7 @@ export default function AiCenterClient() {
                   title: editBlog.title,
                   content: editBlog.content,
                   metaDescription: editBlog.metaDescription,
+                  featuredImage: editBlog.featuredImage,
                 })
               }
             >
@@ -969,6 +1036,7 @@ function StatPill({ label, value }: { label: string; value: number }) {
 function KeywordTable({
   title,
   items,
+  blogs = [],
   busy,
   onApprove,
   onReject,
@@ -979,6 +1047,7 @@ function KeywordTable({
 }: {
   title: string;
   items: SeoKeyword[];
+  blogs?: AiBlogPost[];
   busy: boolean;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
@@ -1024,7 +1093,9 @@ function KeywordTable({
                         </Button>
                       </>
                     )}
-                    {showGenerate && kw.status === "approved" && (
+                    {showGenerate &&
+                      kw.status === "approved" &&
+                      !keywordHasBlog(kw, blogs) && (
                       <Button size="sm" variant="secondary" disabled={busy} onClick={() => onGenerateBlog(kw.id)}>
                         Blog
                       </Button>
@@ -1075,8 +1146,17 @@ function BlogTable({
       <CardContent className="space-y-3">
         {blogs.map((blog) => (
           <div key={blog.id} className="rounded-lg border p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
+                <SafeImage
+                  src={getBlogFeaturedImage(blog.keyword, blog.destination)}
+                  alt={blog.title}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold">{blog.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {blog.wordCount} words · {blog.keyword} · /blog/{blog.slug}

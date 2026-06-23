@@ -1,3 +1,5 @@
+import type { AiBlogPost, SeoKeyword } from "@/lib/ai-center/types";
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -22,4 +24,23 @@ export function computeSeoScore(input: {
 
 export function estimateWordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** True when a non-rejected blog already exists for this keyword. */
+export function keywordHasBlog(keyword: SeoKeyword, blogs: AiBlogPost[]): boolean {
+  const normalized = keyword.keyword.toLowerCase().trim();
+  return blogs.some((blog) => {
+    if (blog.status === "rejected") return false;
+    if (blog.keywordId === keyword.id) return true;
+    return blog.keyword.toLowerCase().trim() === normalized;
+  });
+}
+
+export function approvedKeywordsWithoutBlog(
+  keywords: SeoKeyword[],
+  blogs: AiBlogPost[]
+): SeoKeyword[] {
+  return keywords.filter(
+    (k) => k.status === "approved" && !keywordHasBlog(k, blogs)
+  );
 }

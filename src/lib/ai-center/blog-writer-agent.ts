@@ -1,9 +1,11 @@
 import { routeCompletion } from "@/lib/ai/router";
-import { HERO_IMAGES } from "@/lib/media/travel-images";
+import {
+  getBlogFeaturedImage,
+  getBlogImagePrompts,
+} from "@/lib/ai-center/blog-destination-images";
 import type {
   AiBlogPost,
   AiCenterSettings,
-  BlogImagePrompt,
   KeywordCategory,
   SeoKeyword,
   SeoMetaRecord,
@@ -17,14 +19,6 @@ import {
 import { stripSourcesSection } from "@/lib/ai-center/blog-content";
 import { estimateWordCount, slugify } from "@/lib/ai-center/utils";
 import { appUrl } from "@/lib/site-config";
-
-const IMAGE_POOL = [
-  HERO_IMAGES.packages,
-  HERO_IMAGES.hotels,
-  HERO_IMAGES.vehicles,
-  HERO_IMAGES.blog,
-  HERO_IMAGES.assistant,
-];
 
 const SYSTEM_PROMPT = `You are an expert Indian travel content writer for Safar Sathi.
 Write helpful, factual SEO blog posts in clean Markdown.
@@ -42,40 +36,8 @@ STRICT RULES:
 - Use bullet lists and short paragraphs for readability
 - For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites`;
 
-function buildImagePrompts(keyword: string, destination?: string): BlogImagePrompt[] {
-  const dest = destination ?? "India";
-  return [
-    {
-      id: "hero",
-      label: "Destination Hero",
-      prompt: `Wide cinematic hero banner of ${dest}, golden hour, travel photography, no text`,
-      url: IMAGE_POOL[0],
-    },
-    {
-      id: "places",
-      label: "Top Places",
-      prompt: `Collage of famous landmarks and scenic spots in ${dest}, vibrant, editorial style`,
-      url: IMAGE_POOL[1],
-    },
-    {
-      id: "activities",
-      label: "Adventure Activities",
-      prompt: `Adventure activities in ${dest}: trekking, rafting, paragliding, action travel photo`,
-      url: IMAGE_POOL[2],
-    },
-    {
-      id: "hotels",
-      label: "Hotels & Stays",
-      prompt: `Luxury and budget hotels in ${dest}, mountain or beach resort, warm lighting`,
-      url: IMAGE_POOL[3],
-    },
-    {
-      id: "banner",
-      label: "Travel Banner",
-      prompt: `Professional travel banner for ${keyword}, Indian landscape, editorial`,
-      url: IMAGE_POOL[4],
-    },
-  ];
+function buildImagePrompts(keyword: string, destination?: string) {
+  return getBlogImagePrompts(keyword, destination);
 }
 
 /** Remove duplicate ## sections (keeps first occurrence). */
@@ -284,7 +246,7 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     metaDescription: seoMeta?.seoDescription ?? plainExcerpt.slice(0, 155),
     excerpt: plainExcerpt.slice(0, 220).trim() + (plainExcerpt.length > 220 ? "…" : ""),
     content,
-    featuredImage: buildImagePrompts(keyword.keyword, dest)[0].url,
+    featuredImage: getBlogFeaturedImage(keyword.keyword, dest),
     imagePrompts: buildImagePrompts(keyword.keyword, dest),
     faq,
     wordCount,
@@ -324,6 +286,8 @@ export async function regenerateBlogContent(
     excerpt: fresh.excerpt,
     metaDescription: fresh.metaDescription,
     destination: fresh.destination,
+    featuredImage: fresh.featuredImage,
+    imagePrompts: fresh.imagePrompts,
     updatedAt: new Date().toISOString(),
   };
 }

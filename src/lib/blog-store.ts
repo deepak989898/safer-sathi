@@ -6,18 +6,22 @@ import {
 } from "@/lib/ai-center/repository";
 import type { AiBlogPost } from "@/lib/ai-center/types";
 import { stripSourcesSection } from "@/lib/ai-center/blog-content";
+import {
+  getBlogFeaturedImage,
+} from "@/lib/ai-center/blog-destination-images";
 import { demoBlogPosts } from "@/data/demo-data";
 import type { BlogPost } from "@/types";
 
 function aiBlogToBlogPost(blog: AiBlogPost): BlogPost {
   const content = stripSourcesSection(blog.content);
+  const featuredImage = getBlogFeaturedImage(blog.keyword, blog.destination);
   return {
     id: blog.id,
     slug: blog.slug,
     title: { en: blog.title, hi: blog.title },
     excerpt: { en: blog.excerpt, hi: blog.excerpt },
     content: { en: content, hi: content },
-    image: blog.featuredImage,
+    image: featuredImage,
     author: "Safar Sathi Team",
     tags: [blog.category.replace(/_/g, " "), blog.destination ?? "India"].filter(Boolean),
     published: blog.status === "published",

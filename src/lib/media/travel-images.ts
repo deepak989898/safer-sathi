@@ -26,6 +26,28 @@ export const TRAVEL_IMAGES = {
     "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&q=80",
   sportsCar:
     "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80",
+  himalayaMountains:
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80",
+  jaipurFort:
+    "https://images.unsplash.com/photo-1599661047819-382153ed0aac?w=800&q=80",
+  rajasthanPalace:
+    "https://images.unsplash.com/photo-1477587456223-d9cfcede3a2f?w=800&q=80",
+  kashmirLake:
+    "https://images.unsplash.com/photo-1596496181924-3568d664d3ae?w=800&q=80",
+  shimlaHills:
+    "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&q=80",
+  rishikeshRiver:
+    "https://images.unsplash.com/photo-1528181304800-259b078485af?w=800&q=80",
+  udaipurLake:
+    "https://images.unsplash.com/photo-1587474260584-1acab24d2d54?w=800&q=80",
+  delhiMonument:
+    "https://images.unsplash.com/photo-1587474260584-1acab24d2d54?w=800&q=80",
+  roadTripIndia:
+    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80",
+  adventureRafting:
+    "https://images.unsplash.com/photo-1528181304800-259b078485af?w=800&q=80",
+  mountainResort:
+    "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
 } as const;
 
 export const PLACEHOLDER_TRAVEL_IMAGE = TRAVEL_IMAGES.hotelLuxury;

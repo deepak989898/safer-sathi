@@ -2,6 +2,7 @@ import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe"
 import { generateBlogPost } from "@/lib/ai-center/blog-writer-agent";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
+import { keywordHasBlog } from "@/lib/ai-center/utils";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -336,6 +337,10 @@ export async function generateBlogFromKeyword(
   const keyword = keywordCache.find((k) => k.id === keywordId);
   if (!keyword) throw new Error("Keyword not found");
   if (keyword.status !== "approved") throw new Error("Keyword must be approved first");
+
+  if (keywordHasBlog(keyword, blogCache)) {
+    throw new Error("A blog draft already exists for this keyword");
+  }
 
   const seoMeta = seoMetaCache.find((m) => m.keywordId === keywordId);
   const settings = getAiCenterSettings();
