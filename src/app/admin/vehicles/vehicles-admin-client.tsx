@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Database, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminCityFilter } from "@/components/admin/admin-city-filter";
 import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
+import { AdminImageUrlField } from "@/components/admin/admin-image-url-field";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -26,15 +28,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
 import {
   canApproveVehicles,
   canGenerateMarketVehicles,
 } from "@/lib/auth/constants";
+import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { PackagePublishStatus, Vehicle, VehicleStatus, VehicleType } from "@/types";
 import { toast } from "sonner";
+
+function getVehicleCities(vehicle: Vehicle): string[] {
+  return vehicle.location?.trim() ? [vehicle.location.trim()] : [];
+}
 
 const vehicleTypes: VehicleType[] = [
   "car",
@@ -86,6 +93,8 @@ export default function VehiclesAdminClient() {
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Vehicle | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [activeTab, setActiveTab] = useState("all");
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
 
   const isStaff = actorRole === "super_admin" || actorRole === "manager";
 
@@ -498,15 +507,16 @@ export default function VehiclesAdminClient() {
           rows={3}
         />
       </div>
-      <div className="grid gap-2">
-        <Label>Image URLs (one per line)</Label>
-        <Textarea
-          value={form.images}
-          onChange={(e) => setForm({ ...form, images: e.target.value })}
-          rows={3}
-          placeholder="https://images.unsplash.com/..."
-        />
-      </div>
+      <AdminImageUrlField
+        label="Images"
+        value={form.images}
+        onChange={(images) => setForm({ ...form, images })}
+        folder="vehicles"
+        actorRole={actorRole}
+        rows={3}
+        disabled={saving}
+        placeholder="https://images.unsplash.com/..."
+      />
       <div className="flex flex-wrap items-center gap-4">
         <input
           id="driverIncluded"
@@ -609,6 +619,13 @@ export default function VehiclesAdminClient() {
     if (tab === "rejected") return rejected;
     return vehicles;
   };
+
+  const tabData = useMemo(() => tableForTab(activeTab), [activeTab, vehicles, drafts, pending, published, rejected]);
+  const cityOptions = useMemo(() => buildCityCounts(tabData, getVehicleCities), [tabData]);
+  const filteredData = useMemo(
+    () => filterByCity(tabData, cityFilter, getVehicleCities),
+    [tabData, cityFilter]
+  );
 
   return (
     <>
@@ -715,7 +732,13 @@ export default function VehiclesAdminClient() {
           </p>
         )}
 
-        <Tabs defaultValue="all">
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab);
+            setCityFilter(null);
+          }}
+        >
           <TabsList>
             <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
@@ -724,21 +747,26 @@ export default function VehiclesAdminClient() {
             <TabsTrigger value="all">All ({vehicles.length})</TabsTrigger>
           </TabsList>
 
-          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-4">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading vehicles...</p>
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={tableForTab(tab)}
-                  searchKey="name"
-                  searchPlaceholder="Search vehicles..."
-                  hidePagination
-                />
-              )}
-            </TabsContent>
-          ))}
+          <div className="mt-4 space-y-4">
+            <AdminCityFilter
+              label="City / Location"
+              cities={cityOptions}
+              totalCount={tabData.length}
+              selectedCity={cityFilter}
+              onChange={setCityFilter}
+            />
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading vehicles...</p>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                searchKey="name"
+                searchPlaceholder="Search vehicles..."
+                hidePagination
+              />
+            )}
+          </div>
         </Tabs>
       </div>
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Database, Loader2, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminCityFilter } from "@/components/admin/admin-city-filter";
 import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
+import { AdminImageUrlField } from "@/components/admin/admin-image-url-field";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -26,15 +28,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
 import {
   canApproveHotels,
   canGenerateMarketHotels,
 } from "@/lib/auth/constants";
+import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { Hotel, HotelStatus, PackagePublishStatus } from "@/types";
 import { toast } from "sonner";
+
+function getHotelCities(hotel: Hotel): string[] {
+  return hotel.city?.trim() ? [hotel.city.trim()] : [];
+}
 
 const emptyForm = {
   name: "",
@@ -70,6 +77,8 @@ export default function HotelsAdminClient() {
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Hotel | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [activeTab, setActiveTab] = useState("all");
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
 
   const loadHotels = useCallback(async () => {
     setLoading(true);
@@ -359,10 +368,15 @@ export default function HotelsAdminClient() {
         <Label>Amenities (comma-separated)</Label>
         <Input value={form.amenities} onChange={(e) => setForm({ ...form, amenities: e.target.value })} />
       </div>
-      <div className="grid gap-2">
-        <Label>Image URLs (one per line)</Label>
-        <Textarea rows={3} value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
-      </div>
+      <AdminImageUrlField
+        label="Images"
+        value={form.images}
+        onChange={(images) => setForm({ ...form, images })}
+        folder="hotels"
+        actorRole={actorRole}
+        rows={3}
+        disabled={saving}
+      />
       <div className="grid gap-2">
         <Label>Rooms (JSON array)</Label>
         <Textarea rows={4} className="font-mono text-xs" value={form.roomsJson} onChange={(e) => setForm({ ...form, roomsJson: e.target.value })} placeholder='[{"type":"deluxe","pricePerNight":8500,...}]' />
@@ -468,6 +482,13 @@ export default function HotelsAdminClient() {
     return hotels;
   };
 
+  const tabData = useMemo(() => tableForTab(activeTab), [activeTab, hotels, drafts, pending, published, rejected]);
+  const cityOptions = useMemo(() => buildCityCounts(tabData, getHotelCities), [tabData]);
+  const filteredData = useMemo(
+    () => filterByCity(tabData, cityFilter, getHotelCities),
+    [tabData, cityFilter]
+  );
+
   return (
     <>
       <AdminHeader
@@ -549,7 +570,13 @@ export default function HotelsAdminClient() {
           </p>
         )}
 
-        <Tabs defaultValue="all">
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab);
+            setCityFilter(null);
+          }}
+        >
           <TabsList>
             <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
@@ -558,21 +585,25 @@ export default function HotelsAdminClient() {
             <TabsTrigger value="all">All ({hotels.length})</TabsTrigger>
           </TabsList>
 
-          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-4">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading hotels...</p>
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={tableForTab(tab)}
-                  searchKey="name"
-                  searchPlaceholder="Search hotels..."
-                  hidePagination
-                />
-              )}
-            </TabsContent>
-          ))}
+          <div className="mt-4 space-y-4">
+            <AdminCityFilter
+              cities={cityOptions}
+              totalCount={tabData.length}
+              selectedCity={cityFilter}
+              onChange={setCityFilter}
+            />
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading hotels...</p>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                searchKey="name"
+                searchPlaceholder="Search hotels..."
+                hidePagination
+              />
+            )}
+          </div>
         </Tabs>
       </div>
 

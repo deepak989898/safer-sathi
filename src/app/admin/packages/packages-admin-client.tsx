@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Database, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminCityFilter } from "@/components/admin/admin-city-filter";
 import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
+import { AdminImageUrlField } from "@/components/admin/admin-image-url-field";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -32,9 +34,14 @@ import {
   canApprovePackages,
   canGenerateMarketPackages,
 } from "@/lib/auth/constants";
+import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { PackageCategory, PackagePublishStatus, TourPackage } from "@/types";
 import { toast } from "sonner";
+
+function getPackageCities(pkg: TourPackage): string[] {
+  return (pkg.cities ?? []).map((city) => city.trim()).filter(Boolean);
+}
 
 export default function PackagesAdminClient() {
   const { user } = useAuth();
@@ -64,6 +71,8 @@ export default function PackagesAdminClient() {
   const [editDurationLabel, setEditDurationLabel] = useState("");
   const [editCategory, setEditCategory] = useState<PackageCategory>("domestic");
   const [editItineraryJson, setEditItineraryJson] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
 
   const isStaff = actorRole === "super_admin" || actorRole === "manager";
 
@@ -88,6 +97,21 @@ export default function PackagesAdminClient() {
   const pending = packages.filter((p) => p.publishStatus === "pending_approval");
   const published = packages.filter((p) => p.publishStatus === "published");
   const rejected = packages.filter((p) => p.publishStatus === "rejected");
+
+  const tableForTab = (tab: string) => {
+    if (tab === "drafts") return drafts;
+    if (tab === "pending") return pending;
+    if (tab === "published") return published;
+    if (tab === "rejected") return rejected;
+    return packages;
+  };
+
+  const tabData = useMemo(() => tableForTab(activeTab), [activeTab, packages, drafts, pending, published, rejected]);
+  const cityOptions = useMemo(() => buildCityCounts(tabData, getPackageCities), [tabData]);
+  const filteredData = useMemo(
+    () => filterByCity(tabData, cityFilter, getPackageCities),
+    [tabData, cityFilter]
+  );
 
   const handleSeedPackages = async () => {
     if (!isStaff) return;
@@ -412,7 +436,13 @@ export default function PackagesAdminClient() {
           </p>
         )}
 
-        <Tabs defaultValue="all">
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab);
+            setCityFilter(null);
+          }}
+        >
           <TabsList>
             <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
@@ -421,31 +451,25 @@ export default function PackagesAdminClient() {
             <TabsTrigger value="all">All ({packages.length})</TabsTrigger>
           </TabsList>
 
-          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-4">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={
-                    tab === "all"
-                      ? packages
-                      : tab === "drafts"
-                        ? drafts
-                        : tab === "pending"
-                        ? pending
-                        : tab === "published"
-                          ? published
-                          : rejected
-                  }
-                  searchKey="title"
-                  searchPlaceholder="Search packages..."
-                  hidePagination
-                />
-              )}
-            </TabsContent>
-          ))}
+          <div className="mt-4 space-y-4">
+            <AdminCityFilter
+              cities={cityOptions}
+              totalCount={tabData.length}
+              selectedCity={cityFilter}
+              onChange={setCityFilter}
+            />
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                searchKey="title"
+                searchPlaceholder="Search packages..."
+                hidePagination
+              />
+            )}
+          </div>
         </Tabs>
       </div>
 
@@ -565,14 +589,15 @@ export default function PackagesAdminClient() {
                     onChange={(e) => setEditDescription(e.target.value)}
                   />
                 </div>
-                <div>
-                  <Label>Image URLs (one per line)</Label>
-                  <Textarea
-                    className="mt-1 min-h-[80px]"
-                    value={editImages}
-                    onChange={(e) => setEditImages(e.target.value)}
-                  />
-                </div>
+                <AdminImageUrlField
+                  label="Images"
+                  value={editImages}
+                  onChange={setEditImages}
+                  folder="packages"
+                  actorRole={actorRole}
+                  rows={4}
+                  disabled={saving}
+                />
                 <div>
                   <Label>Transport</Label>
                   <Input

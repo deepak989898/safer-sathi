@@ -30,6 +30,7 @@ import { AiCenterPackagesTab } from "./ai-center-packages-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
 import { AiCenterVoiceTab } from "./ai-center-voice-tab";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminSingleImageUpload } from "@/components/admin/admin-image-url-field";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -533,10 +534,23 @@ export default function AiCenterClient() {
 
   const openBlogEditor = (blog: AiBlogPost) => {
     const imagePrompts = getBlogImagePrompts(blog.keyword, blog.destination);
+    const featuredImage = resolveBlogFeaturedImage(blog);
+    const hasCustomFeatured =
+      featuredImage && !imagePrompts.some((prompt) => prompt.url === featuredImage);
     setEditBlog({
       ...blog,
-      imagePrompts,
-      featuredImage: resolveBlogFeaturedImage(blog),
+      imagePrompts: hasCustomFeatured
+        ? [
+            {
+              id: "custom-upload",
+              label: "Uploaded image",
+              prompt: "Admin upload",
+              url: featuredImage,
+            },
+            ...imagePrompts,
+          ]
+        : imagePrompts,
+      featuredImage,
     });
   };
 
@@ -1215,8 +1229,30 @@ export default function AiCenterClient() {
                   <span className="font-medium capitalize">
                     {resolveBlogImageKey(editBlog.keyword, editBlog.destination)}
                   </span>
-                  . Click an image to set it as the featured hero on the live blog.
+                  . Upload your own image or click a thumbnail to set the featured hero on the live blog.
                 </p>
+                <AdminSingleImageUpload
+                  folder="blogs"
+                  actorRole={actorRole}
+                  disabled={busy}
+                  label="Upload custom image"
+                  hint="Image is compressed automatically before upload."
+                  onUploaded={(url) =>
+                    setEditBlog((prev) => {
+                      if (!prev) return prev;
+                      const custom = {
+                        id: `custom-${Date.now()}`,
+                        label: "Uploaded image",
+                        prompt: "Admin upload",
+                        url,
+                      };
+                      const imagePrompts = prev.imagePrompts.some((p) => p.url === url)
+                        ? prev.imagePrompts
+                        : [custom, ...prev.imagePrompts];
+                      return { ...prev, imagePrompts, featuredImage: url };
+                    })
+                  }
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {editBlog.imagePrompts.map((img) => {
                     const isFeatured = editBlog.featuredImage === img.url;
