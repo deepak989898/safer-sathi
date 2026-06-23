@@ -5,6 +5,7 @@ import {
   loadInvoiceServiceImage,
   type InvoiceServiceImage,
 } from "@/lib/documents/invoice-service-image";
+import { drawSocialRow } from "@/lib/documents/invoice-social-icons";
 import type { Booking } from "@/types";
 
 export interface InvoiceData {
@@ -38,6 +39,12 @@ const BOTTOM_BAR_H = 12;
 
 type RGB = readonly [number, number, number];
 type Align = "left" | "center" | "right";
+type FontFamily = "helvetica" | "times";
+
+const FONT_BODY: FontFamily = "times";
+const FONT_HEADING: FontFamily = "helvetica";
+
+const MIN_TABLE_ROW_H = 22;
 
 function inr(n: number): string {
   return "\u20b9" + n.toLocaleString("en-IN");
@@ -106,13 +113,28 @@ function txt(
   color: RGB,
   bold = false,
   align: Align = "left",
-  italic = false
+  italic = false,
+  family: FontFamily = FONT_BODY
 ) {
   const style = bold ? (italic ? "bolditalic" : "bold") : italic ? "italic" : "normal";
-  doc.setFont("helvetica", style);
+  doc.setFont(family, style);
   doc.setFontSize(size);
   doc.setTextColor(color[0], color[1], color[2]);
   doc.text(text, x, y, { align });
+}
+
+function heading(
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  color: RGB,
+  bold = true,
+  align: Align = "left",
+  italic = false
+) {
+  txt(doc, text, x, y, size, color, bold, align, italic, FONT_HEADING);
 }
 
 function box(
@@ -148,7 +170,7 @@ function sectionHeader(
   doc.rect(x, y + 4, w, 3, "F");
   doc.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
   doc.circle(x + 5, y + 3.5, 2.5, "F");
-  txt(doc, title, x + 9.5, y + 5.2, 6.8, WHITE, true);
+  heading(doc, title, x + 9.5, y + 5.2, 6.5, WHITE);
 }
 
 function wrap(doc: jsPDF, text: string, maxW: number): string[] {
@@ -208,7 +230,13 @@ function drawDestinationPanel(
 
   box(doc, x + 2, y + h - labelH - 1, w - 4, labelH, NAVY, undefined, 2);
   const svcLabel = wrap(doc, label, w - 8)[0] ?? label;
-  txt(doc, svcLabel, x + w / 2, y + h - 3.5, 6, WHITE, true, "center");
+  heading(doc, svcLabel, x + w / 2, y + h - 3.5, 5.8, WHITE, true, "center");
+}
+
+function drawContactIcon(doc: jsPDF, cx: number, cy: number, symbol: string) {
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.circle(cx, cy, 2.6, "F");
+  heading(doc, symbol, cx, cy + 0.9, 5.2, WHITE, true, "center");
 }
 
 function drawDestinationIcon(
@@ -230,7 +258,7 @@ function drawDestinationIcon(
     : serviceType.includes("hotel")
       ? "HTL"
       : "PKG";
-  txt(doc, svcIcon, x + w / 2, iconY + 1.5, 7, NAVY, true, "center");
+  txt(doc, svcIcon, x + w / 2, iconY + 1.5, 7, NAVY, true, "center", false, FONT_HEADING);
 }
 
 function drawWatermark(doc: jsPDF, logo: Awaited<ReturnType<typeof loadInvoiceLogo>>) {
@@ -256,27 +284,6 @@ function drawWatermark(doc: jsPDF, logo: Awaited<ReturnType<typeof loadInvoiceLo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(46);
   doc.text("SAFAR SATHI", PW / 2, PH / 2, { align: "center", angle: 28 });
-}
-
-function drawQrPlaceholder(doc: jsPDF, x: number, y: number, size: number, seed: string) {
-  box(doc, x, y, size, size, WHITE, BORDER, 2);
-  const cells = 11;
-  const pad = 2.2;
-  const cell = (size - pad * 2) / cells;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  for (let r = 0; r < cells; r++) {
-    for (let c = 0; c < cells; c++) {
-      const corner =
-        (r < 4 && c < 4) || (r < 4 && c > cells - 5) || (r > cells - 5 && c < 4);
-      const fill = corner || ((hash + r * 17 + c * 31) % 5 < 2);
-      if (fill) {
-        doc.rect(x + pad + c * cell, y + pad + r * cell, cell - 0.15, cell - 0.15, "F");
-      }
-    }
-  }
 }
 
 function buildLineItems(booking: Booking, travelRange: string) {
@@ -356,7 +363,6 @@ export async function generateInvoice(
   const gstAmt = totalAmt - taxable;
 
   const invoiceNo = `SS/INV/${new Date().getFullYear()}/${booking.bookingNumber.replace(/^SS-\d{4}-/, "")}`;
-  const myBookingsUrl = appUrl("/my-bookings");
 
   drawWatermark(doc, logo);
 
@@ -411,7 +417,7 @@ export async function generateInvoice(
     }
   }
 
-  txt(doc, "INVOICE", invX + invW - 5, hy + 12, 19, NAVY, true, "right");
+  heading(doc, "INVOICE", invX + invW - 5, hy + 12, 18, NAVY, true, "right");
 
   const meta: [string, string][] = [
     ["Invoice No.", invoiceNo],
@@ -449,7 +455,7 @@ export async function generateInvoice(
 
   box(doc, x1, sY, col1, sH, GRAY_LITE, BORDER, 2);
   sectionHeader(doc, x1, sY, col1, "BILL TO", NAVY);
-  txt(doc, booking.customerName, x1 + 3, sY + 12, 9, NAVY, true);
+  txt(doc, booking.customerName, x1 + 3, sY + 12, 8.5, NAVY, true, "left", false, FONT_HEADING);
   const billLines = [
     `Ph: ${booking.customerPhone}`,
     `Email: ${booking.customerEmail}`,
@@ -503,20 +509,20 @@ export async function generateInvoice(
   };
 
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.roundedRect(ML, tblY, CW, 7.5, 2, 2, "F");
-  doc.rect(ML, tblY + 4, CW, 3.5, "F");
-  txt(doc, "#", cols.num, tblY + 5.2, 6.5, WHITE, true);
-  txt(doc, "DESCRIPTION", cols.desc, tblY + 5.2, 6.5, WHITE, true);
-  txt(doc, "DETAILS", cols.details, tblY + 5.2, 6.5, WHITE, true);
-  txt(doc, "QTY", cols.qty, tblY + 5.2, 6.5, WHITE, true);
-  txt(doc, "UNIT PRICE", cols.unit, tblY + 5.2, 6.5, WHITE, true);
-  txt(doc, "AMOUNT", cols.amt, tblY + 5.2, 6.5, WHITE, true, "right");
+  doc.roundedRect(ML, tblY, CW, 7, 2, 2, "F");
+  doc.rect(ML, tblY + 3.5, CW, 3.5, "F");
+  heading(doc, "#", cols.num, tblY + 4.8, 6.2, WHITE, true);
+  heading(doc, "DESCRIPTION", cols.desc, tblY + 4.8, 6.2, WHITE, true);
+  heading(doc, "DETAILS", cols.details, tblY + 4.8, 6.2, WHITE, true);
+  heading(doc, "QTY", cols.qty, tblY + 4.8, 6.2, WHITE, true);
+  heading(doc, "UNIT PRICE", cols.unit, tblY + 4.8, 6.2, WHITE, true);
+  heading(doc, "AMOUNT", cols.amt, tblY + 4.8, 6.2, WHITE, true, "right");
 
   const items = buildLineItems(booking, travelRange);
-  let rowY = tblY + 7.5;
-  const rowH = 14;
+  let rowY = tblY + 7;
 
   for (const item of items) {
+    const rowH = MIN_TABLE_ROW_H;
     box(doc, ML, rowY, CW, rowH, WHITE, BORDER, 0);
     vline(doc, ML + 10, rowY, rowY + rowH);
     vline(doc, ML + 74, rowY, rowY + rowH);
@@ -524,29 +530,68 @@ export async function generateInvoice(
     vline(doc, ML + 130, rowY, rowY + rowH);
     vline(doc, ML + 158, rowY, rowY + rowH);
 
-    txt(doc, item.no, cols.num + 2, rowY + 6, 7.5, NAVY, true, "center");
+    const midY = rowY + rowH / 2;
+    heading(doc, item.no, cols.num + 2, midY + 1, 7, NAVY, true, "center");
     doc.setFillColor(239, 246, 255);
-    doc.circle(cols.desc + 4, rowY + 6.5, 4, "F");
-    txt(doc, item.icon, cols.desc + 4, rowY + 7.5, 6.5, NAVY, true, "center");
+    doc.circle(cols.desc + 4, midY + 0.5, 3.5, "F");
+    heading(doc, item.icon, cols.desc + 4, midY + 1.5, 6, NAVY, true, "center");
 
-    txt(doc, item.title, cols.desc + 10, rowY + 5.5, 7.5, NAVY, true);
-    txt(doc, item.subtitle, cols.desc + 10, rowY + 10.5, 6, GRAY);
-    txt(doc, item.details, cols.details, rowY + 5.5, 6.5, GRAY);
-    txt(doc, item.detailSub, cols.details, rowY + 10.5, 6, GRAY);
-    txt(doc, String(item.qty), cols.qty + 4, rowY + 7.5, 7.5, NAVY, true, "center");
-    txt(doc, item.unitPrice > 0 ? inr(item.unitPrice) : "-", cols.unit + 10, rowY + 7.5, 7, NAVY, true, "center");
-    txt(doc, item.amount > 0 ? inr(item.amount) : "-", cols.amt, rowY + 7.5, 8, NAVY, true, "right");
+    const descLines = wrap(doc, item.title, 58);
+    const subLines = item.subtitle ? wrap(doc, item.subtitle, 58) : [];
+    const descBlockH = descLines.length * 4.2 + (subLines.length ? subLines.length * 3.8 + 1 : 0);
+    const descStartY = rowY + (rowH - descBlockH) / 2 + 3.5;
+
+    descLines.forEach((line, i) => {
+      heading(doc, line, cols.desc + 10, descStartY + i * 4.2, 7, NAVY, true);
+    });
+    subLines.forEach((line, i) => {
+      txt(doc, line, cols.desc + 10, descStartY + descLines.length * 4.2 + i * 3.8, 5.8, GRAY);
+    });
+
+    const detLines = wrap(doc, item.details, 36);
+    const detSubLines = item.detailSub ? wrap(doc, item.detailSub, 36) : [];
+    const detBlockH = detLines.length * 4 + (detSubLines.length ? detSubLines.length * 3.6 + 1 : 0);
+    const detStartY = rowY + (rowH - detBlockH) / 2 + 3.5;
+
+    detLines.forEach((line, i) => {
+      txt(doc, line, cols.details, detStartY + i * 4, 6.2, GRAY);
+    });
+    detSubLines.forEach((line, i) => {
+      txt(doc, line, cols.details, detStartY + detLines.length * 4 + i * 3.6, 5.6, GRAY);
+    });
+
+    heading(doc, String(item.qty), cols.qty + 4, midY + 1, 7, NAVY, true, "center");
+    heading(
+      doc,
+      item.unitPrice > 0 ? inr(item.unitPrice) : "-",
+      cols.unit + 10,
+      midY + 1,
+      6.5,
+      NAVY,
+      true,
+      "center"
+    );
+    heading(
+      doc,
+      item.amount > 0 ? inr(item.amount) : "-",
+      cols.amt,
+      midY + 1,
+      7.5,
+      NAVY,
+      true,
+      "right"
+    );
 
     rowY += rowH;
   }
 
   // spacer row
-  box(doc, ML, rowY, CW, 6, [252, 252, 253] as const, BORDER, 0);
-  rowY += 6;
+  box(doc, ML, rowY, CW, 4, [252, 252, 253] as const, BORDER, 0);
+  rowY += 4;
 
   // ── PAYMENT | THANK YOU | TOTALS ────────────────────────────────────────
-  const pY = rowY + 4;
-  const pH = 48;
+  const pY = rowY + 3;
+  const pH = 32;
   const pW1 = 56;
   const pW2 = 54;
   const pW3 = CW - pW1 - pW2 - 4;
@@ -557,18 +602,18 @@ export async function generateInvoice(
   box(doc, pX1, pY, pW1, pH, GRAY_LITE, BORDER, 2);
   sectionHeader(doc, pX1, pY, pW1, "PAYMENT INFORMATION", NAVY);
   const payRows: [string, string][] = [
-    ["Method", "Online / Razorpay"],
+    ["Method", "Online (Razorpay)"],
     ["Txn ID", booking.bookingNumber],
     ["Paid", inr(paidAmt)],
     ["Date", fmtDate(booking.updatedAt ?? booking.createdAt)],
   ];
-  let py = pY + 12;
+  let py = pY + 11;
   for (const [k, v] of payRows) {
-    txt(doc, k, pX1 + 3, py, 6.2, GRAY);
+    txt(doc, k, pX1 + 3, py, 5.8, GRAY);
     for (const [i, part] of wrap(doc, v, pW1 - 22).entries()) {
-      txt(doc, part, pX1 + 18, py + i * 4, 6.2, NAVY, true);
+      heading(doc, part, pX1 + 18, py + i * 3.5, 5.8, NAVY, false);
     }
-    py += 5.5;
+    py += 4.6;
   }
   const badgeText = isPaid
     ? "Paid Successfully"
@@ -578,24 +623,23 @@ export async function generateInvoice(
   const badgeClr = isPaid ? GREEN : isPartial ? ORANGE : RED;
   const badgeBg = isPaid ? GREEN_BG : isPartial ? AMBER_BG : [254, 242, 242] as const;
   const badgeBr = isPaid ? GREEN_BR : isPartial ? AMBER_BR : [254, 202, 202] as const;
-  box(doc, pX1 + 3, pY + pH - 8.5, pW1 - 6, 6.5, badgeBg, badgeBr, 2);
-  txt(doc, badgeText, pX1 + pW1 / 2, pY + pH - 4.5, 6.5, badgeClr, true, "center");
+  box(doc, pX1 + 3, pY + pH - 7, pW1 - 6, 5.5, badgeBg, badgeBr, 2);
+  heading(doc, badgeText, pX1 + pW1 / 2, pY + pH - 3.8, 5.8, badgeClr, true, "center");
 
   box(doc, pX2, pY, pW2, pH, AMBER_BG, AMBER_BR, 2);
-  txt(doc, "\u201c", pX2 + 4, pY + 11, 20, ORANGE, true);
-  txt(doc, "\u201d", pX2 + pW2 - 7, pY + 20, 20, ORANGE, true);
-  const quote = [
-    "Thank you for choosing",
-    "Safar Sathi.",
-    "We look forward to",
-    "serving you again.",
-  ];
-  let qy = pY + 18;
-  for (const line of quote) {
-    txt(doc, line, pX2 + pW2 / 2, qy, 7, NAVY, false, "center", true);
-    qy += 5;
+  heading(doc, "\u201c", pX2 + 5, pY + 9, 16, ORANGE, true);
+  heading(doc, "\u201d", pX2 + pW2 - 6, pY + 16, 16, ORANGE, true);
+  const quoteLines = wrap(
+    doc,
+    "Thank you for choosing Safar Sathi. We look forward to serving you again.",
+    pW2 - 10
+  );
+  let qy = pY + 13;
+  for (const line of quoteLines) {
+    txt(doc, line, pX2 + pW2 / 2, qy, 6.2, NAVY, false, "center", true);
+    qy += 4.2;
   }
-  txt(doc, "Team Safar Sathi", pX2 + pW2 / 2, pY + pH - 5, 8.5, ORANGE, true, "center", true);
+  heading(doc, "Team Safar Sathi", pX2 + pW2 / 2, pY + pH - 4, 7, ORANGE, true, "center", true);
 
   box(doc, pX3, pY, pW3, pH, GRAY_LITE, BORDER, 2);
   const totals: [string, string, RGB][] = [
@@ -604,37 +648,36 @@ export async function generateInvoice(
     ["Taxable Amount", inr(taxable), NAVY],
     ["GST (5%)", inr(gstAmt), NAVY],
   ];
-  let totY = pY + 8;
+  let totY = pY + 7;
   for (const [label, value, clr] of totals) {
-    txt(doc, label, pX3 + 4, totY, 7, GRAY);
-    txt(doc, value, pX3 + pW3 - 4, totY, 7, clr, false, "right");
-    hline(doc, pX3 + 3, totY + 2, pX3 + pW3 - 3);
-    totY += 7.5;
+    txt(doc, label, pX3 + 4, totY, 6.2, GRAY);
+    heading(doc, value, pX3 + pW3 - 4, totY, 6.2, clr, false, "right");
+    hline(doc, pX3 + 3, totY + 1.5, pX3 + pW3 - 3);
+    totY += 5.5;
   }
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(pX3, totY - 1, pW3, 11, "F");
-  txt(doc, "TOTAL AMOUNT", pX3 + 4, totY + 4, 7, WHITE, true);
-  txt(doc, inr(totalAmt), pX3 + pW3 - 4, totY + 4, 10, ORANGE, true, "right");
+  doc.rect(pX3, totY, pW3, 9, "F");
+  heading(doc, "TOTAL AMOUNT", pX3 + 4, totY + 3.5, 6.2, WHITE, true);
+  heading(doc, inr(totalAmt), pX3 + pW3 - 4, totY + 3.5, 9, ORANGE, true, "right");
   const words = `(Rupees ${numToWords(totalAmt)} Only)`;
   for (const [i, part] of wrap(doc, words, pW3 - 8).entries()) {
-    txt(doc, part, pX3 + 4, totY + 8 + i * 3.5, 5, [200, 210, 225], false);
+    txt(doc, part, pX3 + 4, totY + 6.5 + i * 2.8, 4.5, [200, 210, 225], false);
   }
 
   // ── FOOTER (anchored above bottom bar) ──────────────────────────────────
   const barY = PH - BOTTOM_BAR_H;
   const fY = pY + pH + 6;
-  const fH = barY - fY - 3;
 
   doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2]);
   doc.rect(ML, fY, CW, 0.7, "F");
 
-  const fCol = CW / 3;
+  const fCol1 = CW * 0.52;
+  const fCol2 = CW - fCol1;
   const f1 = ML;
-  const f2 = ML + fCol;
-  const f3 = ML + fCol * 2;
+  const f2 = ML + fCol1 + 4;
 
-  txt(doc, "TERMS & CONDITIONS", f1 + 1, fY + 7, 7, NAVY, true);
-  hline(doc, f1, fY + 8.5, f1 + fCol - 3, ORANGE, 0.4);
+  heading(doc, "TERMS & CONDITIONS", f1 + 1, fY + 6, 6.8, NAVY, true);
+  hline(doc, f1, fY + 7.5, f1 + fCol1 - 4, ORANGE, 0.4);
   const terms = [
     "Payment as per booking confirmation.",
     "Cancellations per Safar Sathi policy.",
@@ -642,58 +685,31 @@ export async function generateInvoice(
     "24/7 support: " + SITE_CONTACT.phone,
     `GSTIN: ${gstNumber}`,
   ];
-  let tY = fY + 13;
+  let tY = fY + 11;
   for (const t of terms) {
-    for (const part of wrap(doc, "\u2022 " + t, fCol - 6)) {
-      txt(doc, part, f1 + 2, tY, 6, GRAY);
-      tY += 4.5;
+    for (const part of wrap(doc, "\u2022 " + t, fCol1 - 6)) {
+      txt(doc, part, f1 + 2, tY, 5.8, GRAY);
+      tY += 4.2;
     }
   }
 
-  txt(doc, "SCAN & DOWNLOAD", f2 + fCol / 2, fY + 7, 7, NAVY, true, "center");
-  hline(doc, f2, fY + 8.5, f2 + fCol - 3, ORANGE, 0.4);
-  txt(doc, "Scan to open My Bookings", f2 + fCol / 2, fY + 13, 6, GRAY, false, "center");
-  const qrSize = Math.min(22, fH - 18);
-  drawQrPlaceholder(doc, f2 + (fCol - qrSize) / 2, fY + 16, qrSize, booking.id + booking.bookingNumber);
-  txt(
-    doc,
-    myBookingsUrl.replace(/^https?:\/\/(www\.)?/, ""),
-    f2 + fCol / 2,
-    fY + 16 + qrSize + 4,
-    5.5,
-    GRAY,
-    false,
-    "center"
-  );
-
-  txt(doc, "WE ARE HERE TO HELP", f3 + 1, fY + 7, 7, NAVY, true);
-  hline(doc, f3, fY + 8.5, f3 + fCol - 2, ORANGE, 0.4);
-  const contacts = [
-    ["24/7 Support", SITE_CONTACT.phone],
-    ["Email", SITE_CONTACT.email],
-    ["Website", appUrl().replace(/^https?:\/\//, "")],
+  heading(doc, "WE ARE HERE TO HELP", f2 + 1, fY + 6, 6.8, NAVY, true);
+  hline(doc, f2, fY + 7.5, f2 + fCol2 - 2, ORANGE, 0.4);
+  const contacts: [string, string, string][] = [
+    ["P", "24/7 Support", SITE_CONTACT.phone],
+    ["@", "Email", SITE_CONTACT.email],
+    ["W", "Website", appUrl().replace(/^https?:\/\/(www\.)?/, "")],
   ];
-  let cY = fY + 13;
-  for (const [k, v] of contacts) {
-    doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.circle(f3 + 5, cY - 1.2, 2.8, "F");
-    txt(doc, k.slice(0, 1), f3 + 5, cY, 5, WHITE, true, "center");
-    txt(doc, `${k}: ${v}`, f3 + 10, cY, 6.2, GRAY);
-    cY += 6.5;
+  let cY = fY + 11;
+  for (const [symbol, k, v] of contacts) {
+    drawContactIcon(doc, f2 + 5, cY - 1.2, symbol);
+    txt(doc, `${k}: `, f2 + 10, cY, 5.8, GRAY);
+    const labelW = doc.getTextWidth(`${k}: `);
+    heading(doc, v, f2 + 10 + labelW, cY, 5.8, NAVY, false);
+    cY += 5.5;
   }
-  txt(doc, "FOLLOW US", f3 + 1, cY + 1, 6.5, NAVY, true);
-  const socialColors: RGB[] = [
-    [59, 89, 152],
-    [0, 119, 181],
-    [29, 161, 242],
-    [255, 0, 0],
-  ];
-  let sx = f3 + 2;
-  for (const color of socialColors) {
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.circle(sx + 4, cY + 7, 3.5, "F");
-    sx += 11;
-  }
+  heading(doc, "FOLLOW US", f2 + 1, cY + 1, 6.2, NAVY, true);
+  drawSocialRow(doc, f2 + 2, cY + 7, 5, 7);
 
   // ── BOTTOM BAR ────────────────────────────────────────────────────────────
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
