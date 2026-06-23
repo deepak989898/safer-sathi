@@ -6,6 +6,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
+import { isCatalogPublished } from "@/lib/catalog/publish";
 import { getSeedPackages } from "@/data/seed-catalog";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { PackagePublishStatus, TourPackage } from "@/types";
@@ -38,9 +39,7 @@ export async function hydratePackagesStore(): Promise<void> {
 }
 
 export function getPublishedPackages(): TourPackage[] {
-  return packagesStore.filter(
-    (p) => !p.publishStatus || p.publishStatus === "published"
-  );
+  return packagesStore.filter((p) => isCatalogPublished(p.publishStatus));
 }
 
 export function getAdminPackages(status?: PackagePublishStatus): TourPackage[] {
@@ -53,27 +52,23 @@ export function getPackageByIdAdmin(id: string): TourPackage | null {
 }
 
 export function getPublishedPackageBySlug(slug: string): TourPackage | null {
-  return (
-    packagesStore.find(
-      (p) => p.slug === slug && p.publishStatus === "published"
-    ) ?? null
-  );
+  const pkg = packagesStore.find((p) => p.slug === slug);
+  if (!pkg || !isCatalogPublished(pkg.publishStatus)) return null;
+  return pkg;
 }
 
 export function getPublishedPackageById(id: string): TourPackage | null {
-  return (
-    packagesStore.find((p) => p.id === id && p.publishStatus === "published") ??
-    null
-  );
+  const pkg = packagesStore.find((p) => p.id === id);
+  if (!pkg || !isCatalogPublished(pkg.publishStatus)) return null;
+  return pkg;
 }
 
 export function getAllPublishedPackageSlugs(): string[] {
   return getPublishedPackages().map((p) => p.slug);
 }
 
-export function addPackageDraft(pkg: TourPackage): TourPackage {
-  void upsertPackageInStore(pkg);
-  return pkg;
+export async function addPackageDraft(pkg: TourPackage): Promise<TourPackage> {
+  return upsertPackageInStore(pkg);
 }
 
 export async function upsertPackageInStore(pkg: TourPackage): Promise<TourPackage> {

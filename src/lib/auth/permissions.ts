@@ -36,6 +36,22 @@ export function canGenerateMarketPackages(role: UserRole): boolean {
   return role === "super_admin" || role === "manager";
 }
 
+export function canApproveHotels(role: UserRole): boolean {
+  return role === "super_admin";
+}
+
+export function canApproveVehicles(role: UserRole): boolean {
+  return role === "super_admin";
+}
+
+export function canGenerateMarketHotels(role: UserRole): boolean {
+  return role === "super_admin" || role === "manager";
+}
+
+export function canGenerateMarketVehicles(role: UserRole): boolean {
+  return role === "super_admin" || role === "manager";
+}
+
 export function canEditPackageDrafts(role: UserRole): boolean {
   return role === "super_admin" || role === "manager";
 }

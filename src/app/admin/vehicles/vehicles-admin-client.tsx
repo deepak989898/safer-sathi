@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Database, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Database, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { DataTable } from "@/components/admin/data-table";
@@ -26,9 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  canApproveVehicles,
+  canGenerateMarketVehicles,
+} from "@/lib/auth/constants";
 import { formatCurrency, localizedText } from "@/lib/i18n";
-import type { Vehicle, VehicleStatus, VehicleType } from "@/types";
+import type { PackagePublishStatus, Vehicle, VehicleStatus, VehicleType } from "@/types";
 import { toast } from "sonner";
 
 const vehicleTypes: VehicleType[] = [
@@ -67,8 +72,11 @@ export default function VehiclesAdminClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateName, setGenerateName] = useState("Toyota Innova Crysta");
+  const [generateType, setGenerateType] = useState<VehicleType>("suv");
+  const [generateLocation, setGenerateLocation] = useState("Delhi NCR");
   const [addOpen, setAddOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [selected, setSelected] = useState<Vehicle | null>(null);
   const [form, setForm] = useState(emptyForm);
 
@@ -91,6 +99,74 @@ export default function VehiclesAdminClient() {
   useEffect(() => {
     loadVehicles();
   }, [loadVehicles]);
+
+  const drafts = vehicles.filter((v) => v.publishStatus === "draft");
+  const pending = vehicles.filter((v) => v.publishStatus === "pending_approval");
+  const published = vehicles.filter(
+    (v) => !v.publishStatus || v.publishStatus === "published"
+  );
+  const rejected = vehicles.filter((v) => v.publishStatus === "rejected");
+
+  const handleGenerate = async () => {
+    if (!canGenerateMarketVehicles(actorRole)) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/ai/market-vehicles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: generateName,
+          type: generateType,
+          location: generateLocation,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Generation failed");
+      toast.success("Market vehicle draft created — awaiting Super Admin approval");
+      loadVehicles();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate vehicle");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleApprove = async (vehicle: Vehicle) => {
+    try {
+      const res = await fetch(`/api/admin/vehicles/${vehicle.id}?action=approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          approvedBy: user?.name ?? "super_admin",
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Approval failed");
+      toast.success("Vehicle published on website");
+      setSelected(null);
+      loadVehicles();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve");
+    }
+  };
+
+  const handleReject = async (vehicle: Vehicle) => {
+    try {
+      const res = await fetch(`/api/admin/vehicles/${vehicle.id}?action=reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, reason: "Needs revision" }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Reject failed");
+      toast.success("Vehicle rejected");
+      setSelected(null);
+      loadVehicles();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to reject");
+    }
+  };
 
   const handleSeedVehicles = async () => {
     if (!isStaff) return;
@@ -120,8 +196,8 @@ export default function VehiclesAdminClient() {
     category: f.category || existing?.category,
     type: f.type,
     seats: Number(f.seats) || 4,
-    pricePerDay: Number(f.pricePerDay) || 0,
-    pricePerKm: f.pricePerKm ? Number(f.pricePerKm) : undefined,
+    pricePerDay: Number(f.pricePerDay) || existing?.pricePerDay || 0,
+    pricePerKm: f.pricePerKm ? Number(f.pricePerKm) : existing?.pricePerKm,
     location: f.location || "Delhi NCR",
     description: { en: f.description, hi: f.description },
     images: f.images
@@ -130,6 +206,9 @@ export default function VehiclesAdminClient() {
       .filter(Boolean),
     available: f.status === "active" && f.available,
     status: f.status,
+    publishStatus:
+      existing?.publishStatus ??
+      (f.status === "active" ? "published" : ("draft" as PackagePublishStatus)),
     fuelType: f.fuelType,
     driverIncluded: f.driverIncluded,
     features: f.features
@@ -168,7 +247,7 @@ export default function VehiclesAdminClient() {
     }
   };
 
-  const openEdit = (vehicle: Vehicle) => {
+  const openReview = (vehicle: Vehicle) => {
     setSelected(vehicle);
     setForm({
       name: vehicle.name.en,
@@ -189,7 +268,6 @@ export default function VehiclesAdminClient() {
       available: vehicle.available,
       status: vehicle.status ?? (vehicle.available ? "active" : "inactive"),
     });
-    setEditOpen(true);
   };
 
   const handleSaveEdit = async () => {
@@ -207,8 +285,7 @@ export default function VehiclesAdminClient() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Update failed");
       toast.success("Vehicle updated");
-      setEditOpen(false);
-      setSelected(null);
+      setSelected(json.data);
       loadVehicles();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");
@@ -436,9 +513,24 @@ export default function VehiclesAdminClient() {
       header: "Status",
       cell: ({ row }) => (
         <StatusBadge
-          status={row.original.status === "active" || row.original.available ? "active" : "paused"}
-          label={row.original.status ?? (row.original.available ? "active" : "inactive")}
+          status={
+            row.original.publishStatus === "published" || !row.original.publishStatus
+              ? "active"
+              : row.original.publishStatus === "pending_approval"
+                ? "pending"
+                : "cancelled"
+          }
+          label={row.original.publishStatus?.replace("_", " ") ?? "published"}
         />
+      ),
+    },
+    {
+      id: "source",
+      header: "Source",
+      cell: ({ row }) => (
+        <span className="text-xs capitalize text-muted-foreground">
+          {row.original.proposedBy?.replace(/_/g, " ") ?? "admin"}
+        </span>
       ),
     },
     {
@@ -446,8 +538,8 @@ export default function VehiclesAdminClient() {
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row.original)}>
-            <Pencil className="size-3.5" />
+          <Button size="sm" variant="outline" onClick={() => openReview(row.original)}>
+            Review
           </Button>
           <Button
             variant="ghost"
@@ -461,6 +553,14 @@ export default function VehiclesAdminClient() {
       ),
     },
   ];
+
+  const tableForTab = (tab: string) => {
+    if (tab === "drafts") return drafts;
+    if (tab === "pending") return pending;
+    if (tab === "published") return published;
+    if (tab === "rejected") return rejected;
+    return vehicles;
+  };
 
   return (
     <>
@@ -503,33 +603,133 @@ export default function VehiclesAdminClient() {
             </DialogContent>
           </Dialog>
         </div>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading vehicles...</p>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={vehicles}
-            searchKey="name"
-            searchPlaceholder="Search vehicles..."
-            hidePagination
-          />
+
+        {canGenerateMarketVehicles(actorRole) && (
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+              <div className="grid flex-1 gap-4 sm:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Vehicle name</Label>
+                  <Input
+                    value={generateName}
+                    onChange={(e) => setGenerateName(e.target.value)}
+                    placeholder="Toyota Innova Crysta"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select
+                    value={generateType}
+                    onValueChange={(v) => setGenerateType(v as VehicleType)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicleTypes.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Location</Label>
+                  <Input
+                    value={generateLocation}
+                    onChange={(e) => setGenerateLocation(e.target.value)}
+                    placeholder="Delhi NCR"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button className="w-full" onClick={handleGenerate} disabled={generating}>
+                    {generating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    Generate Market Vehicle
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              AI analyzes market rates, builds full vehicle details with images and pricing.
+              Vehicle stays hidden until Super Admin approves.
+            </p>
+          </div>
         )}
+
+        {!canApproveVehicles(actorRole) && canGenerateMarketVehicles(actorRole) && (
+          <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+            Managers can generate and edit drafts. Only Super Admin can approve vehicles for the public website.
+          </p>
+        )}
+
+        <Tabs defaultValue="all">
+          <TabsList>
+            <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
+            <TabsTrigger value="published">Published ({published.length})</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({vehicles.length})</TabsTrigger>
+          </TabsList>
+
+          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-4">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading vehicles...</p>
+              ) : (
+                <DataTable
+                  columns={columns}
+                  data={tableForTab(tab)}
+                  searchKey="name"
+                  searchPlaceholder="Search vehicles..."
+                  hidePagination
+                />
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
-      <Dialog open={editOpen} onOpenChange={(open) => !open && setEditOpen(false)}>
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Vehicle</DialogTitle>
+            <DialogTitle>
+              {selected ? localizedText(selected.name, "en") : "Review Vehicle"}
+            </DialogTitle>
           </DialogHeader>
+          {selected?.marketAnalysis && (
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="font-medium">Market analysis</p>
+              <p className="mt-1 text-muted-foreground">
+                {localizedText(selected.marketAnalysis, "en")}
+              </p>
+            </div>
+          )}
           {formFields}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save changes
-            </Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            {isStaff && (
+              <Button variant="outline" onClick={handleSaveEdit} disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save edits
+              </Button>
+            )}
+            {canApproveVehicles(actorRole) &&
+              selected?.publishStatus === "pending_approval" && (
+                <>
+                  <Button variant="outline" onClick={() => handleReject(selected)}>
+                    <X className="mr-2 h-4 w-4" />
+                    Reject
+                  </Button>
+                  <Button onClick={() => handleApprove(selected)}>
+                    <Check className="mr-2 h-4 w-4" />
+                    Approve & Publish
+                  </Button>
+                </>
+              )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

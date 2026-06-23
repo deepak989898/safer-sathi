@@ -6,6 +6,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
+import { isCatalogPublished } from "@/lib/catalog/publish";
 import { getSeedVehicles } from "@/data/seed-catalog";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
@@ -38,7 +39,9 @@ export async function hydrateVehiclesStore(): Promise<void> {
 }
 
 export function getPublishedVehicles(): Vehicle[] {
-  return vehiclesStore.filter((v) => v.available);
+  return vehiclesStore.filter(
+    (v) => v.available && isCatalogPublished(v.publishStatus)
+  );
 }
 
 export function getAdminVehicles(): Vehicle[] {
@@ -51,7 +54,8 @@ export function getVehicleByIdAdmin(id: string): Vehicle | null {
 
 export function getVehicleByIdPublished(id: string): Vehicle | null {
   const vehicle = vehiclesStore.find((v) => v.id === id);
-  return vehicle?.available ? vehicle : null;
+  if (!vehicle?.available || !isCatalogPublished(vehicle.publishStatus)) return null;
+  return vehicle;
 }
 
 export function getAllPublishedVehicleIds(): string[] {
@@ -89,7 +93,42 @@ export async function deleteVehicleFromStore(id: string): Promise<boolean> {
 }
 
 export async function publishVehicle(vehicle: Vehicle): Promise<Vehicle> {
-  return upsertVehicleInStore({ ...vehicle, available: true });
+  return upsertVehicleInStore({
+    ...vehicle,
+    available: true,
+    status: "active",
+    publishStatus: "published",
+  });
+}
+
+export async function addVehicleDraft(vehicle: Vehicle): Promise<Vehicle> {
+  return upsertVehicleInStore(vehicle);
+}
+
+export async function approveVehicleInStore(
+  id: string,
+  approvedBy: string
+): Promise<Vehicle | null> {
+  return updateVehicleInStore(id, {
+    publishStatus: "published",
+    available: true,
+    status: "active",
+    approvedBy,
+    approvedAt: new Date().toISOString(),
+    rejectionReason: undefined,
+  });
+}
+
+export async function rejectVehicleInStore(
+  id: string,
+  reason?: string
+): Promise<Vehicle | null> {
+  return updateVehicleInStore(id, {
+    publishStatus: "rejected",
+    available: false,
+    status: "inactive",
+    rejectionReason: reason,
+  });
 }
 
 export function resetVehiclesStore(): void {

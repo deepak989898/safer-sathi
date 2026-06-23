@@ -1,5 +1,5 @@
 import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
-import { addPackageDraft, slugExists } from "@/lib/package-store";
+import { addPackageDraft, reloadPackagesStore, slugExists } from "@/lib/package-store";
 import { routeCompletion } from "@/lib/ai/router";
 import type { PackageCategory, TourPackage } from "@/types";
 
@@ -149,6 +149,7 @@ function ruleBasedMarketPackage(input: MarketPackageInput): TourPackage {
 export async function runMarketPackageAgent(
   input: MarketPackageInput
 ): Promise<{ package: TourPackage; provider: string }> {
+  await reloadPackagesStore();
   const destination = input.destination.trim() || "Goa";
   const category = input.category ?? pickCategory(destination);
   const days = input.durationDays ?? 5;
@@ -176,6 +177,6 @@ Respond in 2-3 sentences about market rates and why the price is fair.`;
     hi: content,
   };
 
-  const saved = addPackageDraft(draft);
+  const saved = await addPackageDraft(draft);
   return { package: saved, provider };
 }

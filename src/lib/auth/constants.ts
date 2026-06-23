@@ -48,9 +48,13 @@ export function canApproveUsers(role: UserRole): boolean {
 }
 
 export {
+  canApproveHotels,
   canApprovePackages,
+  canApproveVehicles,
   canEditPackageDrafts,
+  canGenerateMarketHotels,
   canGenerateMarketPackages,
+  canGenerateMarketVehicles,
   canManageUser,
   MANAGER_MANAGEABLE_ROLES,
 } from "./permissions";

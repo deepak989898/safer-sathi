@@ -2,7 +2,7 @@ import { z } from "zod";
 import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
 import {
   getAdminHotels,
-  hydrateHotelsStore,
+  reloadHotelsStore,
   seedHotels,
   upsertHotelInStore,
 } from "@/lib/hotel-store";
@@ -12,7 +12,7 @@ import type { Hotel, HotelStatus } from "@/types";
 
 export async function GET() {
   try {
-    await hydrateHotelsStore();
+    await reloadHotelsStore();
     return apiSuccess(getAdminHotels());
   } catch (err) {
     console.error("List hotels error:", err);
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       return apiError("Forbidden", 403);
     }
 
-    await hydrateHotelsStore();
+    await reloadHotelsStore();
     const now = new Date().toISOString();
     const input = parsed.data.hotel as Partial<Hotel>;
     const status = (input.status ?? "active") as HotelStatus;
@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       featured: input.featured ?? false,
       status,
       available: input.available ?? status === "active",
+      publishStatus: input.publishStatus ?? "published",
+      proposedBy: input.proposedBy ?? "admin",
       createdAt: input.createdAt ?? now,
       updatedAt: now,
     };

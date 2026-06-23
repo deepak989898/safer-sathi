@@ -14,7 +14,10 @@ export async function loadCatalogCollection<T extends { id: string }>(
     if (!db) return [];
 
     const snap = await db.collection(collection).limit(500).get();
-    return snap.docs.map((doc) => doc.data() as T);
+    return snap.docs.map((doc) => {
+      const data = doc.data() as T;
+      return { ...data, id: data.id ?? doc.id };
+    });
   } catch (error) {
     console.warn(`Firebase load ${collection} failed:`, error);
     return [];

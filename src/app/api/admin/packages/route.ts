@@ -2,7 +2,7 @@ import { z } from "zod";
 import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
 import {
   getAdminPackages,
-  hydratePackagesStore,
+  reloadPackagesStore,
   seedTourPackages,
   upsertPackageInStore,
 } from "@/lib/package-store";
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") as PackagePublishStatus | null;
-    await hydratePackagesStore();
+    await reloadPackagesStore();
     const packages = getAdminPackages(status ?? undefined);
     return apiSuccess(packages);
   } catch (err) {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       return apiError("Only admin and manager can create packages", 403);
     }
 
-    await hydratePackagesStore();
+    await reloadPackagesStore();
     const now = new Date().toISOString();
     const input = parsed.data.package as Partial<TourPackage>;
     const pkg: TourPackage = {

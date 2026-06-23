@@ -3,7 +3,7 @@ import {
   approvePackageInStore,
   deletePackageFromStore,
   getPackageByIdAdmin,
-  hydratePackagesStore,
+  reloadPackagesStore,
   rejectPackageInStore,
   updatePackageInStore,
 } from "@/lib/package-store";
@@ -42,11 +42,13 @@ export async function PATCH(
       return apiError("Only managers and super admins can edit packages", 403);
     }
 
-    await hydratePackagesStore();
+    await reloadPackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     const updated = await updatePackageInStore(id, parsed.data.updates as never);
-    return apiSuccess(updated);
+    if (!updated) return apiError("Package not found", 404);
+    await reloadPackagesStore();
+    return apiSuccess(getPackageByIdAdmin(id) ?? updated);
   } catch (err) {
     console.error("Update package error:", err);
     return apiError("Failed to update package", 500);
@@ -80,7 +82,7 @@ export async function POST(
       return apiError("Only super admin can approve or reject packages", 403);
     }
 
-    await hydratePackagesStore();
+    await reloadPackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     if (action === "approve") {
@@ -88,12 +90,16 @@ export async function POST(
         id,
         parsed.data.approvedBy ?? "super_admin"
       );
-      return apiSuccess(approved);
+      if (!approved) return apiError("Package not found", 404);
+      await reloadPackagesStore();
+      return apiSuccess(getPackageByIdAdmin(id) ?? approved);
     }
 
     if (action === "reject") {
       const rejected = await rejectPackageInStore(id, parsed.data.reason);
-      return apiSuccess(rejected);
+      if (!rejected) return apiError("Package not found", 404);
+      await reloadPackagesStore();
+      return apiSuccess(getPackageByIdAdmin(id) ?? rejected);
     }
 
     return apiError("Unknown action. Use ?action=approve or ?action=reject", 400);
@@ -116,7 +122,7 @@ export async function DELETE(
       return apiError("Only managers and super admins can delete packages", 403);
     }
 
-    await hydratePackagesStore();
+    await reloadPackagesStore();
     const deleted = await deletePackageFromStore(id);
     if (!deleted) return apiError("Package not found", 404);
     return apiSuccess({ id });

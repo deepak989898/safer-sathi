@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Database, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { Check, Database, Loader2, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { DataTable } from "@/components/admin/data-table";
@@ -26,9 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  canApproveHotels,
+  canGenerateMarketHotels,
+} from "@/lib/auth/constants";
 import { formatCurrency, localizedText } from "@/lib/i18n";
-import type { Hotel, HotelStatus } from "@/types";
+import type { Hotel, HotelStatus, PackagePublishStatus } from "@/types";
 import { toast } from "sonner";
 
 const emptyForm = {
@@ -59,6 +64,9 @@ export default function HotelsAdminClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateCity, setGenerateCity] = useState("Goa");
+  const [generateStars, setGenerateStars] = useState("4");
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Hotel | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -80,6 +88,73 @@ export default function HotelsAdminClient() {
   useEffect(() => {
     loadHotels();
   }, [loadHotels]);
+
+  const drafts = hotels.filter((h) => h.publishStatus === "draft");
+  const pending = hotels.filter((h) => h.publishStatus === "pending_approval");
+  const published = hotels.filter(
+    (h) => !h.publishStatus || h.publishStatus === "published"
+  );
+  const rejected = hotels.filter((h) => h.publishStatus === "rejected");
+
+  const handleGenerate = async () => {
+    if (!canGenerateMarketHotels(actorRole)) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/ai/market-hotels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          city: generateCity,
+          starRating: Number(generateStars) || 4,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Generation failed");
+      toast.success("Market hotel draft created — awaiting Super Admin approval");
+      loadHotels();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate hotel");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleApprove = async (hotel: Hotel) => {
+    try {
+      const res = await fetch(`/api/admin/hotels/${hotel.id}?action=approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          approvedBy: user?.name ?? "super_admin",
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Approval failed");
+      toast.success("Hotel published on website");
+      setSelected(null);
+      loadHotels();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve");
+    }
+  };
+
+  const handleReject = async (hotel: Hotel) => {
+    try {
+      const res = await fetch(`/api/admin/hotels/${hotel.id}?action=reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorRole, reason: "Needs revision" }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Reject failed");
+      toast.success("Hotel rejected");
+      setSelected(null);
+      loadHotels();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to reject");
+    }
+  };
 
   const handleSeedHotels = async () => {
     if (!isStaff) return;
@@ -128,12 +203,15 @@ export default function HotelsAdminClient() {
       featured: f.featured,
       status: f.status,
       available: f.status === "active" && f.available,
+      publishStatus:
+        existing?.publishStatus ??
+        (f.status === "active" ? "published" : ("draft" as PackagePublishStatus)),
       rating: existing?.rating ?? 4.5,
       reviewCount: existing?.reviewCount ?? 0,
     };
   };
 
-  const openEdit = (hotel: Hotel) => {
+  const openReview = (hotel: Hotel) => {
     setSelected(hotel);
     setForm({
       name: hotel.name.en,
@@ -344,9 +422,24 @@ export default function HotelsAdminClient() {
       header: "Status",
       cell: ({ row }) => (
         <StatusBadge
-          status={row.original.available ? "active" : "paused"}
-          label={row.original.status ?? (row.original.available ? "active" : "inactive")}
+          status={
+            row.original.publishStatus === "published" || !row.original.publishStatus
+              ? "active"
+              : row.original.publishStatus === "pending_approval"
+                ? "pending"
+                : "cancelled"
+          }
+          label={row.original.publishStatus?.replace("_", " ") ?? "published"}
         />
+      ),
+    },
+    {
+      id: "source",
+      header: "Source",
+      cell: ({ row }) => (
+        <span className="text-xs capitalize text-muted-foreground">
+          {row.original.proposedBy?.replace(/_/g, " ") ?? "admin"}
+        </span>
       ),
     },
     {
@@ -354,9 +447,8 @@ export default function HotelsAdminClient() {
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex gap-1">
-          <Button size="sm" variant="outline" onClick={() => openEdit(row.original)}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />
-            Edit
+          <Button size="sm" variant="outline" onClick={() => openReview(row.original)}>
+            Review
           </Button>
           {isStaff && (
             <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(row.original)}>
@@ -368,6 +460,14 @@ export default function HotelsAdminClient() {
     },
   ];
 
+  const tableForTab = (tab: string) => {
+    if (tab === "drafts") return drafts;
+    if (tab === "pending") return pending;
+    if (tab === "published") return published;
+    if (tab === "rejected") return rejected;
+    return hotels;
+  };
+
   return (
     <>
       <AdminHeader
@@ -376,14 +476,12 @@ export default function HotelsAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-6">
-        <div className="flex flex-wrap justify-end gap-3">
-          {isStaff && (
+        {isStaff && (
+          <div className="flex flex-wrap gap-3">
             <Button onClick={handleSeedHotels} disabled={seeding}>
               {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
               Seed Hotels (60)
             </Button>
-          )}
-          {isStaff && (
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger render={<Button variant="outline" />}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -401,31 +499,119 @@ export default function HotelsAdminClient() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          )}
-        </div>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading hotels...</p>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={hotels}
-            searchKey="name"
-            searchPlaceholder="Search hotels..."
-            hidePagination
-          />
+          </div>
         )}
+
+        {canGenerateMarketHotels(actorRole) && (
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+              <div className="grid flex-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>City</Label>
+                  <Input
+                    value={generateCity}
+                    onChange={(e) => setGenerateCity(e.target.value)}
+                    placeholder="Goa, Jaipur, Manali..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Star rating</Label>
+                  <Input
+                    type="number"
+                    min={2}
+                    max={5}
+                    value={generateStars}
+                    onChange={(e) => setGenerateStars(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button className="w-full" onClick={handleGenerate} disabled={generating}>
+                    {generating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    Generate Market Hotel
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              AI analyzes market rates, builds full hotel details with rooms and images.
+              Hotel stays hidden until Super Admin approves.
+            </p>
+          </div>
+        )}
+
+        {!canApproveHotels(actorRole) && canGenerateMarketHotels(actorRole) && (
+          <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+            Managers can generate and edit drafts. Only Super Admin can approve hotels for the public website.
+          </p>
+        )}
+
+        <Tabs defaultValue="all">
+          <TabsList>
+            <TabsTrigger value="drafts">Drafts ({drafts.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
+            <TabsTrigger value="published">Published ({published.length})</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({hotels.length})</TabsTrigger>
+          </TabsList>
+
+          {["drafts", "pending", "published", "rejected", "all"].map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-4">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading hotels...</p>
+              ) : (
+                <DataTable
+                  columns={columns}
+                  data={tableForTab(tab)}
+                  searchKey="name"
+                  searchPlaceholder="Search hotels..."
+                  hidePagination
+                />
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Edit Hotel</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {selected ? localizedText(selected.name, "en") : "Review Hotel"}
+            </DialogTitle>
+          </DialogHeader>
+          {selected?.marketAnalysis && (
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="font-medium">Market analysis</p>
+              <p className="mt-1 text-muted-foreground">
+                {localizedText(selected.marketAnalysis, "en")}
+              </p>
+            </div>
+          )}
           {formFields}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save changes
-            </Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            {isStaff && (
+              <Button variant="outline" onClick={handleSave} disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save edits
+              </Button>
+            )}
+            {canApproveHotels(actorRole) &&
+              selected?.publishStatus === "pending_approval" && (
+                <>
+                  <Button variant="outline" onClick={() => handleReject(selected)}>
+                    <X className="mr-2 h-4 w-4" />
+                    Reject
+                  </Button>
+                  <Button onClick={() => handleApprove(selected)}>
+                    <Check className="mr-2 h-4 w-4" />
+                    Approve & Publish
+                  </Button>
+                </>
+              )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

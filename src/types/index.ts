@@ -112,6 +112,12 @@ export interface Vehicle {
   rating: number;
   reviewCount: number;
   location: string;
+  publishStatus?: PackagePublishStatus;
+  marketAnalysis?: LocalizedString;
+  proposedBy?: "ai_market_agent" | "ai_travel_manager" | "admin" | "manager";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,7 +153,7 @@ export interface TourPackage {
   transport?: LocalizedString;
   publishStatus?: PackagePublishStatus;
   marketAnalysis?: LocalizedString;
-  proposedBy?: "ai_market_agent" | "admin" | "manager";
+  proposedBy?: "ai_market_agent" | "ai_travel_manager" | "admin" | "manager";
   approvedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;
@@ -188,6 +194,12 @@ export interface Hotel {
   featured?: boolean;
   status?: HotelStatus;
   available: boolean;
+  publishStatus?: PackagePublishStatus;
+  marketAnalysis?: LocalizedString;
+  proposedBy?: "ai_market_agent" | "ai_travel_manager" | "admin" | "manager";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       rating: input.rating ?? 0,
       reviewCount: input.reviewCount ?? 0,
       location: input.location ?? "Delhi",
+      publishStatus: input.publishStatus ?? "published",
+      proposedBy: input.proposedBy ?? "admin",
       createdAt: input.createdAt ?? now,
       updatedAt: now,
     };

@@ -6,6 +6,7 @@ import {
   seedCatalogIfEmpty,
 } from "@/lib/catalog/persistence";
 import { mergeCatalogById } from "@/lib/catalog/merge-catalog";
+import { isCatalogPublished } from "@/lib/catalog/publish";
 import { getSeedHotels } from "@/data/seed-catalog";
 import { getHotelsSeed } from "@/data/hotels-seed";
 import type { Hotel } from "@/types";
@@ -38,7 +39,9 @@ export async function hydrateHotelsStore(): Promise<void> {
 }
 
 export function getPublishedHotels(): Hotel[] {
-  return hotelsStore.filter((h) => h.available);
+  return hotelsStore.filter(
+    (h) => h.available && isCatalogPublished(h.publishStatus)
+  );
 }
 
 export function getAdminHotels(): Hotel[] {
@@ -50,7 +53,9 @@ export function getHotelByIdAdmin(id: string): Hotel | null {
 }
 
 export function getHotelBySlugPublished(slug: string): Hotel | null {
-  return hotelsStore.find((h) => h.slug === slug && h.available) ?? null;
+  const hotel = hotelsStore.find((h) => h.slug === slug);
+  if (!hotel?.available || !isCatalogPublished(hotel.publishStatus)) return null;
+  return hotel;
 }
 
 export function getAllPublishedHotelSlugs(): string[] {
@@ -88,7 +93,46 @@ export async function deleteHotelFromStore(id: string): Promise<boolean> {
 }
 
 export async function publishHotel(hotel: Hotel): Promise<Hotel> {
-  return upsertHotelInStore({ ...hotel, available: true });
+  return upsertHotelInStore({
+    ...hotel,
+    available: true,
+    status: "active",
+    publishStatus: "published",
+  });
+}
+
+export function hotelSlugExists(slug: string): boolean {
+  return hotelsStore.some((h) => h.slug === slug);
+}
+
+export async function addHotelDraft(hotel: Hotel): Promise<Hotel> {
+  return upsertHotelInStore(hotel);
+}
+
+export async function approveHotelInStore(
+  id: string,
+  approvedBy: string
+): Promise<Hotel | null> {
+  return updateHotelInStore(id, {
+    publishStatus: "published",
+    available: true,
+    status: "active",
+    approvedBy,
+    approvedAt: new Date().toISOString(),
+    rejectionReason: undefined,
+  });
+}
+
+export async function rejectHotelInStore(
+  id: string,
+  reason?: string
+): Promise<Hotel | null> {
+  return updateHotelInStore(id, {
+    publishStatus: "rejected",
+    available: false,
+    status: "inactive",
+    rejectionReason: reason,
+  });
 }
 
 export function resetHotelsStore(): void {
