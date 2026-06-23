@@ -10,11 +10,18 @@ export function getResendFromAddress(): string {
   );
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | Uint8Array | string;
+  contentType?: string;
+}
+
 export async function sendViaResend(input: {
   to: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
@@ -34,6 +41,13 @@ export async function sendViaResend(input: {
       subject: input.subject,
       html: input.html,
       text: input.text,
+      attachments: input.attachments?.map((file) => ({
+        filename: file.filename,
+        content:
+          typeof file.content === "string"
+            ? file.content
+            : Buffer.from(file.content).toString("base64"),
+      })),
     }),
   });
 

@@ -6,9 +6,11 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  Download,
   Globe,
   Loader2,
   Mail,
+  MoreHorizontal,
   Phone,
   RefreshCw,
   Search,
@@ -18,6 +20,13 @@ import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/auth-context";
 import { listBookingsFromClient } from "@/lib/bookings/booking-client";
@@ -54,6 +63,65 @@ export default function BookingsAdminClient() {
   const [statusFilter, setStatusFilter] = useState<BookingAdminFilter>("all");
   const [search, setSearch] = useState("");
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
+
+  const sendInvoice = useCallback(
+    async (booking: Booking, channel: "email" | "whatsapp" | "both") => {
+      if (!user?.role) {
+        toast.error("You must be signed in as staff");
+        return;
+      }
+      setSendingInvoiceId(booking.id);
+      try {
+        const res = await fetch(`/api/admin/bookings/${booking.id}/send-invoice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actorRole: user.role, channel }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error ?? "Failed to send invoice");
+        }
+        if (channel === "email") toast.success(`Invoice emailed to ${booking.customerEmail}`);
+        else if (channel === "whatsapp") toast.success(`Invoice sent on WhatsApp to ${booking.customerPhone}`);
+        else toast.success("Invoice sent via email and WhatsApp");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not send invoice");
+      } finally {
+        setSendingInvoiceId(null);
+      }
+    },
+    [user?.role]
+  );
+
+  const downloadInvoice = useCallback(
+    async (booking: Booking) => {
+      if (!user?.role) {
+        toast.error("You must be signed in as staff");
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/bookings/${booking.id}/invoice?actorRole=${encodeURIComponent(user.role)}`
+        );
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error ?? "Failed to download invoice");
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `SafarSathi-Invoice-${booking.bookingNumber}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success("Invoice downloaded");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not download invoice");
+      }
+    },
+    [user?.role]
+  );
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -263,6 +331,57 @@ export default function BookingsAdminClient() {
           {row.original.paymentFailureReason ?? "—"}
         </span>
       ),
+    },
+    {
+      id: "actions",
+      header: "Invoice",
+      cell: ({ row }) => {
+        const booking = row.original;
+        const busy = sendingInvoiceId === booking.id;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={busy}
+              render={<Button variant="outline" size="sm" className="h-8 gap-1" />}
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              )}
+              Send
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                disabled={!booking.customerEmail || busy}
+                onClick={() => void sendInvoice(booking, "email")}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Email invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!booking.customerPhone || busy}
+                onClick={() => void sendInvoice(booking, "whatsapp")}
+              >
+                <Phone className="mr-2 h-4 w-4" />
+                WhatsApp invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!booking.customerEmail || !booking.customerPhone || busy}
+                onClick={() => void sendInvoice(booking, "both")}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Email + WhatsApp
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void downloadInvoice(booking)}>
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 

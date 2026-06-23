@@ -50,7 +50,7 @@ async function executeStep(
         if (!booking) {
           return { action: step.action, status: "skipped", detail: "No booking provided" };
         }
-        const pdf = generateInvoice(booking);
+        const pdf = await generateInvoice(booking);
         return {
           action: step.action,
           status: "completed",

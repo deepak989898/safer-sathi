@@ -60,6 +60,11 @@ export async function sendViaSmtp(mail: {
   subject: string;
   text: string;
   html: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | Uint8Array;
+    contentType?: string;
+  }>;
 }): Promise<{ host: string }> {
   if (!isSmtpConfigured()) {
     throw new Error("SMTP is not configured on the server.");
@@ -78,6 +83,11 @@ export async function sendViaSmtp(mail: {
         subject: mail.subject,
         text: mail.text,
         html: mail.html,
+        attachments: mail.attachments?.map((file) => ({
+          filename: file.filename,
+          content: Buffer.from(file.content),
+          contentType: file.contentType ?? "application/pdf",
+        })),
       });
       return { host };
     } catch (error) {

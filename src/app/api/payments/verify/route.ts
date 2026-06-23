@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { getBookingById, updateBooking } from "@/lib/data-service";
-import { sendEmail } from "@/lib/notifications/email";
-import { sendSMS } from "@/lib/notifications/sms";
-import { sendWhatsApp } from "@/lib/notifications/whatsapp";
+import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
@@ -57,7 +55,7 @@ export async function POST(request: Request) {
       const balanceDue = getBalanceDue(existing.amount, newPaidTotal);
       const isFullyPaid = balanceDue <= 0;
 
-      await updateBooking(parsed.data.bookingId, {
+      const updated = await updateBooking(parsed.data.bookingId, {
         paymentStatus: isFullyPaid ? "paid" : "partial",
         paidAmount: newPaidTotal,
         status: "confirmed",
@@ -66,30 +64,18 @@ export async function POST(request: Request) {
         lastPaymentAttemptAt: new Date().toISOString(),
       });
 
-      const { customerEmail, customerPhone, customerName } = parsed.data;
-      if (customerEmail || customerPhone) {
-        const msg = isFullyPaid
-          ? `Safar Sathi: Booking ${existing.bookingNumber} confirmed! Total paid: ₹${newPaidTotal.toLocaleString("en-IN")}. Thank you ${customerName ?? ""}!`
-          : `Safar Sathi: Advance received for ${existing.bookingNumber}. Paid ₹${newPaidTotal.toLocaleString("en-IN")}. Balance due: ₹${balanceDue.toLocaleString("en-IN")}.`;
-        const notifyTasks = [];
-        if (customerEmail) {
-          notifyTasks.push(
-            sendEmail({
-              to: customerEmail,
-              subject: isFullyPaid
-                ? "Safar Sathi — Booking Confirmed"
-                : "Safar Sathi — Advance Payment Received",
-              text: msg,
-              html: `<p>${msg}</p>`,
-            })
-          );
-        }
-        if (customerPhone) {
-          notifyTasks.push(sendSMS({ to: customerPhone, message: msg }));
-          notifyTasks.push(sendWhatsApp({ to: customerPhone, message: msg }));
-        }
-        await Promise.allSettled(notifyTasks);
-      }
+      const bookingForNotify = updated ?? {
+        ...existing,
+        paymentStatus: isFullyPaid ? "paid" : "partial",
+        paidAmount: newPaidTotal,
+        status: "confirmed" as const,
+      };
+
+      await sendBookingConfirmationNotifications({
+        booking: bookingForNotify,
+        isFullyPaid,
+        channels: ["email", "whatsapp", "sms"],
+      });
     }
 
     return apiSuccess({
