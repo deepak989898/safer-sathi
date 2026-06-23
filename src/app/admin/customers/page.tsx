@@ -208,12 +208,6 @@ export default function CustomersPage() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="p-4 sm:p-6">
-        {actorRole === "manager" && (
-          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-            Managers can approve sales agents, drivers, and customers only.
-            Super Admin and Support Agent accounts require Super Admin approval.
-          </p>
-        )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             Filter users by role to review customers, managers, sales agents, drivers, etc.

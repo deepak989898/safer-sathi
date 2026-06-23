@@ -127,7 +127,7 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
         href: "/admin/seo-center",
         label: "SEO Center",
         icon: Search,
-        roles: ["super_admin", "manager"],
+        roles: ["super_admin"],
       },
     ],
   },
