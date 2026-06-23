@@ -2,7 +2,7 @@ import { z } from "zod";
 import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
 import {
   getAdminVehicles,
-  hydrateVehiclesStore,
+  reloadVehiclesStore,
   seedVehicles,
   upsertVehicleInStore,
 } from "@/lib/vehicle-store";
@@ -12,7 +12,7 @@ import type { Vehicle, VehicleStatus } from "@/types";
 
 export async function GET() {
   try {
-    await hydrateVehiclesStore();
+    await reloadVehiclesStore();
     return apiSuccess(getAdminVehicles());
   } catch (err) {
     console.error("List vehicles error:", err);
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       return apiError("Only super admin and manager can manage vehicles", 403);
     }
 
-    await hydrateVehiclesStore();
+    await reloadVehiclesStore();
     const now = new Date().toISOString();
     const input = parsed.data.vehicle as Partial<Vehicle>;
     const status = (input.status ?? "active") as VehicleStatus;

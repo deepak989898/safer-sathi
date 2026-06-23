@@ -42,21 +42,21 @@ export function DesktopHomeHero() {
             </Link>
             <Link
               href="/packages"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0c2444] hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:border-white/50 hover:bg-white/20"
             >
               <Sparkles className="h-4 w-4" />
               {locale === "hi" ? "ऑफ़र देखें" : "View Offers"}
             </Link>
             <Link
               href="/packages"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0c2444] hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:border-white/50 hover:bg-white/20"
             >
               <MapPin className="h-4 w-4" />
               {locale === "hi" ? "शहर देखें" : "View Cities"}
             </Link>
             <Link
               href="/gallery"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0c2444] hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:border-white/50 hover:bg-white/20"
             >
               <PlayCircle className="h-4 w-4" />
               {locale === "hi" ? "गैलरी" : "Gallery"}

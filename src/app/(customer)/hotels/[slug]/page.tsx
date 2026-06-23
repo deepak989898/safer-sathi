@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAllHotelSlugs, getHotelBySlug } from "@/lib/catalog-service";
+import { getAllHotelSlugs, getHotelBySlug, getHotels } from "@/lib/catalog-service";
 import { localizedText } from "@/lib/i18n";
 import { buildPageMetadata, stripHtml } from "@/lib/seo/metadata";
 import { breadcrumbSchema, hotelSchema } from "@/lib/seo/schema";
@@ -55,6 +55,20 @@ export default async function HotelDetailPage({
   const hotel = await getHotelBySlug(slug);
   if (!hotel) notFound();
 
+  const allHotels = await getHotels();
+  const sameCity = allHotels.filter(
+    (h) => h.id !== hotel.id && h.city.toLowerCase() === hotel.city.toLowerCase()
+  );
+  const relatedHotels = [
+    ...sameCity,
+    ...allHotels.filter(
+      (h) =>
+        h.id !== hotel.id &&
+        h.city.toLowerCase() !== hotel.city.toLowerCase() &&
+        !sameCity.some((match) => match.id === h.id)
+    ),
+  ].slice(0, 3);
+
   const name = localizedText(hotel.name, "en");
   const description = stripHtml(localizedText(hotel.description, "en"));
   const pageUrl = appUrl(`/hotels/${slug}`);
@@ -81,7 +95,7 @@ export default async function HotelDetailPage({
           ]),
         ]}
       />
-      <HotelDetailClient hotel={hotel} />
+      <HotelDetailClient hotel={hotel} relatedHotels={relatedHotels} />
     </>
   );
 }

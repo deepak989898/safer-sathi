@@ -98,7 +98,7 @@ export function HeroSlider({
               mobileReferenceLayout
                 ? "mobile-hero-title max-w-[16rem] font-serif text-[1.65rem] font-bold leading-[1.12] tracking-tight sm:max-w-md sm:text-4xl"
                 : desktopReferenceLayout
-                  ? "max-w-xl font-serif text-4xl font-bold leading-tight tracking-tight text-[#0c2444] lg:max-w-2xl lg:text-5xl"
+                  ? "desktop-hero-title max-w-xl font-serif text-4xl font-bold leading-tight tracking-tight lg:max-w-2xl lg:text-5xl"
                   : "text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-4xl md:text-5xl lg:text-6xl"
             )}
           >
@@ -109,7 +109,7 @@ export function HeroSlider({
           <p
             className={cn(
               desktopReferenceLayout
-                ? "mt-4 max-w-lg text-base leading-relaxed text-[#334155] lg:text-lg"
+                ? "desktop-hero-subtitle mt-4 max-w-lg text-base leading-relaxed lg:text-lg"
                 : "mx-auto mt-3 max-w-2xl text-base text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)] sm:mt-4 sm:text-lg md:text-white/95"
             )}
           >

@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
@@ -61,7 +62,13 @@ function InfoRow({
   );
 }
 
-export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
+export function VehicleDetailClient({
+  vehicle,
+  relatedVehicles = [],
+}: {
+  vehicle: Vehicle;
+  relatedVehicles?: Vehicle[];
+}) {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const router = useRouter();
@@ -508,6 +515,17 @@ export function VehicleDetailClient({ vehicle }: { vehicle: Vehicle }) {
             </Card>
           </div>
         </div>
+
+        {relatedVehicles.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-6 text-2xl font-bold text-[#0c2444]">Related Vehicles</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {relatedVehicles.map((related) => (
+                <VehicleCard key={related.id} vehicle={related} locale={locale} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </>
   );

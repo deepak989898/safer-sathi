@@ -2,20 +2,20 @@ import {
   getAllPublishedHotelSlugs,
   getHotelBySlugPublished,
   getPublishedHotels,
-  hydrateHotelsStore,
+  reloadHotelsStore,
 } from "@/lib/hotel-store";
 import {
   getAllPublishedPackageSlugs,
   getPublishedPackageById,
   getPublishedPackageBySlug,
   getPublishedPackages,
-  hydratePackagesStore,
+  reloadPackagesStore,
 } from "@/lib/package-store";
 import {
   getAllPublishedVehicleIds,
   getPublishedVehicles,
   getVehicleByIdPublished,
-  hydrateVehiclesStore,
+  reloadVehiclesStore,
 } from "@/lib/vehicle-store";
 import {
   getAllPublishedBlogSlugs,
@@ -29,7 +29,7 @@ import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
-  await hydrateVehiclesStore();
+  await reloadVehiclesStore();
   let results = getPublishedVehicles();
   if (filters?.vehicleType) {
     results = results.filter((v) => v.type === filters.vehicleType);
@@ -53,12 +53,12 @@ export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
 }
 
 export async function getVehicleById(id: string): Promise<Vehicle | null> {
-  await hydrateVehiclesStore();
+  await reloadVehiclesStore();
   return getVehicleByIdPublished(id);
 }
 
 export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
-  await hydratePackagesStore();
+  await reloadPackagesStore();
   let results = getPublishedPackages();
   if (filters?.packageCategory) {
     results = results.filter((p) => p.category === filters.packageCategory);
@@ -81,7 +81,7 @@ export async function getPackages(filters?: SearchFilters): Promise<TourPackage[
 }
 
 export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
-  await hydratePackagesStore();
+  await reloadPackagesStore();
   const found = getPublishedPackageBySlug(slug);
   if (found) return found;
   return (
@@ -92,12 +92,12 @@ export async function getPackageBySlug(slug: string): Promise<TourPackage | null
 }
 
 export async function getPackageById(id: string): Promise<TourPackage | null> {
-  await hydratePackagesStore();
+  await reloadPackagesStore();
   return getPublishedPackageById(id);
 }
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
-  await hydrateHotelsStore();
+  await reloadHotelsStore();
   let results = getPublishedHotels();
   if (filters?.starRating) {
     results = results.filter((h) => h.starRating >= filters.starRating!);
@@ -120,7 +120,7 @@ export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
 }
 
 export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
-  await hydrateHotelsStore();
+  await reloadHotelsStore();
   return getHotelBySlugPublished(slug);
 }
 
@@ -144,17 +144,17 @@ export async function getReviews() {
 }
 
 export async function getAllPackageSlugs() {
-  await hydratePackagesStore();
+  await reloadPackagesStore();
   return getAllPublishedPackageSlugs();
 }
 
 export async function getAllVehicleIds() {
-  await hydrateVehiclesStore();
+  await reloadVehiclesStore();
   return getAllPublishedVehicleIds();
 }
 
 export async function getAllHotelSlugs() {
-  await hydrateHotelsStore();
+  await reloadHotelsStore();
   return getAllPublishedHotelSlugs();
 }
 

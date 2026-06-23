@@ -97,7 +97,7 @@ const agentManageRoutes: Record<
   AIAgentType,
   { href: string; cta: string }
 > = {
-  travel: { href: "/admin/ai-travel-manager?tab=chat", cta: "Open AI Travel Manager" },
+  travel: { href: "/admin/ai-enquiries", cta: "Open AI Enquiries" },
   booking: { href: "/admin/bookings", cta: "View Bookings" },
   support: { href: "/admin/ai-enquiries", cta: "Open AI Enquiries" },
   sales: { href: "/admin/ai-center?tab=phase3-leads", cta: "Open Lead Scoring" },
@@ -107,8 +107,8 @@ const agentManageRoutes: Record<
   social: { href: "/admin/ai-center?tab=blog-writer", cta: "Open Blog Writer" },
   fraud: { href: "/admin/ai-center?tab=phase3-fraud", cta: "Open Fraud Detection" },
   market_packages: {
-    href: "/admin/ai-travel-manager?tab=packages",
-    cta: "Open Package Drafts",
+    href: "/admin/ai-center?tab=packages",
+    cta: "Open Package Generator",
   },
 };
 

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
@@ -50,7 +51,13 @@ function InfoRow({
   );
 }
 
-export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
+export function HotelDetailClient({
+  hotel,
+  relatedHotels = [],
+}: {
+  hotel: Hotel;
+  relatedHotels?: Hotel[];
+}) {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const router = useRouter();
@@ -459,6 +466,17 @@ export function HotelDetailClient({ hotel }: { hotel: Hotel }) {
             </Card>
           </div>
         </div>
+
+        {relatedHotels.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-6 text-2xl font-bold text-[#0c2444]">Related Hotels</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {relatedHotels.map((related) => (
+                <HotelCard key={related.id} hotel={related} locale={locale} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </>
   );

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAllVehicleIds, getVehicleById } from "@/lib/catalog-service";
+import { getAllVehicleIds, getVehicleById, getVehicles } from "@/lib/catalog-service";
 import { localizedText } from "@/lib/i18n";
 import { buildPageMetadata, stripHtml } from "@/lib/seo/metadata";
 import { breadcrumbSchema, vehicleRentalSchema } from "@/lib/seo/schema";
@@ -56,6 +56,20 @@ export default async function VehicleDetailPage({
   const vehicle = await getVehicleById(id);
   if (!vehicle) notFound();
 
+  const allVehicles = await getVehicles();
+  const sameType = allVehicles.filter(
+    (v) => v.id !== vehicle.id && v.type === vehicle.type
+  );
+  const relatedVehicles = [
+    ...sameType,
+    ...allVehicles.filter(
+      (v) =>
+        v.id !== vehicle.id &&
+        v.type !== vehicle.type &&
+        !sameType.some((match) => match.id === v.id)
+    ),
+  ].slice(0, 3);
+
   const name = localizedText(vehicle.name, "en");
   const description = stripHtml(localizedText(vehicle.description, "en"));
   const pageUrl = appUrl(`/vehicles/${id}`);
@@ -80,7 +94,7 @@ export default async function VehicleDetailPage({
           ]),
         ]}
       />
-      <VehicleDetailClient vehicle={vehicle} />
+      <VehicleDetailClient vehicle={vehicle} relatedVehicles={relatedVehicles} />
     </>
   );
 }

@@ -3,7 +3,7 @@ import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
 import {
   deleteVehicleFromStore,
   getVehicleByIdAdmin,
-  hydrateVehiclesStore,
+  reloadVehiclesStore,
   updateVehicleInStore,
 } from "@/lib/vehicle-store";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -30,7 +30,7 @@ export async function PATCH(
       return apiError("Forbidden", 403);
     }
 
-    await hydrateVehiclesStore();
+    await reloadVehiclesStore();
     if (!getVehicleByIdAdmin(id)) return apiError("Vehicle not found", 404);
 
     const updated = await updateVehicleInStore(id, parsed.data.updates as never);
@@ -52,7 +52,7 @@ export async function DELETE(
     if (!actorRole.success) return apiError("actorRole required", 400);
     if (!requireStaffRole(actorRole.data)) return apiError("Forbidden", 403);
 
-    await hydrateVehiclesStore();
+    await reloadVehiclesStore();
     const deleted = await deleteVehicleFromStore(id);
     if (!deleted) return apiError("Vehicle not found", 404);
     return apiSuccess({ id });

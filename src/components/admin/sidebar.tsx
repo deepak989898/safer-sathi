@@ -6,7 +6,6 @@ import { LayoutDashboard, LogOut, Menu } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAuth } from "@/contexts/auth-context";
-import type { User } from "@/types";
 import { ROLE_LABELS } from "@/lib/auth/constants";
 import { getAdminNavGroups } from "@/lib/navigation/role-menus";
 import { cn } from "@/lib/utils";
@@ -30,7 +29,6 @@ export function AdminSidebar() {
         <SidebarContent
           pathname={pathname}
           navGroups={navGroups}
-          user={user}
           onLogout={() => logout()}
         />
       </aside>
@@ -58,7 +56,6 @@ export function AdminSidebar() {
               <SidebarContent
                 pathname={pathname}
                 navGroups={navGroups}
-                user={user}
                 onLogout={() => logout()}
                 compact
               />
@@ -79,13 +76,11 @@ export function AdminSidebar() {
 function SidebarContent({
   pathname,
   navGroups,
-  user,
   onLogout,
   compact = false,
 }: {
   pathname: string;
   navGroups: ReturnType<typeof getAdminNavGroups>;
-  user: User | null;
   onLogout: () => void;
   compact?: boolean;
 }) {
@@ -142,29 +137,18 @@ function SidebarContent({
             Customer Website
           </Link>
         </div>
-      </nav>
 
-      <div className="space-y-3 border-t border-sidebar-border p-4">
-        {user && (
-          <div className="rounded-lg bg-sidebar-accent px-3 py-2.5">
-            <p className="text-sm font-medium text-sidebar-accent-foreground">
-              {user.name}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60">
-              {ROLE_LABELS[user.role]}
-            </p>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-sidebar-foreground/80"
-          onClick={onLogout}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign Out
-        </Button>
-      </div>
+        <div className="space-y-1 border-t border-sidebar-border pt-4">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="size-4 shrink-0" />
+            Sign Out
+          </button>
+        </div>
+      </nav>
     </>
   );
 }
