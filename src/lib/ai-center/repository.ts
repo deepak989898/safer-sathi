@@ -379,6 +379,17 @@ export async function updateBlog(
   };
   blogCache = mergeCache(blogCache, updated);
   await persistDoc(COLLECTIONS.blogs, updated.id, updated);
+
+  if (updated.status === "published") {
+    try {
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath("/blog");
+      revalidatePath(`/blog/${updated.slug}`);
+    } catch {
+      // no-op outside Next request context
+    }
+  }
+
   return updated;
 }
 

@@ -63,8 +63,8 @@ import type {
 import { toast } from "sonner";
 import { approvedKeywordsWithoutBlog, keywordHasBlog } from "@/lib/ai-center/utils";
 import {
-  getBlogFeaturedImage,
   getBlogImagePrompts,
+  resolveBlogFeaturedImage,
   resolveBlogImageKey,
 } from "@/lib/ai-center/blog-destination-images";
 import { SafeImage } from "@/components/ui/safe-image";
@@ -339,7 +339,7 @@ export default function AiCenterClient() {
     setEditBlog({
       ...blog,
       imagePrompts,
-      featuredImage: getBlogFeaturedImage(blog.keyword, blog.destination),
+      featuredImage: resolveBlogFeaturedImage(blog),
     });
   };
 
@@ -1149,7 +1149,7 @@ function BlogTable({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
                 <SafeImage
-                  src={getBlogFeaturedImage(blog.keyword, blog.destination)}
+                  src={resolveBlogFeaturedImage(blog)}
                   alt={blog.title}
                   fill
                   className="object-cover"

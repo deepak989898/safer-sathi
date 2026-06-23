@@ -192,3 +192,14 @@ export function getBlogFeaturedImage(keyword: string, destination?: string): str
   }
   return prompts[0].url;
 }
+
+/** Use admin-saved featured image when set; otherwise pick from keyword destination. */
+export function resolveBlogFeaturedImage(blog: {
+  featuredImage?: string;
+  keyword: string;
+  destination?: string;
+}): string {
+  const saved = blog.featuredImage?.trim();
+  if (saved) return saved;
+  return getBlogFeaturedImage(blog.keyword, blog.destination);
+}

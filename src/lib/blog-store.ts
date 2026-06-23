@@ -7,14 +7,14 @@ import {
 import type { AiBlogPost } from "@/lib/ai-center/types";
 import { stripSourcesSection } from "@/lib/ai-center/blog-content";
 import {
-  getBlogFeaturedImage,
+  resolveBlogFeaturedImage,
 } from "@/lib/ai-center/blog-destination-images";
 import { demoBlogPosts } from "@/data/demo-data";
 import type { BlogPost } from "@/types";
 
 function aiBlogToBlogPost(blog: AiBlogPost): BlogPost {
   const content = stripSourcesSection(blog.content);
-  const featuredImage = getBlogFeaturedImage(blog.keyword, blog.destination);
+  const featuredImage = resolveBlogFeaturedImage(blog);
   return {
     id: blog.id,
     slug: blog.slug,
