@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAuth } from "@/contexts/auth-context";
@@ -124,19 +124,6 @@ function SidebarContent({
             })}
           </div>
         ))}
-
-        <div className="space-y-1 border-t border-sidebar-border pt-4">
-          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
-            Website
-          </p>
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <LayoutDashboard className="size-4 shrink-0" />
-            Customer Website
-          </Link>
-        </div>
 
         <div className="space-y-1 border-t border-sidebar-border pt-4">
           <button
