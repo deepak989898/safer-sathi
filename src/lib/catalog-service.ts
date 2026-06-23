@@ -20,6 +20,7 @@ import {
 import {
   getAllPublishedBlogSlugs,
   getBlogCategories,
+  getPublishedBlogPostBySlug,
   getPublishedBlogBySlug,
   getPublishedBlogPosts,
   getRelatedBlogPosts,
@@ -134,6 +135,8 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const post = await getPublishedBlogPostBySlug(slug);
+  if (post) return post;
   await hydrateBlogStore();
   return getPublishedBlogBySlug(slug);
 }

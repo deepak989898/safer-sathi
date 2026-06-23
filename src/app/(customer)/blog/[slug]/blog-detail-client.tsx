@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
 import { ArrowLeft, Calendar, User } from "lucide-react";
@@ -11,32 +13,107 @@ import { localizedText } from "@/lib/i18n";
 import type { BlogPost } from "@/types";
 import { CatalogViewTracker } from "@/components/seo/catalog-view-tracker";
 
+function isInternalHref(href: string): boolean {
+  return href.startsWith("/") || href.includes("thesafarsathi.com");
+}
+
+function renderInline(text: string, keyPrefix: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith("**")) {
+      parts.push(
+        <strong key={`${keyPrefix}-b-${idx++}`}>{token.slice(2, -2)}</strong>
+      );
+    } else {
+      const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        const [, label, href] = linkMatch;
+        if (isInternalHref(href)) {
+          const path = href.includes("thesafarsathi.com")
+            ? href.replace(/^https?:\/\/[^/]+/, "") || "/"
+            : href;
+          parts.push(
+            <Link
+              key={`${keyPrefix}-l-${idx++}`}
+              href={path}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {label}
+            </Link>
+          );
+        } else {
+          parts.push(
+            <a
+              key={`${keyPrefix}-a-${idx++}`}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {label}
+            </a>
+          );
+        }
+      } else {
+        parts.push(token);
+      }
+    }
+    last = match.index + token.length;
+  }
+
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 function renderMarkdownish(content: string) {
   return content.split("\n\n").map((block, i) => {
-    if (block.startsWith("## ")) {
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith("## ")) {
       return (
         <h2 key={i} className="mt-8 text-xl font-semibold">
-          {block.replace(/^##\s+/, "")}
+          {trimmed.replace(/^##\s+/, "")}
         </h2>
       );
     }
-    if (block.startsWith("# ")) {
+    if (trimmed.startsWith("# ")) {
       return (
         <h1 key={i} className="mt-4 text-2xl font-bold">
-          {block.replace(/^#\s+/, "")}
+          {trimmed.replace(/^#\s+/, "")}
         </h1>
       );
     }
-    if (block.startsWith("**") && block.includes("**")) {
+    if (trimmed.startsWith("- ")) {
+      const items = trimmed.split("\n").filter((line) => line.startsWith("- "));
       return (
-        <p key={i} className="mt-3 font-medium">
-          {block.replace(/\*\*/g, "")}
-        </p>
+        <ul key={i} className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">
+          {items.map((item, j) => (
+            <li key={j}>{renderInline(item.replace(/^-\s+/, ""), `li-${i}-${j}`)}</li>
+          ))}
+        </ul>
       );
     }
+    if (trimmed.startsWith("|")) {
+      return (
+        <pre key={i} className="mt-3 overflow-x-auto rounded-lg bg-muted/50 p-3 text-sm">
+          {trimmed}
+        </pre>
+      );
+    }
+
     return (
       <p key={i} className="mt-3 leading-relaxed text-muted-foreground">
-        {block}
+        {renderInline(trimmed, `p-${i}`)}
       </p>
     );
   });
@@ -105,6 +182,29 @@ export function BlogDetailClient({
       <div className="prose prose-slate mt-8 max-w-none dark:prose-invert">
         {renderMarkdownish(localizedText(post.content, locale))}
       </div>
+
+      <Card className="mt-10 border-primary/20 bg-primary/5">
+        <CardContent className="pt-6">
+          <h2 className="text-lg font-semibold">Book on Safar Sathi</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Compare tour packages, hotels, and vehicles — book directly on our website.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" render={<Link href="/packages" />}>
+              Tour Packages
+            </Button>
+            <Button size="sm" variant="outline" render={<Link href="/hotels" />}>
+              Hotels
+            </Button>
+            <Button size="sm" variant="outline" render={<Link href="/vehicles" />}>
+              Vehicles
+            </Button>
+            <Button size="sm" variant="outline" render={<Link href="/booking" />}>
+              Book Now
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {post.faq && post.faq.length > 0 && (
         <section className="mt-10 space-y-3">

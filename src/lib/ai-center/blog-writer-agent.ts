@@ -10,11 +10,13 @@ import type {
 } from "@/lib/ai-center/types";
 import {
   buildDistanceSection,
+  buildSafarSathiBookingCta,
   formatReferencesMarkdown,
   getDestinationBlogReference,
   resolveDestinationName,
 } from "@/lib/ai-center/blog-reference-data";
 import { estimateWordCount, slugify } from "@/lib/ai-center/utils";
+import { appUrl } from "@/lib/site-config";
 
 const IMAGE_POOL = [
   HERO_IMAGES.packages,
@@ -35,7 +37,9 @@ STRICT RULES:
 - Include practical details: how to reach, best time, real attractions, local food
 - End with "## Sources & Further Reading" using the provided reference links as markdown links
 - Target the requested word count naturally without padding or repetition
-- Use bullet lists and short paragraphs for readability`;
+- Use bullet lists and short paragraphs for readability
+- For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites
+- Wikipedia and official tourism board links are OK in the Sources section only`;
 
 function buildImagePrompts(keyword: string, destination?: string): BlogImagePrompt[] {
   const dest = destination ?? "India";
@@ -110,7 +114,14 @@ TOP ATTRACTIONS: ${ref.attractions.join("; ")}
 ACTIVITIES: ${ref.activities.join("; ")}
 TYPICAL BUDGET: ${ref.avgBudgetPerDay}
 TRAVEL TIPS: ${ref.travelTips.join("; ")}
-REFERENCE LINKS (use in Sources section):
+SAFAR SATHI BOOKING LINKS (use these for any booking/package/hotel CTAs):
+- Tour packages: ${appUrl("/packages")}
+- Hotels: ${appUrl("/hotels")}
+- Vehicles: ${appUrl("/vehicles")}
+- AI Assistant: ${appUrl("/assistant")}
+- Booking: ${appUrl("/booking")}
+- Homepage: ${appUrl()}
+REFERENCE LINKS (Sources section only — not for booking):
 ${links}`;
 }
 
@@ -137,6 +148,7 @@ function buildSections(
     `## Travel Tips\n\n${ref.travelTips.map((t) => `- ${t}`).join("\n")}`,
     `## FAQ\n\n**How many days are enough for ${dest}?**\nMost first-time visitors plan 3–5 nights to cover main sights without rushing.\n\n**Is ${dest} safe for solo travellers?**\nStick to registered operators, share itinerary with family, and avoid isolated areas at night.\n\n**Can I book packages online?**\nYes — compare hotel, cab, and itinerary inclusions before payment.`,
     `## Conclusion\n\n${dest} works well for families, couples, and adventure groups when you match season to activities. Use the tips above to plan dates and routes — Safar Sathi can help you compare live packages when you are ready to book.`,
+    buildSafarSathiBookingCta(dest),
     formatReferencesMarkdown(ref.references),
   ].filter(Boolean);
 
@@ -174,9 +186,28 @@ STRUCTURE (each ## heading once only):
 9. Travel Tips
 10. FAQ (3 questions)
 11. Conclusion (one brief Safar Sathi mention max)
-12. Sources & Further Reading (markdown links from references)
+12. Book on Safar Sathi (use only Safar Sathi booking URLs from reference data)
+13. Sources & Further Reading (markdown links from references — Wikipedia/tourism only)
 
 If the keyword mentions distance between two cities, add a "Distance & Route Overview" section with km, hours, and transport table near the top.`;
+}
+
+const EXTERNAL_BOOKING_HOST =
+  /makemytrip|goibibo|booking\.com|agoda|expedia|tripadvisor|yatra|cleartrip|easemytrip|ixigo|hotels\.com|trivago|airbnb/i;
+
+/** Replace third-party booking links with Safar Sathi package page. */
+function sanitizeBookingLinks(markdown: string): string {
+  return markdown.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, (match, text, url) => {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, "");
+      if (EXTERNAL_BOOKING_HOST.test(host)) {
+        return `[${text}](${appUrl("/packages")})`;
+      }
+    } catch {
+      // keep original
+    }
+    return match;
+  });
 }
 
 export interface GenerateBlogInput {
@@ -213,6 +244,9 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     );
     if (provider !== "rule-based" && aiContent.length > 400) {
       content = dedupeMarkdownSections(aiContent);
+      if (!content.toLowerCase().includes("book on safar sathi")) {
+        content += `\n\n${buildSafarSathiBookingCta(dest)}`;
+      }
       if (!content.toLowerCase().includes("sources & further reading")) {
         const ref = getDestinationBlogReference(keyword.keyword, keyword.destination);
         content += `\n\n${formatReferencesMarkdown(ref.references)}`;
@@ -222,7 +256,7 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     // keep rule-based content
   }
 
-  content = dedupeMarkdownSections(content);
+  content = sanitizeBookingLinks(dedupeMarkdownSections(content));
   const wordCount = estimateWordCount(content);
   const faq = seoMeta?.faq ?? [
     {

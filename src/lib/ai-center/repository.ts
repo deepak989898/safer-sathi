@@ -164,7 +164,58 @@ export function getPublishedBlogs(): AiBlogPost[] {
 }
 
 export function getBlogBySlug(slug: string): AiBlogPost | null {
-  return blogCache.find((b) => b.slug === slug && b.status === "published") ?? null;
+  const normalized = slug.trim().toLowerCase();
+  return (
+    blogCache.find(
+      (b) => b.slug.toLowerCase() === normalized && b.status === "published"
+    ) ?? null
+  );
+}
+
+/** Direct Firestore lookup — reliable on serverless when in-memory cache is cold. */
+export async function fetchPublishedBlogBySlug(slug: string): Promise<AiBlogPost | null> {
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const cached = blogCache.find(
+    (b) => b.slug.toLowerCase() === normalized && b.status === "published"
+  );
+  if (cached) return cached;
+
+  if (!isAdminEnvConfigured()) {
+    await hydrateAiCenterStore();
+    return getBlogBySlug(normalized);
+  }
+
+  try {
+    const db = await getSafeAdminDb();
+    if (!db) {
+      await hydrateAiCenterStore();
+      return getBlogBySlug(normalized);
+    }
+
+    const snap = await db
+      .collection(COLLECTIONS.blogs)
+      .where("slug", "==", normalized)
+      .limit(5)
+      .get();
+
+    const published = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }) as AiBlogPost)
+      .find((b) => b.status === "published");
+
+    if (published) {
+      blogCache = mergeCache(blogCache, published);
+      return published;
+    }
+
+    await hydrateAiCenterStore();
+    return getBlogBySlug(normalized);
+  } catch (error) {
+    console.warn("fetchPublishedBlogBySlug failed:", error);
+    await hydrateAiCenterStore();
+    return getBlogBySlug(normalized);
+  }
 }
 
 export async function runKeywordGeneration(actorId?: string): Promise<SeoKeyword[]> {
@@ -396,6 +447,15 @@ export async function publishBlog(id: string, approvedBy: string): Promise<AiBlo
     resourceId: updated.id,
     resourceType: "blog",
   });
+
+  try {
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/blog");
+    revalidatePath(`/blog/${updated.slug}`);
+  } catch {
+    // no-op outside Next request context
+  }
+
   return updated;
 }
 

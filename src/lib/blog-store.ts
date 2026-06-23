@@ -1,4 +1,5 @@
 import {
+  fetchPublishedBlogBySlug,
   getBlogBySlug as getAiBlogBySlug,
   getPublishedBlogs,
   hydrateAiCenterStore,
@@ -38,6 +39,12 @@ export function getPublishedBlogPosts(): BlogPost[] {
 
 export function getPublishedBlogBySlug(slug: string): BlogPost | null {
   const ai = getAiBlogBySlug(slug);
+  if (ai) return aiBlogToBlogPost(ai);
+  return demoBlogPosts.find((p) => p.slug === slug && p.published) ?? null;
+}
+
+export async function getPublishedBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const ai = await fetchPublishedBlogBySlug(slug);
   if (ai) return aiBlogToBlogPost(ai);
   return demoBlogPosts.find((p) => p.slug === slug && p.published) ?? null;
 }

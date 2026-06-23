@@ -1,3 +1,5 @@
+import { appUrl } from "@/lib/site-config";
+
 export interface BlogReferenceLink {
   title: string;
   url: string;
@@ -337,4 +339,22 @@ export function formatReferencesMarkdown(refs: BlogReferenceLink[]): string {
   if (!refs.length) return "";
   const lines = refs.map((r) => `- [${r.title}](${r.url})`);
   return `## Sources & Further Reading\n\n${lines.join("\n")}`;
+}
+
+/** Branded booking CTA — all links point to Safar Sathi only. */
+export function buildSafarSathiBookingCta(destination?: string): string {
+  const dest = destination?.trim() || "your destination";
+  const site = appUrl();
+
+  return `## Book on Safar Sathi
+
+Ready to plan **${dest}**? Book directly on Safar Sathi — tour packages, hotels, vehicles, and bus tickets in one place:
+
+- [Browse tour packages](${appUrl("/packages")})
+- [Find hotels](${appUrl("/hotels")})
+- [Rent a vehicle](${appUrl("/vehicles")})
+- [AI Travel Assistant](${appUrl("/assistant")})
+- [Start booking](${appUrl("/booking")})
+
+All reservations are made on [Safar Sathi](${site}). We do not redirect you to third-party booking sites.`;
 }
