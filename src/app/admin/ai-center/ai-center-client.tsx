@@ -10,8 +10,6 @@ import {
   FileText,
   Globe,
   Loader2,
-  Mic,
-  Package,
   RefreshCw,
   ScrollText,
   Search,
@@ -26,9 +24,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AiCenterPhase3Tab } from "./ai-center-phase3-tab";
-import { AiCenterPackagesTab } from "./ai-center-packages-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
-import { AiCenterVoiceTab } from "./ai-center-voice-tab";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSingleImageUpload } from "@/components/admin/admin-image-url-field";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -100,15 +96,6 @@ const AI_CENTER_NAV_SECTIONS: AiCenterNavSection[] = [
     ],
   },
   {
-    id: "products",
-    label: "Packages & Voice",
-    description: "AI package drafts and voice assistant settings.",
-    tabs: [
-      { id: "packages", label: "Package Generator", icon: Package },
-      { id: "voice", label: "Voice Assistant", icon: Mic },
-    ],
-  },
-  {
     id: "analytics-reports",
     label: "Analytics & Reports",
     description: "Track AI performance and export insights.",
@@ -164,8 +151,6 @@ const AI_CENTER_TABS = new Set([
   "drafts",
   "scheduled",
   "published",
-  "packages",
-  "voice",
   "analytics",
   "reports",
   "phase3-pricing",
@@ -681,7 +666,7 @@ export default function AiCenterClient() {
     <>
       <AdminHeader
         title="AI Center"
-        description="SEO, Blog, Packages, Voice, Analytics & Phase 3 Agents — Super Admin only"
+        description="SEO, Blog, Analytics & Phase 3 Agents — Super Admin only"
         adminName={user?.name ?? "Super Admin"}
       />
 
@@ -967,19 +952,6 @@ export default function AiCenterClient() {
               onDelete={(id) => void deleteBlog(id)}
               publishedOnly
             />
-          </TabsContent>
-
-          <TabsContent value="packages">
-            <AiCenterPackagesTab
-              actorRole={actorRole}
-              actorId={actorId}
-              busy={busy}
-              setBusy={setBusy}
-            />
-          </TabsContent>
-
-          <TabsContent value="voice">
-            <AiCenterVoiceTab settings={settings} />
           </TabsContent>
 
           <TabsContent value="analytics">
