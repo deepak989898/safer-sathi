@@ -15,28 +15,10 @@ interface MobileShowcaseCardProps {
   className?: string;
   /** carousel = horizontal scroll strip; grid = 2-column mobile grid */
   layout?: "carousel" | "grid";
-  category?: "packages" | "hotels" | "vehicles";
 }
 
 const CARD_ASPECT = "aspect-[4/5]";
-
-const IMAGE_STYLES: Record<
-  NonNullable<MobileShowcaseCardProps["category"]>,
-  { frameClass: string; imageClass: string }
-> = {
-  packages: {
-    frameClass: "bg-muted/30",
-    imageClass: "object-cover object-center",
-  },
-  hotels: {
-    frameClass: "bg-gradient-to-b from-slate-100 to-slate-200",
-    imageClass: "object-contain object-center p-1",
-  },
-  vehicles: {
-    frameClass: "bg-gradient-to-b from-slate-100 to-slate-200",
-    imageClass: "object-contain object-center p-1",
-  },
-};
+const CARD_IMAGE_CLASS = "object-cover object-center";
 
 export function MobileShowcaseCard({
   href,
@@ -47,10 +29,7 @@ export function MobileShowcaseCard({
   locale,
   className,
   layout = "carousel",
-  category = "packages",
 }: MobileShowcaseCardProps) {
-  const imageStyle = IMAGE_STYLES[category];
-
   return (
     <Link
       href={href}
@@ -62,25 +41,18 @@ export function MobileShowcaseCard({
         className
       )}
     >
-      <div className={cn("relative w-full", CARD_ASPECT, imageStyle.frameClass)}>
+      <div className={cn("relative w-full", CARD_ASPECT)}>
         <SafeImage
           src={image}
           alt={title}
           fill
           sizes={layout === "grid" ? "50vw" : "168px"}
           className={cn(
-            "transition-transform duration-300 group-hover:scale-[1.03]",
-            imageStyle.imageClass
+            "transition-transform duration-300 group-hover:scale-105",
+            CARD_IMAGE_CLASS
           )}
         />
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-x-0 bg-gradient-to-t to-transparent",
-            category === "packages"
-              ? "inset-y-0 from-black/75 via-black/15"
-              : "bottom-0 h-[52%] from-black/80 via-black/35"
-          )}
-        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
           <div className="min-w-0 text-white">
             <p className="flex items-center gap-1 text-sm font-semibold leading-tight">

@@ -133,7 +133,6 @@ export function MobileHomeShowcase({
                 <MobileShowcaseCard
                   key={`${mobileTab}-${item.slug}`}
                   layout="grid"
-                  category={mobileTab}
                   href={item.href}
                   image={item.image}
                   title={item.title}

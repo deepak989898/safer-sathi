@@ -74,7 +74,7 @@ export function AiAssistantFab() {
         onClick={handleOpen}
         className={cn(
           "fixed bottom-5 right-5 z-50 rounded-full sm:bottom-6 sm:right-6",
-          "flex h-[4.5rem] w-[4.5rem] items-center justify-center p-2",
+          "flex h-16 w-16 items-center justify-center p-2.5",
           "bg-gradient-to-br from-[#fde047] via-[#facc15] to-[#f59e0b]",
           "shadow-lg shadow-amber-500/35 ring-2 ring-white",
           "transition-transform hover:scale-105 active:scale-95",
@@ -82,9 +82,9 @@ export function AiAssistantFab() {
         )}
       >
         <AiAssistantIcon
-          size={52}
+          size={44}
           priority
-          className="h-[3.25rem] w-[3.25rem] object-contain"
+          className="h-11 w-11 object-contain"
         />
       </button>
       <TravelManagerPopup open={open} onOpenChange={handleOpenChange} />
