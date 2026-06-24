@@ -685,73 +685,93 @@ export default function AiCenterClient() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
-            <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-              {AI_CENTER_NAV_SECTIONS.map((section) => (
-                <div key={section.id} className="rounded-xl border bg-card p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {AI_CENTER_NAV_SECTIONS.map((section) => {
+              const isSectionActive = activeTabMeta?.section.id === section.id;
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => {
+                    if (!isSectionActive) {
+                      setActiveTab(section.tabs[0].id);
+                    }
+                  }}
+                  className={cn(
+                    "rounded-xl border bg-card p-4 text-left transition-colors",
+                    isSectionActive
+                      ? "border-primary shadow-sm ring-2 ring-primary/15"
+                      : "hover:border-primary/30 hover:bg-muted/20"
+                  )}
+                >
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {section.label}
                   </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/80">
+                  <p className="mt-1 text-xs leading-snug text-muted-foreground/80">
                     {section.description}
                   </p>
-                  <div className="mt-2 space-y-1">
-                    {section.tabs.map((tab) => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      let badge: number | null = null;
-                      if (tab.id === "keywords") badge = pendingKeywords.length;
-                      if (tab.id === "drafts") badge = draftBlogs.length;
-                      if (tab.id === "scheduled") badge = scheduledBlogs.length;
-                      if (tab.id === "published") badge = publishedBlogs.length;
+                </button>
+              );
+            })}
+          </div>
 
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setActiveTab(tab.id)}
+          {activeTabMeta && (
+            <div className="rounded-xl border bg-card p-3">
+              <div className="flex flex-wrap gap-2">
+                {activeTabMeta.section.tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  let badge: number | null = null;
+                  if (tab.id === "keywords") badge = pendingKeywords.length;
+                  if (tab.id === "drafts") badge = draftBlogs.length;
+                  if (tab.id === "scheduled") badge = scheduledBlogs.length;
+                  if (tab.id === "published") badge = publishedBlogs.length;
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-foreground/80 hover:bg-muted"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{tab.label}</span>
+                      {badge !== null && badge > 0 && (
+                        <Badge
+                          variant="secondary"
                           className={cn(
-                            "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
-                            isActive
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-foreground/80 hover:bg-muted"
+                            "h-5 min-w-5 px-1.5 text-[10px]",
+                            isActive && "bg-primary-foreground/20 text-primary-foreground"
                           )}
                         >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Icon className="h-4 w-4 shrink-0" />
-                            <span className="truncate">{tab.label}</span>
-                          </span>
-                          {badge !== null && badge > 0 && (
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                "h-5 min-w-5 shrink-0 px-1.5 text-[10px]",
-                                isActive && "bg-primary-foreground/20 text-primary-foreground"
-                              )}
-                            >
-                              {badge}
-                            </Badge>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </aside>
+                          {badge}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-            <div className="min-w-0 space-y-4">
-              {activeTabMeta && (
-                <div className="rounded-xl border bg-muted/25 px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {activeTabMeta.section.label}
-                  </p>
-                  <h2 className="text-lg font-semibold text-[#0c2444]">{activeTabMeta.label}</h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {activeTabMeta.section.description}
-                  </p>
-                </div>
-              )}
+          <div className="min-w-0 space-y-4">
+            {activeTabMeta && (
+              <div className="rounded-xl border bg-muted/25 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {activeTabMeta.section.label}
+                </p>
+                <h2 className="text-lg font-semibold text-[#0c2444]">{activeTabMeta.label}</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {activeTabMeta.section.description}
+                </p>
+              </div>
+            )}
 
           <TabsContent value="seo" className="mt-0 space-y-4">
             <Card>
@@ -1217,7 +1237,6 @@ export default function AiCenterClient() {
               </Card>
             )}
           </TabsContent>
-            </div>
           </div>
         </Tabs>
       </div>
