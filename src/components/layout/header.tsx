@@ -84,9 +84,6 @@ export function Header() {
     >
       <div className="container mx-auto flex min-h-[5.5rem] items-center justify-between gap-2 px-3 py-1.5 sm:gap-3 sm:px-4 md:min-h-[6.25rem]">
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-          {!isHome && (
-            <RoleNavigationDrawer showLabel triggerClassName="hidden md:inline-flex" />
-          )}
           <BrandLogo priority size="header" />
         </div>
 
@@ -216,15 +213,16 @@ export function Header() {
             transparentSurface={isHome}
           />
 
-          {isHome && (
-            <RoleNavigationDrawer
-              showLabel
-              triggerClassName={cn(
-                "hidden border-white/40 bg-white/15 text-white shadow-md backdrop-blur-md hover:bg-white/25 md:inline-flex",
-                "h-11 min-w-[5.5rem] gap-2 rounded-full px-4"
-              )}
-            />
-          )}
+          <RoleNavigationDrawer
+            showLabel
+            triggerClassName={cn(
+              "hidden md:inline-flex",
+              "h-11 min-w-[5.5rem] gap-2 rounded-full px-4",
+              isHome
+                ? "border-white/40 bg-white/15 text-white shadow-md backdrop-blur-md hover:bg-white/25"
+                : "border-primary/30 shadow-sm hover:bg-primary/5"
+            )}
+          />
         </div>
       </div>
     </header>
