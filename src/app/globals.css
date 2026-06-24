@@ -168,6 +168,37 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes marquee-rtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.mobile-testimonial-marquee-mask {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+}
+
+.mobile-testimonial-marquee-track {
+  animation: marquee-rtl 48s linear infinite;
+}
+
+.mobile-testimonial-marquee-track:hover {
+  animation-play-state: paused;
+}
+
 /* Home hero: lighter overlay on mobile so photos stay visible */
 .hero-slider-overlay {
   background: linear-gradient(

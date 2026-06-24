@@ -73,13 +73,19 @@ export function AiAssistantFab() {
         aria-label={t(locale, "features", "aiAssistant")}
         onClick={handleOpen}
         className={cn(
-          "fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full",
-          "bg-white shadow-lg shadow-primary/25 ring-4 ring-background",
+          "fixed bottom-5 right-5 z-50 overflow-hidden rounded-full sm:bottom-6 sm:right-6",
+          "flex h-[4.5rem] w-[4.5rem] items-center justify-center",
+          "bg-gradient-to-br from-[#1e40af] via-primary to-[#38bdf8]",
+          "shadow-xl shadow-primary/40 ring-2 ring-white/95",
           "transition-transform hover:scale-105 active:scale-95",
-          "dark:bg-white dark:shadow-black/30"
+          "dark:ring-white/80 dark:shadow-primary/50"
         )}
       >
-        <AiAssistantIcon size={36} className="h-9 w-9" priority />
+        <AiAssistantIcon
+          size={72}
+          priority
+          className="h-[3.75rem] w-[3.75rem] scale-[1.22] object-contain drop-shadow-md"
+        />
       </button>
       <TravelManagerPopup open={open} onOpenChange={handleOpenChange} />
     </>

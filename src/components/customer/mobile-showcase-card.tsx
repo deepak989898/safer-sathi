@@ -15,7 +15,27 @@ interface MobileShowcaseCardProps {
   className?: string;
   /** carousel = horizontal scroll strip; grid = 2-column mobile grid */
   layout?: "carousel" | "grid";
+  /** Landscape catalog images (hotels, vehicles) need a wider frame on mobile. */
+  category?: "packages" | "hotels" | "vehicles";
 }
+
+const IMAGE_FRAME: Record<
+  NonNullable<MobileShowcaseCardProps["category"]>,
+  { aspect: string; imageClass: string }
+> = {
+  packages: {
+    aspect: "aspect-[4/5]",
+    imageClass: "object-cover object-center",
+  },
+  hotels: {
+    aspect: "aspect-[4/3]",
+    imageClass: "object-contain object-center bg-slate-200/80",
+  },
+  vehicles: {
+    aspect: "aspect-[4/3]",
+    imageClass: "object-contain object-center bg-slate-200/80",
+  },
+};
 
 export function MobileShowcaseCard({
   href,
@@ -26,7 +46,10 @@ export function MobileShowcaseCard({
   locale,
   className,
   layout = "carousel",
+  category = "packages",
 }: MobileShowcaseCardProps) {
+  const frame = IMAGE_FRAME[category];
+
   return (
     <Link
       href={href}
@@ -38,13 +61,16 @@ export function MobileShowcaseCard({
         className
       )}
     >
-      <div className="relative aspect-[4/5] w-full">
+      <div className={cn("relative w-full bg-muted/40", frame.aspect)}>
         <SafeImage
           src={image}
           alt={title}
           fill
           sizes={layout === "grid" ? "50vw" : "168px"}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className={cn(
+            "transition-transform duration-300 group-hover:scale-105",
+            frame.imageClass
+          )}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">

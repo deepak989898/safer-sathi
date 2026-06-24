@@ -30,10 +30,34 @@ const SUPPORT_LINKS = [
 ] as const;
 
 const SOCIAL_LINKS = [
-  { href: "https://facebook.com", label: "Facebook", Icon: FacebookIcon },
-  { href: "https://instagram.com", label: "Instagram", Icon: InstagramIcon },
-  { href: "https://twitter.com", label: "Twitter", Icon: TwitterIcon },
-  { href: "https://youtube.com", label: "YouTube", Icon: YoutubeIcon },
+  {
+    href: "https://facebook.com",
+    label: "Facebook",
+    Icon: FacebookIcon,
+    iconClass: "text-[#1877F2]",
+    shellClass: "bg-[#1877F2]/10 hover:bg-[#1877F2]/15",
+  },
+  {
+    href: "https://instagram.com",
+    label: "Instagram",
+    Icon: InstagramIcon,
+    iconClass: "text-[#E4405F]",
+    shellClass: "bg-[#E4405F]/10 hover:bg-[#E4405F]/15",
+  },
+  {
+    href: "https://twitter.com",
+    label: "Twitter",
+    Icon: TwitterIcon,
+    iconClass: "text-black md:text-white",
+    shellClass: "bg-black/5 hover:bg-black/10 md:bg-white/10 md:hover:bg-white/20",
+  },
+  {
+    href: "https://youtube.com",
+    label: "YouTube",
+    Icon: YoutubeIcon,
+    iconClass: "text-[#FF0000]",
+    shellClass: "bg-[#FF0000]/10 hover:bg-[#FF0000]/15",
+  },
 ] as const;
 
 export function Footer() {
@@ -68,44 +92,45 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "inline-flex h-10 w-10 items-center justify-center rounded-full",
-                    "bg-primary/10 text-primary transition-colors hover:bg-primary/15",
-                    "md:bg-white/10 md:text-white md:hover:bg-white/20"
+                    "inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                    social.shellClass
                   )}
                   aria-label={social.label}
                 >
-                  <social.Icon className="h-[18px] w-[18px]" />
+                  <social.Icon className={cn("h-[18px] w-[18px]", social.iconClass)} />
                 </a>
               ))}
             </div>
           </div>
 
-          <div>
-            <h4 className="mb-3 font-semibold md:mb-4 md:text-white">
-              {t(locale, "footer", "quickLinks")}
-            </h4>
-            <ul className="space-y-2.5 text-sm text-muted-foreground md:text-white/75">
-              {QUICK_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="hover:text-primary md:hover:text-white">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="grid grid-cols-2 gap-6 md:contents">
+            <div>
+              <h4 className="mb-3 font-semibold md:mb-4 md:text-white">
+                {t(locale, "footer", "quickLinks")}
+              </h4>
+              <ul className="space-y-2.5 text-sm text-muted-foreground md:text-white/75">
+                {QUICK_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="hover:text-primary md:hover:text-white">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div>
-            <h4 className="mb-3 font-semibold md:mb-4 md:text-white">Support</h4>
-            <ul className="space-y-2.5 text-sm text-muted-foreground md:text-white/75">
-              {SUPPORT_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="hover:text-primary md:hover:text-white">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div>
+              <h4 className="mb-3 font-semibold md:mb-4 md:text-white">Support</h4>
+              <ul className="space-y-2.5 text-sm text-muted-foreground md:text-white/75">
+                {SUPPORT_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="hover:text-primary md:hover:text-white">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <div>

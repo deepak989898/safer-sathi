@@ -106,7 +106,7 @@ export function Header() {
                   size="icon"
                   className={cn(
                     "h-9 w-9",
-                    isHome && "text-foreground md:text-inherit"
+                    isHome && "text-white md:text-inherit"
                   )}
                 />
               }
@@ -128,7 +128,7 @@ export function Header() {
             size="icon"
             className={cn(
               "relative h-9 w-9",
-              isHome && "text-foreground md:text-inherit"
+              isHome && "text-white md:text-inherit"
             )}
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label="Toggle theme"

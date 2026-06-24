@@ -15,6 +15,7 @@ import { VehicleCard } from "@/components/customer/vehicle-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, localizedText } from "@/lib/i18n";
+import { buildHomeTestimonials } from "@/lib/catalog/home-testimonials";
 import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
 import { useAppStore } from "@/store/app-store";
 import type { Hotel, Review, TourPackage, Vehicle } from "@/types";
@@ -69,58 +70,11 @@ const POPULAR_DESTINATIONS = [
   },
 ] as const;
 
-const FALLBACK_TESTIMONIALS = [
-  {
-    id: "demo-1",
-    userName: "Priya Sharma",
-    rating: 5,
-    comment: {
-      en: "Excellent trip to Jaipur! The hotel was amazing and the guide was very knowledgeable. Highly recommend Safar Sathi for Rajasthan tours.",
-      hi: "जयपुर की शानदार यात्रा! होटल बढ़िया था और गाइड बहुत जानकार था। राजस्थान टूर के लिए Safar Sathi की सिफारिश करती हूँ।",
-    },
-    tourLabel: "Jaipur Tour",
-  },
-  {
-    id: "demo-2",
-    userName: "Rahul Mehta",
-    rating: 5,
-    comment: {
-      en: "Booked a tempo traveller for our family trip to Manali. Clean vehicle, punctual driver, and great pricing. Will book again!",
-      hi: "मनाली परिवार यात्रा के लिए टेम्पो ट्रैवeller बुक किया। साफ वाहन, समय पर ड्राइवर और अच्छी कीमत। फिर बुक करूँगा!",
-    },
-    tourLabel: "Manali Trip",
-  },
-  {
-    id: "demo-3",
-    userName: "Anita Desai",
-    rating: 5,
-    comment: {
-      en: "Kerala backwaters package exceeded expectations. Houseboat experience was magical. Safar Sathi made everything seamless from booking to checkout.",
-      hi: "केरल बैकवॉटर पैकेज उम्मीद से बेहतर रहा। हाउसबोट अनुभव जादुई था। Safar Sathi ने बुकिंग से लेकर चेकआउट तक सब आसान बना दिया।",
-    },
-    tourLabel: "Kerala Package",
-  },
-] as const;
-
 interface DesktopHomeSectionsProps {
   featuredPackages: TourPackage[];
   featuredHotels: Hotel[];
   featuredVehicles: Vehicle[];
   reviews: Review[];
-}
-
-function serviceTypeLabel(serviceType: Review["serviceType"]): string {
-  const labels: Record<Review["serviceType"], string> = {
-    package: "Tour Package",
-    vehicle: "Vehicle Rental",
-    hotel: "Hotel Stay",
-    bus: "Bus Booking",
-    car_rental: "Car Rental",
-    tempo_traveller: "Tempo Traveller",
-    airport_pickup: "Airport Pickup",
-    holiday: "Holiday Package",
-  };
-  return labels[serviceType] ?? "Travel Booking";
 }
 
 export function DesktopHomeSections({
@@ -134,31 +88,7 @@ export function DesktopHomeSections({
   const topHotels = featuredHotels.slice(0, 4);
   const topVehicles = featuredVehicles.slice(0, 4);
 
-  const liveTestimonials = reviews.slice(0, 3).map((review) => ({
-    id: review.id,
-    userName: review.userName,
-    rating: review.rating,
-    comment: localizedText(review.comment, locale),
-    tourLabel: serviceTypeLabel(review.serviceType),
-  }));
-
-  const fallbackItems = FALLBACK_TESTIMONIALS.map((item) => ({
-    id: item.id,
-    userName: item.userName,
-    rating: item.rating,
-    comment: localizedText(item.comment, locale),
-    tourLabel: item.tourLabel,
-  }));
-
-  const testimonials =
-    liveTestimonials.length >= 3
-      ? liveTestimonials
-      : [
-          ...liveTestimonials,
-          ...fallbackItems.filter(
-            (item) => !liveTestimonials.some((live) => live.userName === item.userName)
-          ),
-        ].slice(0, 3);
+  const testimonials = buildHomeTestimonials(reviews, locale, 3);
 
   return (
     <section className="desktop-search-section-pad hidden bg-background md:block">

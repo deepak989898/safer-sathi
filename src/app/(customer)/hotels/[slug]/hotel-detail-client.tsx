@@ -17,7 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  CatalogDetailTabsList,
+  CatalogDetailTabsTrigger,
+} from "@/components/customer/catalog-detail-tabs";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
@@ -184,24 +188,18 @@ export function HotelDetailClient({
             <PackageImageGallery images={hotel.images} alt={title} />
 
             <Tabs defaultValue="overview" className="min-w-0">
-              <TabsList className="h-auto w-full flex-wrap justify-start gap-0.5 border-b bg-transparent p-0">
+              <CatalogDetailTabsList>
                 {[
                   { id: "overview", label: "Overview" },
                   { id: "amenities", label: "Amenities" },
                   { id: "rooms", label: "Rooms" },
                   { id: "reviews", label: "Reviews" },
                 ].map((tab) => (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    className={cn(
-                      "rounded-none border-b-2 border-transparent px-3 py-2 text-sm data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                    )}
-                  >
+                  <CatalogDetailTabsTrigger key={tab.id} value={tab.id}>
                     {tab.label}
-                  </TabsTrigger>
+                  </CatalogDetailTabsTrigger>
                 ))}
-              </TabsList>
+              </CatalogDetailTabsList>
 
               <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
                 <div className="min-w-0">

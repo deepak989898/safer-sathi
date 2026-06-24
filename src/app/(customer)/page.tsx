@@ -14,6 +14,7 @@ import {
 } from "@/lib/catalog/homepage-showcase";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
+import { MobileTravelersSlider } from "@/components/customer/mobile-travelers-slider";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,8 @@ export default async function HomePage() {
       <div className="container mx-auto px-4 pb-5 md:hidden">
         <MobileFeatureCard />
       </div>
+
+      <MobileTravelersSlider reviews={reviews} />
 
       <ImageBannerSection className="py-5 pb-6 md:hidden md:py-12" image={HERO_IMAGES.cta}>
         <div className="container mx-auto px-4 text-center">
