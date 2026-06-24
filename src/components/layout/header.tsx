@@ -53,18 +53,40 @@ export function Header() {
   const adminHome = user ? getLoginRedirect(user.role) : "/admin";
   const isHome = pathname === "/";
 
+  const homeNavLinkClass = isHome
+    ? "text-white/90 hover:bg-white/10 hover:text-white"
+    : "hover:bg-accent hover:text-accent-foreground";
+
+  const homeNavActiveClass = isHome
+    ? "bg-white/15 font-semibold text-white"
+    : "bg-primary/10 text-primary";
+
+  const homeIconBtnClass = isHome
+    ? "text-white hover:bg-white/15 hover:text-white"
+    : undefined;
+
+  const homeOutlineBtnClass = isHome
+    ? "rounded-full border-white/40 bg-white/15 px-4 text-white shadow-sm backdrop-blur-md hover:bg-white/25 hover:text-white"
+    : undefined;
+
+  const homeGhostBtnClass = isHome
+    ? "rounded-full text-white hover:bg-white/15 hover:text-white"
+    : "rounded-full font-medium hover:bg-primary/5";
+
   return (
     <header
       className={cn(
         "z-50 w-full overflow-visible",
         isHome
-          ? "absolute inset-x-0 top-0 border-0 bg-transparent md:sticky md:border-b md:bg-white/95 md:backdrop-blur md:supports-[backdrop-filter]:md:bg-white/80 dark:md:bg-background/95"
+          ? "absolute inset-x-0 top-0 border-0 bg-transparent"
           : "sticky top-0 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:bg-background/95"
       )}
     >
       <div className="container mx-auto flex min-h-[5.5rem] items-center justify-between gap-2 px-3 py-1.5 sm:gap-3 sm:px-4 md:min-h-[6.25rem]">
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-          <RoleNavigationDrawer showLabel triggerClassName="hidden md:inline-flex" />
+          {!isHome && (
+            <RoleNavigationDrawer showLabel triggerClassName="hidden md:inline-flex" />
+          )}
           <BrandLogo priority size="header" />
         </div>
 
@@ -74,8 +96,9 @@ export function Header() {
               key={link.href}
               href={link.href}
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                isNavActive(pathname, link.href) && "bg-primary/10 text-primary"
+                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                homeNavLinkClass,
+                isNavActive(pathname, link.href) && homeNavActiveClass
               )}
             >
               {t(locale, "nav", link.label)}
@@ -85,8 +108,10 @@ export function Header() {
             <Link
               href={adminHome}
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                pathname.startsWith("/admin") && "bg-primary text-primary-foreground"
+                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                homeNavLinkClass,
+                pathname.startsWith("/admin") &&
+                  (isHome ? "bg-white/20 text-white" : "bg-primary text-primary-foreground")
               )}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -104,10 +129,7 @@ export function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn(
-                    "h-9 w-9",
-                    isHome && "text-white md:text-inherit"
-                  )}
+                  className={cn("h-9 w-9", homeIconBtnClass)}
                 />
               }
             >
@@ -126,10 +148,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className={cn(
-              "relative h-9 w-9",
-              isHome && "text-white md:text-inherit"
-            )}
+            className={cn("relative h-9 w-9", homeIconBtnClass)}
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label="Toggle theme"
           >
@@ -154,14 +173,14 @@ export function Header() {
                 </Link>
               )}
               <Link href="/my-bookings" className="hidden sm:block">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className={homeGhostBtnClass}>
                   {t(locale, "nav", "myBookings")}
                 </Button>
               </Link>
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden sm:inline-flex"
+                className={cn("hidden sm:inline-flex", homeOutlineBtnClass)}
                 onClick={() => logout()}
               >
                 Sign Out
@@ -170,13 +189,22 @@ export function Header() {
           ) : (
             <>
               <Link href="/my-bookings" className="hidden sm:block">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className={homeGhostBtnClass}>
                   {t(locale, "nav", "myBookings")}
                 </Button>
               </Link>
               <Link href="/login" className="hidden sm:block">
-                <Button variant="outline" size="sm">
-                  <User className="mr-1 h-4 w-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "gap-1.5 font-semibold",
+                    isHome
+                      ? homeOutlineBtnClass
+                      : "rounded-full border-primary/30 px-4 shadow-sm hover:bg-primary/5"
+                  )}
+                >
+                  <User className="h-4 w-4" />
                   {t(locale, "nav", "login")}
                 </Button>
               </Link>
@@ -187,6 +215,16 @@ export function Header() {
             triggerClassName="inline-flex md:hidden"
             transparentSurface={isHome}
           />
+
+          {isHome && (
+            <RoleNavigationDrawer
+              showLabel
+              triggerClassName={cn(
+                "hidden border-white/40 bg-white/15 text-white shadow-md backdrop-blur-md hover:bg-white/25 md:inline-flex",
+                "h-11 min-w-[5.5rem] gap-2 rounded-full px-4"
+              )}
+            />
+          )}
         </div>
       </div>
     </header>
