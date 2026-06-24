@@ -28,6 +28,7 @@ const settingsSchema = z.object({
   autoDraftEnabled: z.boolean().optional(),
   autoPublishEnabled: z.boolean().optional(),
   autoBlogGenerateEnabled: z.boolean().optional(),
+  autoKeywordApproveEnabled: z.boolean().optional(),
   autoBlogApproveEnabled: z.boolean().optional(),
   approvalRequired: z.boolean().optional(),
   packageAutoDraftEnabled: z.boolean().optional(),

@@ -381,6 +381,30 @@ export default function AiCenterClient() {
     }
   }, [keywords, blogs, actorRole, actorId, loadAll]);
 
+  const runAutoApproveAllKeywords = useCallback(async () => {
+    const targets = keywords.filter((k) => k.status === "pending");
+    if (targets.length === 0) return;
+    setBusy(true);
+    try {
+      for (const kw of targets) {
+        const res = await fetch(`/api/admin/ai-center/keywords/${kw.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actorRole, actorId, action: "approve" }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+      }
+      toast.success(`Auto-approved ${targets.length} keyword${targets.length === 1 ? "" : "s"}`);
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Auto approve failed");
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }, [keywords, actorRole, actorId, loadAll]);
+
   const runAutoApproveAll = useCallback(async () => {
     const targets = blogs.filter(
       (b) => b.status === "pending_approval" || b.status === "draft"
@@ -432,7 +456,11 @@ export default function AiCenterClient() {
   }, [blogs, actorRole, actorId, loadAll]);
 
   const saveAutomationToggle = async (
-    field: "autoBlogGenerateEnabled" | "autoBlogApproveEnabled" | "autoPublishEnabled",
+    field:
+      | "autoKeywordApproveEnabled"
+      | "autoBlogGenerateEnabled"
+      | "autoBlogApproveEnabled"
+      | "autoPublishEnabled",
     enabled: boolean,
     runBatch?: () => Promise<void>
   ) => {
@@ -454,6 +482,9 @@ export default function AiCenterClient() {
       if (field === "autoBlogGenerateEnabled" && !enabled) {
         autoRunRef.current = null;
       }
+      if (field === "autoKeywordApproveEnabled" && !enabled) {
+        autoRunRef.current = null;
+      }
       if (field === "autoBlogApproveEnabled" && !enabled) {
         autoRunRef.current = null;
       }
@@ -462,7 +493,12 @@ export default function AiCenterClient() {
       }
       toast.success(enabled ? "Automation turned on" : "Automation turned off");
       if (enabled && runBatch) {
-        if (field === "autoBlogGenerateEnabled") {
+        if (field === "autoKeywordApproveEnabled") {
+          autoRunRef.current = {
+            tab: "keywords",
+            signature: pendingKeywords.map((k) => k.id).join(","),
+          };
+        } else if (field === "autoBlogGenerateEnabled") {
           autoRunRef.current = {
             tab: "blog-writer",
             signature: blogWriterKeywords.map((k) => k.id).join(","),
@@ -486,6 +522,23 @@ export default function AiCenterClient() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!settings?.autoKeywordApproveEnabled) return;
+    if (activeTab !== "keywords" || busy || pendingKeywords.length === 0) return;
+    const signature = pendingKeywords.map((k) => k.id).join(",");
+    if (autoRunRef.current?.tab === "keywords" && autoRunRef.current.signature === signature) {
+      return;
+    }
+    autoRunRef.current = { tab: "keywords", signature };
+    void runAutoApproveAllKeywords();
+  }, [
+    activeTab,
+    settings?.autoKeywordApproveEnabled,
+    pendingKeywords,
+    busy,
+    runAutoApproveAllKeywords,
+  ]);
 
   useEffect(() => {
     if (!settings?.autoBlogGenerateEnabled) return;
@@ -600,6 +653,7 @@ export default function AiCenterClient() {
           autoDraftEnabled: settings.autoDraftEnabled,
           autoPublishEnabled: settings.autoPublishEnabled,
           autoBlogGenerateEnabled: settings.autoBlogGenerateEnabled,
+          autoKeywordApproveEnabled: settings.autoKeywordApproveEnabled,
           autoBlogApproveEnabled: settings.autoBlogApproveEnabled,
           approvalRequired: true,
         }),
@@ -756,7 +810,20 @@ export default function AiCenterClient() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="keywords">
+          <TabsContent value="keywords" className="space-y-4">
+            <BlogAutomationBar
+              label="Auto Approve"
+              description="When on, all pending keywords are approved automatically (SEO meta is generated for each)."
+              enabled={settings?.autoKeywordApproveEnabled ?? false}
+              disabled={busy || !settings}
+              onToggle={(enabled) =>
+                void saveAutomationToggle(
+                  "autoKeywordApproveEnabled",
+                  enabled,
+                  enabled ? runAutoApproveAllKeywords : undefined
+                )
+              }
+            />
             <KeywordTable
               title="Pending Keywords"
               items={pendingKeywords}

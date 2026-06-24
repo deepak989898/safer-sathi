@@ -6,6 +6,7 @@ import {
   Bus,
   Car,
   Globe,
+  Home,
   Hotel,
   LayoutDashboard,
   Moon,
@@ -32,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
 
 const navLinks = [
+  { href: "/", label: "home", icon: Home },
   { href: "/packages", label: "packages", icon: Package },
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },

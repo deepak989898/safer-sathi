@@ -301,6 +301,8 @@ export interface AiCenterSettings {
   autoPublishEnabled: boolean;
   /** Blog Writer: auto-generate blogs for all approved keywords without drafts */
   autoBlogGenerateEnabled: boolean;
+  /** Keyword Research: auto-approve all pending keywords */
+  autoKeywordApproveEnabled: boolean;
   /** Blog Drafts: auto-approve all pending drafts */
   autoBlogApproveEnabled: boolean;
   approvalRequired: boolean;
@@ -334,6 +336,7 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   autoDraftEnabled: false,
   autoPublishEnabled: false,
   autoBlogGenerateEnabled: false,
+  autoKeywordApproveEnabled: false,
   autoBlogApproveEnabled: false,
   approvalRequired: true,
   packageAutoDraftEnabled: false,

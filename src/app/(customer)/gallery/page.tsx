@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { PageHero } from "@/components/customer/page-hero";
 import { SafeImage } from "@/components/ui/safe-image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HERO_IMAGES, TRAVEL_IMAGES } from "@/lib/media/travel-images";
+import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
 
 const galleryImages = {
   all: [
@@ -38,12 +37,6 @@ export default function GalleryPage() {
 
   return (
     <>
-      <PageHero
-        title="Gallery"
-        subtitle="Moments captured from journeys across India"
-        image={HERO_IMAGES.gallery}
-      />
-
       <section className="container mx-auto px-4 py-10">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-8">
