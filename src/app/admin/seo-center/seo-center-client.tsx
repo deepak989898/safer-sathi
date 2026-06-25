@@ -150,13 +150,21 @@ export function SeoCenterClient() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle className="text-base">Google Search Console</CardTitle>
+            <Badge variant={data.searchPerformance.connected ? "default" : "secondary"}>
+              {data.searchPerformance.connected ? "Connected" : "Not connected"}
+            </Badge>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p>{data.searchConsole.note}</p>
-            <p className="text-muted-foreground">{data.searchPerformance.message}</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <p className={cn("text-muted-foreground", !data.searchPerformance.connected && "text-amber-700 dark:text-amber-400")}>
+              {data.searchPerformance.message}
+            </p>
+            {data.searchPerformance.connected ? (
+              <p className="text-xs text-muted-foreground">{data.searchPerformance.period}</p>
+            ) : null}
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               <div className="rounded-lg bg-muted/50 p-2">
                 <p className="text-xs text-muted-foreground">Clicks</p>
                 <p className="font-semibold">{data.searchPerformance.clicks ?? "—"}</p>
@@ -170,6 +178,10 @@ export function SeoCenterClient() {
                 <p className="font-semibold">
                   {data.searchPerformance.ctr != null ? `${data.searchPerformance.ctr}%` : "—"}
                 </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-2">
+                <p className="text-xs text-muted-foreground">Avg. position</p>
+                <p className="font-semibold">{data.searchPerformance.position ?? "—"}</p>
               </div>
             </div>
             <a

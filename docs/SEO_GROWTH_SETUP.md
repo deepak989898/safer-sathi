@@ -43,7 +43,17 @@ Add meta verification code:
 
 Or verify via DNS TXT record.
 
-## 7. Google Business Profile
+## 7. Show GSC metrics in Admin SEO Center
+
+The admin panel reads clicks, impressions, CTR, and position from the **Google Search Console API** (not just site verification).
+
+1. In [Google Cloud Console](https://console.cloud.google.com) (same project as Firebase), enable **Google Search Console API**.
+2. Copy your Firebase service account email from Vercel env (`FIREBASE_CLIENT_EMAIL`, e.g. `firebase-adminsdk-…@….iam.gserviceaccount.com`).
+3. In [Search Console](https://search.google.com/search-console) → **Settings** → **Users and permissions** → **Add user** → paste that email with **Full** access.
+4. Optional: set `GSC_SITE_URL=https://www.thesafarsathi.com/` if auto-detect does not match your property.
+5. Redeploy and open `/admin/seo-center` — metrics should match GSC (last 7 days).
+
+## 8. Google Business Profile
 
 1. https://business.google.com
 2. Safar Sathi | Travel agency
@@ -57,6 +67,7 @@ NEXT_PUBLIC_GA_ID=
 NEXT_PUBLIC_CLARITY_ID=
 NEXT_PUBLIC_SITE_URL=https://www.thesafarsathi.com
 NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=
+# GSC_SITE_URL=https://www.thesafarsathi.com/
 ```
 
 ## Admin

@@ -13,6 +13,7 @@ import {
 import { appUrl, SITE_CONTACT } from "@/lib/site-config";
 import { GA_MEASUREMENT_ID, CLARITY_PROJECT_ID } from "@/lib/analytics/config";
 import { googleMapsUrl } from "@/lib/seo/schema";
+import { fetchGoogleSearchConsolePerformance } from "@/lib/seo/google-search-console";
 import { STATIC_SEO_PAGES } from "@/lib/seo/pages";
 
 export interface SeoDashboardData {
@@ -69,12 +70,15 @@ export interface SeoDashboardData {
     address: string;
     mapsUrl: string;
   };
-  /** Placeholder until GSC API OAuth is connected */
+  /** Live from Google Search Console API when service account is connected */
   searchPerformance: {
     clicks: number | null;
     impressions: number | null;
     ctr: number | null;
+    position: number | null;
     connected: boolean;
+    period: string;
+    siteUrl: string | null;
     message: string;
   };
 }
@@ -99,6 +103,8 @@ export async function getSeoDashboardData(): Promise<SeoDashboardData> {
   const pagesWithDynamicMeta =
     packageSlugs.length + hotelSlugs.length + vehicleIds.length + blogSlugs.length + staticCount;
 
+  const searchPerformance = await fetchGoogleSearchConsolePerformance();
+
   return {
     generatedAt: new Date().toISOString(),
     siteUrl: appUrl(),
@@ -112,8 +118,10 @@ export async function getSeoDashboardData(): Promise<SeoDashboardData> {
     },
     searchConsole: {
       verificationReady: true,
-      sitemapSubmitted: false,
-      note: "Submit sitemap.xml in Google Search Console after deploy.",
+      sitemapSubmitted: searchPerformance.connected,
+      note: searchPerformance.connected
+        ? `Connected to ${searchPerformance.siteUrl ?? "Google Search Console"}.`
+        : "Submit sitemap.xml in Google Search Console after deploy.",
     },
     indexedPages: {
       static: staticCount,
@@ -170,12 +178,14 @@ export async function getSeoDashboardData(): Promise<SeoDashboardData> {
       mapsUrl: googleMapsUrl(),
     },
     searchPerformance: {
-      clicks: null,
-      impressions: null,
-      ctr: null,
-      connected: false,
-      message:
-        "Connect Google Search Console API or view metrics in the GSC dashboard after verification.",
+      clicks: searchPerformance.connected ? searchPerformance.clicks : null,
+      impressions: searchPerformance.connected ? searchPerformance.impressions : null,
+      ctr: searchPerformance.connected ? searchPerformance.ctr : null,
+      position: searchPerformance.connected ? searchPerformance.position : null,
+      connected: searchPerformance.connected,
+      period: searchPerformance.period,
+      siteUrl: searchPerformance.siteUrl,
+      message: searchPerformance.message,
     },
   };
 }
