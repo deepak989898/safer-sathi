@@ -47,11 +47,14 @@ export function AdminSidebar() {
                 </Button>
               }
             />
-            <SheetContent side="left" className="flex w-[min(100vw-2rem,20rem)] flex-col p-0">
-              <SheetHeader className="border-b px-4 py-4 text-left">
-                <SheetTitle className="text-base">Admin Panel</SheetTitle>
+            <SheetContent
+              side="left"
+              className="flex w-[min(100vw-2rem,20rem)] flex-col border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&_[data-slot=sheet-close]]:text-sidebar-foreground [&_[data-slot=sheet-close]:hover]:bg-sidebar-accent"
+            >
+              <SheetHeader className="border-b border-sidebar-border px-4 py-4 text-left">
+                <SheetTitle className="text-base text-sidebar-foreground">Admin Panel</SheetTitle>
                 {user && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-sidebar-foreground/60">
                     {user.name} · {ROLE_LABELS[user.role]}
                   </p>
                 )}
