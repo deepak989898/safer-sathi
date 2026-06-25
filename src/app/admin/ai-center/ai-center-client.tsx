@@ -775,15 +775,15 @@ export default function AiCenterClient() {
         adminName={user?.name ?? "Super Admin"}
       />
 
-      <div className="space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
+      <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <StatPill label="Keywords" value={stats?.keywordsTotal ?? 0} />
             <StatPill label="Pending" value={stats?.keywordsPending ?? 0} />
             <StatPill label="Published Blogs" value={stats?.blogsPublished ?? 0} />
             <StatPill label="SEO Meta" value={stats?.seoMetaCount ?? 0} />
           </div>
-          <Button variant="outline" size="sm" onClick={() => void loadAll()} disabled={busy}>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => void loadAll()} disabled={busy}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -822,8 +822,8 @@ export default function AiCenterClient() {
           </div>
 
           {activeTabMeta && (
-            <div className="rounded-xl border bg-card p-3">
-              <div className="flex flex-wrap gap-2">
+            <div className="rounded-xl border bg-card p-2 sm:p-3">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 {activeTabMeta.section.tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -839,7 +839,7 @@ export default function AiCenterClient() {
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                         isActive
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-foreground/80 hover:bg-muted"
@@ -867,12 +867,12 @@ export default function AiCenterClient() {
 
           <div className="min-w-0 space-y-4">
             {activeTabMeta && (
-              <div className="rounded-xl border bg-muted/25 px-4 py-3">
+              <div className="rounded-xl border bg-muted/25 px-3 py-3 sm:px-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {activeTabMeta.section.label}
                 </p>
-                <h2 className="text-lg font-semibold text-[#0c2444]">{activeTabMeta.label}</h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
+                <h2 className="text-base font-semibold text-[#0c2444] sm:text-lg">{activeTabMeta.label}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
                   {activeTabMeta.section.description}
                 </p>
               </div>
@@ -1572,8 +1572,8 @@ function BlogAutomationBar({
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <Badge variant="secondary" className="px-3 py-1">
-      {label}: <strong className="ml-1">{value}</strong>
+    <Badge variant="secondary" className="justify-center px-2 py-1 text-xs sm:px-3 sm:text-sm">
+      <span className="truncate">{label}:</span> <strong className="ml-1">{value}</strong>
     </Badge>
   );
 }

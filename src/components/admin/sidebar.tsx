@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { LogOut, Menu } from "lucide-react";
+import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { useAuth } from "@/contexts/auth-context";
 import { ROLE_LABELS } from "@/lib/auth/constants";
 import { getAdminNavGroups } from "@/lib/navigation/role-menus";
@@ -22,6 +23,9 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const navGroups = user ? getAdminNavGroups(user.role) : [];
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleNavigate = () => setMobileOpen(false);
 
   return (
     <>
@@ -33,18 +37,18 @@ export function AdminSidebar() {
         />
       </aside>
 
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
-        <div className="flex items-center gap-2">
-          <Sheet>
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-background px-3 md:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={
-                <Button variant="outline" size="icon" className="h-9 w-9">
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" aria-label="Open admin menu">
                   <Menu className="h-4 w-4" />
                 </Button>
               }
             />
-            <SheetContent side="left" className="flex w-80 flex-col p-0">
-              <SheetHeader className="border-b px-6 py-5 text-left">
+            <SheetContent side="left" className="flex w-[min(100vw-2rem,20rem)] flex-col p-0">
+              <SheetHeader className="border-b px-4 py-4 text-left">
                 <SheetTitle className="text-base">Admin Panel</SheetTitle>
                 {user && (
                   <p className="text-sm text-muted-foreground">
@@ -52,22 +56,26 @@ export function AdminSidebar() {
                   </p>
                 )}
               </SheetHeader>
-        <div className="flex flex-1 flex-col overflow-hidden">
-              <SidebarContent
-                pathname={pathname}
-                navGroups={navGroups}
-                onLogout={() => logout()}
-                compact
-              />
-            </div>
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <SidebarContent
+                  pathname={pathname}
+                  navGroups={navGroups}
+                  onLogout={() => {
+                    handleNavigate();
+                    void logout();
+                  }}
+                  onNavigate={handleNavigate}
+                  compact
+                />
+              </div>
             </SheetContent>
           </Sheet>
-          <div>
-            <p className="text-sm font-semibold">Safar Sathi</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">Safar Sathi</p>
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </div>
-        <RoleNavigationDrawer />
+        <AdminNotificationsBell />
       </header>
     </>
   );
@@ -77,18 +85,20 @@ function SidebarContent({
   pathname,
   navGroups,
   onLogout,
+  onNavigate,
   compact = false,
 }: {
   pathname: string;
   navGroups: ReturnType<typeof getAdminNavGroups>;
   onLogout: () => void;
+  onNavigate?: () => void;
   compact?: boolean;
 }) {
   return (
     <>
       {!compact && (
         <div className="border-b border-sidebar-border px-6 py-4">
-            <BrandLogo href="/" size="admin" onDarkSurface />
+          <BrandLogo href="/" size="admin" onDarkSurface />
           <p className="mt-1 text-xs text-sidebar-foreground/60">Admin Panel</p>
         </div>
       )}
@@ -110,6 +120,7 @@ function SidebarContent({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
