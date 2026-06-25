@@ -1,8 +1,5 @@
 import { routeCompletion } from "@/lib/ai/router";
-import {
-  getBlogFeaturedImage,
-  getBlogImagePrompts,
-} from "@/lib/ai-center/blog-destination-images";
+import { assignBlogImages } from "@/lib/media/blog-image-service";
 import type {
   AiBlogPost,
   AiCenterSettings,
@@ -36,9 +33,6 @@ STRICT RULES:
 - Use bullet lists and short paragraphs for readability
 - For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites`;
 
-function buildImagePrompts(keyword: string, destination?: string) {
-  return getBlogImagePrompts(keyword, destination);
-}
 
 /** Remove duplicate ## sections (keeps first occurrence). */
 export function dedupeMarkdownSections(markdown: string): string {
@@ -234,6 +228,13 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     .replace(/\s+/g, " ")
     .trim();
 
+  const blogImages = assignBlogImages({
+    title,
+    keyword: keyword.keyword,
+    destination: dest,
+    category: keyword.category as KeywordCategory,
+  });
+
   return {
     id: `blog_${slug}_${Date.now()}`,
     title,
@@ -246,8 +247,8 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     metaDescription: seoMeta?.seoDescription ?? plainExcerpt.slice(0, 155),
     excerpt: plainExcerpt.slice(0, 220).trim() + (plainExcerpt.length > 220 ? "…" : ""),
     content,
-    featuredImage: getBlogFeaturedImage(keyword.keyword, dest),
-    imagePrompts: buildImagePrompts(keyword.keyword, dest),
+    featuredImage: blogImages.featuredImage,
+    imagePrompts: blogImages.imagePrompts,
     faq,
     wordCount,
     status: settings.autoDraftEnabled ? "pending_approval" : "draft",

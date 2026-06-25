@@ -302,6 +302,14 @@ export interface Review {
   createdAt: string;
 }
 
+export interface BlogGalleryImage {
+  url: string;
+  alt: string;
+  title?: string;
+  caption?: string;
+  type?: string;
+}
+
 export interface BlogPost {
   id: string;
   slug: string;
@@ -309,6 +317,7 @@ export interface BlogPost {
   excerpt: LocalizedString;
   content: LocalizedString;
   image: string;
+  gallery?: BlogGalleryImage[];
   author: string;
   tags: string[];
   published: boolean;

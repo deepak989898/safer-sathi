@@ -87,11 +87,22 @@ export interface SeoMetaRecord {
   createdAt: string;
 }
 
+export type BlogImageType =
+  | "featured"
+  | "destination"
+  | "activity"
+  | "attraction"
+  | "experience";
+
 export interface BlogImagePrompt {
   id: string;
   label: string;
   prompt: string;
   url: string;
+  type?: BlogImageType;
+  alt?: string;
+  title?: string;
+  caption?: string;
 }
 
 export interface AiBlogPost {

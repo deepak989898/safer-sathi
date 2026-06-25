@@ -1,3 +1,4 @@
+import type { BlogImagePrompt } from "@/lib/ai-center/types";
 import { regenerateBlogContent } from "@/lib/ai-center/blog-writer-agent";
 import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
 import {
@@ -21,6 +22,20 @@ const patchSchema = z.object({
   content: z.string().optional(),
   excerpt: z.string().optional(),
   featuredImage: z.string().optional(),
+  imagePrompts: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        prompt: z.string(),
+        url: z.string(),
+        type: z.enum(["featured", "destination", "activity", "attraction", "experience"]).optional(),
+        alt: z.string().optional(),
+        title: z.string().optional(),
+        caption: z.string().optional(),
+      })
+    )
+    .optional(),
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   reason: z.string().optional(),
@@ -51,6 +66,9 @@ export async function PATCH(
           ...(parsed.data.content ? { content: parsed.data.content } : {}),
           ...(parsed.data.excerpt ? { excerpt: parsed.data.excerpt } : {}),
           ...(parsed.data.featuredImage ? { featuredImage: parsed.data.featuredImage } : {}),
+          ...(parsed.data.imagePrompts
+            ? { imagePrompts: parsed.data.imagePrompts as BlogImagePrompt[] }
+            : {}),
           ...(parsed.data.metaTitle ? { metaTitle: parsed.data.metaTitle } : {}),
           ...(parsed.data.metaDescription
             ? { metaDescription: parsed.data.metaDescription }

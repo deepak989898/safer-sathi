@@ -15,6 +15,15 @@ import type { BlogPost } from "@/types";
 function aiBlogToBlogPost(blog: AiBlogPost): BlogPost {
   const content = stripSourcesSection(blog.content);
   const featuredImage = resolveBlogFeaturedImage(blog);
+  const gallery = (blog.imagePrompts ?? [])
+    .filter((p) => p.url?.trim())
+    .map((p) => ({
+      url: p.url,
+      alt: p.alt ?? p.label,
+      title: p.title ?? p.label,
+      caption: p.caption,
+      type: p.type,
+    }));
   return {
     id: blog.id,
     slug: blog.slug,
@@ -22,6 +31,7 @@ function aiBlogToBlogPost(blog: AiBlogPost): BlogPost {
     excerpt: { en: blog.excerpt, hi: blog.excerpt },
     content: { en: content, hi: content },
     image: featuredImage,
+    gallery: gallery.length > 0 ? gallery : undefined,
     author: "Safar Sathi Team",
     tags: [blog.category.replace(/_/g, " "), blog.destination ?? "India"].filter(Boolean),
     published: blog.status === "published",

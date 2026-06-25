@@ -145,7 +145,8 @@ export function BlogDetailClient({
       <div className="relative mb-8 aspect-[21/9] overflow-hidden rounded-xl">
         <SafeImage
           src={post.image}
-          alt={localizedText(post.title, locale)}
+          alt={post.gallery?.[0]?.alt ?? localizedText(post.title, locale)}
+          title={post.gallery?.[0]?.title}
           fill
           className="object-cover"
           priority
@@ -182,6 +183,32 @@ export function BlogDetailClient({
       <div className="prose prose-slate mt-8 max-w-none dark:prose-invert">
         {renderMarkdownish(localizedText(post.content, locale))}
       </div>
+
+      {post.gallery && post.gallery.length > 1 && (
+        <section className="mt-10 space-y-4">
+          <h2 className="text-xl font-semibold">Photo Gallery</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {post.gallery.slice(1).map((img) => (
+              <figure key={img.url} className="overflow-hidden rounded-xl border">
+                <div className="relative aspect-[4/3]">
+                  <SafeImage
+                    src={img.url}
+                    alt={img.alt}
+                    title={img.title}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                {img.caption ? (
+                  <figcaption className="px-3 py-2 text-xs text-muted-foreground">
+                    {img.caption}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Card className="mt-10 border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
