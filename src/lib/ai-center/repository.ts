@@ -1,4 +1,5 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { generateCityKeywordResearch } from "@/lib/ai-center/city-keyword-research";
 import { generateBlogPost } from "@/lib/ai-center/blog-writer-agent";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
@@ -275,6 +276,61 @@ export async function runKeywordGeneration(actorId?: string): Promise<{
     });
     throw error;
   }
+}
+
+export async function previewCityKeywordResearch(
+  city: string,
+  limit = 100
+): Promise<Awaited<ReturnType<typeof generateCityKeywordResearch>>> {
+  await hydrateAiCenterStore();
+  const existingKeywords = keywordCache.map((k) => k.keyword);
+  return generateCityKeywordResearch(city, limit, existingKeywords);
+}
+
+export async function saveCityKeywords(
+  city: string,
+  keywordRecords: SeoKeyword[],
+  actorId?: string,
+  autoApprove = false
+): Promise<{ added: SeoKeyword[]; approved: SeoKeyword[]; duplicatesSkipped: number }> {
+  const start = Date.now();
+  await hydrateAiCenterStore();
+  const existing = new Set(keywordCache.map((k) => k.keyword.toLowerCase()));
+  const added: SeoKeyword[] = [];
+  let duplicatesSkipped = 0;
+
+  for (const kw of keywordRecords) {
+    const key = kw.keyword.toLowerCase().trim();
+    if (!key || existing.has(key)) {
+      duplicatesSkipped += 1;
+      continue;
+    }
+    existing.add(key);
+    const record: SeoKeyword = {
+      ...kw,
+      status: "pending",
+      createdAt: kw.createdAt || new Date().toISOString(),
+    };
+    keywordCache = mergeCache(keywordCache, record);
+    await persistDoc(COLLECTIONS.keywords, record.id, record);
+    added.push(record);
+  }
+
+  await addAiCenterLog({
+    type: "keyword_generated",
+    message: `City research (${city}): saved ${added.length} keyword${added.length === 1 ? "" : "s"}`,
+    durationMs: Date.now() - start,
+  });
+
+  const approved: SeoKeyword[] = [];
+  if (autoApprove) {
+    for (const kw of added) {
+      const result = await approveKeyword(kw.id, actorId ?? "system", true);
+      approved.push(result.keyword);
+    }
+  }
+
+  return { added, approved, duplicatesSkipped };
 }
 
 export async function approveKeyword(

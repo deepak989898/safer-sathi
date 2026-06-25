@@ -10,6 +10,7 @@ import {
   FileText,
   Globe,
   Loader2,
+  MapPin,
   RefreshCw,
   ScrollText,
   Search,
@@ -188,6 +189,12 @@ export default function AiCenterClient() {
   const [settings, setSettings] = useState<AiCenterSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [editBlog, setEditBlog] = useState<AiBlogPost | null>(null);
+  const [citySearchName, setCitySearchName] = useState("");
+  const [cityPreview, setCityPreview] = useState<SeoKeyword[]>([]);
+  const [cityPreviewCity, setCityPreviewCity] = useState<string | null>(null);
+  const [selectedCityKeywordIds, setSelectedCityKeywordIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const autoRunRef = useRef<{ tab: string; signature: string } | null>(null);
 
   const loadAll = useCallback(async () => {
@@ -289,6 +296,104 @@ export default function AiCenterClient() {
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Keyword research failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runCityKeywordSearch = async () => {
+    const city = citySearchName.trim();
+    if (city.length < 2) {
+      toast.error("Please enter a city name (at least 2 characters).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/keywords/city", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          actorId,
+          city,
+          mode: "preview",
+          limit: 100,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const rows = (json.data.keywords ?? []) as SeoKeyword[];
+      setCityPreview(rows);
+      setCityPreviewCity(json.data.city as string);
+      setSelectedCityKeywordIds(new Set(rows.map((row) => row.id)));
+      toast.success(`Found ${rows.length} keywords for ${json.data.city}`, {
+        description: `${json.data.templateCount ?? 0} templates · ${json.data.googleSuggestCount ?? 0} from Google`,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "City keyword search failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleCityKeywordSelection = (id: string, checked: boolean) => {
+    setSelectedCityKeywordIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const removeCityPreviewKeyword = (id: string) => {
+    setCityPreview((prev) => prev.filter((row) => row.id !== id));
+    setSelectedCityKeywordIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const saveSelectedCityKeywords = async () => {
+    if (!cityPreviewCity) return;
+    const selected = cityPreview.filter((row) => selectedCityKeywordIds.has(row.id));
+    if (selected.length === 0) {
+      toast.error("Select at least one keyword to save.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-center/keywords/city", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorRole,
+          actorId,
+          city: cityPreviewCity,
+          mode: "save",
+          keywords: selected,
+          autoApprove: settings?.autoKeywordApproveEnabled ?? false,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const added = json.data.count as number;
+      const approved = json.data.approvedCount as number;
+      toast.success(`Saved ${added} keyword${added === 1 ? "" : "s"}`, {
+        description: approved
+          ? `${approved} auto-approved with SEO meta.`
+          : "Open Keyword Research to approve or generate blogs.",
+      });
+      setCityPreview([]);
+      setCityPreviewCity(null);
+      setSelectedCityKeywordIds(new Set());
+      setCitySearchName("");
+      await loadAll();
+      if (!json.data.autoApprove && added > 0) {
+        setActiveTab("keywords");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save city keywords");
     } finally {
       setBusy(false);
     }
@@ -811,11 +916,64 @@ export default function AiCenterClient() {
                     <p className="text-sm text-muted-foreground">Approve keywords to generate SEO meta.</p>
                   )}
                 </div>
+
+                <CityKeywordResearchPanel
+                  citySearchName={citySearchName}
+                  onCitySearchNameChange={setCitySearchName}
+                  cityPreview={cityPreview}
+                  cityPreviewCity={cityPreviewCity}
+                  selectedIds={selectedCityKeywordIds}
+                  busy={busy}
+                  autoApproveEnabled={settings?.autoKeywordApproveEnabled ?? false}
+                  onSearch={() => void runCityKeywordSearch()}
+                  onSave={() => void saveSelectedCityKeywords()}
+                  onToggleSelect={toggleCityKeywordSelection}
+                  onSelectAll={(checked) => {
+                    setSelectedCityKeywordIds(
+                      checked ? new Set(cityPreview.map((row) => row.id)) : new Set()
+                    );
+                  }}
+                  onRemove={removeCityPreviewKeyword}
+                  onAutoApproveToggle={(enabled) =>
+                    void saveAutomationToggle(
+                      "autoKeywordApproveEnabled",
+                      enabled,
+                      enabled ? runAutoApproveAllKeywords : undefined
+                    )
+                  }
+                  settingsReady={Boolean(settings)}
+                />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="keywords" className="space-y-4">
+            <CityKeywordResearchPanel
+              citySearchName={citySearchName}
+              onCitySearchNameChange={setCitySearchName}
+              cityPreview={cityPreview}
+              cityPreviewCity={cityPreviewCity}
+              selectedIds={selectedCityKeywordIds}
+              busy={busy}
+              autoApproveEnabled={settings?.autoKeywordApproveEnabled ?? false}
+              onSearch={() => void runCityKeywordSearch()}
+              onSave={() => void saveSelectedCityKeywords()}
+              onToggleSelect={toggleCityKeywordSelection}
+              onSelectAll={(checked) => {
+                setSelectedCityKeywordIds(
+                  checked ? new Set(cityPreview.map((row) => row.id)) : new Set()
+                );
+              }}
+              onRemove={removeCityPreviewKeyword}
+              onAutoApproveToggle={(enabled) =>
+                void saveAutomationToggle(
+                  "autoKeywordApproveEnabled",
+                  enabled,
+                  enabled ? runAutoApproveAllKeywords : undefined
+                )
+              }
+              settingsReady={Boolean(settings)}
+            />
             <BlogAutomationBar
               label="Auto Approve"
               description="When on, all pending keywords are approved automatically (SEO meta is generated for each)."
@@ -1442,10 +1600,161 @@ function KeywordSourceBadge({ source }: { source?: SeoKeyword["source"] }) {
       </Badge>
     );
   }
+  if (source === "city_research") {
+    return (
+      <Badge variant="secondary" className="font-normal">
+        City
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className="font-normal">
       AI
     </Badge>
+  );
+}
+
+function CityKeywordResearchPanel({
+  citySearchName,
+  onCitySearchNameChange,
+  cityPreview,
+  cityPreviewCity,
+  selectedIds,
+  busy,
+  autoApproveEnabled,
+  settingsReady,
+  onSearch,
+  onSave,
+  onToggleSelect,
+  onSelectAll,
+  onRemove,
+  onAutoApproveToggle,
+}: {
+  citySearchName: string;
+  onCitySearchNameChange: (value: string) => void;
+  cityPreview: SeoKeyword[];
+  cityPreviewCity: string | null;
+  selectedIds: Set<string>;
+  busy: boolean;
+  autoApproveEnabled: boolean;
+  settingsReady: boolean;
+  onSearch: () => void;
+  onSave: () => void;
+  onToggleSelect: (id: string, checked: boolean) => void;
+  onSelectAll: (checked: boolean) => void;
+  onRemove: (id: string) => void;
+  onAutoApproveToggle: (enabled: boolean) => void;
+}) {
+  const allSelected =
+    cityPreview.length > 0 && cityPreview.every((row) => selectedIds.has(row.id));
+
+  return (
+    <div className="space-y-4 rounded-xl border border-dashed border-primary/30 bg-muted/20 p-4">
+      <div>
+        <p className="flex items-center gap-2 font-semibold text-[#0c2444]">
+          <MapPin className="h-4 w-4 text-primary" />
+          City-wise Keyword Research
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter a city (e.g. Orai) to generate ~100 local travel keywords — tours, buses, cabs,
+          rentals, and route packages. Review, remove unwanted rows, then save to your library.
+        </p>
+      </div>
+
+      <BlogAutomationBar
+        label="Auto Approve"
+        description="When on, saved city keywords are approved automatically (SEO meta generated for each)."
+        enabled={autoApproveEnabled}
+        disabled={busy || !settingsReady}
+        onToggle={onAutoApproveToggle}
+      />
+
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[200px] flex-1">
+          <Label htmlFor="city-keyword-search">City name</Label>
+          <Input
+            id="city-keyword-search"
+            placeholder="e.g. Orai, Lucknow, Jaipur"
+            value={citySearchName}
+            onChange={(e) => onCitySearchNameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSearch();
+            }}
+          />
+        </div>
+        <Button onClick={onSearch} disabled={busy}>
+          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+          Search Keywords
+        </Button>
+      </div>
+
+      {cityPreview.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">
+              {cityPreviewCity}: {cityPreview.length} keywords · {selectedIds.size} selected
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => onSelectAll(!allSelected)}
+              >
+                {allSelected ? "Deselect all" : "Select all"}
+              </Button>
+              <Button size="sm" disabled={busy || selectedIds.size === 0} onClick={onSave}>
+                Save selected to library
+              </Button>
+            </div>
+          </div>
+          <div className="max-h-[420px] overflow-auto rounded-lg border bg-card">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="w-10 p-2" />
+                  <th className="p-2">Keyword</th>
+                  <th className="p-2">Category</th>
+                  <th className="p-2">SEO</th>
+                  <th className="p-2">Source</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cityPreview.map((row) => (
+                  <tr key={row.id} className="border-b">
+                    <td className="p-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input"
+                        checked={selectedIds.has(row.id)}
+                        onChange={(e) => onToggleSelect(row.id, e.target.checked)}
+                      />
+                    </td>
+                    <td className="p-2 font-medium">{row.keyword}</td>
+                    <td className="p-2">{row.category.replace(/_/g, " ")}</td>
+                    <td className="p-2">{row.seoScore}</td>
+                    <td className="p-2">
+                      <KeywordSourceBadge source={row.source} />
+                    </td>
+                    <td className="p-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => onRemove(row.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
