@@ -3,6 +3,7 @@ import {
   buildMediaManagerReport,
   bulkEnrichCatalogImages,
   bulkFixBlogImages,
+  runWeeklyImageScan,
 } from "@/lib/media/media-manager-service";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { z } from "zod";
@@ -23,7 +24,12 @@ export async function GET(request: Request) {
 
 const postSchema = z.object({
   actorRole: z.string(),
-  action: z.enum(["bulk-fix-blogs", "bulk-fix-catalog", "bulk-fix-all"]),
+  action: z.enum([
+    "bulk-fix-blogs",
+    "bulk-fix-catalog",
+    "bulk-fix-all",
+    "weekly-scan",
+  ]),
   mirrorToFirebase: z.boolean().optional(),
 });
 
@@ -39,6 +45,10 @@ export async function POST(request: Request) {
     if (roleCheck.error) return roleCheck.error;
 
     switch (parsed.data.action) {
+      case "weekly-scan": {
+        const report = await runWeeklyImageScan();
+        return apiSuccess({ report });
+      }
       case "bulk-fix-blogs": {
         const result = await bulkFixBlogImages({
           mirrorToFirebase: parsed.data.mirrorToFirebase,

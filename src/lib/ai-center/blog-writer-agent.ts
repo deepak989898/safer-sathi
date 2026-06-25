@@ -233,6 +233,7 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     keyword: keyword.keyword,
     destination: dest,
     category: keyword.category as KeywordCategory,
+    wordCount,
   });
 
   return {

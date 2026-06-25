@@ -1,10 +1,29 @@
 import { getStorage } from "firebase-admin/storage";
 import { getAdminApp, isAdminConfigured } from "@/lib/firebase/admin-app";
 
-export type AdminUploadFolder = "packages" | "hotels" | "vehicles" | "blogs";
-
 export function isFirebaseStorageConfigured(): boolean {
   return isAdminConfigured() && Boolean(process.env.FIREBASE_STORAGE_BUCKET);
+}
+
+export type AdminUploadFolder =
+  | "packages"
+  | "hotels"
+  | "vehicles"
+  | "blogs"
+  | "tours"
+  | "destinations";
+
+const STORAGE_PATH_MAP: Record<AdminUploadFolder, string> = {
+  blogs: "blogs",
+  tours: "tours",
+  packages: "tours",
+  hotels: "hotels",
+  vehicles: "vehicles",
+  destinations: "destinations",
+};
+
+export function resolveStoragePath(folder: AdminUploadFolder): string {
+  return STORAGE_PATH_MAP[folder] ?? folder;
 }
 
 export async function uploadAdminImageBuffer(
@@ -31,9 +50,10 @@ export async function uploadAdminImageBuffer(
   const safeStem = (originalName ?? "image")
     .replace(/\.[^.]+$/, "")
     .replace(/[^a-zA-Z0-9-_]+/g, "-")
-    .slice(0, 48) || "image";
+    .slice(0, 72) || "image";
 
-  const objectPath = `admin-uploads/${folder}/${Date.now()}-${safeStem}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  const storageFolder = resolveStoragePath(folder);
+  const objectPath = `${storageFolder}/${Date.now()}-${safeStem}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
 
   const bucket = getStorage(getAdminApp()).bucket();
   const file = bucket.file(objectPath);

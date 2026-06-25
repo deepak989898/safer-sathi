@@ -308,6 +308,8 @@ export interface BlogGalleryImage {
   title?: string;
   caption?: string;
   type?: string;
+  placement?: string;
+  imageScore?: number;
 }
 
 export interface BlogPost {

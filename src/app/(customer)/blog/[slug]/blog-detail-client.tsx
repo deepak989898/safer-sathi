@@ -188,9 +188,11 @@ export function BlogDetailClient({
         <section className="mt-10 space-y-4">
           <h2 className="text-xl font-semibold">Photo Gallery</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {post.gallery.slice(1).map((img) => (
-              <figure key={img.url} className="overflow-hidden rounded-xl border">
-                <div className="relative aspect-[4/3]">
+            {post.gallery
+              .filter((img) => img.placement !== "top")
+              .map((img) => (
+              <figure key={`${img.url}-${img.placement ?? img.type}`} className="overflow-hidden rounded-xl border">
+                <div className="relative aspect-video">
                   <SafeImage
                     src={img.url}
                     alt={img.alt}
@@ -199,11 +201,14 @@ export function BlogDetailClient({
                     className="object-cover"
                   />
                 </div>
-                {img.caption ? (
-                  <figcaption className="px-3 py-2 text-xs text-muted-foreground">
-                    {img.caption}
-                  </figcaption>
-                ) : null}
+                <figcaption className="px-3 py-2 text-xs text-muted-foreground">
+                  {img.caption ?? img.title}
+                  {img.type ? (
+                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">
+                      {img.type}
+                    </span>
+                  ) : null}
+                </figcaption>
               </figure>
             ))}
           </div>

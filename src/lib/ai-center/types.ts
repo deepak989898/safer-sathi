@@ -94,6 +94,13 @@ export type BlogImageType =
   | "attraction"
   | "experience";
 
+export type BlogImagePlacement =
+  | "top"
+  | "content-25"
+  | "content-50"
+  | "content-75"
+  | "bottom";
+
 export interface BlogImagePrompt {
   id: string;
   label: string;
@@ -101,8 +108,15 @@ export interface BlogImagePrompt {
   url: string;
   type?: BlogImageType;
   alt?: string;
+  altText?: string;
   title?: string;
   caption?: string;
+  keywords?: string[];
+  destination?: string;
+  category?: KeywordCategory;
+  imageScore?: number;
+  placement?: BlogImagePlacement;
+  fileName?: string;
 }
 
 export interface AiBlogPost {

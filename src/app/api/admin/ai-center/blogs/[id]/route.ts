@@ -31,8 +31,17 @@ const patchSchema = z.object({
         url: z.string(),
         type: z.enum(["featured", "destination", "activity", "attraction", "experience"]).optional(),
         alt: z.string().optional(),
+        altText: z.string().optional(),
         title: z.string().optional(),
         caption: z.string().optional(),
+        keywords: z.array(z.string()).optional(),
+        destination: z.string().optional(),
+        category: z.string().optional(),
+        imageScore: z.number().optional(),
+        placement: z
+          .enum(["top", "content-25", "content-50", "content-75", "bottom"])
+          .optional(),
+        fileName: z.string().optional(),
       })
     )
     .optional(),

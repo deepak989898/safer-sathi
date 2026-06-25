@@ -12,17 +12,32 @@ import {
 import { demoBlogPosts } from "@/data/demo-data";
 import type { BlogPost } from "@/types";
 
+const PLACEMENT_SORT: Record<string, number> = {
+  top: 0,
+  "content-25": 1,
+  "content-50": 2,
+  "content-75": 3,
+  bottom: 4,
+};
+
 function aiBlogToBlogPost(blog: AiBlogPost): BlogPost {
   const content = stripSourcesSection(blog.content);
   const featuredImage = resolveBlogFeaturedImage(blog);
   const gallery = (blog.imagePrompts ?? [])
     .filter((p) => p.url?.trim())
+    .sort((a, b) => {
+      const pa = PLACEMENT_SORT[a.placement ?? ""] ?? 99;
+      const pb = PLACEMENT_SORT[b.placement ?? ""] ?? 99;
+      return pa - pb;
+    })
     .map((p) => ({
       url: p.url,
-      alt: p.alt ?? p.label,
+      alt: p.altText ?? p.alt ?? p.label,
       title: p.title ?? p.label,
       caption: p.caption,
       type: p.type,
+      placement: p.placement,
+      imageScore: p.imageScore,
     }));
   return {
     id: blog.id,
