@@ -1,36 +1,26 @@
-const PRODUCTION_APP_URL = "https://thesafarsathi.com";
 const APEX_HOST = "thesafarsathi.com";
 const WWW_HOST = "www.thesafarsathi.com";
 
-/** Use apex domain (no www) for thesafarsathi.com in production URLs. */
-export function normalizeProductionSiteUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.toLowerCase() === WWW_HOST) {
-      parsed.hostname = APEX_HOST;
-    }
-    return parsed.toString().replace(/\/$/, "");
-  } catch {
-    return url;
-  }
-}
-
-/** Canonical public site URL (custom domain in production). */
+/**
+ * Public site base URL. Does not force www ↔ apex redirects (Vercel handles that).
+ * Prefer the host the user is already on in the browser when possible.
+ */
 export function getAppUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
   const configured =
     process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
-  if (configured) {
-    return normalizeProductionSiteUrl(configured);
-  }
+  if (configured) return configured;
 
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) {
-    const raw = vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
-    return normalizeProductionSiteUrl(raw);
+    return vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
   }
 
-  return PRODUCTION_APP_URL;
+  return `https://${WWW_HOST}`;
 }
 
 export function appUrl(path = ""): string {
@@ -41,11 +31,8 @@ export function appUrl(path = ""): string {
 
 export const SITE_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Safar Sathi";
 
-/** Primary production hostname (no www). */
 export const PRODUCTION_DOMAIN = APEX_HOST;
-/** Legacy www hostname — redirects to apex. */
 export const WWW_DOMAIN = WWW_HOST;
-
 /** @deprecated Use PRODUCTION_DOMAIN */
 export const APEX_DOMAIN = APEX_HOST;
 
