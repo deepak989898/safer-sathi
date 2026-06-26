@@ -133,36 +133,20 @@ function extractBearerToken(request: Request): string | null {
   return header.slice(7).trim();
 }
 
-function validateActiveUser(user: AuthenticatedUser): AuthFailure | null {
-  if (user.status === "suspended") {
-    return { error: apiError("Account suspended", 403) };
-  }
-  if (!user.approved && user.role !== "customer") {
-    return { error: apiError("Account pending approval", 403) };
-  }
-  return null;
+export function extractTokenFromAuthorizationHeader(
+  authorization: string | null | undefined
+): string | null {
+  if (!authorization?.startsWith("Bearer ")) return null;
+  return authorization.slice(7).trim();
 }
 
-function adminCredentialsMessage(): string {
-  return isAdminEnvConfigured()
-    ? "Could not verify your session. Please sign out and sign in again."
-    : "Server Firebase Admin is not fully configured. Add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in Vercel environment variables, then redeploy.";
-}
-
-export async function authenticateRequest(request: Request): Promise<AuthResult> {
-  const token = extractBearerToken(request);
+export async function authenticateBearerToken(token: string): Promise<AuthResult> {
   if (!token) {
     return { error: apiError("Unauthorized", 401) };
   }
 
   if (token === DEV_LOCAL_TOKEN) {
-    const devUser = parseDevLocalAuth(request);
-    if (!devUser) {
-      return { error: apiError("Invalid dev authentication", 401) };
-    }
-    const inactive = validateActiveUser(devUser);
-    if (inactive) return inactive;
-    return { user: devUser };
+    return { error: apiError("Invalid dev authentication", 401) };
   }
 
   if (!isTokenVerificationAvailable()) {
@@ -181,7 +165,6 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
 
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    // REST + user token works without Firebase Admin credentials (rules: read own profile).
     let profile = await loadUserProfileWithIdToken(decoded.uid, token);
 
     if (!profile) {
@@ -198,7 +181,6 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
       profile = profileFromDecodedToken(decoded);
     }
 
-    // UI may show staff via client Firestore while server profile defaulted to customer.
     if (!canAccessAdmin(profile.role) && decoded.email) {
       const byEmail = await loadUserProfileByEmail(decoded.email);
       if (byEmail && canAccessAdmin(byEmail.role)) {
@@ -213,6 +195,41 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
     console.error("Token verification failed:", error);
     return { error: apiError("Invalid or expired token. Please sign in again.", 401) };
   }
+}
+
+export async function authenticateRequest(request: Request): Promise<AuthResult> {
+  const token = extractBearerToken(request);
+  if (!token) {
+    return { error: apiError("Unauthorized", 401) };
+  }
+
+  if (token === DEV_LOCAL_TOKEN) {
+    const devUser = parseDevLocalAuth(request);
+    if (!devUser) {
+      return { error: apiError("Invalid dev authentication", 401) };
+    }
+    const inactive = validateActiveUser(devUser);
+    if (inactive) return inactive;
+    return { user: devUser };
+  }
+
+  return authenticateBearerToken(token);
+}
+
+function validateActiveUser(user: AuthenticatedUser): AuthFailure | null {
+  if (user.status === "suspended") {
+    return { error: apiError("Account suspended", 403) };
+  }
+  if (!user.approved && user.role !== "customer") {
+    return { error: apiError("Account pending approval", 403) };
+  }
+  return null;
+}
+
+function adminCredentialsMessage(): string {
+  return isAdminEnvConfigured()
+    ? "Could not verify your session. Please sign out and sign in again."
+    : "Server Firebase Admin is not fully configured. Add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in Vercel environment variables, then redeploy.";
 }
 
 export async function optionalAuthenticateRequest(

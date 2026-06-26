@@ -32,6 +32,9 @@ function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
   }
 
   const host = window.location.hostname.toLowerCase();
+  if (process.env.NODE_ENV === "production") {
+    return `https://${WWW_DOMAIN}${input}`;
+  }
   if (host === PRODUCTION_DOMAIN) {
     return `https://${WWW_DOMAIN}${input}`;
   }
@@ -42,7 +45,8 @@ function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
 export async function getApiAuthHeaders(): Promise<Record<string, string>> {
   if (isFirebaseConfigured()) {
     await waitForAuthReady();
-    const token = await resolveAuthAccessToken();
+    const auth = (await import("@/lib/firebase/client")).getFirebaseAuth();
+    const token = await auth.currentUser!.getIdToken(true);
     return { Authorization: `Bearer ${token}` };
   }
 

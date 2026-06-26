@@ -45,7 +45,12 @@ export async function hydratePackagesStore(): Promise<void> {
       return;
     }
 
-    packagesStore = await seedCatalogIfEmpty(PACKAGES_COLLECTION, seed);
+    try {
+      packagesStore = await seedCatalogIfEmpty(PACKAGES_COLLECTION, seed);
+    } catch (error) {
+      console.warn("hydratePackagesStore seed failed, using in-memory seed:", error);
+      packagesStore = seed;
+    }
   })();
 
   return hydratePromise;

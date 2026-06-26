@@ -17,7 +17,7 @@ import { RevenueChart } from "@/components/admin/charts/revenue-chart";
 import { MetricCard } from "@/components/admin/metric-card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
-import { adminApiFetch, parseApiJson } from "@/lib/admin/api-client";
+import { fetchAdminAnalytics } from "@/lib/admin/load-admin-analytics";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -44,16 +44,11 @@ export default function AnalyticsAdminClient() {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminApiFetch("/api/admin/analytics");
-      const json = await parseApiJson<{
-        success?: boolean;
-        data?: AnalyticsData;
-        error?: string;
-      }>(res);
-      if (!json.success || !json.data) {
-        throw new Error(json.error ?? `Failed to load analytics (${res.status})`);
+      const result = await fetchAdminAnalytics();
+      if (!result.success || !result.data) {
+        throw new Error(result.error ?? "Failed to load analytics");
       }
-      setData(json.data);
+      setData(result.data);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load analytics";
       setError(message);

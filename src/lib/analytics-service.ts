@@ -110,7 +110,14 @@ export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {
       ? Math.min(100, Math.round((bookings.length / customers.length) * 100))
       : 0;
 
-  const dailyChecklist = await buildAdminDailyChecklist(actorRole, users);
+  const dailyChecklist = await buildAdminDailyChecklist(actorRole, users).catch(
+    () => ({
+      pendingBookings: 0,
+      unconvertedAiChats: 0,
+      pendingApprovals: 0,
+      items: [],
+    })
+  );
 
   return {
     totalBookings: bookings.length,

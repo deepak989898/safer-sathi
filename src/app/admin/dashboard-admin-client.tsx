@@ -8,7 +8,7 @@ import { DestinationsChart } from "@/components/admin/charts/destinations-chart"
 import { RevenueChart } from "@/components/admin/charts/revenue-chart";
 import { MetricCard } from "@/components/admin/metric-card";
 import { useAuth } from "@/contexts/auth-context";
-import { adminApiFetch, parseApiJson } from "@/lib/admin/api-client";
+import { fetchAdminAnalytics } from "@/lib/admin/load-admin-analytics";
 import type { AdminDailyChecklist } from "@/lib/admin/daily-checklist";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -30,16 +30,11 @@ export default function DashboardAdminClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApiFetch("/api/admin/analytics");
-      const json = await parseApiJson<{
-        success?: boolean;
-        data?: AnalyticsData;
-        error?: string;
-      }>(res);
-      if (json.success && json.data) {
-        setData(json.data);
+      const result = await fetchAdminAnalytics();
+      if (result.success && result.data) {
+        setData(result.data);
       } else {
-        toast.error(json.error ?? `Failed to load dashboard (${res.status})`);
+        toast.error(result.error ?? "Failed to load dashboard");
       }
     } catch (error) {
       const message =
