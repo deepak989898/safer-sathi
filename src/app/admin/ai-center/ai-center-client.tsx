@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { approvedKeywordsWithoutBlog, keywordHasBlog } from "@/lib/ai-center/utils";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
+import { ADMIN_BLOG_IMAGES_SECTION_HINT } from "@/lib/admin/image-upload-hints";
 import { SafeImage } from "@/components/ui/safe-image";
 import { cn } from "@/lib/utils";
 
@@ -1419,19 +1420,20 @@ export default function AiCenterClient() {
               </div>
               <div>
                 <Label>Blog images</Label>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  Matched to keyword &quot;{editBlog.keyword}&quot; →{" "}
+                <p className="mb-2 whitespace-pre-line rounded-md border border-border/80 bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+                  {ADMIN_BLOG_IMAGES_SECTION_HINT}
+                  {"\n"}
+                  Keyword &quot;{editBlog.keyword}&quot; →{" "}
                   <span className="font-medium capitalize">
                     {resolveBlogImageKey(editBlog.keyword, editBlog.destination)}
                   </span>
-                  . Upload your own image or click a thumbnail to set the featured hero on the live blog.
+                  . Click a thumbnail to set the featured hero on the live blog.
                 </p>
                 <AdminSingleImageUpload
                   folder="blogs"
                   actorRole={actorRole}
                   disabled={busy}
-                  label="Upload custom image"
-                  hint="Image is compressed automatically before upload."
+                  label="Upload custom featured image"
                   onUploaded={(url) =>
                     setEditBlog((prev) => {
                       if (!prev) return prev;

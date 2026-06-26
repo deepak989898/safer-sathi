@@ -7,8 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadAdminImageFile } from "@/lib/admin/upload-image-client";
 import type { AdminUploadFolder } from "@/lib/firebase/admin-storage";
+import {
+  getAdminImageUploadHint,
+  type AdminImageUploadHintVariant,
+} from "@/lib/admin/image-upload-hints";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+function ImageUploadHint({ text }: { text: string }) {
+  return (
+    <p className="mt-1 max-w-2xl whitespace-pre-line rounded-md border border-border/80 bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+      {text}
+    </p>
+  );
+}
 
 function parseImageUrls(value: string): string[] {
   return value
@@ -27,11 +39,12 @@ interface AdminImageUrlFieldProps {
   rows?: number;
   disabled?: boolean;
   placeholder?: string;
+  showSizeGuide?: boolean;
 }
 
 export function AdminImageUrlField({
   label = "Images",
-  hint = "First image is the main photo on the website. Upload from computer or paste URLs (one per line). Uploaded images are set as the main photo.",
+  hint,
   value,
   onChange,
   folder,
@@ -39,12 +52,15 @@ export function AdminImageUrlField({
   rows = 3,
   disabled = false,
   placeholder = "https://...",
+  showSizeGuide = true,
 }: AdminImageUrlFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
 
   const urls = parseImageUrls(value);
+  const resolvedHint =
+    hint ?? (showSizeGuide ? getAdminImageUploadHint(folder, "gallery") : undefined);
 
   const removeUrl = (index: number) => {
     const next = urls.filter((_, i) => i !== index);
@@ -82,7 +98,7 @@ export function AdminImageUrlField({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Label>{label}</Label>
-          {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+          {resolvedHint ? <ImageUploadHint text={resolvedHint} /> : null}
         </div>
         <Button
           type="button"
@@ -172,6 +188,8 @@ interface AdminSingleImageUploadProps {
   actorRole: string;
   disabled?: boolean;
   onUploaded: (url: string) => void;
+  hintVariant?: AdminImageUploadHintVariant;
+  showSizeGuide?: boolean;
 }
 
 export function AdminSingleImageUpload({
@@ -181,9 +199,13 @@ export function AdminSingleImageUpload({
   actorRole,
   disabled = false,
   onUploaded,
+  hintVariant = "blog-featured",
+  showSizeGuide = true,
 }: AdminSingleImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const resolvedHint =
+    hint ?? (showSizeGuide ? getAdminImageUploadHint(folder, hintVariant) : undefined);
 
   const handleFiles = async (files: FileList | null) => {
     const file = files?.[0];
@@ -226,7 +248,7 @@ export function AdminSingleImageUpload({
         )}
         {uploading ? "Compressing & uploading…" : label}
       </Button>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {resolvedHint ? <ImageUploadHint text={resolvedHint} /> : null}
       {uploading && (
         <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
