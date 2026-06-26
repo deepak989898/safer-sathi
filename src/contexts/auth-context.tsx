@@ -25,6 +25,8 @@ import {
   suspendUserAccount,
 } from "@/lib/auth/auth-service";
 import { getLoginRedirect } from "@/lib/auth/constants";
+import { setAuthTokenProvider } from "@/lib/auth/auth-token-bridge";
+import { getFirebaseIdToken } from "@/lib/auth/firebase-id-token";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { User, UserRole } from "@/types";
 
@@ -67,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    setAuthTokenProvider(() => getFirebaseIdToken());
+
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (isStaffRegistrationInProgress()) {
@@ -96,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      setAuthTokenProvider(null);
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

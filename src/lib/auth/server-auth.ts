@@ -1,4 +1,5 @@
 import type { NextResponse } from "next/server";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { apiError } from "@/lib/api-response";
 import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
@@ -46,23 +47,35 @@ async function loadUserProfile(uid: string): Promise<AuthenticatedUser | null> {
   return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
 }
 
-function profileFromDecodedToken(
-  decoded: Record<string, unknown>
-): AuthenticatedUser | null {
-  const uid = String(decoded.uid ?? decoded.sub ?? "");
-  if (!uid) return null;
-
-  const role = (decoded.role as UserRole | undefined) ?? "customer";
-  const email = String(decoded.email ?? "");
+function profileFromDecodedToken(decoded: DecodedIdToken): AuthenticatedUser {
+  const role =
+    (typeof decoded.role === "string" ? (decoded.role as UserRole) : undefined) ??
+    "customer";
 
   return {
-    id: uid,
-    email,
-    name: String(decoded.name ?? email.split("@")[0] ?? "User"),
+    id: decoded.uid,
+    email: decoded.email ?? "",
+    name: decoded.name ?? decoded.email?.split("@")[0] ?? "User",
     role,
     status: "active",
     approved: true,
   };
+}
+
+function mergeTokenRole(
+  profile: AuthenticatedUser,
+  decoded: DecodedIdToken
+): AuthenticatedUser {
+  if (typeof decoded.role !== "string") return profile;
+
+  const tokenRole = decoded.role as UserRole;
+  if (profile.role === "customer" && tokenRole !== "customer") {
+    return { ...profile, role: tokenRole };
+  }
+  if (canAccessAdmin(tokenRole) && !canAccessAdmin(profile.role)) {
+    return { ...profile, role: tokenRole };
+  }
+  return profile;
 }
 
 function parseDevLocalAuth(request: Request): AuthenticatedUser | null {
@@ -144,19 +157,10 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
       profile = await loadUserProfileWithIdToken(decoded.uid, token);
     }
 
-    if (!profile) {
-      profile = profileFromDecodedToken(
-        decoded as unknown as Record<string, unknown>
-      );
-    }
-
-    if (!profile) {
-      return {
-        error: apiError(
-          "User profile not found. Ensure your account exists in Firestore users collection.",
-          401
-        ),
-      };
+    if (profile) {
+      profile = mergeTokenRole(profile, decoded);
+    } else {
+      profile = profileFromDecodedToken(decoded);
     }
 
     const inactive = validateActiveUser(profile);

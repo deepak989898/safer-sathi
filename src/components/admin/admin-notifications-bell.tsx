@@ -27,14 +27,14 @@ function formatWhen(iso: string): string {
 
 export function AdminNotificationsBell() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const loadNotifications = useCallback(async () => {
-    if (!user?.role) return;
+    if (authLoading || !user?.role) return;
     setLoading(true);
     try {
       const res = await adminApiFetch("/api/admin/notifications");
@@ -48,7 +48,7 @@ export function AdminNotificationsBell() {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
+  }, [authLoading, user?.role]);
 
   useEffect(() => {
     void loadNotifications();

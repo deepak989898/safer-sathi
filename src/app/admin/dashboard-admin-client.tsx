@@ -23,7 +23,7 @@ interface AnalyticsData {
 }
 
 export default function DashboardAdminClient() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,22 +31,31 @@ export default function DashboardAdminClient() {
     setLoading(true);
     try {
       const res = await adminApiFetch("/api/admin/analytics");
-      const json = await res.json();
-      if (json.success) setData(json.data);
-      else toast.error(json.error ?? "Failed to load dashboard");
-    } catch {
-      toast.error("Failed to load dashboard");
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: AnalyticsData;
+        error?: string;
+      };
+      if (json.success && json.data) {
+        setData(json.data);
+      } else {
+        toast.error(json.error ?? `Failed to load dashboard (${res.status})`);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load dashboard";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
     void load();
-  }, [load, user]);
+  }, [authLoading, load, user]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <>
         <AdminHeader

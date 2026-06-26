@@ -23,7 +23,9 @@ export async function loadUserProfileWithIdToken(
   uid: string,
   idToken: string
 ): Promise<AuthenticatedUser | null> {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID?.trim() ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
   if (!projectId) return null;
 
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`;
