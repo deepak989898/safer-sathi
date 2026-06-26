@@ -181,10 +181,11 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
 
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    let profile = await loadUserProfile(decoded.uid);
+    // REST + user token works without Firebase Admin credentials (rules: read own profile).
+    let profile = await loadUserProfileWithIdToken(decoded.uid, token);
 
     if (!profile) {
-      profile = await loadUserProfileWithIdToken(decoded.uid, token);
+      profile = await loadUserProfile(decoded.uid);
     }
 
     if (!profile && decoded.email) {
@@ -195,6 +196,14 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
       profile = mergeTokenRole(profile, decoded);
     } else {
       profile = profileFromDecodedToken(decoded);
+    }
+
+    // UI may show staff via client Firestore while server profile defaulted to customer.
+    if (!canAccessAdmin(profile.role) && decoded.email) {
+      const byEmail = await loadUserProfileByEmail(decoded.email);
+      if (byEmail && canAccessAdmin(byEmail.role)) {
+        profile = mergeTokenRole(byEmail, decoded);
+      }
     }
 
     const inactive = validateActiveUser(profile);

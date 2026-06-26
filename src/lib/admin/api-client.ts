@@ -1,6 +1,7 @@
 import { localGetSession } from "@/lib/auth/local-auth-store";
 import { resolveAuthAccessToken } from "@/lib/auth/auth-token-bridge";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { PRODUCTION_DOMAIN, WWW_DOMAIN } from "@/lib/site-config";
 
 async function waitForAuthReady(timeoutMs = 12_000): Promise<void> {
   if (!isFirebaseConfigured()) return;
@@ -16,6 +17,26 @@ async function waitForAuthReady(timeoutMs = 12_000): Promise<void> {
   }
 
   throw new Error("Session expired. Please sign in again.");
+}
+
+/**
+ * Vercel redirects thesafarsathi.com/api/* → www (308). Browsers drop Authorization
+ * on that redirect. When the admin UI is on apex, call the www API directly (CORS).
+ */
+function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
+  if (typeof input !== "string" || !input.startsWith("/api/")) {
+    return input;
+  }
+  if (typeof window === "undefined") {
+    return input;
+  }
+
+  const host = window.location.hostname.toLowerCase();
+  if (host === PRODUCTION_DOMAIN) {
+    return `https://${WWW_DOMAIN}${input}`;
+  }
+
+  return input;
 }
 
 export async function getApiAuthHeaders(): Promise<Record<string, string>> {
@@ -61,7 +82,11 @@ export async function adminApiFetch(
     headers.set(key, value);
   }
 
-  return fetch(input, { ...init, headers });
+  return fetch(resolveApiUrl(input), {
+    ...init,
+    headers,
+    cache: init?.cache ?? "no-store",
+  });
 }
 
 export async function customerApiFetch(

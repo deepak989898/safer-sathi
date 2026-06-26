@@ -17,6 +17,7 @@ function corsHeaders(request: NextRequest): Record<string, string> {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":
       "Authorization, Content-Type, X-User-Id, X-User-Role, X-User-Email",
+    "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
 }
