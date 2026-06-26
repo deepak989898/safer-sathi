@@ -9,6 +9,7 @@ import { Providers } from "@/components/providers";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { travelAgencySchema } from "@/lib/seo/schema";
 import { getAppUrl, SITE_NAME } from "@/lib/site-config";
+import { siteIconsMetadata } from "@/lib/site-icons";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,15 +52,7 @@ export const metadata: Metadata = {
   authors: [{ name: SITE_NAME, url: siteUrl }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
-  icons: {
-    icon: [
-      { url: "/favicon.png", type: "image/png", sizes: "512x512" },
-      { url: "/images/favicon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/images/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-    shortcut: "/favicon.png",
-  },
+  icons: siteIconsMetadata,
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
   },
@@ -83,8 +76,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-        <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
         <JsonLd data={travelAgencySchema()} />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>

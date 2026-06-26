@@ -10,7 +10,8 @@
     "download:package-images": "node scripts/download-package-images.mjs",
     "download:vehicle-images": "node scripts/download-vehicle-images.mjs",
     "download:hotel-images": "node scripts/download-hotel-images.mjs",
-    "generate:favicons": "node scripts/generate-favicons.mjs"
+    "generate:favicons": "node scripts/generate-favicons.mjs",
+    "prebuild": "node scripts/generate-favicons.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

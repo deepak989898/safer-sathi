@@ -1,4 +1,5 @@
 import { appUrl, SITE_CONTACT, SITE_NAME } from "@/lib/site-config";
+import { SITE_FAVICON_SVG } from "@/lib/site-icons";
 
 /** Default share image for Open Graph / Twitter */
 export const DEFAULT_OG_IMAGE =
@@ -34,7 +35,7 @@ export function travelAgencySchema() {
     "@type": "TravelAgency",
     name: SITE_NAME,
     url: appUrl(),
-    logo: appUrl("/images/favicon.svg"),
+    logo: appUrl(SITE_FAVICON_SVG),
     image: DEFAULT_OG_IMAGE,
     description:
       "Safar Sathi — curated tour packages, hotels, and vehicles across India with instant booking and 24/7 support.",
@@ -196,7 +197,7 @@ export function blogPostingSchema(input: {
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
-      logo: { "@type": "ImageObject", url: appUrl("/images/favicon.svg") },
+      logo: { "@type": "ImageObject", url: appUrl(SITE_FAVICON_SVG) },
     },
     datePublished: input.datePublished,
     dateModified: input.dateModified ?? input.datePublished,

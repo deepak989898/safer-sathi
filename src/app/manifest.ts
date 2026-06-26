@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { appUrl } from "@/lib/site-config";
+import { siteManifestIcons } from "@/lib/site-icons";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -11,25 +12,6 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1e3a5f",
-    icons: [
-      {
-        src: "/images/favicon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/images/favicon.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/apple-touch-icon.png",
-        sizes: "180x180",
-        type: "image/png",
-        purpose: "any",
-      },
-    ],
+    icons: [...siteManifestIcons] as MetadataRoute.Manifest["icons"],
   };
 }
