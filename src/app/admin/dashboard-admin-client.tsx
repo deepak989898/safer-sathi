@@ -8,7 +8,7 @@ import { DestinationsChart } from "@/components/admin/charts/destinations-chart"
 import { RevenueChart } from "@/components/admin/charts/revenue-chart";
 import { MetricCard } from "@/components/admin/metric-card";
 import { useAuth } from "@/contexts/auth-context";
-import { adminApiFetch } from "@/lib/admin/api-client";
+import { adminApiFetch, parseApiJson } from "@/lib/admin/api-client";
 import type { AdminDailyChecklist } from "@/lib/admin/daily-checklist";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -31,11 +31,11 @@ export default function DashboardAdminClient() {
     setLoading(true);
     try {
       const res = await adminApiFetch("/api/admin/analytics");
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         success?: boolean;
         data?: AnalyticsData;
         error?: string;
-      };
+      }>(res);
       if (json.success && json.data) {
         setData(json.data);
       } else {

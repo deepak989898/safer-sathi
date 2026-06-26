@@ -1,5 +1,4 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { listAllUsers } from "@/lib/auth/auth-service";
 import { getBookings } from "@/lib/data-service";
 import { getAdminHotels, hydrateHotelsStore } from "@/lib/hotel-store";
 import { getAdminPackages, hydratePackagesStore } from "@/lib/package-store";
@@ -35,14 +34,10 @@ export async function listUsersForAdmin(): Promise<User[]> {
         return snap.docs.map((d) => mapAdminUser(d.id, d.data() as Record<string, unknown>));
       }
     } catch (error) {
-      console.warn("Admin listUsers failed, falling back:", error);
+      console.warn("Admin listUsers failed:", error);
     }
   }
-  try {
-    return await listAllUsers();
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {

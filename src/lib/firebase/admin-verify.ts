@@ -1,5 +1,5 @@
-import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
+import type { App } from "firebase-admin/app";
+import type { Auth } from "firebase-admin/auth";
 import { resolveFirebaseAdminCredentials } from "@/lib/firebase/resolve-admin-credentials";
 
 const VERIFY_APP_NAME = "safar-sathi-token-verify";
@@ -12,7 +12,12 @@ function getProjectId(): string | null {
   );
 }
 
-function getOrCreateVerifyApp(projectId: string, credentials?: ReturnType<typeof resolveFirebaseAdminCredentials>): App {
+async function getOrCreateVerifyApp(
+  projectId: string,
+  credentials?: ReturnType<typeof resolveFirebaseAdminCredentials>
+): Promise<App> {
+  const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+
   const existing = getApps().find((app) => app.name === VERIFY_APP_NAME);
   if (existing) return existing;
 
@@ -35,6 +40,7 @@ export async function getAuthForTokenVerification(): Promise<Auth | null> {
   if (!projectId) return null;
 
   const credentials = resolveFirebaseAdminCredentials();
+  const { getAuth } = await import("firebase-admin/auth");
 
   if (credentials) {
     try {
@@ -49,7 +55,7 @@ export async function getAuthForTokenVerification(): Promise<Auth | null> {
   }
 
   try {
-    const app = getOrCreateVerifyApp(projectId, credentials ?? undefined);
+    const app = await getOrCreateVerifyApp(projectId, credentials ?? undefined);
     return getAuth(app);
   } catch (error) {
     console.error("Firebase token verification auth init failed:", error);

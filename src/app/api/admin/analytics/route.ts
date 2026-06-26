@@ -2,6 +2,9 @@ import { requireManagerAnalyticsAuth } from "@/lib/admin/api-auth";
 import { getAdminAnalytics } from "@/lib/analytics-service";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const auth = await requireManagerAnalyticsAuth(request);

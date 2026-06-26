@@ -1,5 +1,4 @@
 import type { NextResponse } from "next/server";
-import type { DecodedIdToken } from "firebase-admin/auth";
 import { apiError } from "@/lib/api-response";
 import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
@@ -25,6 +24,13 @@ type AuthSuccess = { user: AuthenticatedUser };
 
 export type AuthResult = AuthFailure | AuthSuccess;
 
+interface VerifiedIdToken {
+  uid: string;
+  email?: string;
+  name?: string;
+  role?: string;
+}
+
 const DEV_LOCAL_TOKEN = "dev-local";
 
 function mapFirestoreUser(id: string, data: Record<string, unknown>): AuthenticatedUser {
@@ -47,7 +53,7 @@ async function loadUserProfile(uid: string): Promise<AuthenticatedUser | null> {
   return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
 }
 
-function profileFromDecodedToken(decoded: DecodedIdToken): AuthenticatedUser {
+function profileFromDecodedToken(decoded: VerifiedIdToken): AuthenticatedUser {
   const role =
     (typeof decoded.role === "string" ? (decoded.role as UserRole) : undefined) ??
     "customer";
@@ -64,7 +70,7 @@ function profileFromDecodedToken(decoded: DecodedIdToken): AuthenticatedUser {
 
 function mergeTokenRole(
   profile: AuthenticatedUser,
-  decoded: DecodedIdToken
+  decoded: VerifiedIdToken
 ): AuthenticatedUser {
   if (typeof decoded.role !== "string") return profile;
 

@@ -21,6 +21,19 @@ export async function getApiAuthHeaders(): Promise<Record<string, string>> {
   throw new Error("Not authenticated");
 }
 
+export async function parseApiJson<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const preview = (await res.text()).slice(0, 120);
+    throw new Error(
+      res.ok
+        ? "Server returned an unexpected response."
+        : `Server error (${res.status}). ${preview.startsWith("<!") ? "Try redeploying the site." : preview}`
+    );
+  }
+  return (await res.json()) as T;
+}
+
 export async function adminApiFetch(
   input: RequestInfo | URL,
   init?: RequestInit

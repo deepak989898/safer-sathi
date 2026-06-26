@@ -1,5 +1,4 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { listAllUsers } from "@/lib/auth/auth-service";
 import type { Booking, User } from "@/types";
 
 export {
@@ -115,7 +114,30 @@ export async function updateBooking(
 }
 
 export async function getUsers(): Promise<User[]> {
-  return listAllUsers();
+  if (!isAdminEnvConfigured()) return [];
+
+  try {
+    const db = await getSafeAdminDb();
+    if (!db) return [];
+    const snap = await db.collection("users").limit(500).get();
+    return snap.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return {
+        id: doc.id,
+        email: String(data.email ?? ""),
+        name: String(data.name ?? ""),
+        role: (data.role as User["role"]) ?? "customer",
+        status: (data.status as User["status"]) ?? "active",
+        approved: Boolean(data.approved ?? true),
+        locale: (data.locale as User["locale"]) ?? "en",
+        createdAt: String(data.createdAt ?? new Date().toISOString()),
+        updatedAt: String(data.updatedAt ?? new Date().toISOString()),
+      };
+    });
+  } catch (error) {
+    console.warn("Firebase getUsers failed:", error);
+    return [];
+  }
 }
 
 export function generateBookingNumber(): string {
