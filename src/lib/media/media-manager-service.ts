@@ -405,7 +405,11 @@ const HOTEL_SLOTS = [
 ];
 
 
-export async function bulkEnrichCatalogImages(): Promise<{
+function enrichImages(
+  existing: string[] | undefined,
+  slots: { label: string; url: string }[],
+  min: number
+): string[] {
   const result = [...(existing ?? [])].map(optimizeImageUrl);
   const seen = new Set(result.map(normalizeImageUrl));
   for (const slot of slots) {
