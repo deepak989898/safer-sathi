@@ -1,25 +1,15 @@
 /** Unique travel images per destination — avoid cross-destination reuse. */
 
-export type ImageSlotType =
-  | "featured"
-  | "destination"
-  | "activity"
-  | "attraction"
-  | "experience";
+import {
+  ROUTE_CITY_ALIASES,
+  ROUTE_CITY_CATALOG,
+  extractRouteDestinationCity,
+  type DestinationImageAsset,
+  type DestinationImageCategory,
+  type ImageSlotType,
+} from "./route-city-images";
 
-export interface DestinationImageAsset {
-  id: string;
-  label: string;
-  type: ImageSlotType;
-  url: string;
-  attraction?: string;
-}
-
-export interface DestinationImageCategory {
-  key: string;
-  displayName: string;
-  images: DestinationImageAsset[];
-}
+export type { DestinationImageAsset, DestinationImageCategory, ImageSlotType };
 
 function img(photoId: string, w = 1920): string {
   return `https://images.unsplash.com/photo-${photoId}?w=${w}&q=80&auto=format&fit=crop`;
@@ -172,6 +162,12 @@ export const DESTINATION_IMAGE_CATALOG: Record<string, DestinationImageCategory>
   india: { key: "india", displayName: "India", images: INDIA_GENERIC },
 };
 
+for (const [key, category] of Object.entries(ROUTE_CITY_CATALOG)) {
+  if (!DESTINATION_IMAGE_CATALOG[key]) {
+    DESTINATION_IMAGE_CATALOG[key] = category;
+  }
+}
+
 export const DESTINATION_ALIASES: Record<string, string> = {
   "old manali": "manali",
   kullu: "manali",
@@ -196,35 +192,47 @@ export const DESTINATION_ALIASES: Record<string, string> = {
   pattaya: "thailand",
   burj: "dubai",
   "new delhi": "delhi",
-  agra: "delhi",
-  taj: "delhi",
   leh: "kashmir",
   ladakh: "kashmir",
   kasol: "manali",
   kufri: "shimla",
   pahalgam: "kashmir",
+  ...ROUTE_CITY_ALIASES,
 };
 
 export function resolveDestinationCategoryKey(keyword: string, explicitDestination?: string): string {
+  const routeCity = extractRouteDestinationCity(keyword);
+  if (routeCity) return routeCity;
+
   const routeMatch = keyword.match(
-    /(?:[\w\s]+?)\s+to\s+([\w\s]+?)(?:\s+distance|\s+by\s+road|\s+route|\s+trip)?/i
+    /(?:[\w\s]+?)\s+to\s+([\w\s]+?)(?:\s+(?:distance|by\s+road|route|trip|cab|taxi|bus|train|package|tour|tickets?))?/i
   );
   if (routeMatch) {
     const toCity = routeMatch[1].trim().toLowerCase();
-    for (const [alias, key] of Object.entries(DESTINATION_ALIASES)) {
+    const aliasEntries = Object.entries(DESTINATION_ALIASES).sort(
+      (a, b) => b[0].length - a[0].length
+    );
+    for (const [alias, key] of aliasEntries) {
       if (toCity.includes(alias)) return key;
     }
     for (const key of Object.keys(DESTINATION_IMAGE_CATALOG)) {
-      if (key !== "india" && toCity.includes(key)) return key;
+      if (key !== "india" && !key.startsWith("transport_") && toCity.includes(key)) {
+        return key;
+      }
     }
   }
 
   const haystack = `${keyword} ${explicitDestination ?? ""}`.toLowerCase();
-  for (const [alias, key] of Object.entries(DESTINATION_ALIASES)) {
+  const aliasEntries = Object.entries(DESTINATION_ALIASES).sort(
+    (a, b) => b[0].length - a[0].length
+  );
+  for (const [alias, key] of aliasEntries) {
     if (haystack.includes(alias)) return key;
   }
   for (const key of Object.keys(DESTINATION_IMAGE_CATALOG)) {
-    if (key !== "india" && haystack.includes(key)) return key;
+    if (key !== "india" && !key.startsWith("transport_") && haystack.includes(key)) {
+      return key;
+    }
   }
   return "india";
 }

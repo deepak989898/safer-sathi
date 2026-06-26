@@ -4,8 +4,10 @@ import {
   minImagesForWordCount,
   BLOG_IMAGE_MAX,
   createFeaturedUsageTracker,
+  RELEVANCE_THRESHOLD,
 } from "@/lib/media/image-intelligence-engine";
 import { resolveDestinationCategoryKey } from "@/lib/media/destination-image-catalog";
+import { stableBlogRotation } from "@/lib/media/image-intelligence-engine";
 import { isBannedAltText } from "@/lib/media/image-seo-generator";
 
 export { BLOG_IMAGE_MAX, minImagesForWordCount };
@@ -58,16 +60,19 @@ export function blogImagesFromExisting(blog: {
       return alt.trim() && !isBannedAltText(alt) && p.caption && p.imageScore !== undefined;
     });
 
-  if (hasFullSeo) {
-    return {
-      featuredImage: blog.featuredImage?.trim() || savedPrompts[0].url,
-      imagePrompts: savedPrompts,
-      destinationKey: resolveDestinationCategoryKey(blog.keyword, blog.destination),
-      averageScore: Math.round(
-        savedPrompts.reduce((s, p) => s + (p.imageScore ?? 80), 0) / savedPrompts.length
-      ),
-      minRequired,
-    };
+  if (hasFullSeo && savedPrompts.length >= minRequired) {
+    const uniqueUrls = new Set(savedPrompts.map((p) => p.url));
+    const avgScore =
+      savedPrompts.reduce((s, p) => s + (p.imageScore ?? 0), 0) / savedPrompts.length;
+    if (uniqueUrls.size >= minRequired && avgScore >= RELEVANCE_THRESHOLD) {
+      return {
+        featuredImage: blog.featuredImage?.trim() || savedPrompts[0].url,
+        imagePrompts: savedPrompts,
+        destinationKey: resolveDestinationCategoryKey(blog.keyword, blog.destination),
+        averageScore: Math.round(avgScore),
+        minRequired,
+      };
+    }
   }
 
   const fresh = assignBlogImages({
@@ -75,10 +80,8 @@ export function blogImagesFromExisting(blog: {
     keyword: blog.keyword,
     destination: blog.destination,
     wordCount: blog.wordCount,
+    rotationIndex: stableBlogRotation(blog.title + blog.keyword),
   });
 
-  return {
-    ...fresh,
-    featuredImage: blog.featuredImage?.trim() || fresh.featuredImage,
-  };
+  return fresh;
 }

@@ -8,6 +8,7 @@ import {
   type DestinationImageAsset,
   type ImageSlotType,
 } from "@/lib/media/destination-image-catalog";
+import { detectBlogTravelMode } from "@/lib/media/route-city-images";
 import {
   buildImageKeywords,
   generateImageAltText,
@@ -155,6 +156,12 @@ export function computeImageRelevanceScore(
     if (token.length > 3 && subject.includes(token)) score += 4;
   }
 
+  const travelMode = detectBlogTravelMode(ctx.keyword, ctx.title);
+  if (travelMode === "cab" && asset.id.includes("cab")) score += 20;
+  if (travelMode === "bus" && asset.id.includes("bus")) score += 20;
+  if (travelMode === "train" && asset.id.includes("train")) score += 20;
+  if (travelMode === "package" && asset.id.includes("pkg")) score += 15;
+
   if (ctx.destinationKey !== "india" && asset.id.startsWith("india-")) score -= 25;
   if (!passesImageQualityGate(asset.url)) score -= 40;
 
@@ -171,12 +178,64 @@ function scoreAndRankAssets(
       relevanceScore: computeImageRelevanceScore(asset, ctx),
       priorityTier: priorityTier(asset, ctx.destinationKey),
     }))
-    .filter((a) => a.relevanceScore >= RELEVANCE_THRESHOLD || ctx.destinationKey === "india")
+    .filter((a) => a.relevanceScore >= RELEVANCE_THRESHOLD)
     .sort((a, b) => {
       if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
       if (a.priorityTier !== b.priorityTier) return a.priorityTier - b.priorityTier;
       return a.id.localeCompare(b.id);
     });
+}
+
+export function stableHash(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+export function stableBlogRotation(seed: string): number {
+  return stableHash(seed) % 97;
+}
+
+function buildImagePool(ctx: BlogImageContext, travelMode: ReturnType<typeof detectBlogTravelMode>) {
+  const destinationImages = getDestinationCategory(ctx.destinationKey).images;
+  const pools: DestinationImageAsset[] = [];
+
+  if (travelMode !== "destination") {
+    const transportKey = `transport_${travelMode}` as keyof typeof DESTINATION_IMAGE_CATALOG;
+    const transportImages = getDestinationCategory(transportKey).images;
+    pools.push(...transportImages);
+  }
+
+  pools.push(...destinationImages);
+
+  if (ctx.destinationKey === "india" && travelMode === "destination") {
+    return destinationImages;
+  }
+
+  return pools;
+}
+
+function pickFeaturedImage(
+  imagePrompts: BlogImagePrompt[],
+  travelMode: ReturnType<typeof detectBlogTravelMode>,
+  tracker: FeaturedUsageTracker
+): string {
+  const preferTransport = travelMode !== "destination";
+  const candidates = preferTransport
+    ? imagePrompts.filter((p) => p.type === "featured" || p.placement === "top")
+    : imagePrompts;
+
+  for (const prompt of candidates) {
+    if (canUseFeaturedUrl(tracker, prompt.url)) return prompt.url;
+  }
+
+  for (const prompt of imagePrompts) {
+    if (canUseFeaturedUrl(tracker, prompt.url)) return prompt.url;
+  }
+
+  return imagePrompts[0]?.url ?? "";
 }
 
 function pickPlacement(index: number, type: ImageSlotType): ImagePlacement {
@@ -276,32 +335,35 @@ export function selectIntelligentBlogImages(
   input: IntelligentImageSelectionInput
 ): IntelligentImageSelectionResult {
   const ctx = extractBlogImageContext(input);
+  const travelMode = detectBlogTravelMode(input.keyword, input.title);
   const minRequired = minImagesForWordCount(ctx.wordCount);
   const maxCount = Math.min(BLOG_IMAGE_MAX, Math.max(minRequired, 4));
 
-  const pool =
-    ctx.destinationKey === "india"
-      ? [
-          ...getDestinationCategory(ctx.destinationKey).images,
-          ...Object.values(DESTINATION_IMAGE_CATALOG)
-            .filter((c) => c.key !== "india")
-            .flatMap((c) => c.images.slice(0, 2)),
-        ]
-      : getDestinationCategory(ctx.destinationKey).images;
-
+  const pool = buildImagePool(ctx, travelMode);
   let ranked = scoreAndRankAssets(pool, ctx);
 
   if (ranked.length < minRequired) {
-    ranked = scoreAndRankAssets(getDestinationCategory(ctx.destinationKey).images, ctx).map((a) => ({
-      ...a,
-      relevanceScore: Math.max(a.relevanceScore, RELEVANCE_THRESHOLD),
-    }));
+    const fallbackPool = [
+      ...getDestinationCategory(ctx.destinationKey).images,
+      ...(travelMode !== "destination"
+        ? getDestinationCategory(`transport_${travelMode}`).images
+        : []),
+    ];
+    ranked = scoreAndRankAssets(fallbackPool, ctx)
+      .filter((a) => a.relevanceScore >= RELEVANCE_THRESHOLD - 10)
+      .map((a) => ({
+        ...a,
+        relevanceScore: Math.max(a.relevanceScore, RELEVANCE_THRESHOLD),
+      }));
   }
 
-  const rotation = input.rotationIndex ?? 0;
+  const hashRotation =
+    input.rotationIndex ??
+    stableHash(`${input.keyword}:${input.title}:${ctx.destinationKey}:${travelMode}`) %
+      Math.max(ranked.length, 1);
   const rotated = [
-    ...ranked.slice(rotation % Math.max(ranked.length, 1)),
-    ...ranked.slice(0, rotation % Math.max(ranked.length, 1)),
+    ...ranked.slice(hashRotation % Math.max(ranked.length, 1)),
+    ...ranked.slice(0, hashRotation % Math.max(ranked.length, 1)),
   ];
 
   const reserved = input.reservedUrls ?? new Set<string>();
@@ -314,8 +376,8 @@ export function selectIntelligentBlogImages(
     if (picked.length >= maxCount) break;
     const normalized = normalizeImageUrl(asset.url);
     if (usedIds.has(asset.id) || usedUrls.has(normalized)) continue;
+    if (reserved.has(normalized)) continue;
     if (asset.type === "featured" && !canUseFeaturedUrl(tracker, asset.url)) continue;
-    if (reserved.has(normalized) && picked.length >= minRequired) continue;
 
     picked.push(asset);
     usedIds.add(asset.id);
@@ -327,8 +389,7 @@ export function selectIntelligentBlogImages(
     if (picked.length >= maxCount) break;
     if (usedIds.has(asset.id)) continue;
     const normalized = normalizeImageUrl(asset.url);
-    if (usedUrls.has(normalized)) continue;
-    if (picked.length >= minRequired) break;
+    if (usedUrls.has(normalized) || reserved.has(normalized)) continue;
     picked.push(asset);
     usedIds.add(asset.id);
     usedUrls.add(normalized);
@@ -336,34 +397,31 @@ export function selectIntelligentBlogImages(
 
   while (picked.length < minRequired && ranked.length > 0) {
     const asset = ranked[picked.length % ranked.length];
-    if (!usedIds.has(asset.id)) {
+    const normalized = normalizeImageUrl(asset.url);
+    if (!usedIds.has(asset.id) && !reserved.has(normalized)) {
       picked.push(asset);
       usedIds.add(asset.id);
-    } else break;
+      usedUrls.add(normalized);
+    } else if (picked.length < minRequired) {
+      picked.push(asset);
+      usedIds.add(asset.id);
+    } else {
+      break;
+    }
   }
 
   const imagePrompts = picked.slice(0, maxCount).map((asset, index) =>
     buildPromptFromAsset(asset, ctx, pickPlacement(index, asset.type), index)
   );
 
-  let featured =
-    imagePrompts.find((p) => p.placement === "top")?.url ??
-    imagePrompts.find((p) => p.type === "featured")?.url ??
-    imagePrompts[0]?.url ??
-    optimizeImageUrl(pool[0]?.url ?? "");
-
-  if (!canUseFeaturedUrl(tracker, featured)) {
-    const altFeatured = imagePrompts.find(
-      (p) => p.url !== featured && canUseFeaturedUrl(tracker, p.url)
-    );
-    if (altFeatured) featured = altFeatured.url;
-  }
+  const featured = pickFeaturedImage(imagePrompts, travelMode, tracker);
   markFeaturedUsed(tracker, featured);
 
   if (input.reservedUrls) {
     for (const p of imagePrompts) {
       input.reservedUrls.add(normalizeImageUrl(p.url));
     }
+    if (featured) input.reservedUrls.add(normalizeImageUrl(featured));
   }
 
   const averageScore =
@@ -374,7 +432,7 @@ export function selectIntelligentBlogImages(
       : 0;
 
   return {
-    featuredImage: featured,
+    featuredImage: featured || imagePrompts[0]?.url || optimizeImageUrl(pool[0]?.url ?? ""),
     imagePrompts,
     destinationKey: ctx.destinationKey,
     minRequired,

@@ -1,4 +1,5 @@
 import { assignBlogImages } from "@/lib/media/blog-image-service";
+import { stableBlogRotation } from "@/lib/media/image-intelligence-engine";
 import { normalizeImageUrl } from "@/lib/media/destination-image-catalog";
 import {
   calculateBlogImageHealth,
@@ -334,9 +335,13 @@ export async function bulkFixBlogImages(options?: {
   for (const blog of blogs) {
     result.processed += 1;
     try {
-      const destKey = `${blog.destination ?? ""}:${blog.keyword}`.toLowerCase();
-      const rotation = destCounters.get(destKey) ?? 0;
-      destCounters.set(destKey, rotation + 1);
+      const rotation =
+        stableBlogRotation(blog.slug || blog.id) +
+        (destCounters.get(`${blog.keyword}:${blog.title}`.toLowerCase()) ?? 0);
+      destCounters.set(
+        `${blog.keyword}:${blog.title}`.toLowerCase(),
+        (destCounters.get(`${blog.keyword}:${blog.title}`.toLowerCase()) ?? 0) + 1
+      );
 
       const assigned = assignBlogImages({
         title: blog.title,
