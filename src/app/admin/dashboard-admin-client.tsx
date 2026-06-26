@@ -42,8 +42,9 @@ export default function DashboardAdminClient() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!user) return;
+    void load();
+  }, [load, user]);
 
   if (loading) {
     return (

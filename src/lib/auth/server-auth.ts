@@ -1,7 +1,12 @@
 import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-response";
-import { getSafeAdminAuth, getSafeAdminDb } from "@/lib/firebase/admin-safe";
+import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import {
+  getAuthForTokenVerification,
+  isTokenVerificationAvailable,
+} from "@/lib/firebase/admin-verify";
+import { loadUserProfileWithIdToken } from "@/lib/auth/firestore-profile-rest";
 import type { User, UserRole, UserStatus } from "@/types";
 import { canAccessAdmin } from "./constants";
 
@@ -41,6 +46,25 @@ async function loadUserProfile(uid: string): Promise<AuthenticatedUser | null> {
   return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
 }
 
+function profileFromDecodedToken(
+  decoded: Record<string, unknown>
+): AuthenticatedUser | null {
+  const uid = String(decoded.uid ?? decoded.sub ?? "");
+  if (!uid) return null;
+
+  const role = (decoded.role as UserRole | undefined) ?? "customer";
+  const email = String(decoded.email ?? "");
+
+  return {
+    id: uid,
+    email,
+    name: String(decoded.name ?? email.split("@")[0] ?? "User"),
+    role,
+    status: "active",
+    approved: true,
+  };
+}
+
 function parseDevLocalAuth(request: Request): AuthenticatedUser | null {
   if (process.env.ALLOW_DEV_API_AUTH !== "true") return null;
 
@@ -76,6 +100,12 @@ function validateActiveUser(user: AuthenticatedUser): AuthFailure | null {
   return null;
 }
 
+function adminCredentialsMessage(): string {
+  return isAdminEnvConfigured()
+    ? "Could not verify your session. Please sign out and sign in again."
+    : "Server Firebase Admin is not fully configured. Add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in Vercel environment variables, then redeploy.";
+}
+
 export async function authenticateRequest(request: Request): Promise<AuthResult> {
   const token = extractBearerToken(request);
   if (!token) {
@@ -92,26 +122,49 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
     return { user: devUser };
   }
 
-  if (!isAdminEnvConfigured()) {
-    return { error: apiError("Authentication service unavailable", 503) };
+  if (!isTokenVerificationAvailable()) {
+    return {
+      error: apiError(
+        "Firebase project ID is not configured on the server.",
+        503
+      ),
+    };
   }
 
-  const adminAuth = await getSafeAdminAuth();
+  const adminAuth = await getAuthForTokenVerification();
   if (!adminAuth) {
-    return { error: apiError("Authentication service unavailable", 503) };
+    return { error: apiError(adminCredentialsMessage(), 503) };
   }
 
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    const profile = await loadUserProfile(decoded.uid);
+    let profile = await loadUserProfile(decoded.uid);
+
     if (!profile) {
-      return { error: apiError("User profile not found", 401) };
+      profile = await loadUserProfileWithIdToken(decoded.uid, token);
     }
+
+    if (!profile) {
+      profile = profileFromDecodedToken(
+        decoded as unknown as Record<string, unknown>
+      );
+    }
+
+    if (!profile) {
+      return {
+        error: apiError(
+          "User profile not found. Ensure your account exists in Firestore users collection.",
+          401
+        ),
+      };
+    }
+
     const inactive = validateActiveUser(profile);
     if (inactive) return inactive;
     return { user: profile };
-  } catch {
-    return { error: apiError("Invalid or expired token", 401) };
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return { error: apiError("Invalid or expired token. Please sign in again.", 401) };
   }
 }
 
