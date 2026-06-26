@@ -1,5 +1,6 @@
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminAuthGuard } from "@/components/auth/admin-auth-guard";
+import { AdminHostEnforcer } from "@/components/auth/admin-host-enforcer";
 
 export default function AdminLayout({
   children,
@@ -8,6 +9,7 @@ export default function AdminLayout({
 }) {
   return (
     <AdminAuthGuard>
+      <AdminHostEnforcer />
       <div className="min-h-screen overflow-x-hidden bg-muted/30">
         <AdminSidebar />
         <div className="min-w-0 pl-0 md:pl-64">

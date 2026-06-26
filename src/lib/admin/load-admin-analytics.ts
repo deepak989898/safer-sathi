@@ -1,6 +1,6 @@
 import { resolveAuthAccessToken } from "@/lib/auth/auth-token-bridge";
 import { loadAdminAnalyticsAction } from "@/app/admin/actions";
-import { adminApiFetch, parseApiJson } from "@/lib/admin/api-client";
+import { parseApiJson, resolveAdminApiUrl } from "@/lib/admin/api-client";
 import type { getAdminAnalytics } from "@/lib/analytics-service";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 
@@ -19,6 +19,36 @@ async function resolveFreshIdToken(): Promise<string> {
   return resolveAuthAccessToken();
 }
 
+async function postAdminAnalytics(idToken: string): Promise<{
+  success: boolean;
+  data?: AdminAnalyticsPayload;
+  error?: string;
+  status?: number;
+}> {
+  const res = await fetch(resolveAdminApiUrl("/api/admin/analytics"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+    cache: "no-store",
+  });
+
+  const json = await parseApiJson<{
+    success?: boolean;
+    data?: AdminAnalyticsPayload;
+    error?: string;
+  }>(res);
+
+  if (json.success && json.data) {
+    return { success: true, data: json.data };
+  }
+
+  return {
+    success: false,
+    error: json.error ?? `Request failed (${res.status})`,
+    status: res.status,
+  };
+}
+
 export async function fetchAdminAnalytics(): Promise<{
   success: boolean;
   data?: AdminAnalyticsPayload;
@@ -26,31 +56,18 @@ export async function fetchAdminAnalytics(): Promise<{
 }> {
   const idToken = await resolveFreshIdToken();
 
+  const apiResult = await postAdminAnalytics(idToken);
+  if (apiResult.success && apiResult.data) {
+    return { success: true, data: apiResult.data };
+  }
+
   const actionResult = await loadAdminAnalyticsAction(idToken);
   if (actionResult.success) {
     return { success: true, data: actionResult.data };
   }
 
-  // Fallback for older deployments or action failures.
-  try {
-    const res = await adminApiFetch("/api/admin/analytics");
-    const json = await parseApiJson<{
-      success?: boolean;
-      data?: AdminAnalyticsPayload;
-      error?: string;
-    }>(res);
-    if (json.success && json.data) {
-      return { success: true, data: json.data };
-    }
-    return {
-      success: false,
-      error: json.error ?? actionResult.error ?? `Request failed (${res.status})`,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : actionResult.error ?? "Failed to load analytics",
-    };
-  }
+  return {
+    success: false,
+    error: apiResult.error ?? actionResult.error ?? "Failed to load analytics",
+  };
 }

@@ -41,6 +41,51 @@ export async function listUsersForAdmin(): Promise<User[]> {
 }
 
 export async function getAdminAnalytics(actorRole: UserRole = "super_admin") {
+  try {
+    return await buildAdminAnalytics(actorRole);
+  } catch (error) {
+    console.error("getAdminAnalytics failed:", error);
+    return emptyAdminAnalytics();
+  }
+}
+
+function emptyAdminAnalytics() {
+  return {
+    totalBookings: 0,
+    totalRevenue: 0,
+    activeVehicles: 0,
+    totalCustomers: 0,
+    totalPackages: 0,
+    totalHotels: 0,
+    conversionRate: 0,
+    revenueByMonth: Array.from({ length: 6 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - (5 - i));
+      return {
+        month: date.toLocaleString("en-IN", { month: "short" }),
+        revenue: 0,
+      };
+    }),
+    bookingsByMonth: Array.from({ length: 6 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - (5 - i));
+      return {
+        month: date.toLocaleString("en-IN", { month: "short" }),
+        bookings: 0,
+      };
+    }),
+    topDestinations: [],
+    recentBookings: [],
+    dailyChecklist: {
+      pendingBookings: 0,
+      unconvertedAiChats: 0,
+      pendingApprovals: 0,
+      items: [],
+    },
+  };
+}
+
+async function buildAdminAnalytics(actorRole: UserRole) {
   await Promise.all([
     hydratePackagesStore(),
     hydrateVehiclesStore(),

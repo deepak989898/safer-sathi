@@ -30,10 +30,8 @@ export async function loadAdminAnalyticsAction(
     return { success: true, data };
   } catch (error) {
     console.error("loadAdminAnalyticsAction error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to load analytics",
-    };
+    const message =
+      error instanceof Error ? error.message : "Failed to load analytics";
+    return { success: false, error: message };
   }
 }

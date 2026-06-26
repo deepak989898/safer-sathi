@@ -21,8 +21,20 @@ async function waitForAuthReady(timeoutMs = 12_000): Promise<void> {
 
 /**
  * Vercel redirects thesafarsathi.com/api/* → www (308). Browsers drop Authorization
- * on that redirect. When the admin UI is on apex, call the www API directly (CORS).
+ * on that redirect. Always call the www API in production.
  */
+export function resolveAdminApiUrl(input: string): string {
+  if (!input.startsWith("/api/")) return input;
+  if (typeof window === "undefined") return input;
+
+  const host = window.location.hostname.toLowerCase();
+  if (process.env.NODE_ENV === "production" || host === PRODUCTION_DOMAIN) {
+    return `https://${WWW_DOMAIN}${input}`;
+  }
+
+  return input;
+}
+
 function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
   if (typeof input !== "string" || !input.startsWith("/api/")) {
     return input;
@@ -31,15 +43,7 @@ function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
     return input;
   }
 
-  const host = window.location.hostname.toLowerCase();
-  if (process.env.NODE_ENV === "production") {
-    return `https://${WWW_DOMAIN}${input}`;
-  }
-  if (host === PRODUCTION_DOMAIN) {
-    return `https://${WWW_DOMAIN}${input}`;
-  }
-
-  return input;
+  return resolveAdminApiUrl(input);
 }
 
 export async function getApiAuthHeaders(): Promise<Record<string, string>> {

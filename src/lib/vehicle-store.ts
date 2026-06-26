@@ -72,9 +72,14 @@ export async function hydrateVehiclesStore(): Promise<void> {
       return;
     }
 
-    vehiclesStore = (await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed)).map(
-      applyVehicleCatalogImages
-    );
+    try {
+      vehiclesStore = (await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed)).map(
+        applyVehicleCatalogImages
+      );
+    } catch (error) {
+      console.warn("hydrateVehiclesStore seed failed, using in-memory seed:", error);
+      vehiclesStore = seed.map(applyVehicleCatalogImages);
+    }
   })();
 
   return hydratePromise;

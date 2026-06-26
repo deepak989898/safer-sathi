@@ -45,7 +45,12 @@ export async function hydrateHotelsStore(): Promise<void> {
       return;
     }
 
-    hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
+    try {
+      hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
+    } catch (error) {
+      console.warn("hydrateHotelsStore seed failed, using in-memory seed:", error);
+      hotelsStore = seed;
+    }
   })();
 
   return hydratePromise;
