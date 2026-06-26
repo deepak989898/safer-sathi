@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth, requireSuperAdminAuth } from "@/lib/admin/api-auth";
 import {
   approveVehicleInStore,
   deleteVehicleFromStore,
@@ -15,12 +15,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  actorRole: actorRoleSchema,
   updates: z.record(z.string(), z.unknown()).optional(),
 });
 
 const actionSchema = z.object({
-  actorRole: actorRoleSchema,
   approvedBy: z.string().optional(),
   reason: z.string().optional(),
 });
@@ -30,6 +28,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
@@ -37,9 +38,6 @@ export async function PATCH(
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     await reloadVehiclesStore();
@@ -63,6 +61,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireSuperAdminAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
@@ -73,9 +74,6 @@ export async function POST(
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
-    if (parsed.data.actorRole !== "super_admin") {
-      return apiError("Only super admin can approve or reject vehicles", 403);
-    }
 
     await reloadVehiclesStore();
     if (!getVehicleByIdAdmin(id)) return apiError("Vehicle not found", 404);
@@ -83,7 +81,7 @@ export async function POST(
     if (action === "approve") {
       const approved = await approveVehicleInStore(
         id,
-        parsed.data.approvedBy ?? "super_admin"
+        parsed.data.approvedBy ?? auth.user.id
       );
       if (!approved) return apiError("Vehicle not found", 404);
       await reloadVehiclesStore();
@@ -109,11 +107,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const actorRole = actorRoleSchema.safeParse(searchParams.get("actorRole"));
-    if (!actorRole.success) return apiError("actorRole required", 400);
-    if (!requireStaffRole(actorRole.data)) return apiError("Forbidden", 403);
 
     await reloadVehiclesStore();
     const deleted = await deleteVehicleFromStore(id);

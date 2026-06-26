@@ -28,6 +28,7 @@ import {
   updateVehicleInStore,
 } from "@/lib/vehicle-store";
 import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
+import { getVehicleImageUrls } from "@/lib/media/vehicle-images";
 
 export const PACKAGE_IMAGE_MIN = 8;
 export const HOTEL_IMAGE_MIN = 8;
@@ -403,16 +404,8 @@ const HOTEL_SLOTS = [
   { label: "Exterior", url: TRAVEL_IMAGES.jaipurFort },
 ];
 
-const VEHICLE_SLOTS = [
-  { label: "Front", url: TRAVEL_IMAGES.sedan },
-  { label: "Rear", url: TRAVEL_IMAGES.luxuryCar },
-  { label: "Interior", url: TRAVEL_IMAGES.suv },
-  { label: "Seats", url: TRAVEL_IMAGES.bus },
-  { label: "Luggage Space", url: TRAVEL_IMAGES.tempo },
-  { label: "Side View", url: TRAVEL_IMAGES.sportsCar },
-];
 
-function enrichImages(existing: string[], slots: { url: string }[], min: number): string[] {
+export async function bulkEnrichCatalogImages(): Promise<{
   const result = [...(existing ?? [])].map(optimizeImageUrl);
   const seen = new Set(result.map(normalizeImageUrl));
   for (const slot of slots) {
@@ -459,8 +452,12 @@ export async function bulkEnrichCatalogImages(): Promise<{
   }
 
   for (const vehicle of getAdminVehicles()) {
-    const images = enrichImages(vehicle.images ?? [], VEHICLE_SLOTS, VEHICLE_IMAGE_MIN);
-    if (images.length !== (vehicle.images?.length ?? 0)) {
+    const slug = vehicle.slug ?? vehicle.id;
+    const images = getVehicleImageUrls(slug);
+    const changed =
+      images.length !== (vehicle.images?.length ?? 0) ||
+      images.some((url, i) => vehicle.images?.[i] !== url);
+    if (changed) {
       await updateVehicleInStore(vehicle.id, { images });
       vehicles += 1;
     }
@@ -471,4 +468,24 @@ export async function bulkEnrichCatalogImages(): Promise<{
 
 export async function runWeeklyImageScan(): Promise<MediaManagerReport> {
   return buildMediaManagerReport();
+}
+
+export async function bulkFixVehicleImages(): Promise<{ updated: number; total: number }> {
+  await hydrateVehiclesStore();
+  let updated = 0;
+  const vehicles = getAdminVehicles();
+
+  for (const vehicle of vehicles) {
+    const slug = vehicle.slug ?? vehicle.id;
+    const images = getVehicleImageUrls(slug);
+    const changed =
+      images.length !== (vehicle.images?.length ?? 0) ||
+      images.some((url, i) => vehicle.images?.[i] !== url);
+    if (changed) {
+      await updateVehicleInStore(vehicle.id, { images });
+      updated += 1;
+    }
+  }
+
+  return { updated, total: vehicles.length };
 }

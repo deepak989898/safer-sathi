@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import type { SeoDashboardData } from "@/lib/seo/dashboard-service";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,7 @@ export function SeoCenterClient() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/seo?actorRole=${encodeURIComponent(user.role)}`);
+      const res = await adminApiFetch("/api/admin/seo");
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to load");
       setData(json.data);

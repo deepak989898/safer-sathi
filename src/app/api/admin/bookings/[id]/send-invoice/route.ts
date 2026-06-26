@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
@@ -11,7 +11,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
-  actorRole: actorRoleSchema,
   channel: z.enum(["email", "whatsapp", "both"]),
 });
 
@@ -20,6 +19,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
@@ -27,10 +29,6 @@ export async function POST(
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     const booking = await getBookingById(id);

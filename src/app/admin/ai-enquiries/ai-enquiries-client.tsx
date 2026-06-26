@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { listAiEnquiriesFromClient } from "@/lib/ai/travel-manager/enquiry-client";
 import { formatCurrency } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -257,7 +258,7 @@ export default function AiEnquiriesClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/ai-enquiries");
+      const res = await adminApiFetch("/api/admin/ai-enquiries");
       const json = await res.json();
       let items: AiAssistantEnquiry[] = [];
 

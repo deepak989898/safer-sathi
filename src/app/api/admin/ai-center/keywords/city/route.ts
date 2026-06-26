@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   getAiCenterSettings,
   hydrateAiCenterStore,
@@ -10,8 +10,6 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { z } from "zod";
 
 const citySchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   city: z.string().min(2).max(80),
   mode: z.enum(["preview", "save"]),
   keywords: z
@@ -45,14 +43,14 @@ const citySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = citySchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
-
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
 
     await hydrateAiCenterStore();
 
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
     const result = await saveCityKeywords(
       parsed.data.city,
       records,
-      parsed.data.actorId,
+      auth.user.id,
       autoApprove
     );
 

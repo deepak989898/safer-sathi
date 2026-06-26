@@ -46,6 +46,11 @@ export async function openRazorpayCheckout(
   input: RazorpayCheckoutInput
 ): Promise<RazorpayCheckoutResult> {
   if (input.demo || !input.keyId) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Payment gateway is not configured. Please contact support@thesafarsathi.com."
+      );
+    }
     await new Promise((resolve) => setTimeout(resolve, 600));
     return {
       razorpayOrderId: input.orderId,
@@ -109,5 +114,6 @@ export function getPublicRazorpayKeyId(): string | null {
 }
 
 export function isDemoPaymentMode(keyId?: string | null, demo?: boolean): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   return Boolean(demo) || !keyId;
 }

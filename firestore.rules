@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent'];
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent', 'driver'];
     }
 
     function isOwner(userId) {
@@ -55,8 +55,7 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isOwner(resource.data.userId) || isStaff();
-      // Guest checkout from mobile/web (same pattern as ai_assistant_enquiries)
-      allow create: if true;
+      allow create: if false;
       allow update: if isStaff()
         || isOwner(resource.data.userId)
         || resource.data.userId == 'guest';
@@ -94,13 +93,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Public blog posts (AI Center publishes here when approved)
     match /blogs/{blogId} {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
 
-    // AI Center — Phase 1 (Super Admin only)
     match /seo_keywords/{docId} {
       allow read, write: if isSuperAdmin();
     }
@@ -117,7 +114,6 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // AI Center — Phase 2 (Super Admin only)
     match /tour_packages/{docId} {
       allow read, write: if isSuperAdmin();
     }
@@ -130,13 +126,11 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // AI analytics snapshots (staff may read; only Super Admin writes)
     match /analytics/{docId} {
       allow read: if isStaff();
       allow write: if isSuperAdmin();
     }
 
-    // AI Center — Phase 3 (Super Admin only)
     match /pricing_history/{docId} {
       allow read, write: if isSuperAdmin();
     }
@@ -153,7 +147,7 @@ service cloud.firestore {
 
     match /lead_scores/{docId} {
       allow read, write: if isSuperAdmin();
-      allow create: if true;
+      allow create: if isAuthenticated();
     }
 
     match /fraud_logs/{docId} {
@@ -180,7 +174,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // AI Travel Manager drafts & enquiries
     match /ai_assistant_enquiries/{docId} {
       allow read: if isStaff();
       allow create: if true;

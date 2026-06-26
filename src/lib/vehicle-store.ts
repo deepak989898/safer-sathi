@@ -8,6 +8,7 @@ import {
 } from "@/lib/catalog/persistence";
 import { isCatalogPublished } from "@/lib/catalog/publish";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { resolveVehicleImages } from "@/lib/media/vehicle-images";
 import { getSeedVehicles } from "@/data/seed-catalog";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import type { Vehicle } from "@/types";
@@ -39,6 +40,14 @@ function dedupeVehiclesBySlug(vehicles: Vehicle[]): Vehicle[] {
   return Array.from(byKey.values());
 }
 
+function applyVehicleCatalogImages(vehicle: Vehicle): Vehicle {
+  const slug = vehicle.slug ?? vehicle.id;
+  return {
+    ...vehicle,
+    images: resolveVehicleImages(slug, vehicle.images),
+  };
+}
+
 export async function hydrateVehiclesStore(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
@@ -48,22 +57,24 @@ export async function hydrateVehiclesStore(): Promise<void> {
 
     if (remote === null) {
       if (vehiclesStore.length === 0) {
-        vehiclesStore = seed;
+        vehiclesStore = seed.map(applyVehicleCatalogImages);
       }
       return;
     }
 
     if (remote.length > 0) {
-      vehiclesStore = dedupeVehiclesBySlug(remote);
+      vehiclesStore = dedupeVehiclesBySlug(remote).map(applyVehicleCatalogImages);
       return;
     }
 
     if (!isAdminEnvConfigured()) {
-      vehiclesStore = seed;
+      vehiclesStore = seed.map(applyVehicleCatalogImages);
       return;
     }
 
-    vehiclesStore = await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed);
+    vehiclesStore = (await seedCatalogIfEmpty(VEHICLES_COLLECTION, seed)).map(
+      applyVehicleCatalogImages
+    );
   })();
 
   return hydratePromise;

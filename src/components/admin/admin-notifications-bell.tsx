@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import type { AdminNotification } from "@/lib/admin/notifications";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +37,7 @@ export function AdminNotificationsBell() {
     if (!user?.role) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/admin/notifications?actorRole=${encodeURIComponent(user.role)}`
-      );
+      const res = await adminApiFetch("/api/admin/notifications");
       const json = await res.json();
       if (json.success) {
         setNotifications(json.data?.notifications ?? []);
@@ -59,10 +58,10 @@ export function AdminNotificationsBell() {
 
   const markRead = async (id: string) => {
     if (!user?.role) return;
-    await fetch("/api/admin/notifications", {
+    await adminApiFetch("/api/admin/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actorRole: user.role, id }),
+      body: JSON.stringify({ id }),
     });
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -72,10 +71,10 @@ export function AdminNotificationsBell() {
 
   const markAllRead = async () => {
     if (!user?.role) return;
-    await fetch("/api/admin/notifications", {
+    await adminApiFetch("/api/admin/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actorRole: user.role, markAllRead: true }),
+      body: JSON.stringify({ markAllRead: true }),
     });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);

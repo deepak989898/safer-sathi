@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   getAiCenterSettings,
   hydrateAiCenterStore,
@@ -9,9 +9,8 @@ import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
     await hydrateAiCenterStore();
     return apiSuccess(getAiCenterSettings());
@@ -21,8 +20,6 @@ export async function GET(request: Request) {
 }
 
 const settingsSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   blogWordLimit: z.union([z.literal(1000), z.literal(1500), z.literal(2000), z.literal(3000)]).optional(),
   keywordsPerDay: z.number().min(1).max(50).optional(),
   autoDraftEnabled: z.boolean().optional(),
@@ -54,16 +51,16 @@ const settingsSchema = z.object({
 
 export async function PUT(request: Request) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = settingsSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
 
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
-
-    const { actorRole: _r, actorId, ...updates } = parsed.data;
+    const updates = { ...parsed.data };
     if (updates.autoPublishEnabled && updates.approvalRequired === false) {
       return apiError("Approval is always required before publishing", 400);
     }
@@ -72,7 +69,7 @@ export async function PUT(request: Request) {
     }
 
     await hydrateAiCenterStore();
-    const settings = await updateAiCenterSettings(updates, actorId);
+    const settings = await updateAiCenterSettings(updates, auth.user.id);
     return apiSuccess(settings);
   } catch (err) {
     return apiError("Failed to update settings", 500);

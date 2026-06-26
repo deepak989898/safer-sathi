@@ -8,6 +8,7 @@ import { DestinationsChart } from "@/components/admin/charts/destinations-chart"
 import { RevenueChart } from "@/components/admin/charts/revenue-chart";
 import { MetricCard } from "@/components/admin/metric-card";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import type { AdminDailyChecklist } from "@/lib/admin/daily-checklist";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -29,8 +30,7 @@ export default function DashboardAdminClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const role = user?.role ?? "super_admin";
-      const res = await fetch(`/api/admin/analytics?actorRole=${encodeURIComponent(role)}`);
+      const res = await adminApiFetch("/api/admin/analytics");
       const json = await res.json();
       if (json.success) setData(json.data);
       else toast.error(json.error ?? "Failed to load dashboard");
@@ -39,7 +39,7 @@ export default function DashboardAdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
+  }, []);
 
   useEffect(() => {
     load();

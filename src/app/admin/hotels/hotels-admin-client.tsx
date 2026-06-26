@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import {
   canApproveHotels,
   canGenerateMarketHotels,
@@ -84,7 +85,7 @@ export default function HotelsAdminClient() {
   const loadHotels = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/hotels");
+      const res = await adminApiFetch("/api/admin/hotels");
       const json = await res.json();
       if (json.success) setHotels(json.data);
       else toast.error(json.error ?? "Failed to load hotels");
@@ -131,11 +132,10 @@ export default function HotelsAdminClient() {
 
   const handleApprove = async (hotel: Hotel) => {
     try {
-      const res = await fetch(`/api/admin/hotels/${hotel.id}?action=approve`, {
+      const res = await adminApiFetch(`/api/admin/hotels/${hotel.id}?action=approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           approvedBy: user?.name ?? "super_admin",
         }),
       });
@@ -151,10 +151,10 @@ export default function HotelsAdminClient() {
 
   const handleReject = async (hotel: Hotel) => {
     try {
-      const res = await fetch(`/api/admin/hotels/${hotel.id}?action=reject`, {
+      const res = await adminApiFetch(`/api/admin/hotels/${hotel.id}?action=reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, reason: "Needs revision" }),
+        body: JSON.stringify({ reason: "Needs revision" }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Reject failed");
@@ -171,10 +171,10 @@ export default function HotelsAdminClient() {
     if (!confirm("Insert or update all 60 professional hotels in Firebase?")) return;
     setSeeding(true);
     try {
-      const res = await fetch("/api/admin/hotels?action=seed", {
+      const res = await adminApiFetch("/api/admin/hotels?action=seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole }),
+        body: JSON.stringify({}),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Seed failed");
@@ -256,10 +256,10 @@ export default function HotelsAdminClient() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/hotels", {
+      const res = await adminApiFetch("/api/admin/hotels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, hotel: buildPayload(form) }),
+        body: JSON.stringify({ hotel: buildPayload(form) }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to add");
@@ -278,10 +278,10 @@ export default function HotelsAdminClient() {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/hotels/${selected.id}`, {
+      const res = await adminApiFetch(`/api/admin/hotels/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, updates: buildPayload(form, selected) }),
+        body: JSON.stringify({ updates: buildPayload(form, selected) }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Update failed");
@@ -298,10 +298,7 @@ export default function HotelsAdminClient() {
   const handleDelete = async (hotel: Hotel) => {
     if (!confirm(`Delete "${localizedText(hotel.name, "en")}"?`)) return;
     try {
-      const res = await fetch(
-        `/api/admin/hotels/${hotel.id}?actorRole=${encodeURIComponent(actorRole)}`,
-        { method: "DELETE" }
-      );
+      const res = await adminApiFetch(`/api/admin/hotels/${hotel.id}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Delete failed");
       toast.success("Hotel deleted");

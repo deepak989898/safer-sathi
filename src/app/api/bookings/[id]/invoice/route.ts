@@ -4,7 +4,7 @@ import {
   getInvoiceFilename,
   verifyInvoiceAccessToken,
 } from "@/lib/bookings/invoice-access";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { authorizeBookingRead } from "@/lib/bookings/booking-access";
 import { apiError } from "@/lib/api-response";
 
 export const runtime = "nodejs";
@@ -18,23 +18,21 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token") ?? "";
-    const actorRole = searchParams.get("actorRole");
 
     const booking = await getBookingById(id);
     if (!booking) {
       return apiError("Booking not found", 404);
     }
 
-    const staffRole = actorRoleSchema.safeParse(actorRole);
-    const staffAllowed = staffRole.success && requireStaffRole(staffRole.data);
     const tokenValid = verifyInvoiceAccessToken(
       booking.id,
       booking.customerEmail,
       token
     );
 
-    if (!staffAllowed && !tokenValid) {
-      return apiError("Unauthorized", 401);
+    if (!tokenValid) {
+      const access = await authorizeBookingRead(request, booking);
+      if ("error" in access) return access.error;
     }
 
     const pdf = await generateInvoice(booking);

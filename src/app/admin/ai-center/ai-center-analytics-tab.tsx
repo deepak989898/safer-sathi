@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { formatCurrency } from "@/lib/i18n";
 import type { AiAnalyticsSnapshot, AiReport } from "@/lib/ai-center/types";
 import { toast } from "sonner";
@@ -29,8 +30,6 @@ function normalizeSnapshot(raw: AiAnalyticsSnapshot | null | undefined): AiAnaly
 }
 
 export function AiCenterAnalyticsTab({
-  actorRole,
-  actorId,
   busy,
   setBusy,
   reportsOnly = false,
@@ -51,12 +50,12 @@ export function AiCenterAnalyticsTab({
   const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
-      const params = new URLSearchParams({ actorRole, refresh: String(refresh) });
+      const params = new URLSearchParams({ refresh: String(refresh) });
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       const [analyticsRes, reportsRes] = await Promise.all([
-        fetch(`/api/admin/ai-center/analytics?${params}`),
-        fetch(`/api/admin/ai-center/reports?actorRole=${encodeURIComponent(actorRole)}`),
+        adminApiFetch(`/api/admin/ai-center/analytics?${params}`),
+        adminApiFetch("/api/admin/ai-center/reports"),
       ]);
       const [analyticsJson, reportsJson] = await Promise.all([
         analyticsRes.json(),
@@ -75,7 +74,7 @@ export function AiCenterAnalyticsTab({
       setError(message);
       toast.error(message);
     }
-  }, [actorRole, dateFrom, dateTo]);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     setLoading(true);
@@ -97,10 +96,10 @@ export function AiCenterAnalyticsTab({
   const generateReport = async (period: "daily" | "weekly" | "monthly") => {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/reports", {
+      const res = await adminApiFetch("/api/admin/ai-center/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, period }),
+        body: JSON.stringify({ period }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -113,11 +112,19 @@ export function AiCenterAnalyticsTab({
     }
   };
 
-  const download = (id: string, format: "csv" | "pdf") => {
-    window.open(
-      `/api/admin/ai-center/reports?actorRole=${encodeURIComponent(actorRole)}&id=${id}&format=${format}`,
-      "_blank"
-    );
+  const download = async (id: string, format: "csv" | "pdf") => {
+    try {
+      const res = await adminApiFetch(
+        `/api/admin/ai-center/reports?id=${encodeURIComponent(id)}&format=${format}`
+      );
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    }
   };
 
   if (loading && !snapshot) {
@@ -248,10 +255,10 @@ export function AiCenterAnalyticsTab({
                 <p className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleString("en-IN")}</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => download(r.id, "csv")}>
+                <Button size="sm" variant="outline" onClick={() => void download(r.id, "csv")}>
                   <Download className="mr-1 h-3 w-3" /> CSV
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => download(r.id, "pdf")}>
+                <Button size="sm" variant="outline" onClick={() => void download(r.id, "pdf")}>
                   <Download className="mr-1 h-3 w-3" /> HTML
                 </Button>
               </div>

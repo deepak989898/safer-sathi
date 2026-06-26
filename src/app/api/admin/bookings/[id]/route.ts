@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireBookingsStaffRole } from "@/lib/admin/api-auth";
+import { requireBookingsStaffAuth } from "@/lib/admin/api-auth";
 import { createAdminNotification } from "@/lib/admin/notifications";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
 import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
@@ -13,7 +13,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const patchSchema = z.object({
-  actorRole: actorRoleSchema,
   status: z
     .enum(["pending", "confirmed", "upcoming", "completed", "cancelled", "refunded"])
     .optional(),
@@ -28,6 +27,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireBookingsStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
@@ -35,10 +37,6 @@ export async function PATCH(
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-
-    if (!requireBookingsStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     const existing = await getBookingById(id);

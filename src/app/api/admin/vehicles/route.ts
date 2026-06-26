@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import {
   getAdminVehicles,
   reloadVehiclesStore,
@@ -14,8 +14,11 @@ import type { Vehicle, VehicleStatus } from "@/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     await reloadVehiclesStore();
     return apiSuccess({
       vehicles: getAdminVehicles(),
@@ -28,25 +31,18 @@ export async function GET() {
 }
 
 const createSchema = z.object({
-  actorRole: actorRoleSchema,
   vehicle: z.record(z.string(), z.unknown()),
 });
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
     if (action === "seed") {
-      const { data: body, error } = await parseJsonBody(request);
-      if (error) return error;
-      const parsed = z.object({ actorRole: actorRoleSchema }).safeParse(body);
-      if (!parsed.success) {
-        return apiError("Validation failed", 400, parsed.error.flatten());
-      }
-      if (!requireStaffRole(parsed.data.actorRole)) {
-        return apiError("Only admin and manager can seed vehicles", 403);
-      }
       const saved = await seedVehicles();
       const published = saved.filter((v) => v.available).length;
       return apiSuccess({
@@ -63,9 +59,6 @@ export async function POST(request: Request) {
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Only super admin and manager can manage vehicles", 403);
     }
 
     await reloadVehiclesStore();

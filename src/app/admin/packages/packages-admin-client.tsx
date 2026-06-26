@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import {
   canApprovePackages,
   canGenerateMarketPackages,
@@ -79,7 +80,7 @@ export default function PackagesAdminClient() {
   const loadPackages = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/packages");
+      const res = await adminApiFetch("/api/admin/packages");
       const json = await res.json();
       if (json.success) setPackages(json.data);
     } catch {
@@ -118,10 +119,10 @@ export default function PackagesAdminClient() {
     if (!confirm("Insert or update all 20 professional tour packages in Firebase?")) return;
     setSeeding(true);
     try {
-      const res = await fetch("/api/admin/packages?action=seed", {
+      const res = await adminApiFetch("/api/admin/packages?action=seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole }),
+        body: JSON.stringify({}),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Seed failed");
@@ -138,10 +139,7 @@ export default function PackagesAdminClient() {
     if (!isStaff) return;
     if (!confirm(`Delete "${localizedText(pkg.title, "en")}"?`)) return;
     try {
-      const res = await fetch(
-        `/api/admin/packages/${pkg.id}?actorRole=${encodeURIComponent(actorRole)}`,
-        { method: "DELETE" }
-      );
+      const res = await adminApiFetch(`/api/admin/packages/${pkg.id}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Delete failed");
       toast.success("Package deleted");
@@ -177,11 +175,10 @@ export default function PackagesAdminClient() {
 
   const handleApprove = async (pkg: TourPackage) => {
     try {
-      const res = await fetch(`/api/admin/packages/${pkg.id}?action=approve`, {
+      const res = await adminApiFetch(`/api/admin/packages/${pkg.id}?action=approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           approvedBy: user?.name ?? "super_admin",
         }),
       });
@@ -197,10 +194,10 @@ export default function PackagesAdminClient() {
 
   const handleReject = async (pkg: TourPackage) => {
     try {
-      const res = await fetch(`/api/admin/packages/${pkg.id}?action=reject`, {
+      const res = await adminApiFetch(`/api/admin/packages/${pkg.id}?action=reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, reason: "Needs revision" }),
+        body: JSON.stringify({ reason: "Needs revision" }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Reject failed");
@@ -225,11 +222,10 @@ export default function PackagesAdminClient() {
         }
       }
 
-      const res = await fetch(`/api/admin/packages/${selected.id}`, {
+      const res = await adminApiFetch(`/api/admin/packages/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           updates: {
             slug: editSlug,
             category: editCategory,

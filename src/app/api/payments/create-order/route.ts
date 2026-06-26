@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { createOrder, getPublicRazorpayKeyId } from "@/lib/payments/razorpay";
+import {
+  createOrder,
+  getPaymentGatewayError,
+  getPublicRazorpayKeyId,
+  isDemoPaymentAllowed,
+  isRazorpayConfigured,
+} from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -19,6 +25,10 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
+    if (!isRazorpayConfigured() && !isDemoPaymentAllowed()) {
+      return apiError(getPaymentGatewayError(), 503);
+    }
+
     const order = await createOrder(parsed.data);
     return apiSuccess({
       ...order,
@@ -26,6 +36,10 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("Create order error:", err);
-    return apiError("Failed to create payment order", 500);
+    const message =
+      err instanceof Error && err.message.includes("Payment gateway")
+        ? err.message
+        : "Failed to create payment order";
+    return apiError(message, 503);
   }
 }

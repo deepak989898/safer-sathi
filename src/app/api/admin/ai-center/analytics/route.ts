@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   buildAnalyticsSnapshot,
   hydrateAiAnalyticsStore,
@@ -23,10 +23,10 @@ function normalizeSnapshot(raw: AiAnalyticsSnapshot): AiAnalyticsSnapshot {
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
+    const { searchParams } = new URL(request.url);
     await hydrateAiAnalyticsStore();
 
     const dateFrom = searchParams.get("dateFrom") ?? undefined;

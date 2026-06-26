@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { listBookingsFromClient } from "@/lib/bookings/booking-client";
 import {
   bookingSourceDetail,
@@ -95,11 +96,10 @@ export default function BookingsAdminClient() {
       }
       setUpdatingBookingId(booking.id);
       try {
-        const res = await fetch(`/api/admin/bookings/${booking.id}`, {
+        const res = await adminApiFetch(`/api/admin/bookings/${booking.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            actorRole: user.role,
             ...updates,
             sendConfirmation,
           }),
@@ -132,10 +132,10 @@ export default function BookingsAdminClient() {
       }
       setSendingInvoiceId(booking.id);
       try {
-        const res = await fetch(`/api/admin/bookings/${booking.id}/send-invoice`, {
+        const res = await adminApiFetch(`/api/admin/bookings/${booking.id}/send-invoice`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actorRole: user.role, channel }),
+          body: JSON.stringify({ channel }),
         });
         const json = await res.json();
         if (!res.ok || !json.success) {
@@ -160,9 +160,7 @@ export default function BookingsAdminClient() {
         return;
       }
       try {
-        const res = await fetch(
-          `/api/bookings/${booking.id}/invoice?actorRole=${encodeURIComponent(user.role)}`
-        );
+        const res = await adminApiFetch(`/api/bookings/${booking.id}/invoice`);
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           throw new Error(json.error ?? "Failed to download invoice");
@@ -185,7 +183,7 @@ export default function BookingsAdminClient() {
   const loadBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/bookings");
+      const res = await adminApiFetch("/api/admin/bookings");
       const json = await res.json();
       let items: Booking[] = [];
 

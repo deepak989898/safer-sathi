@@ -1,8 +1,9 @@
 import { getBookingById } from "@/lib/data-service";
+import { authorizeBookingRead } from "@/lib/bookings/booking-access";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -12,6 +13,9 @@ export async function GET(
     if (!booking) {
       return apiError("Booking not found", 404);
     }
+
+    const access = await authorizeBookingRead(request, booking);
+    if ("error" in access) return access.error;
 
     return apiSuccess(booking);
   } catch (err) {

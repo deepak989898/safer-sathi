@@ -1,16 +1,11 @@
+import { requireManagerAnalyticsAuth } from "@/lib/admin/api-auth";
 import { getVisitorAnalytics } from "@/lib/visitor-analytics/repository";
 import { apiError, apiSuccess } from "@/lib/api-response";
-import type { UserRole } from "@/types";
-
-const ALLOWED: UserRole[] = ["super_admin", "manager"];
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const role = (searchParams.get("actorRole") as UserRole) ?? "customer";
-    if (!ALLOWED.includes(role)) {
-      return apiError("Only Super Admin and Manager can view visitor analytics", 403);
-    }
+    const auth = await requireManagerAnalyticsAuth(request);
+    if ("error" in auth) return auth.error;
 
     const data = await getVisitorAnalytics();
     return apiSuccess(data);

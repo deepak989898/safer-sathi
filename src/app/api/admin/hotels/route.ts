@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import {
   getAdminHotels,
   reloadHotelsStore,
@@ -10,8 +10,11 @@ import { HOTELS_SEED_COUNT } from "@/data/hotels-seed";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import type { Hotel, HotelStatus } from "@/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     await reloadHotelsStore();
     return apiSuccess(getAdminHotels());
   } catch (err) {
@@ -21,25 +24,18 @@ export async function GET() {
 }
 
 const createSchema = z.object({
-  actorRole: actorRoleSchema,
   hotel: z.record(z.string(), z.unknown()),
 });
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
     if (action === "seed") {
-      const { data: body, error } = await parseJsonBody(request);
-      if (error) return error;
-      const parsed = z.object({ actorRole: actorRoleSchema }).safeParse(body);
-      if (!parsed.success) {
-        return apiError("Validation failed", 400, parsed.error.flatten());
-      }
-      if (!requireStaffRole(parsed.data.actorRole)) {
-        return apiError("Only admin and manager can seed hotels", 403);
-      }
       const saved = await seedHotels();
       const published = saved.filter((h) => h.available).length;
       return apiSuccess({
@@ -56,9 +52,6 @@ export async function POST(request: Request) {
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     await reloadHotelsStore();

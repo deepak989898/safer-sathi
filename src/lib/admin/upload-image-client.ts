@@ -1,19 +1,18 @@
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { compressImageFile } from "@/lib/image-compress";
 import type { AdminUploadFolder } from "@/lib/firebase/admin-storage";
 
 export async function uploadAdminImageFile(
   file: File,
-  folder: AdminUploadFolder,
-  actorRole: string
+  folder: AdminUploadFolder
 ): Promise<string> {
   const compressed = await compressImageFile(file);
 
   const formData = new FormData();
   formData.append("file", compressed, compressed.name);
-  formData.append("actorRole", actorRole);
   formData.append("folder", folder);
 
-  const res = await fetch("/api/admin/upload-image", {
+  const res = await adminApiFetch("/api/admin/upload-image", {
     method: "POST",
     body: formData,
   });

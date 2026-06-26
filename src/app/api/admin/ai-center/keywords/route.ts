@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   getAiCenterStats,
   hydrateAiCenterStore,
@@ -6,15 +6,14 @@ import {
   listSeoMeta,
   runKeywordGeneration,
 } from "@/lib/ai-center/repository";
-import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
-import { z } from "zod";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
+    const { searchParams } = new URL(request.url);
     await hydrateAiCenterStore();
     const status = searchParams.get("status") as "pending" | "approved" | "rejected" | null;
 
@@ -29,24 +28,13 @@ export async function GET(request: Request) {
   }
 }
 
-const generateSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
-});
-
 export async function POST(request: Request) {
   try {
-    const { data: body, error } = await parseJsonBody(request);
-    if (error) return error;
-
-    const parsed = generateSchema.safeParse(body);
-    if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
-
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
     await hydrateAiCenterStore();
-    const result = await runKeywordGeneration(parsed.data.actorId);
+    const result = await runKeywordGeneration(auth.user.id);
     return apiSuccess({
       keywords: result.added,
       count: result.added.length,

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/auth-context";
+import { customerApiFetch } from "@/lib/admin/api-client";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -60,7 +61,12 @@ export function BookingCheckoutClient() {
   const loadPendingBooking = useCallback(async (bookingId: string) => {
     setLoadingBooking(true);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`);
+      const guestEmail = user?.email ?? form.email;
+      const res = user
+        ? await customerApiFetch(`/api/bookings/${bookingId}`)
+        : await fetch(
+            `/api/bookings/${bookingId}?email=${encodeURIComponent(guestEmail)}`
+          );
       const json = await res.json();
       if (!json.success || !json.data) {
         throw new Error(json.error ?? "Booking not found");
@@ -86,7 +92,7 @@ export function BookingCheckoutClient() {
     } finally {
       setLoadingBooking(false);
     }
-  }, [router]);
+  }, [router, user, form.email]);
 
   useEffect(() => {
     if (bookingIdParam) {

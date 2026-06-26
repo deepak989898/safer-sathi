@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent'];
+      return isAuthenticated() && getUserRole() in ['super_admin', 'manager', 'sales_agent', 'support_agent', 'driver'];
     }
 
     function isOwner(userId) {
@@ -55,7 +55,7 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isOwner(resource.data.userId) || isStaff();
-      allow create: if true;
+      allow create: if false;
       allow update: if isStaff()
         || isOwner(resource.data.userId)
         || resource.data.userId == 'guest';
@@ -147,7 +147,7 @@ service cloud.firestore {
 
     match /lead_scores/{docId} {
       allow read, write: if isSuperAdmin();
-      allow create: if true;
+      allow create: if isAuthenticated();
     }
 
     match /fraud_logs/{docId} {

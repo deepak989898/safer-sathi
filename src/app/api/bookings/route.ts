@@ -6,6 +6,8 @@ import {
 } from "@/lib/data-service";
 import { createAdminNotification } from "@/lib/admin/notifications";
 import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
+import { authorizeBookingsList } from "@/lib/bookings/booking-access";
+import { validateBookingAmount } from "@/lib/bookings/booking-price-validation";
 import { calculateAdvanceAmount } from "@/lib/payments/booking-payment";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
@@ -43,8 +45,11 @@ const createSchema = z.object({
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId") ?? undefined;
-    const bookings = await getBookings(userId);
+    const requestedUserId = searchParams.get("userId") ?? undefined;
+    const access = await authorizeBookingsList(request, requestedUserId);
+    if ("error" in access) return access.error;
+
+    const bookings = await getBookings(access.userId);
     return apiSuccess(bookings);
   } catch (err) {
     console.error("Get bookings error:", err);
@@ -62,6 +67,11 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
+    const priceCheck = await validateBookingAmount(parsed.data);
+    if (!priceCheck.ok) {
+      return apiError(priceCheck.message, 400);
+    }
+
     const now = new Date().toISOString();
     const booking = await createBooking({
       bookingNumber: generateBookingNumber(),
@@ -75,10 +85,10 @@ export async function POST(request: Request) {
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,
       guests: parsed.data.guests,
-      amount: parsed.data.amount,
+      amount: priceCheck.amount,
       bookingMode: parsed.data.bookingMode,
       distanceKm: parsed.data.distanceKm,
-      depositAmount: calculateAdvanceAmount(parsed.data.amount),
+      depositAmount: calculateAdvanceAmount(priceCheck.amount),
       paidAmount: 0,
       paymentPlan: parsed.data.paymentPlan ?? "advance",
       status: "pending",
@@ -93,7 +103,7 @@ export async function POST(request: Request) {
       await logAiAssistantEnquiry({
         request,
         userMessage: `AI booking: ${parsed.data.serviceName.en}`,
-        aiReply: `Booking ${booking.bookingNumber} · ₹${parsed.data.amount.toLocaleString("en-IN")}`,
+        aiReply: `Booking ${booking.bookingNumber} · ₹${priceCheck.amount.toLocaleString("en-IN")}`,
         locale: "hi",
         state: {
           step: "payment",
@@ -106,7 +116,7 @@ export async function POST(request: Request) {
           guests: parsed.data.guests,
         },
         context: { userId: parsed.data.userId },
-        packagePrice: parsed.data.amount,
+        packagePrice: priceCheck.amount,
       });
     }
 

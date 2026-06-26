@@ -17,6 +17,7 @@ import { RevenueChart } from "@/components/admin/charts/revenue-chart";
 import { MetricCard } from "@/components/admin/metric-card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -43,8 +44,7 @@ export default function AnalyticsAdminClient() {
     setLoading(true);
     setError(null);
     try {
-      const role = user?.role ?? "super_admin";
-      const res = await fetch(`/api/admin/analytics?actorRole=${encodeURIComponent(role)}`);
+      const res = await adminApiFetch("/api/admin/analytics");
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to load analytics");
       setData(json.data);
@@ -55,7 +55,7 @@ export default function AnalyticsAdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
+  }, []);
 
   useEffect(() => {
     void load();

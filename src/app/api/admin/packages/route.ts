@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import {
   getAdminPackages,
   reloadPackagesStore,
@@ -12,6 +12,9 @@ import type { PackagePublishStatus, TourPackage } from "@/types";
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") as PackagePublishStatus | null;
     await reloadPackagesStore();
@@ -24,25 +27,18 @@ export async function GET(request: Request) {
 }
 
 const createSchema = z.object({
-  actorRole: actorRoleSchema,
   package: z.record(z.string(), z.unknown()),
 });
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
     if (action === "seed") {
-      const { data: body, error } = await parseJsonBody(request);
-      if (error) return error;
-      const parsed = z.object({ actorRole: actorRoleSchema }).safeParse(body);
-      if (!parsed.success) {
-        return apiError("Validation failed", 400, parsed.error.flatten());
-      }
-      if (!requireStaffRole(parsed.data.actorRole)) {
-        return apiError("Only admin and manager can seed packages", 403);
-      }
       const saved = await seedTourPackages();
       const published = saved.filter((p) => p.publishStatus === "published").length;
       return apiSuccess({
@@ -59,9 +55,6 @@ export async function POST(request: Request) {
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Only admin and manager can create packages", 403);
     }
 
     await reloadPackagesStore();

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requireStaffAuth, requireSuperAdminAuth } from "@/lib/admin/api-auth";
 import {
   approvePackageInStore,
   deletePackageFromStore,
@@ -9,37 +10,26 @@ import {
 } from "@/lib/package-store";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
-const actorRoleSchema = z.enum([
-  "super_admin",
-  "manager",
-  "sales_agent",
-  "support_agent",
-  "driver",
-  "customer",
-]);
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = z
       .object({
-        actorRole: actorRoleSchema,
         updates: z.record(z.string(), z.unknown()),
       })
       .safeParse(body);
 
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-
-    if (!["super_admin", "manager"].includes(parsed.data.actorRole)) {
-      return apiError("Only managers and super admins can edit packages", 403);
     }
 
     await reloadPackagesStore();
@@ -60,6 +50,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireSuperAdminAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
@@ -68,7 +61,6 @@ export async function POST(
 
     const parsed = z
       .object({
-        actorRole: actorRoleSchema,
         approvedBy: z.string().optional(),
         reason: z.string().optional(),
       })
@@ -78,17 +70,13 @@ export async function POST(
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    if (parsed.data.actorRole !== "super_admin") {
-      return apiError("Only super admin can approve or reject packages", 403);
-    }
-
     await reloadPackagesStore();
     if (!getPackageByIdAdmin(id)) return apiError("Package not found", 404);
 
     if (action === "approve") {
       const approved = await approvePackageInStore(
         id,
-        parsed.data.approvedBy ?? "super_admin"
+        parsed.data.approvedBy ?? auth.user.id
       );
       if (!approved) return apiError("Package not found", 404);
       await reloadPackagesStore();
@@ -114,13 +102,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const actorRole = actorRoleSchema.safeParse(searchParams.get("actorRole"));
-    if (!actorRole.success) return apiError("actorRole required", 400);
-    if (!["super_admin", "manager"].includes(actorRole.data)) {
-      return apiError("Only managers and super admins can delete packages", 403);
-    }
 
     await reloadPackagesStore();
     const deleted = await deletePackageFromStore(id);

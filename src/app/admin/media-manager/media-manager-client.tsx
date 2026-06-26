@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import type { MediaManagerReport } from "@/lib/media/media-manager-service";
 import { toast } from "sonner";
 
@@ -35,9 +36,7 @@ export function MediaManagerClient() {
     if (!user?.role) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/admin/media-manager?actorRole=${encodeURIComponent(user.role)}`
-      );
+      const res = await adminApiFetch("/api/admin/media-manager");
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to load report");
       setReport(json.data);
@@ -56,10 +55,10 @@ export function MediaManagerClient() {
     if (!user?.role) return;
     setBusy(action);
     try {
-      const res = await fetch("/api/admin/media-manager", {
+      const res = await adminApiFetch("/api/admin/media-manager", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole: user.role, action, mirrorToFirebase }),
+        body: JSON.stringify({ action, mirrorToFirebase }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Action failed");

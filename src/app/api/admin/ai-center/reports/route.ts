@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   generateAiReport,
   getAiReportById,
@@ -11,10 +11,10 @@ import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
+    const { searchParams } = new URL(request.url);
     await hydrateAiAnalyticsStore();
     const id = searchParams.get("id");
     const format = searchParams.get("format");
@@ -50,25 +50,23 @@ export async function GET(request: Request) {
 }
 
 const generateSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   period: z.enum(["daily", "weekly", "monthly"]),
 });
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = generateSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
 
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
-
     const report = await generateAiReport(
       parsed.data.period as AiReportPeriod,
-      parsed.data.actorId
+      auth.user.id
     );
     return apiSuccess({ report });
   } catch (err) {

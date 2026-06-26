@@ -32,6 +32,7 @@ import type {
   PricingHistoryRecord,
 } from "@/lib/ai-center/types";
 import type { ReviewAnalysis } from "@/lib/ai-center/review-agent";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { toast } from "sonner";
 
 export function AiCenterPhase3Tab({
@@ -59,7 +60,7 @@ export function AiCenterPhase3Tab({
   const [replyText, setReplyText] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/ai-center/phase3?actorRole=${actorRole}`);
+    const res = await adminApiFetch("/api/admin/ai-center/phase3");
     const json = await res.json();
     if (json.success) {
       setStats(json.data.stats);
@@ -71,7 +72,7 @@ export function AiCenterPhase3Tab({
       setFraud(json.data.fraud ?? []);
       setBlocked(json.data.blocked ?? []);
     }
-  }, [actorRole]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -80,10 +81,10 @@ export function AiCenterPhase3Tab({
   const pricingAction = async (id: string, action: "approve" | "reject", overridePrice?: number) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/phase3/pricing/${id}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/phase3/pricing/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action, overridePrice }),
+        body: JSON.stringify({ action, overridePrice }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -103,10 +104,10 @@ export function AiCenterPhase3Tab({
   ) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/phase3/reviews/${id}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/phase3/reviews/${id}`, {
         method: action === "delete" ? "DELETE" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action, adminReply }),
+        body: JSON.stringify({ action, adminReply }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -121,10 +122,10 @@ export function AiCenterPhase3Tab({
   const unblockUser = async (blockedId: string) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/phase3/fraud/${blockedId}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/phase3/fraud/${blockedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action: "unblock", blockedUserId: blockedId }),
+        body: JSON.stringify({ action: "unblock", blockedUserId: blockedId }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -139,10 +140,10 @@ export function AiCenterPhase3Tab({
   const fraudResolve = async (id: string) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/phase3/fraud/${id}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/phase3/fraud/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action: "resolve" }),
+        body: JSON.stringify({ action: "resolve" }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -158,10 +159,10 @@ export function AiCenterPhase3Tab({
   const runPricingScan = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/phase3/pricing", {
+      const res = await adminApiFetch("/api/admin/ai-center/phase3/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action: "scan" }),
+        body: JSON.stringify({ action: "scan" }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -177,10 +178,10 @@ export function AiCenterPhase3Tab({
   const updateRule = async (ruleId: string, updates: Partial<PriceRule>) => {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/phase3/pricing", {
+      const res = await adminApiFetch("/api/admin/ai-center/phase3/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action: "update_rule", ruleId, ruleUpdates: updates }),
+        body: JSON.stringify({ action: "update_rule", ruleId, ruleUpdates: updates }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);

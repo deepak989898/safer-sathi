@@ -1,4 +1,4 @@
-import { vehicleImagePaths } from "@/lib/media/vehicle-images";
+import { getVehicleImageUrls } from "@/lib/media/vehicle-images";
 import type { LocalizedString, Vehicle, VehicleType } from "@/types";
 
 function enHi(en: string, hi?: string): LocalizedString {
@@ -59,7 +59,7 @@ function buildVehicle(cfg: VehicleSeedConfig): Vehicle {
     fuelType: cfg.fuelType,
     pricePerDay: cfg.pricePerDay,
     pricePerKm: cfg.pricePerKm,
-    images: vehicleImagePaths(cfg.slug),
+    images: getVehicleImageUrls(cfg.slug),
     available: true,
     status: "active",
     driverIncluded: true,

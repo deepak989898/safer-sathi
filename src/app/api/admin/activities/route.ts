@@ -1,11 +1,14 @@
 import { z } from "zod";
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import { getAdminActivities, hydrateActivitiesStore, seedActivities } from "@/lib/activity-store";
 import { ACTIVITIES_SEED_COUNT } from "@/data/activities-seed";
-import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     await hydrateActivitiesStore();
     return apiSuccess(getAdminActivities());
   } catch (err) {
@@ -16,19 +19,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { searchParams } = new URL(request.url);
     if (searchParams.get("action") !== "seed") {
       return apiError("Unsupported action", 400);
-    }
-
-    const { data: body, error } = await parseJsonBody(request);
-    if (error) return error;
-    const parsed = z.object({ actorRole: actorRoleSchema }).safeParse(body);
-    if (!parsed.success) {
-      return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-    if (!requireStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     const saved = await seedActivities();

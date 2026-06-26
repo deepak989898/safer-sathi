@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import { customerApiFetch } from "@/lib/admin/api-client";
 import { listBookingsFromClient } from "@/lib/bookings/booking-client";
 import { useAppStore } from "@/store/app-store";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
@@ -51,7 +52,7 @@ export default function MyBookingsClient() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/bookings?userId=${encodeURIComponent(userId)}`);
+        const res = await customerApiFetch("/api/bookings");
         const json = await res.json();
         let items: Booking[] = json.success ? (json.data ?? []) : [];
 

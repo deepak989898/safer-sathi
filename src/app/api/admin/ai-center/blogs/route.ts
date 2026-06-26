@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   generateBlogFromKeyword,
   hydrateAiCenterStore,
@@ -10,10 +10,10 @@ import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
+    const { searchParams } = new URL(request.url);
     await hydrateAiCenterStore();
     const status = searchParams.get("status") as
       | "draft"
@@ -32,26 +32,21 @@ export async function GET(request: Request) {
 }
 
 const createSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   keywordId: z.string().min(1),
 });
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
 
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
-
-    const blog = await generateBlogFromKeyword(
-      parsed.data.keywordId,
-      parsed.data.actorId
-    );
+    const blog = await generateBlogFromKeyword(parsed.data.keywordId, auth.user.id);
     return apiSuccess({ blog });
   } catch (err) {
     console.error("Generate blog error:", err);

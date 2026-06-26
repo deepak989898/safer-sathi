@@ -61,7 +61,7 @@ export function AdminImageUrlField({
       const uploaded: string[] = [];
       for (let i = 0; i < files.length; i++) {
         setProgress({ current: i + 1, total: files.length });
-        const url = await uploadAdminImageFile(files[i], folder, actorRole);
+        const url = await uploadAdminImageFile(files[i], folder);
         uploaded.push(url);
       }
       onChange([...uploaded, ...nextUrls].join("\n"));
@@ -191,7 +191,7 @@ export function AdminSingleImageUpload({
 
     setUploading(true);
     try {
-      const url = await uploadAdminImageFile(file, folder, actorRole);
+      const url = await uploadAdminImageFile(file, folder);
       onUploaded(url);
       toast.success("Image uploaded and compressed");
     } catch (error) {

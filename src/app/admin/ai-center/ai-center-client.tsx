@@ -52,6 +52,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -201,10 +202,10 @@ export default function AiCenterClient() {
     setLoading(true);
     try {
       const [kwRes, blogRes, logRes, settingsRes] = await Promise.all([
-        fetch(`/api/admin/ai-center/keywords?actorRole=${actorRole}`),
-        fetch(`/api/admin/ai-center/blogs?actorRole=${actorRole}`),
-        fetch(`/api/admin/ai-center/logs?actorRole=${actorRole}&limit=100`),
-        fetch(`/api/admin/ai-center/settings?actorRole=${actorRole}`),
+        adminApiFetch("/api/admin/ai-center/keywords"),
+        adminApiFetch("/api/admin/ai-center/blogs"),
+        adminApiFetch("/api/admin/ai-center/logs?limit=100"),
+        adminApiFetch("/api/admin/ai-center/settings"),
       ]);
       const [kwJson, blogJson, logJson, settingsJson] = await Promise.all([
         kwRes.json(),
@@ -228,7 +229,7 @@ export default function AiCenterClient() {
     } finally {
       setLoading(false);
     }
-  }, [actorRole]);
+  }, []);
 
   useEffect(() => {
     void loadAll();
@@ -271,10 +272,10 @@ export default function AiCenterClient() {
   const runKeywordResearch = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/keywords", {
+      const res = await adminApiFetch("/api/admin/ai-center/keywords", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId }),
+        body: JSON.stringify({}),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -309,12 +310,10 @@ export default function AiCenterClient() {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/keywords/city", {
+      const res = await adminApiFetch("/api/admin/ai-center/keywords/city", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
-          actorId,
           city,
           mode: "preview",
           limit: 100,
@@ -363,12 +362,10 @@ export default function AiCenterClient() {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/keywords/city", {
+      const res = await adminApiFetch("/api/admin/ai-center/keywords/city", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
-          actorId,
           city: cityPreviewCity,
           mode: "save",
           keywords: selected,
@@ -402,10 +399,10 @@ export default function AiCenterClient() {
   const keywordAction = async (id: string, action: "approve" | "reject") => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/keywords/${id}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/keywords/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action }),
+        body: JSON.stringify({ action }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -420,16 +417,16 @@ export default function AiCenterClient() {
 
   const deleteKeyword = async (id: string) => {
     if (!confirm("Delete this keyword?")) return;
-    await fetch(`/api/admin/ai-center/keywords/${id}?actorRole=${actorRole}`, { method: "DELETE" });
+    await adminApiFetch(`/api/admin/ai-center/keywords/${id}`, { method: "DELETE" });
     toast.success("Keyword deleted");
     await loadAll();
   };
 
   const generateBlog = async (keywordId: string, silent = false) => {
-    const res = await fetch("/api/admin/ai-center/blogs", {
+    const res = await adminApiFetch("/api/admin/ai-center/blogs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actorRole, actorId, keywordId }),
+      body: JSON.stringify({ keywordId }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
@@ -469,7 +466,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [keywords, blogs, actorRole, actorId, loadAll]);
+  }, [keywords, blogs, loadAll]);
 
   const runAutoApproveAllKeywords = useCallback(async () => {
     const targets = keywords.filter((k) => k.status === "pending");
@@ -477,10 +474,10 @@ export default function AiCenterClient() {
     setBusy(true);
     try {
       for (const kw of targets) {
-        const res = await fetch(`/api/admin/ai-center/keywords/${kw.id}`, {
+        const res = await adminApiFetch(`/api/admin/ai-center/keywords/${kw.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actorRole, actorId, action: "approve" }),
+          body: JSON.stringify({ action: "approve" }),
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
@@ -493,7 +490,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [keywords, actorRole, actorId, loadAll]);
+  }, [keywords, loadAll]);
 
   const runAutoApproveAll = useCallback(async () => {
     const targets = blogs.filter(
@@ -503,10 +500,10 @@ export default function AiCenterClient() {
     setBusy(true);
     try {
       for (const blog of targets) {
-        const res = await fetch(`/api/admin/ai-center/blogs/${blog.id}`, {
+        const res = await adminApiFetch(`/api/admin/ai-center/blogs/${blog.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actorRole, actorId, action: "approve" }),
+          body: JSON.stringify({ action: "approve" }),
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
@@ -519,7 +516,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [blogs, actorRole, actorId, loadAll]);
+  }, [blogs, loadAll]);
 
   const runAutoPublishAll = useCallback(async () => {
     const targets = blogs.filter((b) => b.status === "approved");
@@ -527,10 +524,10 @@ export default function AiCenterClient() {
     setBusy(true);
     try {
       for (const blog of targets) {
-        const res = await fetch(`/api/admin/ai-center/blogs/${blog.id}`, {
+        const res = await adminApiFetch(`/api/admin/ai-center/blogs/${blog.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actorRole, actorId, action: "publish" }),
+          body: JSON.stringify({ action: "publish" }),
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
@@ -543,7 +540,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [blogs, actorRole, actorId, loadAll]);
+  }, [blogs, loadAll]);
 
   const saveAutomationToggle = async (
     field:
@@ -557,12 +554,10 @@ export default function AiCenterClient() {
     if (!settings) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/settings", {
+      const res = await adminApiFetch("/api/admin/ai-center/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
-          actorId,
           [field]: enabled,
         }),
       });
@@ -704,10 +699,10 @@ export default function AiCenterClient() {
   ) => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/ai-center/blogs/${id}`, {
+      const res = await adminApiFetch(`/api/admin/ai-center/blogs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, actorId, action, ...extra }),
+        body: JSON.stringify({ action, ...extra }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -723,7 +718,7 @@ export default function AiCenterClient() {
 
   const deleteBlog = async (id: string) => {
     if (!confirm("Delete this blog?")) return;
-    await fetch(`/api/admin/ai-center/blogs/${id}?actorRole=${actorRole}`, { method: "DELETE" });
+    await adminApiFetch(`/api/admin/ai-center/blogs/${id}`, { method: "DELETE" });
     toast.success("Blog deleted");
     await loadAll();
   };
@@ -732,12 +727,10 @@ export default function AiCenterClient() {
     if (!settings) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/ai-center/settings", {
+      const res = await adminApiFetch("/api/admin/ai-center/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
-          actorId,
           blogWordLimit: settings.blogWordLimit,
           keywordsPerDay: settings.keywordsPerDay,
           autoDraftEnabled: settings.autoDraftEnabled,

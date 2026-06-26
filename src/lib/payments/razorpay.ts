@@ -28,6 +28,28 @@ export function isRazorpayConfigured(): boolean {
   );
 }
 
+export function isProductionEnvironment(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/** Demo payments are only allowed outside production (or when explicitly enabled). */
+export function isDemoPaymentAllowed(): boolean {
+  if (isRazorpayConfigured()) return false;
+  if (!isProductionEnvironment()) return true;
+  return process.env.ALLOW_DEMO_PAYMENTS === "true";
+}
+
+export function isDemoPaymentIdentifier(value: string): boolean {
+  return value.startsWith("demo_");
+}
+
+export function getPaymentGatewayError(): string {
+  if (isProductionEnvironment() && !isRazorpayConfigured()) {
+    return "Payment gateway is not configured. Please contact support.";
+  }
+  return "Payment gateway is not available. Please try again later.";
+}
+
 function getRazorpayClient(): Razorpay {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -42,6 +64,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const amountPaise = Math.round(input.amount * 100);
 
   if (!isRazorpayConfigured()) {
+    if (!isDemoPaymentAllowed()) {
+      throw new Error(getPaymentGatewayError());
+    }
     return {
       orderId: `demo_order_${Date.now()}`,
       amount: amountPaise,
@@ -68,7 +93,17 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 }
 
 export function verifyPayment(input: VerifyPaymentInput): boolean {
+  if (
+    isProductionEnvironment() &&
+    (isDemoPaymentIdentifier(input.razorpayOrderId) ||
+      isDemoPaymentIdentifier(input.razorpayPaymentId) ||
+      input.razorpaySignature === "demo_signature")
+  ) {
+    return false;
+  }
+
   if (!isRazorpayConfigured()) {
+    if (!isDemoPaymentAllowed()) return false;
     return Boolean(input.razorpayOrderId && input.razorpayPaymentId);
   }
 

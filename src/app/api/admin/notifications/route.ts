@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorRoleSchema, requireBookingsStaffRole } from "@/lib/admin/api-auth";
+import { requireBookingsStaffAuth } from "@/lib/admin/api-auth";
 import {
   listAdminNotifications,
   markAdminNotificationRead,
@@ -11,19 +11,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const patchSchema = z.object({
-  actorRole: actorRoleSchema,
   id: z.string().optional(),
   markAllRead: z.boolean().optional(),
 });
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const actorRole = searchParams.get("actorRole");
-    const parsedRole = actorRoleSchema.safeParse(actorRole);
-    if (!parsedRole.success || !requireBookingsStaffRole(parsedRole.data)) {
-      return apiError("Forbidden", 403);
-    }
+    const auth = await requireBookingsStaffAuth(request);
+    if ("error" in auth) return auth.error;
 
     const notifications = await listAdminNotifications(50);
     const unreadCount = notifications.filter((n) => !n.read).length;
@@ -36,16 +31,15 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const auth = await requireBookingsStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
-    }
-
-    if (!requireBookingsStaffRole(parsed.data.actorRole)) {
-      return apiError("Forbidden", 403);
     }
 
     if (parsed.data.markAllRead) {

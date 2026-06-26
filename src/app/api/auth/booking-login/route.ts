@@ -2,6 +2,10 @@ import { z } from "zod";
 import { findBookingForLogin } from "@/lib/auth/booking-login-server";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import {
+  apiRateLimited,
+  checkBookingLoginRateLimit,
+} from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +23,11 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return apiError("Validation failed", 400, parsed.error.flatten());
+    }
+
+    const rateLimited = checkBookingLoginRateLimit(request, parsed.data.email);
+    if (rateLimited) {
+      return apiRateLimited(rateLimited.resetAt);
     }
 
     const booking = await findBookingForLogin(

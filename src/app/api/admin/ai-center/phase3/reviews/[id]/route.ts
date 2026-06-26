@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   approveRating,
   deleteRating,
@@ -10,8 +10,6 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { z } from "zod";
 
 const patchSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   action: z.enum(["approve", "hide", "reply", "delete"]),
   adminReply: z.string().optional(),
 });
@@ -21,6 +19,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
@@ -28,11 +29,8 @@ export async function PATCH(
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
 
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
-
     await hydratePhase3Store();
-    const actorId = parsed.data.actorId ?? "super_admin";
+    const actorId = auth.user.id;
 
     if (parsed.data.action === "approve") {
       return apiSuccess({ rating: await approveRating(id, actorId) });
@@ -55,10 +53,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
 
     await hydratePhase3Store();
     await deleteRating(id);

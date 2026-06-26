@@ -1,4 +1,4 @@
-import { parseSuperAdminRole } from "@/lib/ai-center/api-auth";
+import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
   hydratePhase3Store,
   listPriceRules,
@@ -11,10 +11,10 @@ import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const roleCheck = parseSuperAdminRole(searchParams.get("actorRole"));
-    if (roleCheck.error) return roleCheck.error;
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
 
+    const { searchParams } = new URL(request.url);
     await hydratePhase3Store();
     const status = searchParams.get("status") as "pending" | "approved" | "rejected" | null;
 
@@ -28,8 +28,6 @@ export async function GET(request: Request) {
 }
 
 const postSchema = z.object({
-  actorRole: z.string(),
-  actorId: z.string().optional(),
   action: z.enum(["scan", "update_rule"]),
   ruleId: z.string().optional(),
   ruleUpdates: z.record(z.string(), z.unknown()).optional(),
@@ -37,14 +35,14 @@ const postSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAICenterAuth(request);
+    if ("error" in auth) return auth.error;
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
     const parsed = postSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
-
-    const roleCheck = parseSuperAdminRole(parsed.data.actorRole);
-    if (roleCheck.error) return roleCheck.error;
 
     await hydratePhase3Store();
 

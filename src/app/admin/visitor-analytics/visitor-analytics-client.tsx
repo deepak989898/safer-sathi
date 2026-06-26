@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { CLARITY_PROJECT_ID, getClarityDashboardUrl } from "@/lib/analytics/config";
 import {
   eventTypeLabel,
@@ -211,8 +212,7 @@ export default function VisitorAnalyticsClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const role = user?.role ?? "super_admin";
-      const res = await fetch(`/api/admin/visitor-analytics?actorRole=${encodeURIComponent(role)}`);
+      const res = await adminApiFetch("/api/admin/visitor-analytics");
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to load");
       setData(json.data);
@@ -221,7 +221,7 @@ export default function VisitorAnalyticsClient() {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
+  }, []);
 
   useEffect(() => {
     void load();

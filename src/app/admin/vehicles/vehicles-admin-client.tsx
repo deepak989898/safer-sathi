@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import {
   canApproveVehicles,
   canGenerateMarketVehicles,
@@ -101,7 +102,7 @@ export default function VehiclesAdminClient() {
   const loadVehicles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/vehicles", { cache: "no-store" });
+      const res = await adminApiFetch("/api/admin/vehicles", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         const data = json.data;
@@ -119,7 +120,7 @@ export default function VehiclesAdminClient() {
   }, [loadVehicles]);
 
   useEffect(() => {
-    fetch("/api/admin/firebase-status", { cache: "no-store" })
+    adminApiFetch("/api/admin/firebase-status", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (!json.success) return;
@@ -168,11 +169,10 @@ export default function VehiclesAdminClient() {
 
   const handleApprove = async (vehicle: Vehicle) => {
     try {
-      const res = await fetch(`/api/admin/vehicles/${vehicle.id}?action=approve`, {
+      const res = await adminApiFetch(`/api/admin/vehicles/${vehicle.id}?action=approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           approvedBy: user?.name ?? "super_admin",
         }),
       });
@@ -188,10 +188,10 @@ export default function VehiclesAdminClient() {
 
   const handleReject = async (vehicle: Vehicle) => {
     try {
-      const res = await fetch(`/api/admin/vehicles/${vehicle.id}?action=reject`, {
+      const res = await adminApiFetch(`/api/admin/vehicles/${vehicle.id}?action=reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole, reason: "Needs revision" }),
+        body: JSON.stringify({ reason: "Needs revision" }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Reject failed");
@@ -208,10 +208,10 @@ export default function VehiclesAdminClient() {
     if (!confirm("Insert or update all 30 professional vehicles in Firebase?")) return;
     setSeeding(true);
     try {
-      const res = await fetch("/api/admin/vehicles?action=seed", {
+      const res = await adminApiFetch("/api/admin/vehicles?action=seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorRole }),
+        body: JSON.stringify({}),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Seed failed");
@@ -263,11 +263,10 @@ export default function VehiclesAdminClient() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/vehicles", {
+      const res = await adminApiFetch("/api/admin/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           vehicle: buildVehiclePayload(form),
         }),
       });
@@ -311,11 +310,10 @@ export default function VehiclesAdminClient() {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/vehicles/${selected.id}`, {
+      const res = await adminApiFetch(`/api/admin/vehicles/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorRole,
           updates: buildVehiclePayload(form, selected),
         }),
       });
@@ -354,10 +352,7 @@ export default function VehiclesAdminClient() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this vehicle?")) return;
     try {
-      const res = await fetch(
-        `/api/admin/vehicles/${id}?actorRole=${encodeURIComponent(actorRole)}`,
-        { method: "DELETE" }
-      );
+      const res = await adminApiFetch(`/api/admin/vehicles/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Delete failed");
       toast.success("Vehicle deleted");

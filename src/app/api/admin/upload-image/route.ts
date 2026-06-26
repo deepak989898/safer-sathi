@@ -1,4 +1,4 @@
-import { actorRoleSchema, requireStaffRole } from "@/lib/admin/api-auth";
+import { requireStaffAuth } from "@/lib/admin/api-auth";
 import {
   isFirebaseStorageConfigured,
   uploadAdminImageBuffer,
@@ -12,6 +12,9 @@ const FOLDERS = new Set<AdminUploadFolder>(["packages", "hotels", "vehicles", "b
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireStaffAuth(request);
+    if ("error" in auth) return auth.error;
+
     if (!isFirebaseStorageConfigured()) {
       return apiError(
         "Image upload is not configured. Add FIREBASE_STORAGE_BUCKET and Firebase Admin credentials.",
@@ -21,13 +24,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get("file");
-    const actorRole = formData.get("actorRole");
     const folder = formData.get("folder");
-
-    const roleParsed = actorRoleSchema.safeParse(actorRole);
-    if (!roleParsed.success || !requireStaffRole(roleParsed.data)) {
-      return apiError("Only admin and manager can upload images", 403);
-    }
 
     if (typeof folder !== "string" || !FOLDERS.has(folder as AdminUploadFolder)) {
       return apiError("Invalid upload folder", 400);
