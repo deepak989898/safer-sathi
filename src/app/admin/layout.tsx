@@ -8,14 +8,15 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AdminAuthGuard>
-      <AdminHostEnforcer />
-      <div className="min-h-screen overflow-x-hidden bg-muted/30">
-        <AdminSidebar />
-        <div className="min-w-0 pl-0 md:pl-64">
-          <main className="min-h-screen pt-14 md:pt-0">{children}</main>
+    <AdminHostEnforcer>
+      <AdminAuthGuard>
+        <div className="min-h-screen overflow-x-hidden bg-muted/30">
+          <AdminSidebar />
+          <div className="min-w-0 pl-0 md:pl-64">
+            <main className="min-h-screen pt-14 md:pt-0">{children}</main>
+          </div>
         </div>
-      </div>
-    </AdminAuthGuard>
+      </AdminAuthGuard>
+    </AdminHostEnforcer>
   );
 }

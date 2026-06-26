@@ -23,8 +23,15 @@ function corsHeaders(request: NextRequest): Record<string, string> {
 }
 
 export function middleware(request: NextRequest) {
+  const host = request.nextUrl.hostname.toLowerCase();
   const pathname = request.nextUrl.pathname;
   const isApi = pathname.startsWith("/api/");
+
+  if (host === PRODUCTION_DOMAIN) {
+    const url = request.nextUrl.clone();
+    url.hostname = WWW_DOMAIN;
+    return NextResponse.redirect(url, 308);
+  }
 
   if (isApi && request.method === "OPTIONS") {
     return new NextResponse(null, {
@@ -44,5 +51,14 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/api/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/login",
+    "/register",
+    "/register/:path*",
+    "/my-bookings",
+    "/pending-approval",
+  ],
 };
