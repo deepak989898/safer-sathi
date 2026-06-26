@@ -6,7 +6,7 @@ import {
   createFeaturedUsageTracker,
   RELEVANCE_THRESHOLD,
 } from "@/lib/media/image-intelligence-engine";
-import { resolveDestinationCategoryKey } from "@/lib/media/destination-image-catalog";
+import { imageIdentityKey, resolveDestinationCategoryKey } from "@/lib/media/destination-image-catalog";
 import { stableBlogRotation } from "@/lib/media/image-intelligence-engine";
 import { isBannedAltText } from "@/lib/media/image-seo-generator";
 
@@ -18,9 +18,25 @@ export interface AssignBlogImagesInput {
   destination?: string;
   category?: KeywordCategory;
   wordCount?: number;
+  slug?: string;
   rotationIndex?: number;
   reservedUrls?: Set<string>;
+  reservedPhotoIds?: Set<string>;
   featuredTracker?: ReturnType<typeof createFeaturedUsageTracker>;
+}
+
+export interface BlogImageAssignmentSession {
+  reservedUrls: Set<string>;
+  reservedPhotoIds: Set<string>;
+  featuredTracker: ReturnType<typeof createFeaturedUsageTracker>;
+}
+
+export function createBlogImageAssignmentSession(): BlogImageAssignmentSession {
+  return {
+    reservedUrls: new Set<string>(),
+    reservedPhotoIds: new Set<string>(),
+    featuredTracker: createFeaturedUsageTracker(),
+  };
 }
 
 export interface AssignedBlogImages {
@@ -47,6 +63,7 @@ export function blogImagesFromExisting(blog: {
   keyword: string;
   destination?: string;
   wordCount?: number;
+  slug?: string;
   featuredImage?: string;
   imagePrompts?: BlogImagePrompt[];
 }): AssignedBlogImages {
@@ -80,8 +97,30 @@ export function blogImagesFromExisting(blog: {
     keyword: blog.keyword,
     destination: blog.destination,
     wordCount: blog.wordCount,
-    rotationIndex: stableBlogRotation(blog.title + blog.keyword),
+    slug: blog.slug || blog.title,
+    rotationIndex: stableBlogRotation(blog.slug || `${blog.title}:${blog.keyword}`),
   });
 
   return fresh;
+}
+
+/** Seed reserved sets from existing blogs so new assignments avoid site-wide duplicates. */
+export function seedBlogImageSessionFromBlogs(
+  session: BlogImageAssignmentSession,
+  blogs: Array<{ featuredImage?: string; imagePrompts?: BlogImagePrompt[] }>
+): void {
+  for (const blog of blogs) {
+    const urls = [
+      blog.featuredImage,
+      ...(blog.imagePrompts?.map((p) => p.url) ?? []),
+    ].filter(Boolean) as string[];
+    for (const url of urls) {
+      session.reservedUrls.add(url.split("?")[0] ?? url);
+      session.reservedPhotoIds.add(imageIdentityKey(url));
+      session.featuredTracker.counts.set(
+        imageIdentityKey(url),
+        (session.featuredTracker.counts.get(imageIdentityKey(url)) ?? 0) + 1
+      );
+    }
+  }
 }

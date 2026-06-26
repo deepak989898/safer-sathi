@@ -1,5 +1,7 @@
 import { routeCompletion } from "@/lib/ai/router";
 import { assignBlogImages } from "@/lib/media/blog-image-service";
+import type { BlogImageAssignmentSession } from "@/lib/media/blog-image-service";
+import { stableBlogRotation } from "@/lib/media/image-intelligence-engine";
 import type {
   AiBlogPost,
   AiCenterSettings,
@@ -170,6 +172,10 @@ export interface GenerateBlogInput {
   settings: AiCenterSettings;
   titleOverride?: string;
   contentOverride?: string;
+  imageSession?: Pick<
+    BlogImageAssignmentSession,
+    "reservedUrls" | "reservedPhotoIds" | "featuredTracker"
+  >;
 }
 
 export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlogPost> {
@@ -234,6 +240,9 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
     destination: dest,
     category: keyword.category as KeywordCategory,
     wordCount,
+    slug,
+    rotationIndex: stableBlogRotation(slug),
+    ...input.imageSession,
   });
 
   return {

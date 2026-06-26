@@ -1,11 +1,12 @@
 import { assignBlogImages } from "@/lib/media/blog-image-service";
 import { stableBlogRotation } from "@/lib/media/image-intelligence-engine";
-import { normalizeImageUrl } from "@/lib/media/destination-image-catalog";
+import { imageIdentityKey, normalizeImageUrl } from "@/lib/media/destination-image-catalog";
 import {
   calculateBlogImageHealth,
   calculateEntityImageHealth,
   createFeaturedUsageTracker,
   FEATURED_MAX_REUSE,
+  SITE_IMAGE_MAX_REUSE,
   minImagesForWordCount,
   RELEVANCE_THRESHOLD,
 } from "@/lib/media/image-intelligence-engine";
@@ -120,13 +121,15 @@ export async function buildMediaManagerReport(): Promise<MediaManagerReport> {
   const track = (url: string, type: string, id: string, title: string) => {
     if (!url?.trim()) return;
     const normalized = normalizeImageUrl(url);
-    const existing = usageMap.get(normalized);
+    const identity = imageIdentityKey(url);
+    const mapKey = identity.startsWith("unsplash:") ? identity : normalized;
+    const existing = usageMap.get(mapKey);
     if (existing) {
       existing.count += 1;
       existing.usedIn.push({ type, id, title });
     } else {
-      usageMap.set(normalized, {
-        normalizedUrl: normalized,
+      usageMap.set(mapKey, {
+        normalizedUrl: mapKey,
         url,
         count: 1,
         usedIn: [{ type, id, title }],
@@ -319,10 +322,13 @@ export async function bulkFixBlogImages(options?: {
   status?: AiBlogPost["status"];
 }): Promise<BulkFixBlogsResult> {
   await hydrateAiCenterStore();
-  const blogs = listBlogs(options?.status);
+  const blogs = listBlogs(options?.status).sort((a, b) =>
+    (a.slug || a.id).localeCompare(b.slug || b.id)
+  );
   const destCounters = new Map<string, number>();
   const reservedUrls = new Set<string>();
-  const featuredTracker = createFeaturedUsageTracker();
+  const reservedPhotoIds = new Set<string>();
+  const featuredTracker = createFeaturedUsageTracker(SITE_IMAGE_MAX_REUSE);
   const result: BulkFixBlogsResult = {
     processed: 0,
     updated: 0,
@@ -349,8 +355,10 @@ export async function bulkFixBlogImages(options?: {
         destination: blog.destination,
         category: blog.category,
         wordCount: blog.wordCount,
+        slug: blog.slug || blog.id,
         rotationIndex: rotation,
         reservedUrls,
+        reservedPhotoIds,
         featuredTracker,
       });
 

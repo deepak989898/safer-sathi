@@ -4,8 +4,10 @@ import {
   type AdminUploadFolder,
 } from "@/lib/firebase/admin-storage";
 import { optimizeImageUrl } from "@/lib/media/image-seo-generator";
+import { extractUnsplashPhotoId } from "@/lib/media/destination-image-catalog";
 
 const MAX_BYTES = 5 * 1024 * 1024;
+const mirroredByPhotoId = new Map<string, string>();
 
 export type MirrorFolder = AdminUploadFolder;
 
@@ -15,6 +17,12 @@ export async function mirrorImageToFirebase(
   nameHint?: string
 ): Promise<string> {
   const optimized = optimizeImageUrl(sourceUrl);
+  const photoId = extractUnsplashPhotoId(optimized);
+  if (photoId) {
+    const cached = mirroredByPhotoId.get(photoId);
+    if (cached) return cached;
+  }
+
   if (!isFirebaseStorageConfigured()) return optimized;
   if (
     optimized.includes("storage.googleapis.com") ||
@@ -44,12 +52,14 @@ export async function mirrorImageToFirebase(
     contentType = "image/webp";
   }
 
-  return uploadAdminImageBuffer(
+  const uploaded = await uploadAdminImageBuffer(
     buffer,
     contentType,
     folder,
     seoName ? `${seoName}.webp` : nameHint
   );
+  if (photoId) mirroredByPhotoId.set(photoId, uploaded);
+  return uploaded;
 }
 
 export async function mirrorImages(

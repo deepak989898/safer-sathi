@@ -200,12 +200,17 @@ export const DESTINATION_ALIASES: Record<string, string> = {
   ...ROUTE_CITY_ALIASES,
 };
 
-export function resolveDestinationCategoryKey(keyword: string, explicitDestination?: string): string {
-  const routeCity = extractRouteDestinationCity(keyword);
+export function resolveDestinationCategoryKey(
+  keyword: string,
+  explicitDestination?: string,
+  title?: string
+): string {
+  const combined = `${keyword} ${title ?? ""}`.trim();
+  const routeCity = extractRouteDestinationCity(combined);
   if (routeCity) return routeCity;
 
-  const routeMatch = keyword.match(
-    /(?:[\w\s]+?)\s+to\s+([\w\s]+?)(?:\s+(?:distance|by\s+road|route|trip|cab|taxi|bus|train|package|tour|tickets?))?/i
+  const routeMatch = combined.match(
+    /(?:[\w\s]+?)\s+to\s+([\w\s]+?)(?:\s+(?:distance|by\s+road|route|trip|cab|cabs|taxi|bus|buses|train|trains|package|tour|tickets?|volvo|car|booking))?/i
   );
   if (routeMatch) {
     const toCity = routeMatch[1].trim().toLowerCase();
@@ -248,4 +253,16 @@ export function normalizeImageUrl(url: string): string {
   } catch {
     return url.split("?")[0] ?? url;
   }
+}
+
+/** Same Unsplash photo across destinations / Firebase mirrors → one identity. */
+export function extractUnsplashPhotoId(url: string): string | null {
+  const match = url.match(/photo-([a-z0-9-]+)/i);
+  return match?.[1] ?? null;
+}
+
+export function imageIdentityKey(url: string): string {
+  const photoId = extractUnsplashPhotoId(url);
+  if (photoId) return `unsplash:${photoId}`;
+  return normalizeImageUrl(url);
 }

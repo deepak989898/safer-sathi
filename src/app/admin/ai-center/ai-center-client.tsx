@@ -62,11 +62,8 @@ import type {
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
 import { approvedKeywordsWithoutBlog, keywordHasBlog } from "@/lib/ai-center/utils";
-import {
-  getBlogImagePrompts,
-  resolveBlogFeaturedImage,
-  resolveBlogImageKey,
-} from "@/lib/ai-center/blog-destination-images";
+import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
+import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
 import { SafeImage } from "@/components/ui/safe-image";
 import { cn } from "@/lib/utils";
 
@@ -671,23 +668,12 @@ export default function AiCenterClient() {
   }, [activeTab, settings?.autoPublishEnabled, scheduledBlogs, busy, runAutoPublishAll]);
 
   const openBlogEditor = (blog: AiBlogPost) => {
-    const imagePrompts = getBlogImagePrompts(blog.keyword, blog.destination);
-    const featuredImage = resolveBlogFeaturedImage(blog);
-    const hasCustomFeatured =
-      featuredImage && !imagePrompts.some((prompt) => prompt.url === featuredImage);
+    const assigned = blogImagesFromExisting(blog);
+    const imagePrompts = assigned.imagePrompts;
+    const featuredImage = assigned.featuredImage || resolveBlogFeaturedImage(blog);
     setEditBlog({
       ...blog,
-      imagePrompts: hasCustomFeatured
-        ? [
-            {
-              id: "custom-upload",
-              label: "Uploaded image",
-              prompt: "Admin upload",
-              url: featuredImage,
-            },
-            ...imagePrompts,
-          ]
-        : imagePrompts,
+      imagePrompts,
       featuredImage,
     });
   };

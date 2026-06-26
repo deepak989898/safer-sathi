@@ -100,6 +100,22 @@ const CHANDIGARH: DestinationImageAsset[] = [
   { id: "chandigarh-lake", label: "Sukhna Lake", type: "destination", url: img("1570168007207-dfb528211588"), attraction: "Sukhna Lake" },
 ];
 
+const AHMEDABAD: DestinationImageAsset[] = [
+  { id: "amd-hero", label: "Sabarmati Riverfront Ahmedabad", type: "featured", url: img("1596178060811-fe763986a14a"), attraction: "Ahmedabad" },
+  { id: "amd-mosque", label: "Sidi Saiyyed Mosque", type: "attraction", url: img("1580730512125-32c4d3dba365"), attraction: "Heritage Mosque" },
+  { id: "amd-street", label: "Ahmedabad Old City", type: "experience", url: img("1605647542434-bl9883d0b863"), attraction: "Pol Houses" },
+  { id: "amd-food", label: "Gujarati Thali", type: "experience", url: img("1582719478250-c89cae4dc85b"), attraction: "Local Food" },
+  { id: "amd-market", label: "Law Garden Night Market", type: "destination", url: img("1587474260584-1acab24d2d54"), attraction: "Markets" },
+];
+
+const MALDIVES: DestinationImageAsset[] = [
+  { id: "maldives-hero", label: "Maldives Overwater Villas", type: "featured", url: img("1514282401047-d79a913fcd58"), attraction: "Maldives" },
+  { id: "maldives-beach", label: "Turquoise Lagoon", type: "destination", url: img("1507525428034-b723cf961d3e"), attraction: "Lagoon" },
+  { id: "maldives-resort", label: "Island Resort", type: "experience", url: img("1571896349842-33c89424de2d"), attraction: "Resort" },
+  { id: "maldives-snorkel", label: "Snorkeling Reef", type: "activity", url: img("1559827260-dc66d52bef19"), attraction: "Snorkeling" },
+  { id: "maldives-sunset", label: "Sunset Cruise", type: "experience", url: img("1539650116574-75c0c6d73ef6"), attraction: "Sunset" },
+];
+
 const NAINITAL: DestinationImageAsset[] = [
   { id: "nainital-hero", label: "Nainital Lake", type: "featured", url: img("1602210294080-0fdf9a24f935"), attraction: "Naini Lake" },
   { id: "nainital-hills", label: "Kumaon Hills", type: "destination", url: img("1506905925346-21bda4d32df4"), attraction: "Hills" },
@@ -147,6 +163,8 @@ export const ROUTE_CITY_CATALOG: Record<string, DestinationImageCategory> = {
   varanasi: { key: "varanasi", displayName: "Varanasi", images: VARANASI },
   amritsar: { key: "amritsar", displayName: "Amritsar", images: AMRITSAR },
   chandigarh: { key: "chandigarh", displayName: "Chandigarh", images: CHANDIGARH },
+  ahmedabad: { key: "ahmedabad", displayName: "Ahmedabad", images: AHMEDABAD },
+  maldives: { key: "maldives", displayName: "Maldives", images: MALDIVES },
   nainital: { key: "nainital", displayName: "Nainital", images: NAINITAL },
   transport_cab: { key: "transport_cab", displayName: "Cab", images: TRANSPORT_CAB },
   transport_bus: { key: "transport_bus", displayName: "Bus", images: TRANSPORT_BUS },
@@ -175,6 +193,12 @@ export const ROUTE_CITY_ALIASES: Record<string, string> = {
   benares: "varanasi",
   amritsar: "amritsar",
   chandigarh: "chandigarh",
+  ahmedabad: "ahmedabad",
+  amdavad: "ahmedabad",
+  male: "maldives",
+  malé: "maldives",
+  maldives: "maldives",
+  manali: "manali",
   nainital: "nainital",
   orai: "agra",
   kanpur: "lucknow",

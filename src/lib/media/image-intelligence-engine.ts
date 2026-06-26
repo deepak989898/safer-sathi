@@ -3,6 +3,7 @@ import type { BlogImagePrompt, BlogImageType, KeywordCategory } from "@/lib/ai-c
 import {
   DESTINATION_IMAGE_CATALOG,
   getDestinationCategory,
+  imageIdentityKey,
   normalizeImageUrl,
   resolveDestinationCategoryKey,
   type DestinationImageAsset,
@@ -21,7 +22,8 @@ import {
 } from "@/lib/media/image-seo-generator";
 
 export const RELEVANCE_THRESHOLD = 80;
-export const FEATURED_MAX_REUSE = 5;
+export const FEATURED_MAX_REUSE = 3;
+export const SITE_IMAGE_MAX_REUSE = 2;
 export const BLOG_IMAGE_MAX = 8;
 
 export type ImagePlacement = "top" | "content-25" | "content-50" | "content-75" | "bottom";
@@ -77,12 +79,12 @@ export function createFeaturedUsageTracker(maxReuse = FEATURED_MAX_REUSE): Featu
 }
 
 export function canUseFeaturedUrl(tracker: FeaturedUsageTracker, url: string): boolean {
-  const key = normalizeImageUrl(url);
+  const key = imageIdentityKey(url);
   return (tracker.counts.get(key) ?? 0) < tracker.maxReuse;
 }
 
 export function markFeaturedUsed(tracker: FeaturedUsageTracker, url: string): void {
-  const key = normalizeImageUrl(url);
+  const key = imageIdentityKey(url);
   tracker.counts.set(key, (tracker.counts.get(key) ?? 0) + 1);
 }
 
@@ -99,7 +101,11 @@ export function extractBlogImageContext(input: {
   category?: KeywordCategory;
   wordCount?: number;
 }): BlogImageContext {
-  const destinationKey = resolveDestinationCategoryKey(input.keyword, input.destination);
+  const destinationKey = resolveDestinationCategoryKey(
+    input.keyword,
+    input.destination,
+    input.title
+  );
   const category = getDestinationCategory(destinationKey);
   const destination = input.destination?.trim() || category.displayName;
   const ref = getDestinationBlogReference(input.keyword, destination);
@@ -130,13 +136,32 @@ export function computeImageRelevanceScore(
 ): number {
   const haystack = `${ctx.title} ${ctx.keyword} ${ctx.destination} ${ctx.keywords.join(" ")}`.toLowerCase();
   const subject = `${asset.label} ${asset.attraction ?? ""}`.toLowerCase();
-  let score = 50;
+  let score = 35;
 
   const tier = priorityTier(asset, ctx.destinationKey);
-  if (tier === 1) score += 28;
-  else if (tier === 2) score += 22;
-  else if (tier === 3) score += 18;
-  else score += 8;
+  if (tier === 1) score += 22;
+  else if (tier === 2) score += 16;
+  else if (tier === 3) score += 12;
+  else score += 6;
+
+  const category = getDestinationCategory(ctx.destinationKey);
+  const cityTokens = [
+    category.displayName.toLowerCase(),
+    ctx.destinationKey,
+    ...category.displayName.toLowerCase().split(/\s+/),
+  ].filter((t) => t.length > 2);
+
+  let cityMatch = false;
+  for (const token of cityTokens) {
+    if (haystack.includes(token) && (subject.includes(token) || asset.id.includes(token))) {
+      score += 18;
+      cityMatch = true;
+      break;
+    }
+  }
+  if (!cityMatch && ctx.destinationKey !== "india" && asset.id.startsWith("india-")) {
+    score -= 35;
+  }
 
   for (const attraction of ctx.attractions) {
     const short = attraction.split("(")[0].trim();
@@ -164,6 +189,10 @@ export function computeImageRelevanceScore(
 
   if (ctx.destinationKey !== "india" && asset.id.startsWith("india-")) score -= 25;
   if (!passesImageQualityGate(asset.url)) score -= 40;
+
+  if (!cityMatch && ctx.destinationKey !== "india" && score < RELEVANCE_THRESHOLD) {
+    return Math.min(score, RELEVANCE_THRESHOLD - 5);
+  }
 
   return Math.min(100, Math.max(0, score));
 }
@@ -318,8 +347,10 @@ export interface IntelligentImageSelectionInput {
   destination?: string;
   category?: KeywordCategory;
   wordCount?: number;
+  slug?: string;
   rotationIndex?: number;
   reservedUrls?: Set<string>;
+  reservedPhotoIds?: Set<string>;
   featuredTracker?: FeaturedUsageTracker;
 }
 
@@ -349,40 +380,46 @@ export function selectIntelligentBlogImages(
         ? getDestinationCategory(`transport_${travelMode}`).images
         : []),
     ];
-    ranked = scoreAndRankAssets(fallbackPool, ctx)
-      .filter((a) => a.relevanceScore >= RELEVANCE_THRESHOLD - 10)
-      .map((a) => ({
-        ...a,
-        relevanceScore: Math.max(a.relevanceScore, RELEVANCE_THRESHOLD),
-      }));
+    ranked = scoreAndRankAssets(fallbackPool, ctx).filter(
+      (a) => a.relevanceScore >= RELEVANCE_THRESHOLD - 5
+    );
   }
 
   const hashRotation =
     input.rotationIndex ??
-    stableHash(`${input.keyword}:${input.title}:${ctx.destinationKey}:${travelMode}`) %
-      Math.max(ranked.length, 1);
+    stableHash(
+      `${input.slug ?? ""}:${input.keyword}:${input.title}:${ctx.destinationKey}:${travelMode}`
+    ) % Math.max(ranked.length, 1);
   const rotated = [
     ...ranked.slice(hashRotation % Math.max(ranked.length, 1)),
     ...ranked.slice(0, hashRotation % Math.max(ranked.length, 1)),
   ];
 
   const reserved = input.reservedUrls ?? new Set<string>();
-  const tracker = input.featuredTracker ?? createFeaturedUsageTracker();
+  const reservedPhotoIds = input.reservedPhotoIds ?? new Set<string>();
+  const tracker = input.featuredTracker ?? createFeaturedUsageTracker(SITE_IMAGE_MAX_REUSE);
   const picked: ScoredImageAsset[] = [];
   const usedUrls = new Set<string>();
   const usedIds = new Set<string>();
 
+  const isBlocked = (asset: ScoredImageAsset) => {
+    const normalized = normalizeImageUrl(asset.url);
+    const identity = imageIdentityKey(asset.url);
+    if (usedIds.has(asset.id) || usedUrls.has(normalized)) return true;
+    if (reserved.has(normalized) || reservedPhotoIds.has(identity)) return true;
+    if (!canUseFeaturedUrl(tracker, asset.url)) return true;
+    return false;
+  };
+
   for (const asset of rotated) {
     if (picked.length >= maxCount) break;
-    const normalized = normalizeImageUrl(asset.url);
-    if (usedIds.has(asset.id) || usedUrls.has(normalized)) continue;
-    if (reserved.has(normalized)) continue;
-    if (asset.type === "featured" && !canUseFeaturedUrl(tracker, asset.url)) continue;
+    if (isBlocked(asset)) continue;
 
     picked.push(asset);
     usedIds.add(asset.id);
-    usedUrls.add(normalized);
-    if (asset.type === "featured") markFeaturedUsed(tracker, asset.url);
+    usedUrls.add(normalizeImageUrl(asset.url));
+    reservedPhotoIds.add(imageIdentityKey(asset.url));
+    markFeaturedUsed(tracker, asset.url);
   }
 
   for (const asset of rotated) {
@@ -390,24 +427,12 @@ export function selectIntelligentBlogImages(
     if (usedIds.has(asset.id)) continue;
     const normalized = normalizeImageUrl(asset.url);
     if (usedUrls.has(normalized) || reserved.has(normalized)) continue;
+    if (!canUseFeaturedUrl(tracker, asset.url)) continue;
     picked.push(asset);
     usedIds.add(asset.id);
     usedUrls.add(normalized);
-  }
-
-  while (picked.length < minRequired && ranked.length > 0) {
-    const asset = ranked[picked.length % ranked.length];
-    const normalized = normalizeImageUrl(asset.url);
-    if (!usedIds.has(asset.id) && !reserved.has(normalized)) {
-      picked.push(asset);
-      usedIds.add(asset.id);
-      usedUrls.add(normalized);
-    } else if (picked.length < minRequired) {
-      picked.push(asset);
-      usedIds.add(asset.id);
-    } else {
-      break;
-    }
+    reservedPhotoIds.add(imageIdentityKey(asset.url));
+    markFeaturedUsed(tracker, asset.url);
   }
 
   const imagePrompts = picked.slice(0, maxCount).map((asset, index) =>
@@ -415,13 +440,17 @@ export function selectIntelligentBlogImages(
   );
 
   const featured = pickFeaturedImage(imagePrompts, travelMode, tracker);
-  markFeaturedUsed(tracker, featured);
+  if (featured) markFeaturedUsed(tracker, featured);
 
   if (input.reservedUrls) {
     for (const p of imagePrompts) {
       input.reservedUrls.add(normalizeImageUrl(p.url));
+      input.reservedPhotoIds?.add(imageIdentityKey(p.url));
     }
-    if (featured) input.reservedUrls.add(normalizeImageUrl(featured));
+    if (featured) {
+      input.reservedUrls.add(normalizeImageUrl(featured));
+      input.reservedPhotoIds?.add(imageIdentityKey(featured));
+    }
   }
 
   const averageScore =

@@ -140,6 +140,12 @@ export function MediaManagerClient() {
           Fix + Firebase Upload
         </Button>
       </div>
+      <p className="text-muted-foreground text-sm">
+        Run <strong>Auto-Fix All Blogs</strong> first to assign unique, title-relevant images. Use{" "}
+        <strong>Fix + Firebase Upload</strong> only after you are happy with previews. You may delete
+        the Firebase <code className="text-xs">blogs/</code> folder first to remove old duplicate
+        files — blog content in Firestore is not affected.
+      </p>
 
       {summary ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
