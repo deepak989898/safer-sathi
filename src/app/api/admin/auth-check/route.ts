@@ -2,7 +2,7 @@ import { requireManagerAnalyticsRole } from "@/lib/admin/api-auth";
 import { authenticateAdminRequest } from "@/lib/admin/extract-admin-token";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { isTokenVerificationAvailable } from "@/lib/firebase/admin-verify";
+import { isTokenVerificationAvailable } from "@/lib/firebase/verify-id-token-rest";
 import { resolveFirebaseAdminCredentials } from "@/lib/firebase/resolve-admin-credentials";
 
 export const runtime = "nodejs";

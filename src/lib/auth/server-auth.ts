@@ -3,9 +3,9 @@ import { apiError } from "@/lib/api-response";
 import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import {
-  getAuthForTokenVerification,
   isTokenVerificationAvailable,
-} from "@/lib/firebase/admin-verify";
+  verifyFirebaseIdToken,
+} from "@/lib/firebase/verify-id-token-rest";
 import { loadUserProfileWithIdToken } from "@/lib/auth/firestore-profile-rest";
 import type { User, UserRole, UserStatus } from "@/types";
 import { canAccessAdmin } from "./constants";
@@ -152,19 +152,18 @@ export async function authenticateBearerToken(token: string): Promise<AuthResult
   if (!isTokenVerificationAvailable()) {
     return {
       error: apiError(
-        "Firebase project ID is not configured on the server.",
+        "Firebase API key is not configured on the server.",
         503
       ),
     };
   }
 
-  const adminAuth = await getAuthForTokenVerification();
-  if (!adminAuth) {
-    return { error: apiError(adminCredentialsMessage(), 503) };
-  }
-
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
+    const decoded = await verifyFirebaseIdToken(token);
+    if (!decoded) {
+      return { error: apiError("Invalid or expired token. Please sign in again.", 401) };
+    }
+
     let profile = await loadUserProfileWithIdToken(decoded.uid, token);
 
     if (!profile) {
@@ -224,12 +223,6 @@ function validateActiveUser(user: AuthenticatedUser): AuthFailure | null {
     return { error: apiError("Account pending approval", 403) };
   }
   return null;
-}
-
-function adminCredentialsMessage(): string {
-  return isAdminEnvConfigured()
-    ? "Could not verify your session. Please sign out and sign in again."
-    : "Server Firebase Admin is not fully configured. Add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in Vercel environment variables, then redeploy.";
 }
 
 export async function optionalAuthenticateRequest(
