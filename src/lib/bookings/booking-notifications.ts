@@ -50,7 +50,7 @@ export function buildBookingWhatsAppMessage(input: {
     "",
     "Thank you for choosing Safar Sathi!",
     "📞 +91 9217290871",
-    "🌐 www.thesafarsathi.com"
+    "🌐 thesafarsathi.com"
   );
 
   return lines.join("\n");

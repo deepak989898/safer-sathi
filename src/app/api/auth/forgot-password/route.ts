@@ -13,7 +13,7 @@ export const maxDuration = 60;
 async function generateResetLink(auth: Auth, email: string): Promise<string> {
   const candidates = [
     appUrl("/login?reset=done"),
-    "https://www.thesafarsathi.com/login?reset=done",
+    "https://thesafarsathi.com/login?reset=done",
     "https://safar-sathi-tour-booking.firebaseapp.com/login?reset=done",
   ];
 

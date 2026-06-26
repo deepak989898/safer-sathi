@@ -1,8 +1,10 @@
 import { isResendConfigured, sendViaResend } from "@/lib/email/resend";
 import { getSmtpFromAddress, isSmtpConfigured, sendViaSmtp } from "@/lib/email/smtp";
+import { appUrl } from "@/lib/site-config";
 
 export function buildPasswordResetEmail(resetLink: string) {
   const subject = "Reset your Safar Sathi password";
+  const site = appUrl();
   const text = [
     "Hello,",
     "",
@@ -13,7 +15,7 @@ export function buildPasswordResetEmail(resetLink: string) {
     "If you did not request this, you can ignore this email.",
     "",
     "— Safar Sathi Team",
-    "https://www.thesafarsathi.com",
+    site,
   ].join("\n");
 
   const html = `

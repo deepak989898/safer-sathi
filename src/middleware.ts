@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { PRODUCTION_DOMAIN } from "@/lib/site-config";
+import { PRODUCTION_DOMAIN, WWW_DOMAIN } from "@/lib/site-config";
 
 const CANONICAL_HOST = PRODUCTION_DOMAIN;
 const ALLOWED_ORIGINS = new Set([
   `https://${PRODUCTION_DOMAIN}`,
-  "https://thesafarsathi.com",
+  `https://${WWW_DOMAIN}`,
 ]);
 
 function shouldRedirectToCanonical(host: string): boolean {
   const normalized = host.toLowerCase();
   if (normalized === CANONICAL_HOST) return false;
   if (normalized.endsWith(".vercel.app")) return true;
-  if (normalized === "thesafarsathi.com") return true;
+  if (normalized === WWW_DOMAIN) return true;
   return false;
 }
 

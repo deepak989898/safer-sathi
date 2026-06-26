@@ -4,21 +4,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAdmin } from "@/lib/auth/constants";
-import { PRODUCTION_DOMAIN } from "@/lib/site-config";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.hostname.toLowerCase() === "thesafarsathi.com") {
-      window.location.replace(
-        `https://${PRODUCTION_DOMAIN}${window.location.pathname}${window.location.search}${window.location.hash}`
-      );
-    }
-  }, []);
 
   useEffect(() => {
     if (loading) return;

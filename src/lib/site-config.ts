@@ -1,15 +1,33 @@
-const PRODUCTION_APP_URL = "https://www.thesafarsathi.com";
+const PRODUCTION_APP_URL = "https://thesafarsathi.com";
+const APEX_HOST = "thesafarsathi.com";
+const WWW_HOST = "www.thesafarsathi.com";
+
+/** Use apex domain (no www) for thesafarsathi.com in production URLs. */
+export function normalizeProductionSiteUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.toLowerCase() === WWW_HOST) {
+      parsed.hostname = APEX_HOST;
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return url;
+  }
+}
 
 /** Canonical public site URL (custom domain in production). */
 export function getAppUrl(): string {
   const configured =
     process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
-  if (configured) return configured;
+  if (configured) {
+    return normalizeProductionSiteUrl(configured);
+  }
 
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) {
-    return vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
+    const raw = vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
+    return normalizeProductionSiteUrl(raw);
   }
 
   return PRODUCTION_APP_URL;
@@ -23,7 +41,13 @@ export function appUrl(path = ""): string {
 
 export const SITE_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Safar Sathi";
 
-export const PRODUCTION_DOMAIN = "www.thesafarsathi.com";
+/** Primary production hostname (no www). */
+export const PRODUCTION_DOMAIN = APEX_HOST;
+/** Legacy www hostname — redirects to apex. */
+export const WWW_DOMAIN = WWW_HOST;
+
+/** @deprecated Use PRODUCTION_DOMAIN */
+export const APEX_DOMAIN = APEX_HOST;
 
 /** Public contact details shown on the live site */
 export const SITE_CONTACT = {
