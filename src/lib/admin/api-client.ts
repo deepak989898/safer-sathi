@@ -1,9 +1,46 @@
 import { localGetSession } from "@/lib/auth/local-auth-store";
 import { resolveAuthAccessToken } from "@/lib/auth/auth-token-bridge";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { PRODUCTION_DOMAIN } from "@/lib/site-config";
+
+const CANONICAL_API_ORIGIN = `https://${PRODUCTION_DOMAIN}`;
+
+async function waitForAuthReady(timeoutMs = 12_000): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+
+  const { getFirebaseAuth } = await import("@/lib/firebase/client");
+  const auth = getFirebaseAuth();
+  await auth.authStateReady();
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (auth.currentUser) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error("Session expired. Please sign in again.");
+}
+
+function resolveFetchUrl(input: RequestInfo | URL): RequestInfo | URL {
+  if (typeof input !== "string" || !input.startsWith("/api/")) {
+    return input;
+  }
+
+  if (typeof window === "undefined") {
+    return input;
+  }
+
+  const host = window.location.hostname.toLowerCase();
+  if (host === "thesafarsathi.com") {
+    return `${CANONICAL_API_ORIGIN}${input}`;
+  }
+
+  return input;
+}
 
 export async function getApiAuthHeaders(): Promise<Record<string, string>> {
   if (isFirebaseConfigured()) {
+    await waitForAuthReady();
     const token = await resolveAuthAccessToken();
     return { Authorization: `Bearer ${token}` };
   }
@@ -43,7 +80,12 @@ export async function adminApiFetch(
   for (const [key, value] of Object.entries(authHeaders)) {
     headers.set(key, value);
   }
-  return fetch(input, { ...init, headers });
+
+  return fetch(resolveFetchUrl(input), {
+    ...init,
+    headers,
+    credentials: "same-origin",
+  });
 }
 
 export async function customerApiFetch(

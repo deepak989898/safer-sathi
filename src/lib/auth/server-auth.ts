@@ -53,6 +53,30 @@ async function loadUserProfile(uid: string): Promise<AuthenticatedUser | null> {
   return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
 }
 
+async function loadUserProfileByEmail(email: string): Promise<AuthenticatedUser | null> {
+  const trimmed = email.trim();
+  if (!trimmed) return null;
+
+  const db = await getSafeAdminDb();
+  if (!db) return null;
+
+  const candidates = [...new Set([trimmed, trimmed.toLowerCase()])];
+
+  for (const candidate of candidates) {
+    try {
+      const snap = await db.collection("users").where("email", "==", candidate).limit(1).get();
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+      }
+    } catch (error) {
+      console.warn("loadUserProfileByEmail failed:", error);
+    }
+  }
+
+  return null;
+}
+
 function profileFromDecodedToken(decoded: VerifiedIdToken): AuthenticatedUser {
   const role =
     (typeof decoded.role === "string" ? (decoded.role as UserRole) : undefined) ??
@@ -161,6 +185,10 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
 
     if (!profile) {
       profile = await loadUserProfileWithIdToken(decoded.uid, token);
+    }
+
+    if (!profile && decoded.email) {
+      profile = await loadUserProfileByEmail(decoded.email);
     }
 
     if (profile) {
