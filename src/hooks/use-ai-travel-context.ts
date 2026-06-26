@@ -5,12 +5,18 @@ import {
   sanitizeClientContext,
   sanitizeLocalPreferences,
 } from "@/lib/ai/travel-manager/api-payload";
-import type { AITravelPreferences } from "@/types/travel-manager";
+import {
+  getOrCreateDeviceId,
+  getOrCreateGuestId,
+  getOrCreateVisitorId,
+} from "@/lib/identity/visitor-identity";
 import { localeToPreferredLanguage } from "@/lib/ai/travel-manager/geo-language";
+import type { AITravelPreferences } from "@/types/travel-manager";
 import type { Locale } from "@/types";
 
-const GUEST_ID_KEY = "safar-sathi-ai-guest-id";
 const PREFS_KEY = "safar-sathi-ai-preferences";
+
+export { getOrCreateGuestId };
 
 function safeStorageGet(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -32,16 +38,6 @@ function safeStorageSet(key: string, value: string): void {
 
 function sanitizeAiPreferences(prefs: AITravelPreferences): AITravelPreferences {
   return sanitizeLocalPreferences(prefs) as AITravelPreferences;
-}
-
-export function getOrCreateGuestId(): string {
-  if (typeof window === "undefined") return "";
-  let id = safeStorageGet(GUEST_ID_KEY);
-  if (!id) {
-    id = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    safeStorageSet(GUEST_ID_KEY, id);
-  }
-  return id;
 }
 
 export function getLocalAiPreferences(): AITravelPreferences | null {
@@ -78,9 +74,12 @@ export function getBrowserHints(): { browserLanguage: string; timezone: string }
 export function useAiTravelContext(userId?: string) {
   const buildClientContext = useCallback(() => {
     const hints = getBrowserHints();
+    const visitorId = getOrCreateVisitorId();
     return sanitizeClientContext({
       userId: userId && userId !== "guest" ? userId : undefined,
       guestId: getOrCreateGuestId(),
+      visitorId,
+      deviceId: getOrCreateDeviceId(),
       browserLanguage: hints.browserLanguage,
       timezone: hints.timezone,
       localPreferences: getLocalAiPreferences(),
@@ -121,5 +120,10 @@ export function useAiTravelContext(userId?: string) {
     });
   }, []);
 
-  return { buildClientContext, saveLanguagePreference, saveNativeLanguagePreference, getLocalAiPreferences };
+  return {
+    buildClientContext,
+    saveLanguagePreference,
+    saveNativeLanguagePreference,
+    getLocalAiPreferences,
+  };
 }

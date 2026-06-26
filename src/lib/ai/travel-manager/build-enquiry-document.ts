@@ -28,7 +28,7 @@ export interface BuildEnquiryInput {
   aiReply?: string;
   locale: Locale;
   state?: TravelManagerState;
-  context?: { userId?: string; guestId?: string; timezone?: string };
+  context?: { userId?: string; guestId?: string; visitorId?: string; deviceId?: string; timezone?: string };
   packagePrice?: number;
   ip?: string;
   location?: UserLocationInfo;
@@ -56,7 +56,9 @@ export function buildEnquiryDocument(
     timezone,
     locale: input.locale,
     userId: input.context?.userId,
-    guestId: input.context?.guestId,
+    guestId: input.context?.guestId ?? input.context?.visitorId,
+    visitorId: input.context?.visitorId ?? input.context?.guestId,
+    deviceId: input.context?.deviceId,
     userMessage: input.userMessage.slice(0, 500),
     aiReply: input.aiReply?.slice(0, 800),
     step: input.state?.step,

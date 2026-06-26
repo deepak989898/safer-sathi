@@ -13,6 +13,8 @@ export interface AiAssistantEnquiry {
   locale: "en" | "hi";
   userId?: string;
   guestId?: string;
+  visitorId?: string;
+  deviceId?: string;
   userMessage: string;
   aiReply?: string;
   step?: string;
@@ -171,7 +173,8 @@ export function groupEnquiriesIntoVisitorSessions(
   const sessions: AiEnquiryVisitorSession[] = [];
 
   for (const enquiry of sorted) {
-    const visitorKey = enquiry.guestId || enquiry.userId || enquiry.ip || enquiry.id;
+    const visitorKey =
+      enquiry.visitorId || enquiry.guestId || enquiry.userId || enquiry.ip || enquiry.id;
     const last = sessions[sessions.length - 1];
     const gapMs = last
       ? new Date(enquiry.createdAt).getTime() - new Date(last.endedAt).getTime()

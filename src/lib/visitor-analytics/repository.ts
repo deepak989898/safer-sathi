@@ -1,3 +1,4 @@
+import { listAiAssistantEnquiries } from "@/lib/ai/travel-manager/enquiry-service";
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import {
   MAX_EVENTS_PER_SESSION,
@@ -5,6 +6,10 @@ import {
   VISITOR_SESSIONS_COLLECTION,
 } from "@/lib/visitor-analytics/constants";
 import { parseDevice, parseTrafficSource } from "@/lib/visitor-analytics/format";
+import {
+  buildAiStatsByIdentity,
+  groupSessionsByVisitor,
+} from "@/lib/visitor-analytics/visitor-groups";
 import type {
   VisitorAnalyticsPayload,
   VisitorAnalyticsStats,
@@ -35,6 +40,8 @@ export interface TrackVisitorEventInput {
     userAgent?: string;
     language?: string;
     screenWidth?: number;
+    deviceId?: string;
+    deviceName?: string;
   };
   ip?: string;
   country?: string;
@@ -92,6 +99,8 @@ function createSession(input: TrackVisitorEventInput, event: VisitorEvent): Visi
     utmTerm: input.sessionMeta?.utmTerm,
     device,
     browser,
+    deviceId: input.sessionMeta?.deviceId,
+    deviceName: input.sessionMeta?.deviceName,
     language: input.sessionMeta?.language ?? "en",
     ip: input.ip,
     country: input.country,
@@ -227,7 +236,10 @@ function isSessionOnline(session: VisitorSession, now: number): boolean {
   return now - new Date(session.lastSeenAt).getTime() <= ONLINE_THRESHOLD_MS;
 }
 
-export function buildVisitorAnalyticsPayload(sessions: VisitorSession[]): VisitorAnalyticsPayload {
+export function buildVisitorAnalyticsPayload(
+  sessions: VisitorSession[],
+  aiStatsMap = buildAiStatsByIdentity([])
+): VisitorAnalyticsPayload {
   const now = Date.now();
   const todayKey = dateKeyInIST(new Date().toISOString());
   const yesterdayDate = new Date();
@@ -285,6 +297,7 @@ export function buildVisitorAnalyticsPayload(sessions: VisitorSession[]): Visito
         isToday: key === todayKey,
         isYesterday: key === yesterdayKey,
         sessions: [session],
+        visitorGroups: [],
       });
     }
   }
@@ -293,6 +306,7 @@ export function buildVisitorAnalyticsPayload(sessions: VisitorSession[]): Visito
     .map((day) => ({
       ...day,
       sessions: day.sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+      visitorGroups: groupSessionsByVisitor(day.sessions, aiStatsMap, now),
     }))
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
 
@@ -304,6 +318,10 @@ export function buildVisitorAnalyticsPayload(sessions: VisitorSession[]): Visito
 }
 
 export async function getVisitorAnalytics(): Promise<VisitorAnalyticsPayload> {
-  const sessions = await listVisitorSessions(500);
-  return buildVisitorAnalyticsPayload(sessions);
+  const [sessions, enquiries] = await Promise.all([
+    listVisitorSessions(500),
+    listAiAssistantEnquiries(500),
+  ]);
+  const aiStatsMap = buildAiStatsByIdentity(enquiries);
+  return buildVisitorAnalyticsPayload(sessions, aiStatsMap);
 }

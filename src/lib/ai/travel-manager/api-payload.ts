@@ -55,6 +55,8 @@ export function sanitizeLocalPreferences(
 export interface TravelManagerClientContext {
   userId?: string;
   guestId?: string;
+  visitorId?: string;
+  deviceId?: string;
   browserLanguage?: string;
   timezone?: string;
   localPreferences?: Partial<AITravelPreferences> | null;
@@ -65,9 +67,18 @@ export function sanitizeClientContext(
 ): TravelManagerClientContext | undefined {
   if (!context || typeof context !== "object") return undefined;
 
+  const visitorId =
+    typeof context.visitorId === "string"
+      ? context.visitorId
+      : typeof context.guestId === "string"
+        ? context.guestId
+        : undefined;
+
   return {
     userId: typeof context.userId === "string" ? context.userId : undefined,
-    guestId: typeof context.guestId === "string" ? context.guestId : undefined,
+    guestId: typeof context.guestId === "string" ? context.guestId : visitorId,
+    visitorId,
+    deviceId: typeof context.deviceId === "string" ? context.deviceId : undefined,
     browserLanguage:
       typeof context.browserLanguage === "string" ? context.browserLanguage : undefined,
     timezone: typeof context.timezone === "string" ? context.timezone : undefined,

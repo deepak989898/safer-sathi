@@ -2,22 +2,16 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import {
+  detectDeviceName,
+  getOrCreateDeviceId,
+  getOrCreateVisitorId,
+} from "@/lib/identity/visitor-identity";
 import { SESSION_IDLE_MS } from "@/lib/visitor-analytics/constants";
 import type { VisitorEventType } from "@/types/visitor-analytics";
 
-const VISITOR_ID_KEY = "ss_visitor_id";
 const SESSION_ID_KEY = "ss_visit_session_id";
 const SESSION_AT_KEY = "ss_visit_session_at";
-
-function getVisitorId(): string {
-  if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(VISITOR_ID_KEY);
-  if (!id) {
-    id = `v_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    localStorage.setItem(VISITOR_ID_KEY, id);
-  }
-  return id;
-}
 
 function getSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -40,15 +34,18 @@ function touchSession() {
 
 function sessionMeta() {
   const params = new URLSearchParams(window.location.search);
+  const userAgent = navigator.userAgent;
   return {
     referrer: document.referrer || "",
     utmSource: params.get("utm_source") ?? undefined,
     utmMedium: params.get("utm_medium") ?? undefined,
     utmCampaign: params.get("utm_campaign") ?? undefined,
     utmTerm: params.get("utm_term") ?? undefined,
-    userAgent: navigator.userAgent,
+    userAgent,
     language: navigator.language,
     screenWidth: window.innerWidth,
+    deviceId: getOrCreateDeviceId(),
+    deviceName: detectDeviceName(userAgent),
   };
 }
 
@@ -67,7 +64,7 @@ async function sendEvent(
 
   const payload = {
     sessionId: getSessionId(),
-    visitorId: getVisitorId(),
+    visitorId: getOrCreateVisitorId(),
     event: {
       type,
       at: new Date().toISOString(),

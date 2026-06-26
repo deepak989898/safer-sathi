@@ -50,6 +50,8 @@ const stateSchema = z
 const contextSchema = z.object({
   userId: z.string().optional(),
   guestId: z.string().optional(),
+  visitorId: z.string().optional(),
+  deviceId: z.string().optional(),
   browserLanguage: z.string().optional(),
   timezone: z.string().optional(),
   localPreferences: z

@@ -33,6 +33,8 @@ export interface VisitorSession {
   utmTerm?: string;
   device: string;
   browser: string;
+  deviceId?: string;
+  deviceName?: string;
   language: string;
   ip?: string;
   country?: string;
@@ -43,12 +45,36 @@ export interface VisitorSession {
   events: VisitorEvent[];
 }
 
+/** Same person/device — multiple visit sessions grouped for admin. */
+export interface VisitorUserGroup {
+  visitorId: string;
+  deviceId?: string;
+  deviceName?: string;
+  device: string;
+  browser: string;
+  displayLabel: string;
+  sessionCount: number;
+  totalPageViews: number;
+  totalClicks: number;
+  totalSearches: number;
+  totalDurationSec: number;
+  aiChatSessions: number;
+  aiMessages: number;
+  lastSeenAt: string;
+  isOnline: boolean;
+  country?: string;
+  city?: string;
+  ip?: string;
+  sessions: VisitorSession[];
+}
+
 export interface VisitorDayGroup {
   dateKey: string;
   dateLabel: string;
   isToday: boolean;
   isYesterday: boolean;
   sessions: VisitorSession[];
+  visitorGroups: VisitorUserGroup[];
 }
 
 export interface VisitorAnalyticsStats {

@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  Bot,
   Calendar,
   ChevronDown,
   Clock,
   ExternalLink,
   Eye,
   Globe,
+  Laptop,
   Loader2,
   LogOut,
   MousePointerClick,
@@ -36,6 +38,7 @@ import type {
   VisitorDayGroup,
   VisitorEvent,
   VisitorSession,
+  VisitorUserGroup,
 } from "@/types/visitor-analytics";
 import { toast } from "sonner";
 
@@ -136,7 +139,19 @@ function SessionCard({ session }: { session: VisitorSession }) {
         <div className="border-t bg-muted/10 px-4 py-3">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
             Visitor ID: <span className="font-mono">{session.visitorId}</span>
+            {session.deviceId && (
+              <>
+                {" "}
+                · Device ID: <span className="font-mono">{session.deviceId}</span>
+              </>
+            )}
           </p>
+          {session.deviceName && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              <Laptop className="mr-1 inline h-3.5 w-3.5" />
+              {session.deviceName}
+            </p>
+          )}
           {visibleEvents.length === 0 ? (
             <p className="text-xs text-muted-foreground">No detailed events recorded.</p>
           ) : (
@@ -152,6 +167,100 @@ function SessionCard({ session }: { session: VisitorSession }) {
   );
 }
 
+function VisitorGroupCard({ group }: { group: VisitorUserGroup }) {
+  const [open, setOpen] = useState(false);
+  const repeatVisitor = group.sessionCount > 1;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-primary/15 bg-card shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      >
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{group.displayLabel}</p>
+            {group.isOnline && (
+              <Badge className="h-5 bg-green-600 text-[10px] hover:bg-green-600">Online</Badge>
+            )}
+            {repeatVisitor && (
+              <Badge variant="secondary" className="h-5 text-[10px]">
+                {group.sessionCount} visits
+              </Badge>
+            )}
+            {group.aiChatSessions > 0 && (
+              <Badge className="h-5 bg-violet-600 text-[10px] hover:bg-violet-600">
+                <Bot className="mr-1 h-3 w-3" />
+                {group.aiChatSessions} AI chat{group.aiChatSessions === 1 ? "" : "s"} ·{" "}
+                {group.aiMessages} msg
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Eye className="h-3.5 w-3.5" />
+              {group.totalPageViews} views
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MousePointerClick className="h-3.5 w-3.5" />
+              {group.totalClicks} clicks
+            </span>
+            {group.totalSearches > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Search className="h-3.5 w-3.5" />
+                {group.totalSearches} searches
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {formatDuration(group.totalDurationSec)} total
+            </span>
+            {group.ip && <span className="font-mono">{group.ip}</span>}
+            {group.country && <span>{group.country}</span>}
+          </div>
+          {group.deviceName && (
+            <p className="text-xs text-foreground/80">
+              <Laptop className="mr-1 inline h-3.5 w-3.5" />
+              {group.deviceName}
+            </p>
+          )}
+          <p className="text-[10px] text-muted-foreground">
+            Visitor <span className="font-mono">{group.visitorId}</span>
+            {group.deviceId && (
+              <>
+                {" "}
+                · Device <span className="font-mono">{group.deviceId}</span>
+              </>
+            )}
+          </p>
+        </div>
+        <ChevronDown
+          className={cn(
+            "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t bg-muted/10 p-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {group.sessionCount} browsing session{group.sessionCount === 1 ? "" : "s"} from this
+            user/device
+            {group.aiChatSessions > 0
+              ? ` · used AI assistant ${group.aiChatSessions} time${group.aiChatSessions === 1 ? "" : "s"}`
+              : ""}
+          </p>
+          {group.sessions.map((session) => (
+            <SessionCard key={session.id} session={session} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DayGroup({
   group,
   defaultOpen,
@@ -160,9 +269,12 @@ function DayGroup({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? group.isToday);
+  const [viewMode, setViewMode] = useState<"grouped" | "sessions">("grouped");
   const uniqueVisitors = new Set(group.sessions.map((s) => s.visitorId)).size;
+  const uniqueGroups = group.visitorGroups.length;
   const pageViews = group.sessions.reduce((sum, s) => sum + s.pageViewCount, 0);
   const online = group.sessions.filter(isOnline).length;
+  const aiUsers = group.visitorGroups.filter((g) => g.aiChatSessions > 0).length;
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -177,6 +289,15 @@ function DayGroup({
           <Badge variant="secondary" className="text-xs">
             {uniqueVisitors} visitor{uniqueVisitors === 1 ? "" : "s"}
           </Badge>
+          <Badge variant="outline" className="text-xs">
+            {uniqueGroups} device{uniqueGroups === 1 ? "" : "s"}
+          </Badge>
+          {aiUsers > 0 && (
+            <Badge className="bg-violet-600 text-xs hover:bg-violet-600">
+              <Bot className="mr-1 h-3 w-3" />
+              {aiUsers} AI user{aiUsers === 1 ? "" : "s"}
+            </Badge>
+          )}
           <span className="text-xs text-muted-foreground">
             {group.sessions.length} session{group.sessions.length === 1 ? "" : "s"} · {pageViews}{" "}
             page views
@@ -195,9 +316,29 @@ function DayGroup({
 
       {open && (
         <div className="space-y-3 border-t bg-muted/10 p-3">
-          {group.sessions.map((session) => (
-            <SessionCard key={session.id} session={session} />
-          ))}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "grouped" ? "default" : "outline"}
+              onClick={() => setViewMode("grouped")}
+            >
+              Grouped by user/device
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "sessions" ? "default" : "outline"}
+              onClick={() => setViewMode("sessions")}
+            >
+              All sessions
+            </Button>
+          </div>
+          {viewMode === "grouped"
+            ? group.visitorGroups.map((visitorGroup) => (
+                <VisitorGroupCard key={`${visitorGroup.visitorId}-${visitorGroup.deviceId ?? visitorGroup.device}`} group={visitorGroup} />
+              ))
+            : group.sessions.map((session) => <SessionCard key={session.id} session={session} />)}
         </div>
       )}
     </div>
@@ -247,8 +388,8 @@ export default function VisitorAnalyticsClient() {
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="max-w-3xl text-xs text-muted-foreground sm:text-sm">
-            Visitor sessions by day (IST). For heatmaps, session recordings, and scroll maps, use
-            Microsoft Clarity.
+            Visitors grouped by device &amp; visitor ID. Purple badges show AI assistant chats from
+            the same user. Device name and ID appear after new visits are tracked.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {clarityUrl ? (

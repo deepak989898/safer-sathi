@@ -26,6 +26,8 @@ const bodySchema = z.object({
       userAgent: z.string().max(500).optional(),
       language: z.string().max(20).optional(),
       screenWidth: z.number().optional(),
+      deviceId: z.string().max(80).optional(),
+      deviceName: z.string().max(200).optional(),
     })
     .optional(),
 });
