@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     return apiSuccess({
       bookingNumber: lookup.bookingNumber,
       found: Boolean(lookup.booking),
+      canRecover: lookup.canRecover,
       source: lookup.source,
       storedBookingId: lookup.storedBookingId,
       notificationTitle: lookup.notificationTitle,

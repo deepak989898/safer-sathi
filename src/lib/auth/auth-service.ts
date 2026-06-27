@@ -227,21 +227,23 @@ export async function loginUser(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: normalizedEmail,
-          bookingNumber: trimmedPassword,
+          bookingNumber: trimmedPassword.toUpperCase(),
         }),
       });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        if (res.status === 404 || res.status === 400) {
-          throw new AuthError(
-            json.error ??
-              "Invalid email or Booking ID. Use the Booking ID from your confirmation email."
-          );
-        }
+        throw new AuthError(
+          json.error ??
+            (res.status === 404
+              ? "Invalid email or Booking ID. Use the Booking ID from your confirmation email."
+              : "Could not prepare booking login. Please try again in a minute.")
+        );
       }
     } catch (error) {
       if (error instanceof AuthError) throw error;
-      console.warn("Booking login provision request failed:", error);
+      throw new AuthError(
+        "Could not connect to sign-in service. Check your internet and try again."
+      );
     }
   }
 
@@ -249,7 +251,9 @@ export async function loginUser(
   const credential = await signInWithEmailAndPassword(
     auth,
     normalizedEmail,
-    trimmedPassword
+    isBookingIdPassword(trimmedPassword)
+      ? trimmedPassword.toUpperCase()
+      : trimmedPassword
   );
 
   const profile = await getUserProfile(credential.user.uid);

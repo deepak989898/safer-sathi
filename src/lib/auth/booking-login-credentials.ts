@@ -13,6 +13,7 @@ export function resolveBookingLoginCredentials(
 ): { loginEmail: string; loginPassword: string } {
   return {
     loginEmail: (provision?.email ?? booking.customerEmail).toLowerCase().trim(),
-    loginPassword: provision?.loginPassword ?? booking.bookingNumber,
+    loginPassword:
+      provision?.loginPassword ?? booking.bookingNumber.trim().toUpperCase(),
   };
 }

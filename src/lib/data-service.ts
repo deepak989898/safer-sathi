@@ -107,10 +107,12 @@ async function persistBookingRecord(booking: Booking): Promise<boolean> {
 }
 
 export async function upsertBooking(booking: Booking): Promise<Booking | null> {
-  const entry: Booking = {
+  const entry: Booking = sanitizeForFirestore({
     ...booking,
+    bookingNumber: booking.bookingNumber.trim().toUpperCase(),
+    customerEmail: booking.customerEmail.toLowerCase().trim(),
     updatedAt: new Date().toISOString(),
-  };
+  });
   const ok = await persistBookingRecord(entry);
   return ok ? entry : null;
 }
@@ -121,6 +123,8 @@ export async function createBooking(
   const entry: Booking = sanitizeForFirestore({
     ...booking,
     id: booking.id ?? `bk_${Date.now()}`,
+    bookingNumber: booking.bookingNumber.trim().toUpperCase(),
+    customerEmail: booking.customerEmail.toLowerCase().trim(),
   });
 
   await persistBookingRecord(entry);

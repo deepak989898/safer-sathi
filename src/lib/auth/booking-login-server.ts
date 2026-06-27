@@ -1,73 +1,110 @@
 import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import type { Booking } from "@/types";
 
+function normalizeEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+function normalizeBookingNumber(bookingNumber: string): string {
+  return bookingNumber.trim().toUpperCase();
+}
+
+function isEligibleForLogin(booking: Booking): boolean {
+  return (
+    booking.status === "confirmed" ||
+    booking.paymentStatus === "paid" ||
+    booking.paymentStatus === "partial"
+  );
+}
+
+async function loadRecentBookings(limit = 500): Promise<Booking[]> {
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  try {
+    const snap = await db.collection("bookings").orderBy("createdAt", "desc").limit(limit).get();
+    return snap.docs.map((doc) => doc.data() as Booking);
+  } catch {
+    try {
+      const snap = await db.collection("bookings").limit(limit).get();
+      return snap.docs
+        .map((doc) => doc.data() as Booking)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch {
+      return [];
+    }
+  }
+}
+
 /** Find a confirmed booking matching email + booking ID password. Server-only. */
 export async function findBookingForLogin(
   email: string,
   bookingNumber: string
 ): Promise<Booking | null> {
-  const normalizedEmail = email.toLowerCase().trim();
-  const normalizedNumber = bookingNumber.trim().toUpperCase();
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedNumber = normalizeBookingNumber(bookingNumber);
 
   const db = await getSafeAdminDb();
   if (!db) return null;
-
-  const isEligible = (booking: Booking) =>
-    booking.status === "confirmed" ||
-    booking.paymentStatus === "paid" ||
-    booking.paymentStatus === "partial";
 
   try {
     const byNumber = await db
       .collection("bookings")
       .where("bookingNumber", "==", normalizedNumber)
-      .limit(10)
-      .get();
-
-    const exact = byNumber.docs
-      .map((doc) => doc.data() as Booking)
-      .filter(
-        (b) =>
-          isEligible(b) && b.customerEmail.toLowerCase().trim() === normalizedEmail
-      )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-
-    if (exact) return exact;
-
-    const byEmail = await db
-      .collection("bookings")
-      .where("customerEmail", "==", normalizedEmail)
-      .orderBy("createdAt", "desc")
       .limit(20)
       .get();
 
-    const latest = byEmail.docs
+    const exactFromQuery = byNumber.docs
       .map((doc) => doc.data() as Booking)
-      .filter(isEligible);
+      .filter(
+        (booking) =>
+          isEligibleForLogin(booking) &&
+          normalizeEmail(booking.customerEmail) === normalizedEmail
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
-    if (latest.length === 0) return null;
-
-    const newest = latest[0];
-    if (newest.bookingNumber.toUpperCase() === normalizedNumber) {
-      return newest;
-    }
-
-    return null;
+    if (exactFromQuery) return exactFromQuery;
   } catch (error) {
-    console.warn("findBookingForLogin failed:", error);
-    try {
-      const snap = await db.collection("bookings").limit(500).get();
-      const all = snap.docs
-        .map((doc) => doc.data() as Booking)
-        .filter(
-          (b) =>
-            isEligible(b) &&
-            b.customerEmail.toLowerCase().trim() === normalizedEmail &&
-            b.bookingNumber.toUpperCase() === normalizedNumber
-        );
-      return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
-    } catch {
-      return null;
-    }
+    console.warn("findBookingForLogin query failed:", error);
   }
+
+  const all = await loadRecentBookings();
+  const forEmail = all
+    .filter(
+      (booking) =>
+        isEligibleForLogin(booking) &&
+        normalizeEmail(booking.customerEmail) === normalizedEmail
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  if (forEmail.length === 0) return null;
+
+  const exact = forEmail.find(
+    (booking) => normalizeBookingNumber(booking.bookingNumber) === normalizedNumber
+  );
+  if (exact) return exact;
+
+  const latest = forEmail[0];
+  if (normalizeBookingNumber(latest.bookingNumber) === normalizedNumber) {
+    return latest;
+  }
+
+  return null;
+}
+
+/** Latest confirmed booking for an email (used to validate booking-ID password). */
+export async function findLatestEligibleBookingForEmail(
+  email: string
+): Promise<Booking | null> {
+  const normalizedEmail = normalizeEmail(email);
+  const all = await loadRecentBookings();
+  return (
+    all
+      .filter(
+        (booking) =>
+          isEligibleForLogin(booking) &&
+          normalizeEmail(booking.customerEmail) === normalizedEmail
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+  );
 }

@@ -29,6 +29,7 @@ import { VehicleInformationCard } from "@/components/customer/vehicle-informatio
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
+import { BookingDateInput } from "@/components/customer/booking-date-input";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -465,21 +466,19 @@ export function VehicleDetailClient({
                     <TabsContent value="day" className="mt-3 space-y-3">
                       <div>
                         <Label>Pick-up Date</Label>
-                        <Input
-                          type="date"
+                        <BookingDateInput
                           min={todayIso()}
                           value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          onChange={setStartDate}
                           className="mt-1.5"
                         />
                       </div>
                       <div>
                         <Label>Return Date</Label>
-                        <Input
-                          type="date"
+                        <BookingDateInput
                           min={startDate || todayIso()}
                           value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
+                          onChange={setEndDate}
                           className="mt-1.5"
                         />
                       </div>
@@ -488,11 +487,10 @@ export function VehicleDetailClient({
                     <TabsContent value="km" className="mt-3 space-y-3">
                       <div>
                         <Label>Travel Date</Label>
-                        <Input
-                          type="date"
+                        <BookingDateInput
                           min={todayIso()}
                           value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          onChange={setStartDate}
                           className="mt-1.5"
                         />
                       </div>

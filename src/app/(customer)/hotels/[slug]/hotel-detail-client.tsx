@@ -27,6 +27,7 @@ import { RatingStars } from "@/components/customer/rating-stars";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
+import { BookingDateInput } from "@/components/customer/booking-date-input";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -417,19 +418,17 @@ export function HotelDetailClient({
                   )}
                   <div>
                     <Label>{t(locale, "hero", "checkIn")}</Label>
-                    <Input
-                      type="date"
+                    <BookingDateInput
                       value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
+                      onChange={setCheckIn}
                       className="mt-1.5"
                     />
                   </div>
                   <div>
                     <Label>{t(locale, "hero", "checkOut")}</Label>
-                    <Input
-                      type="date"
+                    <BookingDateInput
                       value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
+                      onChange={setCheckOut}
                       className="mt-1.5"
                     />
                   </div>

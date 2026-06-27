@@ -14,6 +14,7 @@ import { toast } from "sonner";
 interface RecoveryPreview {
   bookingNumber: string;
   found: boolean;
+  canRecover: boolean;
   source: string;
   storedBookingId?: string;
   notificationTitle?: string;
@@ -76,8 +77,10 @@ export function RecoverPaidBookingCard({ onRecovered }: RecoverPaidBookingCardPr
       if (data.suggestedPaidAmount) {
         setPaidAmount(String(data.suggestedPaidAmount));
       }
-      if (!data.found) {
+      if (!data.found && !data.canRecover) {
         toast.warning("Booking record not found — check warnings below.");
+      } else if (data.canRecover && !data.found) {
+        toast.message("Booking can be rebuilt from Razorpay — review and recover.");
       } else {
         toast.success("Booking located — review details before recovering.");
       }
@@ -229,7 +232,7 @@ export function RecoverPaidBookingCard({ onRecovered }: RecoverPaidBookingCardPr
             <Button
               type="button"
               onClick={() => void handleRecover()}
-              disabled={recovering || previewing || !preview?.found}
+              disabled={recovering || previewing || !preview?.canRecover}
             >
               {recovering ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -256,6 +259,22 @@ export function RecoverPaidBookingCard({ onRecovered }: RecoverPaidBookingCardPr
                   </p>
                   {preview.razorpayPayment && (
                     <p className="text-emerald-700 dark:text-emerald-400">
+                      Razorpay payment {preview.razorpayPayment.id}:{" "}
+                      {formatCurrency(preview.razorpayPayment.amount)} ({preview.razorpayPayment.status})
+                    </p>
+                  )}
+                </div>
+              ) : preview.canRecover ? (
+                <div className="space-y-2">
+                  <p className="flex items-start gap-2 text-emerald-800 dark:text-emerald-300">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    Booking missing from database, but Razorpay payment can rebuild it.
+                    {preview.notificationTitle
+                      ? ` Notification: "${preview.notificationTitle}".`
+                      : ""}
+                  </p>
+                  {preview.razorpayPayment && (
+                    <p className="text-muted-foreground">
                       Razorpay payment {preview.razorpayPayment.id}:{" "}
                       {formatCurrency(preview.razorpayPayment.amount)} ({preview.razorpayPayment.status})
                     </p>

@@ -29,6 +29,7 @@ import { CatalogReviewsTab } from "@/components/customer/catalog-reviews-tab";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
+import { BookingDateInput } from "@/components/customer/booking-date-input";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -434,10 +435,9 @@ export function PackageDetailClient({
                   </div>
                   <div>
                     <Label>Travel Date</Label>
-                    <Input
-                      type="date"
+                    <BookingDateInput
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
+                      onChange={setStartDate}
                       className="mt-1.5"
                     />
                   </div>

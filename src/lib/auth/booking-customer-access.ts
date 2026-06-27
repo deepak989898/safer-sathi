@@ -1,5 +1,5 @@
 import { getSafeAdminAuth, getSafeAdminDb } from "@/lib/firebase/admin-safe";
-import { updateBooking } from "@/lib/data-service";
+import { upsertBooking } from "@/lib/data-service";
 import type { Booking } from "@/types";
 
 export interface BookingLoginProvision {
@@ -9,16 +9,23 @@ export interface BookingLoginProvision {
   created: boolean;
 }
 
-/** Create or update customer Firebase Auth so they can sign in with email + latest booking number. */
+function normalizeLoginPassword(bookingNumber: string): string {
+  return bookingNumber.trim().toUpperCase();
+}
+
+/** Create or update customer Firebase Auth so they can sign in with email + booking number. */
 export async function provisionCustomerBookingLogin(
   booking: Booking
 ): Promise<BookingLoginProvision | null> {
   const auth = await getSafeAdminAuth();
   const db = await getSafeAdminDb();
-  if (!auth || !db) return null;
+  if (!auth || !db) {
+    console.error("provisionCustomerBookingLogin: Firebase Admin Auth/DB unavailable");
+    return null;
+  }
 
   const email = booking.customerEmail.toLowerCase().trim();
-  const loginPassword = booking.bookingNumber.trim();
+  const loginPassword = normalizeLoginPassword(booking.bookingNumber);
   const now = new Date().toISOString();
   let userId: string;
   let created = false;
@@ -26,13 +33,15 @@ export async function provisionCustomerBookingLogin(
   try {
     const existing = await auth.getUserByEmail(email);
     userId = existing.uid;
-    await auth.updateUser(userId, {
-      password: loginPassword,
-      displayName: booking.customerName,
-      phoneNumber: booking.customerPhone.startsWith("+")
-        ? booking.customerPhone
-        : undefined,
-    });
+    try {
+      await auth.updateUser(userId, {
+        password: loginPassword,
+        displayName: booking.customerName,
+      });
+    } catch (updateError) {
+      console.warn("provisionCustomerBookingLogin updateUser retry:", updateError);
+      await auth.updateUser(userId, { password: loginPassword });
+    }
   } catch (error) {
     const code = (error as { code?: string })?.code;
     if (code !== "auth/user-not-found") {
@@ -60,7 +69,7 @@ export async function provisionCustomerBookingLogin(
       approved: true,
       locale: "en",
       segment: "new",
-      lastBookingNumber: booking.bookingNumber,
+      lastBookingNumber: loginPassword,
       passwordIsBookingId: true,
       updatedAt: now,
       ...(created
@@ -75,7 +84,12 @@ export async function provisionCustomerBookingLogin(
   );
 
   if (booking.userId !== userId) {
-    await updateBooking(booking.id, { userId });
+    await upsertBooking({
+      ...booking,
+      userId,
+      bookingNumber: loginPassword,
+      updatedAt: now,
+    });
   }
 
   return { userId, email, loginPassword, created };

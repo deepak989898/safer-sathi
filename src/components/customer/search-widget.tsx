@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronUp, Hotel, Package, Search, Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BookingDateInput } from "@/components/customer/booking-date-input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/store/app-store";
@@ -163,10 +164,9 @@ export function SearchWidget({
           </div>
           <div>
             <Label>{t(locale, "hero", "travelDate")}</Label>
-            <Input
-              type="date"
+            <BookingDateInput
               value={pkgDate}
-              onChange={(e) => setPkgDate(e.target.value)}
+              onChange={setPkgDate}
               className={fieldClass}
             />
           </div>
@@ -197,19 +197,17 @@ export function SearchWidget({
           </div>
           <div>
             <Label>{t(locale, "hero", "checkIn")}</Label>
-            <Input
-              type="date"
+            <BookingDateInput
               value={hotelCheckIn}
-              onChange={(e) => setHotelCheckIn(e.target.value)}
+              onChange={setHotelCheckIn}
               className={fieldClass}
             />
           </div>
           <div>
             <Label>{t(locale, "hero", "checkOut")}</Label>
-            <Input
-              type="date"
+            <BookingDateInput
               value={hotelCheckOut}
-              onChange={(e) => setHotelCheckOut(e.target.value)}
+              onChange={setHotelCheckOut}
               className={fieldClass}
             />
           </div>
@@ -240,10 +238,9 @@ export function SearchWidget({
           </div>
           <div>
             <Label>{t(locale, "hero", "travelDate")}</Label>
-            <Input
-              type="date"
+            <BookingDateInput
               value={vehicleDate}
-              onChange={(e) => setVehicleDate(e.target.value)}
+              onChange={setVehicleDate}
               className={fieldClass}
             />
           </div>

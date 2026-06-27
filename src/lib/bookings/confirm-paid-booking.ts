@@ -6,7 +6,7 @@ import {
   sendAdminBookingAlert,
   sendBookingConfirmationNotifications,
 } from "@/lib/bookings/booking-notifications";
-import { updateBooking } from "@/lib/data-service";
+import { upsertBooking } from "@/lib/data-service";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import type { Booking } from "@/types";
 
@@ -38,18 +38,9 @@ export async function confirmPaidBooking(
     ? [booking.notes, recoveryNote].filter(Boolean).join("\n")
     : booking.notes;
 
-  const updated = await updateBooking(booking.id, {
-    paymentStatus: isFullyPaid ? "paid" : "partial",
-    paidAmount,
-    status: "confirmed",
-    paymentPlan: input.paymentPlan ?? booking.paymentPlan,
-    paymentFailureReason: undefined,
-    lastPaymentAttemptAt: now,
-    notes,
-  });
-
-  const bookingForNotify: Booking = updated ?? {
+  const bookingForNotify: Booking = {
     ...booking,
+    bookingNumber: booking.bookingNumber.trim().toUpperCase(),
     paymentStatus: isFullyPaid ? "paid" : "partial",
     paidAmount,
     status: "confirmed",
@@ -57,11 +48,15 @@ export async function confirmPaidBooking(
     paymentFailureReason: undefined,
     lastPaymentAttemptAt: now,
     notes,
+    updatedAt: now,
   };
 
-  const loginProvision = await provisionCustomerBookingLogin(bookingForNotify);
+  const persisted = await upsertBooking(bookingForNotify);
+  const savedBooking = persisted ?? bookingForNotify;
+
+  const loginProvision = await provisionCustomerBookingLogin(savedBooking);
   const loginCredentials = resolveBookingLoginCredentials(
-    bookingForNotify,
+    savedBooking,
     loginProvision
   );
 
@@ -69,21 +64,21 @@ export async function confirmPaidBooking(
     type: "booking_confirmed",
     title:
       input.notificationTitle ??
-      `Booking confirmed — ${bookingForNotify.bookingNumber}`,
-    message: `${bookingForNotify.customerName} · ${bookingForNotify.serviceName.en} · ${isFullyPaid ? "Paid in full" : "Partial payment"}`,
-    href: adminBookingsHref(bookingForNotify),
-    bookingId: bookingForNotify.id,
+      `Booking confirmed — ${savedBooking.bookingNumber}`,
+    message: `${savedBooking.customerName} · ${savedBooking.serviceName.en} · ${isFullyPaid ? "Paid in full" : "Partial payment"}`,
+    href: adminBookingsHref(savedBooking),
+    bookingId: savedBooking.id,
   });
 
   await sendAdminBookingAlert({
-    booking: bookingForNotify,
+    booking: savedBooking,
     isFullyPaid,
     balanceDue,
   });
 
   if (input.sendConfirmation !== false) {
     await sendBookingConfirmationNotifications({
-      booking: bookingForNotify,
+      booking: savedBooking,
       isFullyPaid,
       channels: ["email", "whatsapp", "sms"],
       loginEmail: loginCredentials.loginEmail,
@@ -92,7 +87,7 @@ export async function confirmPaidBooking(
   }
 
   return {
-    booking: bookingForNotify,
+    booking: savedBooking,
     isFullyPaid,
     balanceDue,
     loginCredentials,
