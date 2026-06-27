@@ -26,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AiCenterPhase3Tab } from "./ai-center-phase3-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
+import { SeoPublishWorkflowProgress } from "./seo-publish-workflow-progress";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSingleImageUpload } from "@/components/admin/admin-image-url-field";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -61,7 +62,7 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
-import { approvedKeywordsWithoutBlog, keywordHasBlog } from "@/lib/ai-center/utils";
+import { approvedKeywordsWithoutBlog, computeSeoPublishWorkflowStats, keywordHasBlog } from "@/lib/ai-center/utils";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
 import { ADMIN_BLOG_IMAGES_SECTION_HINT } from "@/lib/admin/image-upload-hints";
@@ -263,6 +264,10 @@ export default function AiCenterClient() {
   const rejectedBlogs = useMemo(
     () => blogs.filter((b) => b.status === "rejected"),
     [blogs]
+  );
+  const workflowStats = useMemo(
+    () => computeSeoPublishWorkflowStats(keywords, blogs, seoMeta),
+    [keywords, blogs, seoMeta]
   );
 
   const activeTabMeta = AI_CENTER_TAB_LOOKUP.get(activeTab);
@@ -928,6 +933,10 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="keywords" className="space-y-4">
+            <SeoPublishWorkflowProgress
+              stats={workflowStats}
+              onGoToTab={(tabId) => setActiveTab(tabId)}
+            />
             <CityKeywordResearchPanel
               citySearchName={citySearchName}
               onCitySearchNameChange={setCitySearchName}
@@ -968,7 +977,12 @@ export default function AiCenterClient() {
               }
             />
             <KeywordTable
-              title="Pending Keywords"
+              title={`Pending Keywords (${pendingKeywords.length})`}
+              subtitle={
+                pendingKeywords.length > 0
+                  ? `${pendingKeywords.length} waiting for approval · ${workflowStats.stages[1]?.remaining ?? 0} will get SEO meta on approve`
+                  : "No keywords waiting — all caught up on approvals."
+              }
               items={pendingKeywords}
               busy={busy}
               onApprove={(id) => void keywordAction(id, "approve")}
@@ -979,7 +993,12 @@ export default function AiCenterClient() {
             />
             <div className="mt-6">
               <KeywordTable
-                title="Approved Keywords"
+                title={`Approved Keywords (${approvedKeywords.length})`}
+                subtitle={
+                  approvedKeywords.length > 0
+                    ? `${workflowStats.summary.withSeoMeta} with SEO meta · ${workflowStats.summary.needBlog} need blog · ${workflowStats.summary.published} published live`
+                    : "Approve pending keywords to start the SEO and blog pipeline."
+                }
                 items={approvedKeywords}
                 blogs={blogs}
                 busy={busy}
@@ -994,7 +1013,12 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="blog-writer">
-            <Card>
+            <SeoPublishWorkflowProgress
+              stats={workflowStats}
+              onGoToTab={(tabId) => setActiveTab(tabId)}
+              compact
+            />
+            <Card className="mt-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
@@ -1023,7 +1047,7 @@ export default function AiCenterClient() {
                   <p className="text-sm text-muted-foreground">
                     {approvedKeywords.length === 0
                       ? "Approve keywords first."
-                      : "All approved keywords already have blog drafts. Open Blog Drafts to review them."}
+                      : `All ${approvedKeywords.length} approved keyword${approvedKeywords.length === 1 ? "" : "s"} already have blog drafts (${workflowStats.summary.published} published, ${workflowStats.summary.blogDrafts + workflowStats.summary.readyToPublish} in pipeline).`}
                   </p>
                 ) : (
                   blogWriterKeywords.map((kw) => (
@@ -1040,8 +1064,13 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="drafts">
+            <SeoPublishWorkflowProgress
+              stats={workflowStats}
+              onGoToTab={(tabId) => setActiveTab(tabId)}
+              compact
+            />
             <BlogAutomationBar
-              className="mb-4"
+              className="mb-4 mt-4"
               label="Auto Approve"
               description="When on, all drafts and pending blogs are approved automatically."
               enabled={settings?.autoBlogApproveEnabled ?? false}
@@ -1068,8 +1097,13 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="scheduled">
+            <SeoPublishWorkflowProgress
+              stats={workflowStats}
+              onGoToTab={(tabId) => setActiveTab(tabId)}
+              compact
+            />
             <BlogAutomationBar
-              className="mb-4"
+              className="mb-4 mt-4"
               label="Auto Publish"
               description="When on, all approved blogs in this list are published automatically."
               enabled={settings?.autoPublishEnabled ?? false}
@@ -1741,6 +1775,7 @@ function CityKeywordResearchPanel({
 
 function KeywordTable({
   title,
+  subtitle,
   items,
   blogs = [],
   busy,
@@ -1752,6 +1787,7 @@ function KeywordTable({
   hideActions,
 }: {
   title: string;
+  subtitle?: string;
   items: SeoKeyword[];
   blogs?: AiBlogPost[];
   busy: boolean;
@@ -1764,7 +1800,10 @@ function KeywordTable({
 }) {
   return (
     <Card>
-      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+      </CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -1819,7 +1858,13 @@ function KeywordTable({
             ))}
           </tbody>
         </table>
-        {items.length === 0 && <p className="py-6 text-center text-muted-foreground">No keywords.</p>}
+        {items.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {title.toLowerCase().includes("pending")
+              ? "No pending keywords — everything is approved or add new keywords via city search above."
+              : "No approved keywords yet — approve pending keywords or turn on Auto Approve."}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
