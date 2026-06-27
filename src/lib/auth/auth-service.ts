@@ -326,7 +326,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
       let json: {
         success?: boolean;
         error?: string;
-        data?: { sent?: boolean; delivery?: string };
+        data?: { sent?: boolean; delivery?: string; message?: string };
       } = {};
 
       try {
@@ -336,19 +336,30 @@ export async function requestPasswordReset(email: string): Promise<void> {
       }
 
       if (res.ok && json.data?.delivery === "firebase_client_fallback") {
-        await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
-          url: continueUrl,
-          handleCodeInApp: false,
-        });
-        return;
+        try {
+          await sendPasswordResetEmail(getFirebaseAuth(), normalized, {
+            url: continueUrl,
+            handleCodeInApp: false,
+          });
+          return;
+        } catch (clientError) {
+          throw new AuthError(getFirebaseAuthErrorMessage(clientError));
+        }
       }
 
       if (res.ok && json.data?.sent) {
         return;
       }
 
-      if (res.status === 400 && json.error) {
+      if (!res.ok && json.error) {
         throw new AuthError(json.error);
+      }
+
+      if (res.ok && json.data?.sent === false) {
+        throw new AuthError(
+          json.data?.message ??
+            "Could not send password reset email. Please try again or contact support@thesafarsathi.com."
+        );
       }
     } catch (error) {
       if (error instanceof AuthError) throw error;

@@ -1,4 +1,5 @@
 import { createSign } from "node:crypto";
+import { appUrl } from "@/lib/site-config";
 import {
   resolveFirebaseAdminCredentials,
   type FirebaseAdminCredentials,
@@ -280,4 +281,110 @@ export async function createFirebaseCustomToken(
 
 export function isFirebaseAuthRestAvailable(): boolean {
   return Boolean(getCredentials() && getProjectId());
+}
+
+function getFirebaseWebApiKey(): string | null {
+  return process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() || null;
+}
+
+const PASSWORD_RESET_CONTINUE_URLS = [
+  "https://www.thesafarsathi.com/login?reset=done",
+  "https://thesafarsathi.com/login?reset=done",
+] as const;
+
+function resolvePasswordResetContinueUrl(): string {
+  const configured = appUrl("/login?reset=done");
+  if (configured.includes("localhost") || configured.includes("127.0.0.1")) {
+    return PASSWORD_RESET_CONTINUE_URLS[0];
+  }
+  return configured;
+}
+
+/** Generate reset link via Identity Toolkit REST (Vercel-safe, no firebase-admin/auth). */
+export async function generatePasswordResetLinkRest(
+  email: string
+): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
+  const projectId = getProjectId();
+  if (!projectId) {
+    return { ok: false, error: "Firebase credentials are not configured." };
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const continueCandidates = [
+    resolvePasswordResetContinueUrl(),
+    ...PASSWORD_RESET_CONTINUE_URLS,
+  ];
+
+  let lastError = "Could not generate password reset link.";
+
+  for (const continueUrl of [...new Set(continueCandidates)]) {
+    const result = await identityToolkitRequest<{ oobLink?: string; email?: string }>(
+      `/projects/${projectId}/accounts:sendOobCode`,
+      {
+        requestType: "PASSWORD_RESET",
+        email: normalizedEmail,
+        continueUrl,
+        canHandleCodeInApp: false,
+        returnOobLink: true,
+      }
+    );
+
+    if (result.ok && result.data.oobLink) {
+      return { ok: true, link: result.data.oobLink };
+    }
+
+    lastError = result.ok ? "Reset link was not returned." : result.message;
+    console.warn(`generatePasswordResetLinkRest failed for ${continueUrl}:`, lastError);
+  }
+
+  return { ok: false, error: lastError };
+}
+
+/** Ask Firebase to send its built-in password reset email (REST + API key). */
+export async function sendFirebasePasswordResetEmailRest(
+  email: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = getFirebaseWebApiKey();
+  if (!apiKey) {
+    return { ok: false, error: "Firebase API key is not configured." };
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const continueCandidates = [
+    resolvePasswordResetContinueUrl(),
+    ...PASSWORD_RESET_CONTINUE_URLS,
+  ];
+
+  let lastError = "Could not send Firebase password reset email.";
+
+  for (const continueUrl of [...new Set(continueCandidates)]) {
+    const res = await fetch(
+      `${IDENTITY_TOOLKIT_BASE}/accounts:sendOobCode?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestType: "PASSWORD_RESET",
+          email: normalizedEmail,
+          continueUrl,
+          canHandleCodeInApp: false,
+        }),
+        cache: "no-store",
+      }
+    );
+
+    const data = (await res.json().catch(() => null)) as {
+      error?: { message?: string };
+      email?: string;
+    } | null;
+
+    if (res.ok) {
+      return { ok: true };
+    }
+
+    lastError = data?.error?.message ?? `Firebase sendOobCode failed (${res.status})`;
+    console.warn(`sendFirebasePasswordResetEmailRest failed for ${continueUrl}:`, lastError);
+  }
+
+  return { ok: false, error: lastError };
 }
