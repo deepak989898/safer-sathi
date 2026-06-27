@@ -11,6 +11,7 @@ import {
   MIN_REDEEM_POINTS,
   POINT_VALUE_INR,
 } from "@/lib/rewards/constants";
+import { cn } from "@/lib/utils";
 import type { RewardTransaction } from "@/types";
 
 interface RewardsData {
@@ -25,7 +26,11 @@ interface RewardsData {
   };
 }
 
-export function CustomerRewardsCard() {
+interface CustomerRewardsCardProps {
+  className?: string;
+}
+
+export function CustomerRewardsCard({ className }: CustomerRewardsCardProps) {
   const [data, setData] = useState<RewardsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +55,12 @@ export function CustomerRewardsCard() {
   }, []);
 
   return (
-    <Card className="mb-8 border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:border-amber-900/40 dark:from-amber-950/30 dark:to-orange-950/20">
+    <Card
+      className={cn(
+        "mb-8 border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:border-amber-900/40 dark:from-amber-950/30 dark:to-orange-950/20",
+        className
+      )}
+    >
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Gift className="size-5 text-amber-600" />

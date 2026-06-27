@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { customerApiFetch } from "@/lib/admin/api-client";
 import { useAppStore } from "@/store/app-store";
 import type { Locale } from "@/types";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface ProfileData {
@@ -20,9 +21,10 @@ interface ProfileData {
 
 interface CustomerProfileCardProps {
   onUpdated?: () => void;
+  className?: string;
 }
 
-export function CustomerProfileCard({ onUpdated }: CustomerProfileCardProps) {
+export function CustomerProfileCard({ onUpdated, className }: CustomerProfileCardProps) {
   const { locale, setLocale } = useAppStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export function CustomerProfileCard({ onUpdated }: CustomerProfileCardProps) {
   }
 
   return (
-    <Card className="mb-8">
+    <Card className={cn("mb-8", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <UserRound className="size-5" />

@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/auth-context";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export function ChangePasswordCard() {
+export function ChangePasswordCard({ className }: { className?: string }) {
   const { changePassword, user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -41,7 +42,7 @@ export function ChangePasswordCard() {
   }
 
   return (
-    <Card className="mb-8">
+    <Card className={cn("mb-8", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <KeyRound className="size-5" />
