@@ -36,7 +36,7 @@ import {
   canGenerateMarketHotels,
 } from "@/lib/auth/constants";
 import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
-import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
+import { applyAdminHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import type { Hotel, HotelStatus, PackagePublishStatus } from "@/types";
 import { toast } from "sonner";
@@ -197,10 +197,10 @@ export default function HotelsAdminClient() {
       }
     }
     const images = f.images.split("\n").map((s) => s.trim()).filter(Boolean);
-    const priceFrom = syncHotelPriceFrom({
-      priceFrom: Number(f.priceFrom) || 0,
-      rooms,
-    });
+    const { priceFrom, rooms: pricedRooms } = applyAdminHotelPriceFrom(
+      Number(f.priceFrom) || existing?.priceFrom || 0,
+      rooms
+    );
     return {
       slug: f.slug || existing?.slug,
       name: { en: f.name, hi: f.nameHi || f.name },
@@ -214,7 +214,7 @@ export default function HotelsAdminClient() {
       description: { en: f.description, hi: f.description },
       amenities: f.amenities.split(",").map((s) => s.trim()).filter(Boolean),
       images,
-      rooms,
+      rooms: pricedRooms,
       featured: f.featured,
       status: f.status,
       available: f.status === "active" && f.available,
@@ -287,6 +287,7 @@ export default function HotelsAdminClient() {
       if (!json.success) throw new Error(json.error ?? "Update failed");
       toast.success("Hotel updated");
       setSelected(null);
+      setForm(emptyForm);
       loadHotels();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");

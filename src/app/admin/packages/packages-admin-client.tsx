@@ -258,7 +258,7 @@ export default function PackagesAdminClient() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Update failed");
       toast.success("Package updated");
-      setSelected(json.data);
+      setSelected(null);
       loadPackages();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");

@@ -24,3 +24,28 @@ export function getCheapestHotelRoom(hotel: Pick<Hotel, "rooms">): HotelRoom | n
 export function syncHotelPriceFrom(hotel: Pick<Hotel, "priceFrom" | "rooms">): number {
   return getEffectiveHotelPriceFrom(hotel);
 }
+
+/** Admin save: use the price entered in admin and sync the cheapest room rate. */
+export function applyAdminHotelPriceFrom(
+  priceFrom: number,
+  rooms: HotelRoom[]
+): { priceFrom: number; rooms: HotelRoom[] } {
+  if (!Number.isFinite(priceFrom) || priceFrom <= 0) {
+    return { priceFrom: syncHotelPriceFrom({ priceFrom: 0, rooms }), rooms };
+  }
+
+  if (rooms.length === 0) {
+    return { priceFrom, rooms };
+  }
+
+  const cheapest = getCheapestHotelRoom({ rooms });
+  if (!cheapest) {
+    return { priceFrom, rooms };
+  }
+
+  const updatedRooms = rooms.map((room) =>
+    room.id === cheapest.id ? { ...room, pricePerNight: priceFrom } : room
+  );
+
+  return { priceFrom, rooms: updatedRooms };
+}

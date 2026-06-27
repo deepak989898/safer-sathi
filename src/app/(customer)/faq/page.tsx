@@ -1,12 +1,51 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { contactLinks, whatsAppUrl } from "@/lib/site-contact-links";
 import { SITE_CONTACT } from "@/lib/site-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const faqData = {
+type FaqItem = { q: string; a: ReactNode };
+
+const contactSupportAnswer = (
+  <>
+    Call{" "}
+    <a href={contactLinks.phone} className="font-medium text-primary underline-offset-4 hover:underline">
+      {SITE_CONTACT.phone}
+    </a>
+    , WhatsApp{" "}
+    <a
+      href={whatsAppUrl()}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-medium text-[#128C7E] underline-offset-4 hover:underline dark:text-[#25D366]"
+    >
+      {SITE_CONTACT.phone.replace("+91 ", "")}
+    </a>
+    , email{" "}
+    <a
+      href={contactLinks.email}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      {SITE_CONTACT.email}
+    </a>
+    , or visit us at{" "}
+    <a
+      href={contactLinks.maps}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      {SITE_CONTACT.addressFull}
+    </a>
+    .
+  </>
+);
+
+const faqData: Record<string, FaqItem[]> = {
   general: [
     {
       q: "What is Safar Sathi?",
@@ -22,7 +61,7 @@ const faqData = {
     },
     {
       q: "How do I contact support?",
-      a: `Call ${SITE_CONTACT.phone}, email ${SITE_CONTACT.email}, or visit us at ${SITE_CONTACT.addressFull}.`,
+      a: contactSupportAnswer,
     },
   ],
   booking: [
@@ -61,7 +100,7 @@ const faqData = {
   ],
 };
 
-function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
+function FaqAccordion({ items }: { items: FaqItem[] }) {
   return (
     <div className="space-y-2">
       {items.map((item, i) => (
@@ -73,9 +112,7 @@ function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
             {item.q}
             <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
           </summary>
-          <div className="border-t px-4 pb-4 pt-2 text-sm text-muted-foreground">
-            {item.a}
-          </div>
+          <div className="border-t px-4 pb-4 pt-2 text-sm text-muted-foreground">{item.a}</div>
         </details>
       ))}
     </div>

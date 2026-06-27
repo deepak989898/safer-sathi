@@ -1,8 +1,8 @@
-import { Award, Globe, Heart, Mail, MapPin, Phone, Users } from "lucide-react";
+import { Award, Globe, Heart, Users } from "lucide-react";
 import { PageHero } from "@/components/customer/page-hero";
+import { ContactChannels } from "@/components/customer/contact-channels";
 import { Card, CardContent } from "@/components/ui/card";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
-import { SITE_CONTACT } from "@/lib/site-config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = buildPageMetadata({
@@ -79,24 +79,12 @@ export default function AboutPage() {
 
         <div className="mt-16 rounded-xl border bg-card p-8">
           <h3 className="text-xl font-semibold text-primary">Contact Safar Sathi</h3>
-          <ul className="mt-6 space-y-4 text-muted-foreground">
-            <li className="flex items-center gap-3">
-              <Phone className="h-5 w-5 shrink-0 text-primary" />
-              <a href={`tel:${SITE_CONTACT.phoneTel}`} className="hover:text-primary">
-                {SITE_CONTACT.phone}
-              </a>
-            </li>
-            <li className="flex items-center gap-3">
-              <Mail className="h-5 w-5 shrink-0 text-primary" />
-              <a href={`mailto:${SITE_CONTACT.email}`} className="hover:text-primary">
-                {SITE_CONTACT.email}
-              </a>
-            </li>
-            <li className="flex items-start gap-3">
-              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <span>{SITE_CONTACT.addressFull}</span>
-            </li>
-          </ul>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Call, WhatsApp, or email us — tap any option below to connect instantly.
+          </p>
+          <div className="mt-6">
+            <ContactChannels />
+          </div>
         </div>
       </section>
     </>

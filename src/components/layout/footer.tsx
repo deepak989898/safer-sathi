@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { ContactChannels } from "@/components/customer/contact-channels";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import {
   FacebookIcon,
@@ -9,7 +9,6 @@ import {
   TwitterIcon,
   YoutubeIcon,
 } from "@/components/icons/social-icons";
-import { SITE_CONTACT } from "@/lib/site-config";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -137,24 +136,7 @@ export function Footer() {
             <h4 className="mb-3 font-semibold md:mb-4 md:text-white">
               {t(locale, "footer", "contact")}
             </h4>
-            <ul className="space-y-3 text-sm text-muted-foreground md:text-white/75">
-              <li className="flex items-center gap-2.5">
-                <Phone className="h-4 w-4 shrink-0 text-primary md:text-[#60a5fa]" />
-                <a href={`tel:${SITE_CONTACT.phoneTel}`} className="hover:text-primary md:hover:text-white">
-                  {SITE_CONTACT.phone}
-                </a>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Mail className="h-4 w-4 shrink-0 text-primary md:text-[#60a5fa]" />
-                <a href={`mailto:${SITE_CONTACT.email}`} className="hover:text-primary md:hover:text-white">
-                  {SITE_CONTACT.email}
-                </a>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary md:text-[#60a5fa]" />
-                {SITE_CONTACT.addressFull}
-              </li>
-            </ul>
+            <ContactChannels onDark />
           </div>
         </div>
 

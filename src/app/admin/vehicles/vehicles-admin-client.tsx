@@ -319,28 +319,9 @@ export default function VehiclesAdminClient() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Update failed");
-      const updated = json.data as Vehicle;
       toast.success("Vehicle updated");
-      setSelected(updated);
-      setForm({
-        name: updated.name.en,
-        nameHi: updated.name.hi,
-        slug: updated.slug ?? "",
-        brand: updated.brand ?? "",
-        category: updated.category ?? "",
-        type: updated.type,
-        seats: String(updated.seats),
-        pricePerDay: String(updated.pricePerDay),
-        pricePerKm: updated.pricePerKm ? String(updated.pricePerKm) : "",
-        location: updated.location,
-        description: localizedText(updated.description, "en"),
-        images: updated.images.join("\n"),
-        features: updated.features.join(", "),
-        fuelType: updated.fuelType,
-        driverIncluded: updated.driverIncluded,
-        available: updated.available,
-        status: updated.status ?? (updated.available ? "active" : "inactive"),
-      });
+      setSelected(null);
+      setForm(emptyForm);
       loadVehicles();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update");
