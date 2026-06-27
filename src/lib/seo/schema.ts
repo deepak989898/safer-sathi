@@ -44,8 +44,9 @@ export function travelAgencySchema() {
     address: {
       "@type": "PostalAddress",
       streetAddress: SITE_CONTACT.addressLine1,
-      addressLocality: "New Delhi",
-      postalCode: "110001",
+      addressLocality: SITE_CONTACT.addressLocality,
+      addressRegion: SITE_CONTACT.addressRegion,
+      postalCode: SITE_CONTACT.postalCode,
       addressCountry: "IN",
     },
     openingHoursSpecification: BUSINESS_HOURS.map((h) => ({

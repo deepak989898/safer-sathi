@@ -41,9 +41,12 @@ export const SITE_CONTACT = {
   phone: "+91 9217290871",
   phoneTel: "+919217290871",
   email: "support@thesafarsathi.com",
-  addressLine1: "352 Travel Hub, Connaught Place",
-  addressLine2: "New Delhi 110001, India",
-  addressFull: "352 Travel Hub, Connaught Place, New Delhi 110001, India",
+  addressLine1: "D-34, Sector 49",
+  addressLine2: "Noida 201301, India",
+  addressFull: "D-34, Sector 49, Noida 201301, India",
+  addressLocality: "Noida",
+  addressRegion: "Uttar Pradesh",
+  postalCode: "201301",
   whatsappUrl: "https://wa.me/919217290871",
 } as const;
 
