@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarIcon } from "lucide-react";
+import { enGB } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 /** ISO yyyy-mm-dd → dd/mm/yyyy */
@@ -35,6 +39,20 @@ export function parseDisplayDateToIso(display: string): string | null {
   return iso;
 }
 
+function isoToLocalDate(iso?: string): Date | undefined {
+  if (!iso) return undefined;
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  return new Date(year, month - 1, day);
+}
+
+function localDateToIso(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 interface BookingDateInputProps {
   id?: string;
   value: string;
@@ -52,11 +70,15 @@ export function BookingDateInput({
   className,
   placeholder = "DD/MM/YYYY",
 }: BookingDateInputProps) {
+  const [open, setOpen] = useState(false);
   const [display, setDisplay] = useState(() => formatIsoDateForDisplay(value));
 
   useEffect(() => {
     setDisplay(formatIsoDateForDisplay(value));
   }, [value]);
+
+  const selectedDate = useMemo(() => isoToLocalDate(value), [value]);
+  const minDate = useMemo(() => isoToLocalDate(min), [min]);
 
   const commitDisplay = (nextDisplay: string) => {
     setDisplay(nextDisplay);
@@ -70,23 +92,66 @@ export function BookingDateInput({
     onChange(iso);
   };
 
+  const handleCalendarSelect = (date?: Date) => {
+    if (!date) return;
+    const iso = localDateToIso(date);
+    if (min && iso < min) return;
+    onChange(iso);
+    setDisplay(formatIsoDateForDisplay(iso));
+    setOpen(false);
+  };
+
   return (
-    <Input
-      id={id}
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      placeholder={placeholder}
-      value={display}
-      onChange={(event) => setDisplay(event.target.value)}
-      onBlur={() => commitDisplay(display)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          commitDisplay(display);
-        }
-      }}
-      className={cn(className)}
-      aria-label={placeholder}
-    />
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className={cn("relative", className)}>
+        <Input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder={placeholder}
+          value={display}
+          onChange={(event) => setDisplay(event.target.value)}
+          onBlur={() => commitDisplay(display)}
+          onClick={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              commitDisplay(display);
+            }
+            if (event.key === "ArrowDown" || event.key === " ") {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
+          className="cursor-pointer pr-10"
+          aria-label={placeholder}
+        />
+        <PopoverTrigger
+          aria-label="Open calendar"
+          render={
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            />
+          }
+        >
+          <CalendarIcon className="h-4 w-4" />
+        </PopoverTrigger>
+      </div>
+
+      <PopoverContent className="z-[120] w-auto p-0" align="start" sideOffset={6}>
+        <Calendar
+          mode="single"
+          locale={enGB}
+          captionLayout="dropdown"
+          selected={selectedDate}
+          onSelect={handleCalendarSelect}
+          defaultMonth={selectedDate ?? minDate ?? new Date()}
+          disabled={minDate ? { before: minDate } : undefined}
+          startMonth={minDate ?? new Date()}
+          endMonth={new Date(new Date().getFullYear() + 3, 11, 31)}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
