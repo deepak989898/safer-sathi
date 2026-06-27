@@ -45,7 +45,7 @@ export async function getSafeAdminDb() {
   }
 }
 
-/** Loads firebase-admin/auth only when needed (e.g. password reset). */
+/** Loads firebase-admin/auth — may fail on Vercel (ERR_REQUIRE_ESM). Prefer auth-rest-admin.ts. */
 export async function getSafeAdminAuth() {
   if (!isAdminEnvConfigured()) {
     lastInitError = "Firebase Admin credentials are not configured on the server.";

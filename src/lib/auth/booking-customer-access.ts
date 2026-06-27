@@ -1,4 +1,11 @@
-import { getSafeAdminAuth, getSafeAdminDb } from "@/lib/firebase/admin-safe";
+import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
+import {
+  createAuthUser,
+  createFirebaseCustomToken,
+  isFirebaseAuthRestAvailable,
+  lookupAuthUserByEmail,
+  updateAuthUser,
+} from "@/lib/firebase/auth-rest-admin";
 import { upsertBooking } from "@/lib/data-service";
 import type { Booking } from "@/types";
 
@@ -24,83 +31,69 @@ function normalizeLoginPassword(bookingNumber: string): string {
   return bookingNumber.trim().toUpperCase();
 }
 
-function getAuthErrorCode(error: unknown): string | undefined {
-  return (error as { code?: string })?.code;
-}
-
-async function findAuthUserIdByEmail(
-  auth: NonNullable<Awaited<ReturnType<typeof getSafeAdminAuth>>>,
-  email: string
-): Promise<{ userId: string; created: boolean } | BookingLoginProvisionFailure> {
-  try {
-    const existing = await auth.getUserByEmail(email);
-    return { userId: existing.uid, created: false };
-  } catch (error) {
-    const code = getAuthErrorCode(error);
-    if (code !== "auth/user-not-found") {
-      console.error("provisionCustomerBookingLogin getUserByEmail:", error);
-      return {
-        ok: false,
-        reason:
-          code === "auth/insufficient-permission"
-            ? "Server cannot access Firebase Auth. Ask admin to grant the service account Firebase Authentication Admin role."
-            : "Could not look up your account. Please try again in a minute.",
-        code: code ?? "get_user_failed",
-      };
-    }
-  }
-
-  try {
-    const createdUser = await auth.createUser({
-      email,
-      emailVerified: false,
-      disabled: false,
-    });
-    return { userId: createdUser.uid, created: true };
-  } catch (error) {
-    const code = getAuthErrorCode(error);
-    if (code === "auth/email-already-exists") {
-      try {
-        const existing = await auth.getUserByEmail(email);
-        return { userId: existing.uid, created: false };
-      } catch (retryError) {
-        console.error("provisionCustomerBookingLogin retry getUserByEmail:", retryError);
-      }
-    }
-
-    console.error("provisionCustomerBookingLogin createUser:", error);
-    return {
-      ok: false,
-      reason: "Could not create your sign-in account. Please contact support@thesafarsathi.com.",
-      code: code ?? "create_user_failed",
-    };
-  }
-}
-
-async function trySetBookingPassword(
-  auth: NonNullable<Awaited<ReturnType<typeof getSafeAdminAuth>>>,
-  userId: string,
+async function findOrCreateAuthUserId(
   email: string,
   loginPassword: string,
   displayName: string
-): Promise<boolean> {
-  try {
-    await auth.updateUser(userId, {
+): Promise<
+  | { userId: string; created: boolean; passwordUpdated: boolean }
+  | BookingLoginProvisionFailure
+> {
+  const existing = await lookupAuthUserByEmail(email);
+  if (existing) {
+    const updated = await updateAuthUser({
+      localId: existing.localId,
       email,
       password: loginPassword,
       displayName,
     });
-    return true;
-  } catch (error) {
-    console.warn("provisionCustomerBookingLogin updateUser:", error);
-    try {
-      await auth.updateUser(userId, { password: loginPassword });
-      return true;
-    } catch (retryError) {
-      console.warn("provisionCustomerBookingLogin password-only update:", retryError);
-      return false;
-    }
+    return {
+      userId: existing.localId,
+      created: false,
+      passwordUpdated: updated.ok,
+    };
   }
+
+  const created = await createAuthUser({
+    email,
+    password: loginPassword,
+    displayName,
+  });
+
+  if ("error" in created) {
+    if (
+      created.error.includes("EMAIL_EXISTS") ||
+      created.error.includes("email address is already")
+    ) {
+      const retryLookup = await lookupAuthUserByEmail(email);
+      if (retryLookup) {
+        const updated = await updateAuthUser({
+          localId: retryLookup.localId,
+          email,
+          password: loginPassword,
+          displayName,
+        });
+        return {
+          userId: retryLookup.localId,
+          created: false,
+          passwordUpdated: updated.ok,
+        };
+      }
+    }
+
+    console.error("provisionCustomerBookingLogin createAuthUser:", created.error);
+    return {
+      ok: false,
+      reason: "Could not create your sign-in account. Please contact support@thesafarsathi.com.",
+      code: "create_user_failed",
+    };
+  }
+
+  return {
+    userId: created.localId,
+    created: true,
+    passwordUpdated: true,
+  };
 }
 
 async function tryWriteCustomerProfile(
@@ -144,13 +137,12 @@ async function tryWriteCustomerProfile(
   }
 }
 
-/** Create or update customer Firebase Auth for booking-ID login. */
+/** Create or update customer Firebase Auth for booking-ID login. Vercel-safe REST path. */
 export async function provisionCustomerBookingLogin(
   booking: Booking
 ): Promise<BookingLoginProvisionResult> {
-  const auth = await getSafeAdminAuth();
-  if (!auth) {
-    console.error("provisionCustomerBookingLogin: Firebase Admin Auth unavailable");
+  if (!isFirebaseAuthRestAvailable()) {
+    console.error("provisionCustomerBookingLogin: Firebase Auth REST unavailable");
     return {
       ok: false,
       reason:
@@ -163,19 +155,16 @@ export async function provisionCustomerBookingLogin(
   const loginPassword = normalizeLoginPassword(booking.bookingNumber);
   const now = new Date().toISOString();
 
-  const authUser = await findAuthUserIdByEmail(auth, email);
-  if ("ok" in authUser) {
-    return authUser;
-  }
-
-  const { userId, created } = authUser;
-  const passwordUpdated = await trySetBookingPassword(
-    auth,
-    userId,
+  const authUser = await findOrCreateAuthUserId(
     email,
     loginPassword,
     booking.customerName
   );
+  if ("ok" in authUser) {
+    return authUser;
+  }
+
+  const { userId, created, passwordUpdated } = authUser;
 
   await tryWriteCustomerProfile(userId, booking, loginPassword, created);
 
@@ -203,13 +192,5 @@ export async function provisionCustomerBookingLogin(
 }
 
 export async function createBookingLoginCustomToken(userId: string): Promise<string | null> {
-  const auth = await getSafeAdminAuth();
-  if (!auth) return null;
-
-  try {
-    return await auth.createCustomToken(userId);
-  } catch (error) {
-    console.error("createBookingLoginCustomToken failed:", error);
-    return null;
-  }
+  return createFirebaseCustomToken(userId);
 }
