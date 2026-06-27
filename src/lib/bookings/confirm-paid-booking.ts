@@ -54,7 +54,22 @@ export async function confirmPaidBooking(
   const persisted = await upsertBooking(bookingForNotify);
   const savedBooking = persisted ?? bookingForNotify;
 
-  const loginProvision = await provisionCustomerBookingLogin(savedBooking);
+  const loginProvisionResult = await provisionCustomerBookingLogin(savedBooking);
+  const loginProvision = loginProvisionResult.ok
+    ? {
+        userId: loginProvisionResult.userId,
+        email: loginProvisionResult.email,
+        loginPassword: loginProvisionResult.loginPassword,
+        created: loginProvisionResult.created,
+      }
+    : null;
+  if (!loginProvisionResult.ok) {
+    console.error(
+      "confirmPaidBooking login provision failed:",
+      loginProvisionResult.reason,
+      loginProvisionResult.code
+    );
+  }
   const loginCredentials = resolveBookingLoginCredentials(
     savedBooking,
     loginProvision

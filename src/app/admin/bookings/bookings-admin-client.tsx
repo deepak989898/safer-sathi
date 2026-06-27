@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bot,
@@ -15,6 +15,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  X,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { RecoverPaidBookingCard } from "@/components/admin/recover-paid-booking-card";
@@ -76,6 +77,7 @@ function mergeBookings(server: Booking[], client: Booking[]): Booking[] {
 }
 
 export default function BookingsAdminClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -87,6 +89,11 @@ export default function BookingsAdminClient() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
+
+  const clearSearch = useCallback(() => {
+    setSearch("");
+    router.replace("/admin/bookings");
+  }, [router]);
 
   const updateBookingStatus = useCallback(
     async (
@@ -235,6 +242,8 @@ export default function BookingsAdminClient() {
     return searched.filter((b) => matchesBookingAdminFilter(b, statusFilter));
   }, [bookings, search, statusFilter]);
 
+  const isFilteredView = search.trim().length > 0 || statusFilter !== "all";
+
   const groupedBookings = useMemo(
     () => groupBookingsByBookedDate(filteredBookings),
     [filteredBookings]
@@ -251,13 +260,8 @@ export default function BookingsAdminClient() {
       return;
     }
 
-    if (search.trim()) {
-      setExpandedDates(new Set(groupedBookings.map((group) => group.dateKey)));
-      return;
-    }
-
-    setExpandedDates(new Set([groupedBookings[0].dateKey]));
-  }, [groupDateKeys, search, groupedBookings]);
+    setExpandedDates(new Set(groupedBookings.map((group) => group.dateKey)));
+  }, [groupDateKeys, groupedBookings]);
 
   const toggleDateGroup = (dateKey: string) => {
     setExpandedDates((prev) => {
@@ -505,10 +509,52 @@ export default function BookingsAdminClient() {
                 ...prev.filter((item) => item.id !== booking.id),
               ])
             );
-            setSearch(booking.bookingNumber);
             setFiltersExpanded(true);
+            toast.success(`Booking ${booking.bookingNumber} recovered.`);
           }}
         />
+
+        {isFilteredView && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sky-200/80 bg-sky-50/70 px-4 py-3 text-sm dark:border-sky-900/50 dark:bg-sky-950/20">
+            <p className="text-[#0c2444] dark:text-sky-100">
+              Showing <strong>{filteredBookings.length}</strong> of{" "}
+              <strong>{bookings.length}</strong> bookings
+              {search.trim() ? (
+                <>
+                  {" "}
+                  matching &quot;{search.trim()}&quot;
+                </>
+              ) : null}
+              {statusFilter !== "all" ? (
+                <>
+                  {" "}
+                  in{" "}
+                  <strong>
+                    {FILTER_OPTIONS.find((option) => option.id === statusFilter)?.label}
+                  </strong>
+                </>
+              ) : null}
+              .
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {search.trim() ? (
+                <Button type="button" size="sm" variant="outline" onClick={clearSearch}>
+                  Clear search
+                </Button>
+              ) : null}
+              {statusFilter !== "all" ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStatusFilter("all")}
+                >
+                  Show all statuses
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
@@ -586,8 +632,18 @@ export default function BookingsAdminClient() {
                   placeholder="Search name, email, phone, booking ID..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 pr-9"
                 />
+                {search.trim() ? (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={clearSearch}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
             </div>
           )}

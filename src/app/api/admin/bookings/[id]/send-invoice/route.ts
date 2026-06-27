@@ -37,9 +37,18 @@ export async function POST(
     }
 
     const balanceDue = getBalanceDue(booking.amount, booking.paidAmount ?? 0);
-    const loginProvision =
+    const loginProvisionResult =
       booking.status === "confirmed"
         ? await provisionCustomerBookingLogin(booking)
+        : null;
+    const loginProvision =
+      loginProvisionResult && loginProvisionResult.ok
+        ? {
+            userId: loginProvisionResult.userId,
+            email: loginProvisionResult.email,
+            loginPassword: loginProvisionResult.loginPassword,
+            created: loginProvisionResult.created,
+          }
         : null;
     const loginCredentials = resolveBookingLoginCredentials(booking, loginProvision);
     const channels =

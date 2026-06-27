@@ -61,7 +61,15 @@ export async function PATCH(
     }
 
     if (updated.status === "confirmed") {
-      const loginProvision = await provisionCustomerBookingLogin(updated);
+      const loginProvisionResult = await provisionCustomerBookingLogin(updated);
+      const loginProvision = loginProvisionResult.ok
+        ? {
+            userId: loginProvisionResult.userId,
+            email: loginProvisionResult.email,
+            loginPassword: loginProvisionResult.loginPassword,
+            created: loginProvisionResult.created,
+          }
+        : null;
       await createAdminNotification({
         type: "booking_confirmed",
         title: `Booking confirmed — ${updated.bookingNumber}`,

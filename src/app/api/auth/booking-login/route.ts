@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { findBookingForLogin } from "@/lib/auth/booking-login-server";
-import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
+import {
+  createBookingLoginCustomToken,
+  provisionCustomerBookingLogin,
+} from "@/lib/auth/booking-customer-access";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import {
   apiRateLimited,
@@ -43,17 +46,24 @@ export async function POST(request: Request) {
     }
 
     const provision = await provisionCustomerBookingLogin(booking);
-    if (!provision) {
+    if (!provision.ok) {
+      return apiError(provision.reason, 503, { code: provision.code });
+    }
+
+    const customToken = await createBookingLoginCustomToken(provision.userId);
+    if (!customToken) {
       return apiError(
-        "Could not activate your login right now. Please try again in a minute or contact support@thesafarsathi.com.",
+        "Could not start your sign-in session. Please try again in a minute or contact support@thesafarsathi.com.",
         503
       );
     }
 
     return apiSuccess({
       provisioned: true,
+      customToken,
       email: provision.email,
       bookingNumber: provision.loginPassword,
+      passwordUpdated: provision.passwordUpdated,
     });
   } catch (err) {
     console.error("Booking login provision error:", err);

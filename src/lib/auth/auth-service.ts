@@ -3,6 +3,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
   updatePassword,
@@ -221,6 +222,7 @@ export async function loginUser(
   const trimmedPassword = password.trim();
 
   if (typeof window !== "undefined" && isBookingIdPassword(trimmedPassword)) {
+    let customToken: string | undefined;
     try {
       const res = await fetch("/api/auth/booking-login", {
         method: "POST",
@@ -230,7 +232,10 @@ export async function loginUser(
           bookingNumber: trimmedPassword.toUpperCase(),
         }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        data?: { customToken?: string };
+      };
       if (!res.ok) {
         throw new AuthError(
           json.error ??
@@ -239,11 +244,24 @@ export async function loginUser(
               : "Could not prepare booking login. Please try again in a minute.")
         );
       }
+      customToken = json.data?.customToken;
     } catch (error) {
       if (error instanceof AuthError) throw error;
       throw new AuthError(
         "Could not connect to sign-in service. Check your internet and try again."
       );
+    }
+
+    const auth = getFirebaseAuth();
+    if (customToken) {
+      const credential = await signInWithCustomToken(auth, customToken);
+      const profile = await getUserProfile(credential.user.uid);
+      if (!profile) {
+        await signOut(auth);
+        throw new AuthError("Account profile not found. Please contact support.");
+      }
+      validateLoginProfile(profile);
+      return profile;
     }
   }
 
