@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { updateBooking, getBookingById } from "@/lib/data-service";
+import { refundReservedRewardPoints } from "@/lib/rewards/rewards-service";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -47,6 +48,21 @@ export async function PATCH(
       lastPaymentAttemptAt: parsed.data.lastPaymentAttemptAt ?? new Date().toISOString(),
       notes,
     });
+
+    if (
+      parsed.data.paymentStatus === "failed" &&
+      existing.rewardPointsRedeemed &&
+      existing.rewardPointsRedeemed > 0 &&
+      existing.userId &&
+      existing.userId !== "guest"
+    ) {
+      await refundReservedRewardPoints({
+        userId: existing.userId,
+        points: existing.rewardPointsRedeemed,
+        bookingId: existing.id,
+        bookingNumber: existing.bookingNumber,
+      });
+    }
 
     return apiSuccess(updated);
   } catch (err) {

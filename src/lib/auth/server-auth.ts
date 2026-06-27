@@ -14,9 +14,11 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   role: UserRole;
   status: UserStatus;
   approved: boolean;
+  rewardPoints?: number;
 }
 
 type AuthFailure = { error: NextResponse };
@@ -38,9 +40,11 @@ function mapFirestoreUser(id: string, data: Record<string, unknown>): Authentica
     id,
     email: String(data.email ?? ""),
     name: String(data.name ?? ""),
+    phone: data.phone ? String(data.phone) : undefined,
     role: (data.role as UserRole) ?? "customer",
     status: (data.status as UserStatus) ?? "active",
     approved: Boolean(data.approved ?? true),
+    rewardPoints: Number(data.rewardPoints ?? 0),
   };
 }
 

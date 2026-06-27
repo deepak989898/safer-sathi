@@ -19,6 +19,7 @@ import {
   saveBookingToClient,
   updateBookingPaymentOnClient,
 } from "@/lib/bookings/booking-client";
+import { customerApiFetch } from "@/lib/admin/api-client";
 import { toast } from "sonner";
 import type { CustomPackageQuote } from "@/types/travel-manager";
 import type { Booking, Hotel, ServiceType, Vehicle } from "@/types";
@@ -36,6 +37,7 @@ export interface TravelCheckoutInput {
   vehicle?: Vehicle;
   userId?: string;
   paymentPlan?: PaymentPlan;
+  rewardPointsToRedeem?: number;
 }
 
 export interface CatalogCheckoutInput {
@@ -56,6 +58,7 @@ export interface CatalogCheckoutInput {
   userId?: string;
   notes?: string;
   paymentPlan?: PaymentPlan;
+  rewardPointsToRedeem?: number;
 }
 
 async function persistBookingRecord(booking: Booking): Promise<void> {
@@ -253,7 +256,7 @@ export function useTravelCheckout() {
             .slice(0, 10)
         : undefined;
 
-      const bookingRes = await fetch("/api/bookings", {
+      const bookingRes = await customerApiFetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -271,6 +274,7 @@ export function useTravelCheckout() {
           userId: input.userId,
           notes: input.packageQuote?.notes ?? input.specialRequest,
           aiProcessed: true,
+          rewardPointsToRedeem: input.rewardPointsToRedeem || undefined,
         }),
       });
 
@@ -314,7 +318,7 @@ export function useTravelCheckout() {
       const paymentPlan = input.paymentPlan ?? "advance";
       const payAmount = calculatePayNowAmount(input.amount, paymentPlan);
 
-      const bookingRes = await fetch("/api/bookings", {
+      const bookingRes = await customerApiFetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -335,6 +339,7 @@ export function useTravelCheckout() {
           destination: input.destination,
           userId: input.userId,
           notes: input.notes,
+          rewardPointsToRedeem: input.rewardPointsToRedeem || undefined,
         }),
       });
 

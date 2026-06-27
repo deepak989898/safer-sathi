@@ -8,6 +8,7 @@ import {
 } from "@/lib/bookings/booking-notifications";
 import { upsertBooking } from "@/lib/data-service";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
+import { awardBookingRewardPoints } from "@/lib/rewards/rewards-service";
 import type { Booking } from "@/types";
 
 export interface ConfirmPaidBookingInput {
@@ -52,7 +53,7 @@ export async function confirmPaidBooking(
   };
 
   const persisted = await upsertBooking(bookingForNotify);
-  const savedBooking = persisted ?? bookingForNotify;
+  let savedBooking = persisted ?? bookingForNotify;
 
   const loginProvisionResult = await provisionCustomerBookingLogin(savedBooking);
   const loginProvision = loginProvisionResult.ok
@@ -69,7 +70,20 @@ export async function confirmPaidBooking(
       loginProvisionResult.reason,
       loginProvisionResult.code
     );
+  } else if (loginProvision) {
+    savedBooking = { ...savedBooking, userId: loginProvision.userId };
   }
+
+  const earned = await awardBookingRewardPoints(savedBooking);
+  if (earned > 0) {
+    savedBooking = {
+      ...savedBooking,
+      rewardPointsEarned: earned,
+      updatedAt: now,
+    };
+    await upsertBooking(savedBooking);
+  }
+
   const loginCredentials = resolveBookingLoginCredentials(
     savedBooking,
     loginProvision

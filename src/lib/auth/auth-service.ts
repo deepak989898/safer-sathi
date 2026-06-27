@@ -76,6 +76,8 @@ function mapFirestoreUser(id: string, data: Record<string, unknown>): User {
       ? String(data.lastBookingNumber)
       : undefined,
     passwordIsBookingId: data.passwordIsBookingId === true,
+    rewardPoints: Number(data.rewardPoints ?? 0),
+    lifetimeRewardPoints: Number(data.lifetimeRewardPoints ?? 0),
     createdAt: String(data.createdAt ?? new Date().toISOString()),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };

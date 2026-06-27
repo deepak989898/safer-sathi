@@ -52,6 +52,26 @@ export async function getBookings(userId?: string): Promise<Booking[]> {
   }
 }
 
+export async function getCustomerBookings(
+  userId: string,
+  email: string
+): Promise<Booking[]> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const all = await getBookings();
+  const map = new Map<string, Booking>();
+
+  for (const booking of all) {
+    const matchesUser = booking.userId === userId;
+    const matchesEmail =
+      booking.customerEmail.toLowerCase().trim() === normalizedEmail;
+    if (matchesUser || matchesEmail) {
+      map.set(booking.id, booking);
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function getBookingById(id: string): Promise<Booking | null> {
   const db = await getAdminDb();
   if (!db) return null;

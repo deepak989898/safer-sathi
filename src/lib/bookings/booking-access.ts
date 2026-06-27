@@ -22,6 +22,13 @@ export function canReadBooking(
     return true;
   }
   if (
+    user &&
+    user.role === "customer" &&
+    booking.customerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()
+  ) {
+    return true;
+  }
+  if (
     booking.userId === "guest" &&
     guestEmail &&
     guestEmail.toLowerCase().trim() === booking.customerEmail.toLowerCase().trim()

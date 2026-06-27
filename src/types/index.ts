@@ -91,6 +91,23 @@ export interface User {
   /** Latest booking number used as temporary login password until customer changes it. */
   lastBookingNumber?: string;
   passwordIsBookingId?: boolean;
+  /** Safar Sathi reward points balance (1 point = ₹1 off next booking). */
+  rewardPoints?: number;
+  lifetimeRewardPoints?: number;
+}
+
+export type RewardTransactionType = "earn" | "redeem" | "refund" | "adjust";
+
+export interface RewardTransaction {
+  id: string;
+  userId: string;
+  type: RewardTransactionType;
+  points: number;
+  balanceAfter: number;
+  bookingId?: string;
+  bookingNumber?: string;
+  note?: string;
+  createdAt: string;
 }
 
 export type VehicleStatus = "active" | "inactive" | "maintenance";
@@ -262,6 +279,14 @@ export interface Booking {
   paymentStatus: PaymentStatus;
   aiProcessed: boolean;
   notes?: string;
+  /** Original total before reward discount (if any). */
+  originalAmount?: number;
+  /** Reward points reserved/redeemed on this booking. */
+  rewardPointsRedeemed?: number;
+  /** ₹ discount from redeemed points. */
+  rewardDiscount?: number;
+  /** Points earned after successful payment. */
+  rewardPointsEarned?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -30,6 +30,8 @@ import { RatingStars } from "@/components/customer/rating-stars";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
 import { BookingDateInput } from "@/components/customer/booking-date-input";
+import { RewardRedeemPanel } from "@/components/customer/reward-redeem-panel";
+import { POINT_VALUE_INR } from "@/lib/rewards/constants";
 import { useAuth } from "@/contexts/auth-context";
 import { useTravelCheckout } from "@/hooks/use-travel-checkout";
 import {
@@ -101,10 +103,13 @@ export function PackageDetailClient({
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [specialRequest, setSpecialRequest] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
+  const [rewardPointsToRedeem, setRewardPointsToRedeem] = useState(0);
   const [bookingExpanded, setBookingExpanded] = useState(false);
   const submitting = paying;
   const total = pkg.price * Number(guests || 1);
-  const payNow = calculatePayNowAmount(total, paymentPlan);
+  const rewardDiscount = rewardPointsToRedeem * POINT_VALUE_INR;
+  const payableTotal = Math.max(1, total - rewardDiscount);
+  const payNow = calculatePayNowAmount(payableTotal, paymentPlan);
   const title = localizedText(pkg.title, locale);
   const highlights = useMemo(() => buildHighlights(pkg, locale), [pkg, locale]);
 
@@ -137,6 +142,7 @@ export function PackageDetailClient({
         amount: total,
         paymentPlan,
         userId: user?.id,
+        rewardPointsToRedeem: rewardPointsToRedeem || undefined,
         notes: specialRequest.trim() || undefined,
       });
       toast.success(
@@ -463,8 +469,14 @@ export function PackageDetailClient({
                   <div className="rounded-lg bg-muted/50 p-4">
                     <div className="flex justify-between font-bold">
                       <span>Total</span>
-                      <span className="text-primary">{formatCurrency(total, locale)}</span>
+                      <span className="text-primary">{formatCurrency(payableTotal, locale)}</span>
                     </div>
+                    {rewardDiscount > 0 && (
+                      <div className="mt-1 flex justify-between text-xs text-emerald-700">
+                        <span>Reward discount</span>
+                        <span>−{formatCurrency(rewardDiscount, locale)}</span>
+                      </div>
+                    )}
                     <div className="mt-2 flex justify-between text-sm text-muted-foreground">
                       <span>Pay now</span>
                       <span className="font-medium text-foreground">
@@ -473,11 +485,18 @@ export function PackageDetailClient({
                     </div>
                   </div>
                   <PaymentPlanSelector
-                    totalAmount={total}
+                    totalAmount={payableTotal}
                     value={paymentPlan}
                     onChange={setPaymentPlan}
                     locale={locale}
                   />
+                  {user?.role === "customer" && total > 0 && (
+                    <RewardRedeemPanel
+                      bookingAmount={total}
+                      value={rewardPointsToRedeem}
+                      onChange={setRewardPointsToRedeem}
+                    />
+                  )}
                 </CollapsibleBookingForm>
               </CardContent>
             </Card>
