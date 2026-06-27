@@ -58,14 +58,6 @@ export interface CatalogCheckoutInput {
   paymentPlan?: PaymentPlan;
 }
 
-interface CreatedBooking {
-  id: string;
-  bookingNumber: string;
-  amount: number;
-  paidAmount?: number;
-  notes?: string;
-}
-
 async function persistBookingRecord(booking: Booking): Promise<void> {
   const clientSaved = await saveBookingToClient(booking);
   if (!clientSaved) {
@@ -99,7 +91,7 @@ async function markPaymentFailed(
 }
 
 async function runPaymentForBooking(
-  booking: CreatedBooking,
+  booking: Booking,
   totalAmount: number,
   payAmount: number,
   serviceNameEn: string,
@@ -176,6 +168,8 @@ async function runPaymentForBooking(
       razorpayPaymentId: payment.razorpayPaymentId,
       razorpaySignature: payment.razorpaySignature,
       bookingId: booking.id,
+      bookingNumber: booking.bookingNumber,
+      bookingSnapshot: booking,
       amount: payAmount,
       paymentPlan,
       customerEmail: customer.customerEmail,
@@ -399,12 +393,7 @@ export function useTravelCheckout() {
       }
 
       return runPaymentForBooking(
-        {
-          id: booking.id,
-          bookingNumber: booking.bookingNumber,
-          amount: booking.amount,
-          paidAmount: booking.paidAmount,
-        },
+        booking,
         booking.amount,
         payAmount,
         booking.serviceName.en,

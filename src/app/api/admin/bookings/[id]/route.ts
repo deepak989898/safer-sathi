@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { requireBookingsStaffAuth } from "@/lib/admin/api-auth";
+import { adminBookingsHref } from "@/lib/admin/booking-admin-links";
 import { createAdminNotification } from "@/lib/admin/notifications";
 import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
 import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
@@ -65,7 +66,7 @@ export async function PATCH(
         type: "booking_confirmed",
         title: `Booking confirmed — ${updated.bookingNumber}`,
         message: `${updated.customerName} · ${updated.serviceName.en}`,
-        href: "/admin/bookings",
+        href: adminBookingsHref(updated),
         bookingId: updated.id,
       });
 
@@ -88,7 +89,7 @@ export async function PATCH(
         type: "booking_pending",
         title: `Booking cancelled — ${updated.bookingNumber}`,
         message: `${updated.customerName} · ${updated.serviceName.en}`,
-        href: "/admin/bookings",
+        href: adminBookingsHref(updated),
         bookingId: updated.id,
       });
     }

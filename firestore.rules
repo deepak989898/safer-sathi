@@ -55,7 +55,7 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isOwner(resource.data.userId) || isStaff();
-      allow create: if false;
+      allow create: if request.resource.data.userId == 'guest';
       allow update: if isStaff()
         || isOwner(resource.data.userId)
         || resource.data.userId == 'guest';

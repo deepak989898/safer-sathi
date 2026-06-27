@@ -1,4 +1,5 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { sanitizeForFirestore } from "@/lib/catalog/persistence";
 import type { Booking, User } from "@/types";
 
 export {
@@ -64,24 +65,65 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   return null;
 }
 
+export async function getBookingByNumber(bookingNumber: string): Promise<Booking | null> {
+  const db = await getAdminDb();
+  if (!db) return null;
+
+  const normalized = bookingNumber.trim().toUpperCase();
+  try {
+    const snap = await db
+      .collection("bookings")
+      .where("bookingNumber", "==", normalized)
+      .limit(1)
+      .get();
+    if (!snap.empty) return snap.docs[0].data() as Booking;
+  } catch (error) {
+    console.warn("Firebase getBookingByNumber query failed:", error);
+    try {
+      const snap = await db.collection("bookings").limit(500).get();
+      const match = snap.docs
+        .map((doc) => doc.data() as Booking)
+        .find((booking) => booking.bookingNumber?.toUpperCase() === normalized);
+      if (match) return match;
+    } catch (fallbackError) {
+      console.warn("Firebase getBookingByNumber fallback failed:", fallbackError);
+    }
+  }
+  return null;
+}
+
+async function persistBookingRecord(booking: Booking): Promise<boolean> {
+  const db = await getAdminDb();
+  if (!db) return false;
+
+  try {
+    const payload = sanitizeForFirestore(booking);
+    await db.collection("bookings").doc(booking.id).set(payload, { merge: true });
+    return true;
+  } catch (error) {
+    console.error("Firebase persistBookingRecord failed:", error, booking.id);
+    return false;
+  }
+}
+
+export async function upsertBooking(booking: Booking): Promise<Booking | null> {
+  const entry: Booking = {
+    ...booking,
+    updatedAt: new Date().toISOString(),
+  };
+  const ok = await persistBookingRecord(entry);
+  return ok ? entry : null;
+}
+
 export async function createBooking(
   booking: Omit<Booking, "id"> & { id?: string }
 ): Promise<Booking> {
-  const entry: Booking = {
+  const entry: Booking = sanitizeForFirestore({
     ...booking,
     id: booking.id ?? `bk_${Date.now()}`,
-  };
+  });
 
-  const db = await getAdminDb();
-  if (db) {
-    try {
-      await db.collection("bookings").doc(entry.id).set(entry);
-      return entry;
-    } catch (error) {
-      console.warn("Firebase createBooking failed:", error);
-    }
-  }
-
+  await persistBookingRecord(entry);
   return entry;
 }
 
@@ -92,25 +134,15 @@ export async function updateBooking(
   const existing = await getBookingById(id);
   if (!existing) return null;
 
-  const updated: Booking = {
+  const updated: Booking = sanitizeForFirestore({
     ...existing,
     ...updates,
     id,
     updatedAt: new Date().toISOString(),
-  };
+  });
 
-  const db = await getAdminDb();
-  if (db) {
-    try {
-      const { id: _id, ...updateFields } = updated;
-      await db.collection("bookings").doc(id).set(updated);
-      return updated;
-    } catch (error) {
-      console.warn("Firebase updateBooking failed:", error);
-    }
-  }
-
-  return updated;
+  const ok = await persistBookingRecord(updated);
+  return ok ? updated : null;
 }
 
 export async function getUsers(): Promise<User[]> {

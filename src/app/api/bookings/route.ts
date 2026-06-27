@@ -5,6 +5,7 @@ import {
   getBookings,
 } from "@/lib/data-service";
 import { createAdminNotification } from "@/lib/admin/notifications";
+import { adminBookingsHref } from "@/lib/admin/booking-admin-links";
 import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
 import { authorizeBookingsList } from "@/lib/bookings/booking-access";
 import { validateBookingAmount } from "@/lib/bookings/booking-price-validation";
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
         (parsed.data.departure || parsed.data.destination)
           ? `${booking.customerName} · ${parsed.data.serviceName.en} · ${parsed.data.departure ?? "—"} → ${parsed.data.destination ?? "—"} · awaiting payment`
           : `${booking.customerName} · ${parsed.data.serviceName.en} · awaiting payment`,
-      href: "/admin/bookings",
+      href: adminBookingsHref(booking),
       bookingId: booking.id,
     });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bot,
@@ -74,12 +75,13 @@ function mergeBookings(server: Booking[], client: Booking[]): Booking[] {
 }
 
 export default function BookingsAdminClient() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadSource, setLoadSource] = useState<"server" | "client" | null>(null);
   const [statusFilter, setStatusFilter] = useState<BookingAdminFilter>("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
@@ -214,6 +216,14 @@ export default function BookingsAdminClient() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const query = searchParams.get("search");
+    if (query) {
+      setSearch(query);
+      setFiltersExpanded(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadBookings();
