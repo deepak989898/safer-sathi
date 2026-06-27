@@ -22,6 +22,7 @@ import {
   CatalogDetailTabsList,
   CatalogDetailTabsTrigger,
 } from "@/components/customer/catalog-detail-tabs";
+import { CatalogReviewsTab } from "@/components/customer/catalog-reviews-tab";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
@@ -277,18 +278,14 @@ export function HotelDetailClient({
                   </TabsContent>
 
                   <TabsContent value="reviews" className="mt-0">
-                    <div className="rounded-lg border bg-card p-4 text-center">
-                      <RatingStars rating={hotel.rating} reviewCount={hotel.reviewCount} />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Verified reviews from guests who stayed at this hotel.
-                      </p>
-                      <Link
-                        href="/reviews"
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 inline-flex")}
-                      >
-                        Read all reviews
-                      </Link>
-                    </div>
+                    <CatalogReviewsTab
+                      serviceType="hotel"
+                      serviceId={hotel.id}
+                      entityName={title}
+                      rating={hotel.rating}
+                      reviewCount={hotel.reviewCount}
+                      description="Verified reviews from guests who stayed at this hotel."
+                    />
                   </TabsContent>
                 </div>
 

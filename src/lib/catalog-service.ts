@@ -1,9 +1,11 @@
 import {
   getAllPublishedHotelSlugs,
+  getHotelByIdAdmin,
   getHotelBySlugPublished,
   getPublishedHotels,
   reloadHotelsStore,
 } from "@/lib/hotel-store";
+import { isCatalogPublished } from "@/lib/catalog/publish";
 import {
   getAllPublishedPackageSlugs,
   getPublishedPackageById,
@@ -130,6 +132,13 @@ export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
   await reloadHotelsStore();
   const hotel = getHotelBySlugPublished(slug);
   return hotel ? normalizeHotelForCatalog(hotel) : null;
+}
+
+export async function getHotelById(id: string): Promise<Hotel | null> {
+  await reloadHotelsStore();
+  const hotel = getHotelByIdAdmin(id);
+  if (!hotel?.available || !isCatalogPublished(hotel.publishStatus)) return null;
+  return normalizeHotelForCatalog(hotel);
 }
 
 export async function getBusRoutes(from?: string, to?: string): Promise<BusRoute[]> {

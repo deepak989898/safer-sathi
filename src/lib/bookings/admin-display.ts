@@ -21,6 +21,12 @@ export function formatBookingDateTime(iso?: string): string {
   });
 }
 
+export function formatVehicleRoute(booking: Booking): string | null {
+  if (booking.serviceType !== "vehicle") return null;
+  if (!booking.departure && !booking.destination) return null;
+  return `${booking.departure ?? "—"} → ${booking.destination ?? "—"}`;
+}
+
 export function bookingSourceLabel(booking: Booking): string {
   return booking.aiProcessed ? "AI Assistant" : "Website";
 }
@@ -113,6 +119,9 @@ function bookingSearchHaystack(booking: Booking): string {
     booking.serviceType,
     bookingSourceLabel(booking),
     booking.notes,
+    booking.departure,
+    booking.destination,
+    formatVehicleRoute(booking),
     booking.status,
     booking.paymentStatus,
   ]

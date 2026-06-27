@@ -25,6 +25,7 @@ import {
   CatalogDetailTabsTrigger,
 } from "@/components/customer/catalog-detail-tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { CatalogReviewsTab } from "@/components/customer/catalog-reviews-tab";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
@@ -305,15 +306,14 @@ export function PackageDetailClient({
                   </TabsContent>
 
                   <TabsContent value="reviews" className="mt-0">
-                    <div className="rounded-lg border bg-card p-4 text-center">
-                      <RatingStars rating={pkg.rating} reviewCount={pkg.reviewCount} />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Verified reviews from travelers who booked this package.
-                      </p>
-                      <Link href="/reviews" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 inline-flex")}>
-                        Read all reviews
-                      </Link>
-                    </div>
+                    <CatalogReviewsTab
+                      serviceType="package"
+                      serviceId={pkg.id}
+                      entityName={title}
+                      rating={pkg.rating}
+                      reviewCount={pkg.reviewCount}
+                      description="Verified reviews from travelers who booked this package."
+                    />
                   </TabsContent>
                 </div>
 

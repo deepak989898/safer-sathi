@@ -36,6 +36,7 @@ import {
   bookingSourceLabel,
   countBookingsByFilter,
   formatBookingDateTime,
+  formatVehicleRoute,
   groupBookingsByBookedDate,
   matchesBookingAdminFilter,
   searchBookings,
@@ -312,14 +313,23 @@ export default function BookingsAdminClient() {
     {
       id: "service",
       header: "Service",
-      cell: ({ row }) => (
-        <div className="min-w-[120px]">
-          <p className="text-sm leading-snug">{localizedText(row.original.serviceName, "en")}</p>
-          <p className="mt-0.5 text-[11px] capitalize text-muted-foreground">
-            {row.original.serviceType.replace(/_/g, " ")}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const route = formatVehicleRoute(row.original);
+        return (
+          <div className="min-w-[120px]">
+            <p className="text-sm leading-snug">{localizedText(row.original.serviceName, "en")}</p>
+            <p className="mt-0.5 text-[11px] capitalize text-muted-foreground">
+              {row.original.serviceType.replace(/_/g, " ")}
+              {row.original.bookingMode
+                ? ` · ${row.original.bookingMode === "day" ? "Per day" : "Per km"}`
+                : ""}
+            </p>
+            {route && (
+              <p className="mt-1 text-[11px] leading-snug text-primary">{route}</p>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "bookedAt",

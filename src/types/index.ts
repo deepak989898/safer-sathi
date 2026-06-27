@@ -251,6 +251,8 @@ export interface Booking {
   amount: number;
   bookingMode?: "day" | "km";
   distanceKm?: number;
+  departure?: string;
+  destination?: string;
   depositAmount?: number;
   paidAmount: number;
   paymentPlan?: "full" | "advance";

@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { customerApiFetch } from "@/lib/admin/api-client";
 import { listBookingsFromClient } from "@/lib/bookings/booking-client";
 import { useAppStore } from "@/store/app-store";
+import { formatVehicleRoute } from "@/lib/bookings/admin-display";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Booking, BookingStatus, PaymentStatus } from "@/types";
@@ -178,10 +179,17 @@ export default function MyBookingsClient() {
                               <Users className="h-3.5 w-3.5" />
                               {booking.guests} guests
                             </span>
-                            <span className="flex items-center gap-1 capitalize">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {booking.serviceType.replace("_", " ")}
-                            </span>
+                            {formatVehicleRoute(booking) ? (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {formatVehicleRoute(booking)}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 capitalize">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {booking.serviceType.replace("_", " ")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">

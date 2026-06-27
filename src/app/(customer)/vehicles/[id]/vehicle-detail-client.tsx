@@ -10,10 +10,10 @@ import {
   Fuel,
   MapPin,
   Route,
+  Sun,
   Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,9 @@ import {
   CatalogDetailTabsTrigger,
 } from "@/components/customer/catalog-detail-tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { CatalogReviewsTab } from "@/components/customer/catalog-reviews-tab";
 import { RatingStars } from "@/components/customer/rating-stars";
+import { VehicleInformationCard } from "@/components/customer/vehicle-information-card";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
@@ -46,9 +48,12 @@ import {
   getVehicleDayInclusions,
   getVehicleKmInclusions,
   VEHICLE_MIN_KM_ROUND_TRIP,
+  type VehiclePricingMode,
 } from "@/lib/vehicles/pricing-policy";
+import { getEffectivePricePerKm } from "@/lib/vehicles/capacity";
 
 const MIN_ONE_WAY_KM = 50;
+const DEFAULT_DEPARTURE = "Your Location";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -58,25 +63,6 @@ function tomorrowIso(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
-}
-
-function InfoRow({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-2 last:border-0 last:pb-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("max-w-[58%] text-right font-medium text-[#0c2444]", className)}>
-        {value}
-      </span>
-    </div>
-  );
 }
 
 export function VehicleDetailClient({
@@ -90,11 +76,13 @@ export function VehicleDetailClient({
   const { user } = useAuth();
   const router = useRouter();
   const { completeCatalogBooking, paying } = useTravelCheckout();
-  const [bookingMode, setBookingMode] = useState<"day" | "km">("day");
+  const [bookingMode, setBookingMode] = useState<VehiclePricingMode>("day");
   const [startDate, setStartDate] = useState(todayIso);
   const [endDate, setEndDate] = useState(tomorrowIso);
   const [guests, setGuests] = useState("1");
   const [distanceKm, setDistanceKm] = useState(String(MIN_ONE_WAY_KM));
+  const [departure, setDeparture] = useState(DEFAULT_DEPARTURE);
+  const [destination, setDestination] = useState("");
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
@@ -104,7 +92,7 @@ export function VehicleDetailClient({
   const submitting = paying;
 
   const title = localizedText(vehicle.name, locale);
-  const pricePerKm = vehicle.pricePerKm ?? Math.round(vehicle.pricePerDay / 200);
+  const pricePerKm = getEffectivePricePerKm(vehicle);
 
   const days = useMemo(() => {
     if (!startDate || !endDate) return 1;
@@ -128,6 +116,12 @@ export function VehicleDetailClient({
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
       toast.error("Please fill name, email and phone");
+      return;
+    }
+    const tripDeparture = departure.trim() || DEFAULT_DEPARTURE;
+    const tripDestination = destination.trim();
+    if (!tripDestination) {
+      toast.error("Please enter where you want to go (destination)");
       return;
     }
     if (bookingMode === "day") {
@@ -161,6 +155,8 @@ export function VehicleDetailClient({
         paymentPlan,
         bookingMode,
         distanceKm: bookingMode === "km" ? billableKm : undefined,
+        departure: tripDeparture,
+        destination: tripDestination,
         userId: user?.id,
         notes: specialRequest.trim() || undefined,
       });
@@ -252,81 +248,104 @@ export function VehicleDetailClient({
                   </TabsContent>
 
                   <TabsContent value="pricing" className="mt-0 space-y-3">
-                    <div className="rounded-lg border p-3">
-                      <h4 className="text-sm font-semibold text-[#0c2444]">Per Day Rental</h4>
-                      <p className="mt-1 text-lg font-bold text-primary">
-                        {formatCurrency(vehicle.pricePerDay, locale)}
-                        <span className="text-sm font-normal text-muted-foreground"> / day</span>
-                      </p>
-                      <ul className="mt-2 space-y-1">
-                        {getVehicleDayInclusions(locale, vehicle, pricePerKm).map((line) => (
-                          <li
-                            key={line}
-                            className="flex items-start gap-2 text-xs text-muted-foreground"
-                          >
-                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Select a pricing option — your choice updates the vehicle information and booking price.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setBookingMode("day")}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          bookingMode === "day"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Sun className="h-3.5 w-3.5" />
+                          Per Day Rental
+                        </div>
+                        <p className="mt-1 text-lg font-bold text-primary">
+                          {formatCurrency(vehicle.pricePerDay, locale)}
+                          <span className="text-sm font-normal text-muted-foreground"> / day</span>
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                          {getVehicleDayInclusions(locale, vehicle, pricePerKm).map((line) => (
+                            <li
+                              key={line}
+                              className="flex items-start gap-2 text-xs text-muted-foreground"
+                            >
+                              <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingMode("km")}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          bookingMode === "km"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Route className="h-3.5 w-3.5" />
+                          Per KM Rental
+                        </div>
+                        <p className="mt-1 text-lg font-bold text-primary">
+                          {formatCurrency(pricePerKm, locale)}
+                          <span className="text-sm font-normal text-muted-foreground"> / km</span>
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                          {getVehicleKmInclusions(locale, vehicle, pricePerKm).map((line) => (
+                            <li
+                              key={line}
+                              className="flex items-start gap-2 text-xs text-muted-foreground"
+                            >
+                              <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      </button>
                     </div>
-                    <div className="rounded-lg border p-3">
-                      <h4 className="text-sm font-semibold text-[#0c2444]">Per KM Rental</h4>
-                      <p className="mt-1 text-lg font-bold text-primary">
-                        {formatCurrency(pricePerKm, locale)}
-                        <span className="text-sm font-normal text-muted-foreground"> / km</span>
-                      </p>
-                      <ul className="mt-2 space-y-1">
-                        {getVehicleKmInclusions(locale, vehicle, pricePerKm).map((line) => (
-                          <li
-                            key={line}
-                            className="flex items-start gap-2 text-xs text-muted-foreground"
-                          >
-                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="lg:hidden">
+                      <VehicleInformationCard
+                        vehicle={vehicle}
+                        locale={locale}
+                        bookingMode={bookingMode}
+                        categoryLabel={categoryLabel}
+                        days={days}
+                        billableKm={billableKm}
+                      />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="reviews" className="mt-0">
-                    <div className="rounded-lg border bg-card p-4 text-center">
-                      <RatingStars rating={vehicle.rating} reviewCount={vehicle.reviewCount} />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Verified reviews from travelers who rented this vehicle.
-                      </p>
-                      <Link
-                        href="/reviews"
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 inline-flex")}
-                      >
-                        Read all reviews
-                      </Link>
-                    </div>
+                    <CatalogReviewsTab
+                      serviceType="vehicle"
+                      serviceId={vehicle.id}
+                      entityName={title}
+                      rating={vehicle.rating}
+                      reviewCount={vehicle.reviewCount}
+                      description="Verified reviews from travelers who rented this vehicle."
+                    />
                   </TabsContent>
                 </div>
 
                 <aside className="hidden lg:block">
-                  <Card className="sticky top-24">
-                    <CardHeader className="pb-2 pt-4">
-                      <CardTitle className="text-sm font-semibold">Vehicle Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 pb-4 text-sm">
-                      <InfoRow label="Seats" value={`${vehicle.seats} passengers`} />
-                      <InfoRow label="Fuel Type" value={vehicle.fuelType} />
-                      <InfoRow label="Category" value={categoryLabel} className="capitalize" />
-                      <InfoRow
-                        label="Driver"
-                        value={vehicle.driverIncluded ? "Included" : "On request"}
-                      />
-                      <InfoRow label="Location" value={vehicle.location} />
-                      <InfoRow
-                        label="Per Day"
-                        value={formatCurrency(vehicle.pricePerDay, locale)}
-                      />
-                      <InfoRow label="Per KM" value={formatCurrency(pricePerKm, locale)} />
-                    </CardContent>
-                  </Card>
+                  <VehicleInformationCard
+                    vehicle={vehicle}
+                    locale={locale}
+                    bookingMode={bookingMode}
+                    categoryLabel={categoryLabel}
+                    days={days}
+                    billableKm={billableKm}
+                  />
                 </aside>
               </div>
             </Tabs>
@@ -359,14 +378,31 @@ export function VehicleDetailClient({
                 </ul>
 
                 <div className="border-t pt-4">
-                  <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
-                  <p className="text-2xl font-bold text-[#0c2444]">
-                    {formatCurrency(vehicle.pricePerDay, locale)}
-                    <span className="text-sm font-normal text-muted-foreground"> / day</span>
+                  <p className="text-xs text-muted-foreground">
+                    {bookingMode === "day" ? "Per day rental" : "Per km rental"}
                   </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    or {formatCurrency(pricePerKm, locale)} / km
-                  </p>
+                  {bookingMode === "day" ? (
+                    <>
+                      <p className="text-2xl font-bold text-[#0c2444]">
+                        {formatCurrency(vehicle.pricePerDay, locale)}
+                        <span className="text-sm font-normal text-muted-foreground"> / day</span>
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {days} day{days === 1 ? "" : "s"} · Total{" "}
+                        {formatCurrency(dayTotal, locale)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-[#0c2444]">
+                        {formatCurrency(pricePerKm, locale)}
+                        <span className="text-sm font-normal text-muted-foreground"> / km</span>
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {billableKm} km billed · Total {formatCurrency(kmTotal, locale)}
+                      </p>
+                    </>
+                  )}
                 </div>
               </CardHeader>
 
@@ -419,7 +455,7 @@ export function VehicleDetailClient({
 
                   <Tabs
                     value={bookingMode}
-                    onValueChange={(v) => setBookingMode(v as "day" | "km")}
+                    onValueChange={(value) => setBookingMode(value as VehiclePricingMode)}
                   >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="day">Per Day</TabsTrigger>
@@ -477,6 +513,34 @@ export function VehicleDetailClient({
                       </div>
                     </TabsContent>
                   </Tabs>
+
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                    <p className="text-sm font-medium text-[#0c2444]">Where do you want to go?</p>
+                    <div>
+                      <Label htmlFor="vehicle-departure">Departure (start point)</Label>
+                      <Input
+                        id="vehicle-departure"
+                        value={departure}
+                        onChange={(e) => setDeparture(e.target.value)}
+                        placeholder="Your Location"
+                        className="mt-1.5"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Default is your pickup location — edit if you start elsewhere.
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="vehicle-destination">Destination</Label>
+                      <Input
+                        id="vehicle-destination"
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        placeholder="e.g. Jaipur, Agra, Manali"
+                        className="mt-1.5"
+                        required
+                      />
+                    </div>
+                  </div>
 
                   <div>
                     <Label>Passengers</Label>

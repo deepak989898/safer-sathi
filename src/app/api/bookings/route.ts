@@ -36,6 +36,8 @@ const createSchema = z.object({
   amount: z.number().positive(),
   bookingMode: z.enum(["day", "km"]).optional(),
   distanceKm: z.number().positive().optional(),
+  departure: z.string().min(1).optional(),
+  destination: z.string().min(1).optional(),
   userId: z.string().optional(),
   notes: z.string().optional(),
   aiProcessed: z.boolean().optional(),
@@ -88,6 +90,8 @@ export async function POST(request: Request) {
       amount: priceCheck.amount,
       bookingMode: parsed.data.bookingMode,
       distanceKm: parsed.data.distanceKm,
+      departure: parsed.data.departure,
+      destination: parsed.data.destination,
       depositAmount: calculateAdvanceAmount(priceCheck.amount),
       paidAmount: 0,
       paymentPlan: parsed.data.paymentPlan ?? "advance",
@@ -123,7 +127,11 @@ export async function POST(request: Request) {
     await createAdminNotification({
       type: "booking_pending",
       title: `New booking — ${booking.bookingNumber}`,
-      message: `${booking.customerName} · ${parsed.data.serviceName.en} · awaiting payment`,
+      message:
+        parsed.data.serviceType === "vehicle" &&
+        (parsed.data.departure || parsed.data.destination)
+          ? `${booking.customerName} · ${parsed.data.serviceName.en} · ${parsed.data.departure ?? "—"} → ${parsed.data.destination ?? "—"} · awaiting payment`
+          : `${booking.customerName} · ${parsed.data.serviceName.en} · awaiting payment`,
       href: "/admin/bookings",
       bookingId: booking.id,
     });

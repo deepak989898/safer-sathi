@@ -51,6 +51,8 @@ export interface CatalogCheckoutInput {
   amount: number;
   bookingMode?: "day" | "km";
   distanceKm?: number;
+  departure?: string;
+  destination?: string;
   userId?: string;
   notes?: string;
   paymentPlan?: PaymentPlan;
@@ -335,6 +337,8 @@ export function useTravelCheckout() {
           paymentPlan,
           bookingMode: input.bookingMode,
           distanceKm: input.distanceKm,
+          departure: input.departure,
+          destination: input.destination,
           userId: input.userId,
           notes: input.notes,
         }),

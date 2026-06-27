@@ -1,5 +1,6 @@
 import { PageHero } from "@/components/customer/page-hero";
 import { getReviews } from "@/lib/data-service";
+import { getSiteWideFallbackReviews } from "@/lib/catalog/catalog-reviews";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import ReviewsClient from "./reviews-client";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -14,7 +15,8 @@ export const metadata = buildPageMetadata({
 });
 
 export default async function ReviewsPage() {
-  const reviews = await getReviews();
+  const liveReviews = await getReviews();
+  const reviews = liveReviews.length > 0 ? liveReviews : getSiteWideFallbackReviews(24);
   return (
     <>
       <PageHero
