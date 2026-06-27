@@ -124,3 +124,140 @@ export function getRazorpayKeyId(): string | null {
 export function getPublicRazorpayKeyId(): string | null {
   return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? process.env.RAZORPAY_KEY_ID ?? null;
 }
+
+export interface RazorpayPaymentDetails {
+  id: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  email?: string;
+  contact?: string;
+  method?: string;
+  captured: boolean;
+}
+
+export interface RazorpayOrderDetails {
+  id: string;
+  receipt: string;
+  amount: number;
+  amountPaid: number;
+  currency: string;
+  status: string;
+  notes: Record<string, string>;
+}
+
+export async function fetchRazorpayPayment(
+  paymentId: string
+): Promise<RazorpayPaymentDetails | null> {
+  if (!isRazorpayConfigured() || isDemoPaymentIdentifier(paymentId)) {
+    return null;
+  }
+
+  try {
+    const razorpay = getRazorpayClient();
+    const payment = (await razorpay.payments.fetch(paymentId)) as {
+      id: string;
+      order_id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      email?: string;
+      contact?: string;
+      method?: string;
+      captured?: boolean;
+    };
+
+    return {
+      id: payment.id,
+      orderId: payment.order_id,
+      amount: Number(payment.amount) / 100,
+      currency: payment.currency,
+      status: payment.status,
+      email: payment.email,
+      contact: payment.contact,
+      method: payment.method,
+      captured: payment.captured ?? payment.status === "captured",
+    };
+  } catch (error) {
+    console.warn("fetchRazorpayPayment failed:", error);
+    return null;
+  }
+}
+
+export async function fetchCapturedPaymentForOrder(
+  orderId: string
+): Promise<RazorpayPaymentDetails | null> {
+  if (!isRazorpayConfigured() || isDemoPaymentIdentifier(orderId)) {
+    return null;
+  }
+
+  try {
+    const razorpay = getRazorpayClient();
+    const payments = (await razorpay.orders.fetchPayments(orderId)) as {
+      items?: Array<{ id: string; status: string }>;
+    };
+    const captured =
+      payments.items?.find((item) => item.status === "captured") ?? payments.items?.[0];
+    if (!captured?.id) return null;
+    return fetchRazorpayPayment(captured.id);
+  } catch (error) {
+    console.warn("fetchCapturedPaymentForOrder failed:", error);
+    return null;
+  }
+}
+
+export async function fetchRazorpayOrderByReceipt(
+  receipt: string
+): Promise<RazorpayOrderDetails | null> {
+  if (!isRazorpayConfigured()) return null;
+
+  try {
+    const razorpay = getRazorpayClient();
+    const result = (await razorpay.orders.all({
+      receipt: receipt.trim(),
+      count: 1,
+    })) as { items?: Array<{ id: string }> };
+
+    const orderId = result.items?.[0]?.id;
+    if (!orderId) return null;
+    return fetchRazorpayOrder(orderId);
+  } catch (error) {
+    console.warn("fetchRazorpayOrderByReceipt failed:", error);
+    return null;
+  }
+}
+
+export async function fetchRazorpayOrder(
+  orderId: string
+): Promise<RazorpayOrderDetails | null> {
+  if (!isRazorpayConfigured() || isDemoPaymentIdentifier(orderId)) {
+    return null;
+  }
+
+  try {
+    const razorpay = getRazorpayClient();
+    const order = (await razorpay.orders.fetch(orderId)) as {
+      id: string;
+      receipt?: string;
+      amount: number;
+      amount_paid?: number;
+      currency: string;
+      status: string;
+      notes?: Record<string, string>;
+    };
+
+    return {
+      id: order.id,
+      receipt: order.receipt ?? "",
+      amount: Number(order.amount) / 100,
+      amountPaid: Number(order.amount_paid ?? 0) / 100,
+      currency: order.currency,
+      status: order.status,
+      notes: order.notes ?? {},
+    };
+  } catch (error) {
+    console.warn("fetchRazorpayOrder failed:", error);
+    return null;
+  }
+}

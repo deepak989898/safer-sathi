@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { verifyPayment } from "@/lib/payments/razorpay";
+import { confirmPaidBooking } from "@/lib/bookings/confirm-paid-booking";
 import {
   getBookingById,
   getBookingByNumber,
@@ -7,14 +7,8 @@ import {
   upsertBooking,
 } from "@/lib/data-service";
 import { adminBookingsHref } from "@/lib/admin/booking-admin-links";
-import {
-  sendAdminBookingAlert,
-  sendBookingConfirmationNotifications,
-} from "@/lib/bookings/booking-notifications";
-import { provisionCustomerBookingLogin } from "@/lib/auth/booking-customer-access";
-import { resolveBookingLoginCredentials } from "@/lib/auth/booking-login-credentials";
 import { createAdminNotification } from "@/lib/admin/notifications";
-import { getBalanceDue } from "@/lib/payments/booking-payment";
+import { verifyPayment } from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import type { Booking } from "@/types";
 
@@ -155,60 +149,19 @@ export async function POST(request: Request) {
     }
 
     const paidNow = parsed.data.amount ?? 0;
-    const newPaidTotal = (existing.paidAmount ?? 0) + paidNow;
-    const balanceDue = getBalanceDue(existing.amount, newPaidTotal);
-    const isFullyPaid = balanceDue <= 0;
 
-    const updated = await updateBooking(existing.id, {
-      paymentStatus: isFullyPaid ? "paid" : "partial",
-      paidAmount: newPaidTotal,
-      status: "confirmed",
+    const result = await confirmPaidBooking({
+      booking: existing,
+      paidAmount: (existing.paidAmount ?? 0) + paidNow,
       paymentPlan: parsed.data.paymentPlan ?? existing.paymentPlan,
-      paymentFailureReason: undefined,
-      lastPaymentAttemptAt: new Date().toISOString(),
-    });
-
-    const bookingForNotify = updated ?? {
-      ...existing,
-      paymentStatus: isFullyPaid ? ("paid" as const) : ("partial" as const),
-      paidAmount: newPaidTotal,
-      status: "confirmed" as const,
-    };
-
-    const loginProvision = await provisionCustomerBookingLogin(bookingForNotify);
-    const loginCredentials = resolveBookingLoginCredentials(
-      bookingForNotify,
-      loginProvision
-    );
-
-    await createAdminNotification({
-      type: "booking_confirmed",
-      title: `Booking confirmed — ${bookingForNotify.bookingNumber}`,
-      message: `${bookingForNotify.customerName} · ${bookingForNotify.serviceName.en} · ${isFullyPaid ? "Paid in full" : "Partial payment"}`,
-      href: adminBookingsHref(bookingForNotify),
-      bookingId: bookingForNotify.id,
-    });
-
-    await sendAdminBookingAlert({
-      booking: bookingForNotify,
-      isFullyPaid,
-      balanceDue,
-    });
-
-    await sendBookingConfirmationNotifications({
-      booking: bookingForNotify,
-      isFullyPaid,
-      channels: ["email", "whatsapp", "sms"],
-      loginEmail: loginCredentials.loginEmail,
-      loginPassword: loginCredentials.loginPassword,
     });
 
     return apiSuccess({
       verified: true,
       paymentId: parsed.data.razorpayPaymentId,
       orderId: parsed.data.razorpayOrderId,
-      bookingId: bookingForNotify.id,
-      bookingNumber: bookingForNotify.bookingNumber,
+      bookingId: result.booking.id,
+      bookingNumber: result.booking.bookingNumber,
     });
   } catch (err) {
     console.error("Verify payment error:", err);

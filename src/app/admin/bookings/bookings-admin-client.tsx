@@ -17,6 +17,7 @@ import {
   Search,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { RecoverPaidBookingCard } from "@/components/admin/recover-paid-booking-card";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -496,6 +497,19 @@ export default function BookingsAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-4 md:p-6">
+        <RecoverPaidBookingCard
+          onRecovered={(booking) => {
+            setBookings((prev) =>
+              sortBookingsNewestFirst([
+                booking,
+                ...prev.filter((item) => item.id !== booking.id),
+              ])
+            );
+            setSearch(booking.bookingNumber);
+            setFiltersExpanded(true);
+          }}
+        />
+
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
             <button
