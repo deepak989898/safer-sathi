@@ -204,6 +204,7 @@ export default function AiCenterClient() {
     () => new Set()
   );
   const autoRunRef = useRef<{ tab: string; signature: string } | null>(null);
+  const automationCancelRef = useRef(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -502,14 +503,24 @@ export default function AiCenterClient() {
   const runAutoGenerateAll = useCallback(async () => {
     const targets = approvedKeywordsWithoutBlog(keywords, blogs);
     if (targets.length === 0) return;
+    if (automationCancelRef.current) return;
+
     const useAiImage =
       (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ?? false;
+    automationCancelRef.current = false;
     setBusy(true);
+    let generated = 0;
     try {
       for (const kw of targets) {
+        if (automationCancelRef.current) break;
         await generateBlog(kw.id, true, useAiImage);
+        generated += 1;
       }
-      toast.success(`Auto-generated ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      if (generated > 0 && !automationCancelRef.current) {
+        toast.success(`Auto-generated ${generated} blog${generated === 1 ? "" : "s"}`);
+      } else if (generated > 0) {
+        toast.info(`Auto generate stopped (${generated} blog${generated === 1 ? "" : "s"} completed)`);
+      }
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Auto generate failed");
@@ -603,53 +614,65 @@ export default function AiCenterClient() {
     runBatch?: () => Promise<void>
   ) => {
     if (!settings) return;
+
+    if (!enabled) {
+      automationCancelRef.current = true;
+      autoRunRef.current = null;
+      const previous = settings[field];
+      setSettings({ ...settings, [field]: false });
+
+      try {
+        const res = await adminApiFetch("/api/admin/ai-center/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: false }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        setSettings(json.data);
+        toast.success("Automation turned off");
+      } catch (e) {
+        setSettings({ ...settings, [field]: previous });
+        automationCancelRef.current = false;
+        toast.error(e instanceof Error ? e.message : "Failed to turn off automation");
+      }
+      return;
+    }
+
+    automationCancelRef.current = false;
     setBusy(true);
     try {
       const res = await adminApiFetch("/api/admin/ai-center/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          [field]: enabled,
-        }),
+        body: JSON.stringify({ [field]: true }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setSettings(json.data);
-      if (field === "autoBlogGenerateEnabled" && !enabled) {
-        autoRunRef.current = null;
+      if (field === "autoKeywordApproveEnabled") {
+        autoRunRef.current = {
+          tab: "keywords",
+          signature: pendingKeywords.map((k) => k.id).join(","),
+        };
+      } else if (field === "autoBlogGenerateEnabled") {
+        autoRunRef.current = {
+          tab: "blog-writer",
+          signature: blogWriterKeywords.map((k) => k.id).join(","),
+        };
+      } else if (field === "autoBlogApproveEnabled") {
+        autoRunRef.current = {
+          tab: "drafts",
+          signature: draftBlogs.map((b) => b.id).join(","),
+        };
+      } else if (field === "autoPublishEnabled") {
+        autoRunRef.current = {
+          tab: "scheduled",
+          signature: scheduledBlogs.map((b) => b.id).join(","),
+        };
       }
-      if (field === "autoKeywordApproveEnabled" && !enabled) {
-        autoRunRef.current = null;
-      }
-      if (field === "autoBlogApproveEnabled" && !enabled) {
-        autoRunRef.current = null;
-      }
-      if (field === "autoPublishEnabled" && !enabled) {
-        autoRunRef.current = null;
-      }
-      toast.success(enabled ? "Automation turned on" : "Automation turned off");
-      if (enabled && runBatch) {
-        if (field === "autoKeywordApproveEnabled") {
-          autoRunRef.current = {
-            tab: "keywords",
-            signature: pendingKeywords.map((k) => k.id).join(","),
-          };
-        } else if (field === "autoBlogGenerateEnabled") {
-          autoRunRef.current = {
-            tab: "blog-writer",
-            signature: blogWriterKeywords.map((k) => k.id).join(","),
-          };
-        } else if (field === "autoBlogApproveEnabled") {
-          autoRunRef.current = {
-            tab: "drafts",
-            signature: draftBlogs.map((b) => b.id).join(","),
-          };
-        } else if (field === "autoPublishEnabled") {
-          autoRunRef.current = {
-            tab: "scheduled",
-            signature: scheduledBlogs.map((b) => b.id).join(","),
-          };
-        }
+      toast.success("Automation turned on");
+      if (runBatch) {
         await runBatch();
       }
     } catch (e) {
@@ -678,6 +701,7 @@ export default function AiCenterClient() {
 
   useEffect(() => {
     if (!settings?.autoBlogGenerateEnabled) return;
+    if (automationCancelRef.current) return;
     if (activeTab !== "blog-writer" || busy || blogWriterKeywords.length === 0) return;
     const signature = blogWriterKeywords.map((k) => k.id).join(",");
     if (
@@ -1732,6 +1756,9 @@ function BlogAutomationBar({
   className?: string;
   onToggle: (enabled: boolean) => void;
 }) {
+  // Allow turning OFF while a batch is running; only block turning ON when disabled.
+  const switchDisabled = disabled && !enabled;
+
   return (
     <div
       className={cn(
@@ -1745,7 +1772,7 @@ function BlogAutomationBar({
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">{enabled ? "On" : "Off"}</span>
-        <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggle} />
+        <Switch checked={enabled} disabled={switchDisabled} onCheckedChange={onToggle} />
       </div>
     </div>
   );
