@@ -220,6 +220,8 @@ export async function enrichBlogWithOpenAiFeaturedImage(
     return { attempted: true, success: true, blog: updated };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "OpenAI image failed";
+    const modelHint = `model=${process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-2 (default)"}`;
+    const fullError = `${errorMessage} [${modelHint}]`;
 
     await addImageGenerationLog({
       blogId: blog.id,
@@ -229,13 +231,13 @@ export async function enrichBlogWithOpenAiFeaturedImage(
       success: false,
       imageSource: "catalog",
       generatedBy: actorId,
-      error: errorMessage,
+      error: fullError,
     });
 
     return {
       attempted: true,
       success: false,
-      message: failureMessage(errorMessage),
+      message: failureMessage(fullError),
       blog,
     };
   }

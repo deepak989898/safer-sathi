@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 
 /** dall-e-2 512×512 — lowest-cost OpenAI image option suitable for blog heroes. */
-export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "dall-e-2";
+export const OPENAI_IMAGE_MODEL = (process.env.OPENAI_IMAGE_MODEL ?? "dall-e-2").trim();
+
 export const OPENAI_IMAGE_SIZE = (process.env.OPENAI_IMAGE_SIZE ?? "512x512") as
   | "256x256"
   | "512x512"
@@ -20,7 +21,8 @@ export function isOpenAIImagesConfigured(): boolean {
 }
 
 function isGptImageModel(model: string): boolean {
-  return model.startsWith("gpt-image");
+  const normalized = model.toLowerCase();
+  return normalized.startsWith("gpt-image") || normalized.includes("gpt_image");
 }
 
 /** GPT Image models reject 512×512 — use smallest supported size. */
@@ -67,30 +69,29 @@ async function bufferFromImageItem(item: OpenAI.Images.Image | undefined): Promi
   throw new Error("OpenAI returned no image data");
 }
 
-/** Generate exactly one standard-quality image (no variations). */
+/**
+ * Generate one blog hero image.
+ * Never sends `response_format` — gpt-image-* models reject it; DALL-E returns a URL by default.
+ */
 export async function generateOpenAIImage(prompt: string): Promise<Buffer> {
   const client = getClient();
   const model = OPENAI_IMAGE_MODEL;
   const size = resolveImageSize(model);
 
-  if (isGptImageModel(model)) {
-    // gpt-image-* always returns base64; response_format is not supported.
-    const response = await client.images.generate({
-      model,
-      prompt,
-      n: 1,
-      size,
-      quality: "low",
-    });
-    return bufferFromImageItem(response.data?.[0]);
-  }
+  const response = isGptImageModel(model)
+    ? await client.images.generate({
+        model,
+        prompt,
+        n: 1,
+        size,
+        quality: "low",
+      })
+    : await client.images.generate({
+        model,
+        prompt,
+        n: 1,
+        size,
+      });
 
-  const response = await client.images.generate({
-    model,
-    prompt,
-    n: 1,
-    size,
-    response_format: "b64_json",
-  });
   return bufferFromImageItem(response.data?.[0]);
 }
