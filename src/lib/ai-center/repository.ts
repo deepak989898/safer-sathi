@@ -66,7 +66,16 @@ async function loadAll<T extends { id: string; createdAt?: string }>(
   try {
     const db = await getSafeAdminDb();
     if (!db) return [];
-    const snap = await db.collection(collection).limit(limit).get();
+    let snap;
+    try {
+      snap = await db
+        .collection(collection)
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+    } catch {
+      snap = await db.collection(collection).limit(limit).get();
+    }
     return snap.docs
       .map((d) => ({ id: d.id, ...d.data() }) as T)
       .sort(
@@ -93,7 +102,7 @@ export async function hydrateAiCenterStore(): Promise<void> {
   const [keywords, meta, blogs, logs, settings] = await Promise.all([
     loadAll<SeoKeyword>(COLLECTIONS.keywords),
     loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta),
-    loadAll<AiBlogPost>(COLLECTIONS.blogs),
+    loadAll<AiBlogPost>(COLLECTIONS.blogs, 2000),
     loadAll<AiCenterLog>(COLLECTIONS.logs, 500),
     loadAll<AiCenterSettings>(COLLECTIONS.settings, 1),
   ]);
@@ -445,7 +454,7 @@ export async function generateBlogFromKeyword(
   if (!keyword) throw new Error("Keyword not found");
   if (keyword.status !== "approved") throw new Error("Keyword must be approved first");
 
-  if (keywordHasBlog(keyword, blogCache)) {
+  if (keywordHasBlog(keyword, blogCache, seoMetaCache)) {
     throw new Error("A blog draft already exists for this keyword");
   }
 

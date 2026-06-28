@@ -27,24 +27,32 @@ export function estimateWordCount(text: string): number {
 }
 
 /** True when a non-rejected blog already exists for this keyword. */
-export function keywordHasBlog(keyword: SeoKeyword, blogs: AiBlogPost[]): boolean {
+export function keywordHasBlog(
+  keyword: SeoKeyword,
+  blogs: AiBlogPost[],
+  seoMeta: SeoMetaRecord[] = []
+): boolean {
   const normalized = keyword.keyword.toLowerCase().trim();
-  const keywordSlug = slugify(keyword.keyword);
+  const metaSlug = seoMeta
+    .find((m) => m.keywordId === keyword.id)
+    ?.slug?.toLowerCase();
+
   return blogs.some((blog) => {
     if (blog.status === "rejected") return false;
     if (blog.keywordId && blog.keywordId === keyword.id) return true;
     if (blog.keyword.toLowerCase().trim() === normalized) return true;
-    if (keywordSlug.length >= 4 && blog.slug.includes(keywordSlug)) return true;
+    if (metaSlug && blog.slug.toLowerCase() === metaSlug) return true;
     return false;
   });
 }
 
 export function approvedKeywordsWithoutBlog(
   keywords: SeoKeyword[],
-  blogs: AiBlogPost[]
+  blogs: AiBlogPost[],
+  seoMeta: SeoMetaRecord[] = []
 ): SeoKeyword[] {
   return keywords.filter(
-    (k) => k.status === "approved" && !keywordHasBlog(k, blogs)
+    (k) => k.status === "approved" && !keywordHasBlog(k, blogs, seoMeta)
   );
 }
 
@@ -95,7 +103,7 @@ export function computeSeoPublishWorkflowStats(
   const approvedWithMeta = seoMeta.filter((m) => approvedIds.has(m.keywordId)).length;
   const approvedMissingMeta = Math.max(0, approved.length - approvedWithMeta);
 
-  const needBlog = approvedKeywordsWithoutBlog(keywords, blogs);
+  const needBlog = approvedKeywordsWithoutBlog(keywords, blogs, seoMeta);
   const approvedWithBlog = approved.length - needBlog.length;
 
   const blogDrafts = blogs.filter(

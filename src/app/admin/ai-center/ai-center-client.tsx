@@ -244,6 +244,17 @@ export default function AiCenterClient() {
     }
   }, []);
 
+  const mergeBlogsFromServer = useCallback((prev: AiBlogPost[], server: AiBlogPost[]) => {
+    const map = new Map<string, AiBlogPost>();
+    for (const blog of server) map.set(blog.id, blog);
+    for (const blog of prev) {
+      if (!map.has(blog.id)) map.set(blog.id, blog);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, []);
+
   const refreshWorkflowData = useCallback(async () => {
     try {
       const [kwRes, blogRes] = await Promise.all([
@@ -256,11 +267,14 @@ export default function AiCenterClient() {
         setSeoMeta(kwJson.data.seoMeta ?? []);
         if (kwJson.data.stats) setStats(kwJson.data.stats);
       }
-      if (blogJson.success) setBlogs(blogJson.data.blogs ?? []);
+      if (blogJson.success) {
+        const serverBlogs = (blogJson.data.blogs ?? []) as AiBlogPost[];
+        setBlogs((prev) => mergeBlogsFromServer(prev, serverBlogs));
+      }
     } catch {
       /* non-blocking refresh */
     }
-  }, []);
+  }, [mergeBlogsFromServer]);
 
   const mergeBlogIntoList = useCallback((prev: AiBlogPost[], blog: AiBlogPost) => {
     const idx = prev.findIndex((b) => b.id === blog.id);
@@ -304,8 +318,8 @@ export default function AiCenterClient() {
     [keywords]
   );
   const approvedKeywordsNeedingBlog = useMemo(
-    () => approvedKeywordsWithoutBlog(keywords, blogs),
-    [keywords, blogs]
+    () => approvedKeywordsWithoutBlog(keywords, blogs, seoMeta),
+    [keywords, blogs, seoMeta]
   );
   const blogWriterKeywords = useMemo(
     () => approvedKeywordsNeedingBlog,
@@ -565,7 +579,7 @@ export default function AiCenterClient() {
   };
 
   const runAutoGenerateAll = useCallback(async () => {
-    const targets = approvedKeywordsWithoutBlog(keywords, blogs);
+    const targets = approvedKeywordsWithoutBlog(keywords, blogs, seoMeta);
     if (targets.length === 0) return;
     if (automationCancelRef.current) return;
 
@@ -605,6 +619,7 @@ export default function AiCenterClient() {
   }, [
     keywords,
     blogs,
+    seoMeta,
     refreshWorkflowData,
     generateBlog,
     settings?.openAiImagesEnabled,
