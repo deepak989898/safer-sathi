@@ -1015,10 +1015,9 @@ export default function AiCenterClient() {
           <TabsContent value="blog-writer">
             <SeoPublishWorkflowProgress
               stats={workflowStats}
-              onGoToTab={(tabId) => setActiveTab(tabId)}
-              compact
+              onlyStageId="blog-draft"
             />
-            <Card className="mt-4">
+            <Card className="mt-3">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
@@ -1064,13 +1063,9 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="drafts">
-            <SeoPublishWorkflowProgress
-              stats={workflowStats}
-              onGoToTab={(tabId) => setActiveTab(tabId)}
-              compact
-            />
+            <SeoPublishWorkflowProgress stats={workflowStats} onlyStageId="blog-approve" />
             <BlogAutomationBar
-              className="mb-4 mt-4"
+              className="mb-4 mt-3"
               label="Auto Approve"
               description="When on, all drafts and pending blogs are approved automatically."
               enabled={settings?.autoBlogApproveEnabled ?? false}
@@ -1097,13 +1092,9 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="scheduled">
-            <SeoPublishWorkflowProgress
-              stats={workflowStats}
-              onGoToTab={(tabId) => setActiveTab(tabId)}
-              compact
-            />
+            <SeoPublishWorkflowProgress stats={workflowStats} onlyStageId="publish" />
             <BlogAutomationBar
-              className="mb-4 mt-4"
+              className="mb-4 mt-3"
               label="Auto Publish"
               description="When on, all approved blogs in this list are published automatically."
               enabled={settings?.autoPublishEnabled ?? false}

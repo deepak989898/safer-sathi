@@ -107,7 +107,7 @@ export function computeSeoPublishWorkflowStats(
   const stages: SeoPublishWorkflowStage[] = [
     {
       id: "approve",
-      label: "Approve keywords",
+      label: "Keyword Research",
       description: "Review pending keyword ideas",
       completed: approved.length,
       remaining: pending.length,
@@ -123,7 +123,7 @@ export function computeSeoPublishWorkflowStats(
     },
     {
       id: "seo-meta",
-      label: "SEO meta ready",
+      label: "SEO Meta",
       description: "Title, description, slug & schema",
       completed: approvedWithMeta,
       remaining: approvedMissingMeta,
@@ -139,7 +139,7 @@ export function computeSeoPublishWorkflowStats(
     },
     {
       id: "blog-draft",
-      label: "Blog drafts created",
+      label: "AI Blog Writer",
       description: "AI articles for approved keywords",
       completed: approvedWithBlog,
       remaining: needBlog.length,
@@ -155,7 +155,7 @@ export function computeSeoPublishWorkflowStats(
     },
     {
       id: "blog-approve",
-      label: "Blogs approved",
+      label: "Blog Drafts",
       description: "Drafts reviewed and ready to publish",
       completed: blogsApproved,
       remaining: blogDrafts.length,
@@ -171,7 +171,7 @@ export function computeSeoPublishWorkflowStats(
     },
     {
       id: "publish",
-      label: "Published live",
+      label: "Published",
       description: "Live on /blog for visitors & Google",
       completed: published.length,
       remaining: readyToPublish.length,
