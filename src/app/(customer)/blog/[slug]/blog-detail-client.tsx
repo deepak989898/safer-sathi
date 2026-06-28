@@ -142,16 +142,18 @@ export function BlogDetailClient({
         </Button>
       </Link>
 
-      <div className="relative mb-8 aspect-[21/9] overflow-hidden rounded-xl">
+      <figure className="mb-8 overflow-hidden rounded-xl border bg-muted/10">
         <SafeImage
           src={post.image}
           alt={post.gallery?.[0]?.alt ?? localizedText(post.title, locale)}
           title={post.gallery?.[0]?.title}
-          fill
-          className="object-cover"
+          width={1024}
+          height={1024}
+          className="mx-auto block h-auto w-full max-h-[min(72vh,560px)] object-contain object-center"
+          sizes="(max-width: 768px) 100vw, 768px"
           priority
         />
-      </div>
+      </figure>
 
       <div className="mb-4 flex flex-wrap gap-2">
         {post.tags.map((tag) => (
@@ -191,14 +193,15 @@ export function BlogDetailClient({
             {post.gallery
               .filter((img) => img.placement !== "top")
               .map((img) => (
-              <figure key={`${img.url}-${img.placement ?? img.type}`} className="overflow-hidden rounded-xl border">
-                <div className="relative aspect-video">
+              <figure key={`${img.url}-${img.placement ?? img.type}`} className="overflow-hidden rounded-xl border bg-muted/10">
+                <div className="relative aspect-[4/3] sm:aspect-video">
                   <SafeImage
                     src={img.url}
                     alt={img.alt}
                     title={img.title}
                     fill
-                    className="object-cover"
+                    className="object-cover object-center"
+                    sizes="(max-width: 640px) 100vw, 50vw"
                   />
                 </div>
                 <figcaption className="px-3 py-2 text-xs text-muted-foreground">

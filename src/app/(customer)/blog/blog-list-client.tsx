@@ -85,12 +85,12 @@ export default function BlogListClient({
           {filtered.map((post) => (
             <Link key={post.id} href={`/blog/${post.slug}`}>
               <Card className="h-full overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-                <div className="relative aspect-[16/10] overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden bg-muted/10 sm:aspect-[16/10]">
                   <SafeImage
                     src={post.image}
                     alt={localizedText(post.title, locale)}
                     fill
-                    className="object-cover"
+                    className="object-cover object-center"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
                 </div>
