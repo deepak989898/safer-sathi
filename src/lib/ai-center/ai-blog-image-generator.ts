@@ -10,7 +10,7 @@ import {
 import { resolveDestinationName } from "@/lib/ai-center/blog-reference-data";
 import type { AiBlogPost, AiCenterSettings, KeywordCategory } from "@/lib/ai-center/types";
 import { slugify } from "@/lib/ai-center/utils";
-import { uploadAdminImageBuffer } from "@/lib/firebase/admin-storage";
+import { uploadAdminImageBuffer, isFirebaseStorageConfigured } from "@/lib/firebase/admin-storage";
 import {
   generateImageAltText,
   generateImageCaption,
@@ -93,6 +93,10 @@ function replaceFeaturedInPrompts(
   return [featuredEntry, ...others];
 }
 
+function failureMessage(reason: string): string {
+  return `AI image generation failed: ${reason}. Existing catalog image was kept.`;
+}
+
 /** Optional post-step: swap featured image with one OpenAI-generated hero. */
 export async function enrichBlogWithOpenAiFeaturedImage(
   blog: AiBlogPost,
@@ -113,6 +117,7 @@ export async function enrichBlogWithOpenAiFeaturedImage(
   }
 
   if (!isOpenAIImagesConfigured()) {
+    const reason = "OpenAI API key not configured on server (OPENAI_API_KEY)";
     await addImageGenerationLog({
       blogId: blog.id,
       blogTitle: blog.title,
@@ -121,19 +126,40 @@ export async function enrichBlogWithOpenAiFeaturedImage(
       success: false,
       imageSource: "catalog",
       generatedBy: actorId,
-      error: "OpenAI API key not configured",
+      error: reason,
     });
     return {
       attempted: true,
       success: false,
-      message:
-        "AI image generation failed. Existing image selection has been used.",
+      message: failureMessage(reason),
+      blog,
+    };
+  }
+
+  if (!isFirebaseStorageConfigured()) {
+    const reason =
+      "Firebase Storage not configured on server (set FIREBASE_STORAGE_BUCKET in Vercel env)";
+    await addImageGenerationLog({
+      blogId: blog.id,
+      blogTitle: blog.title,
+      keyword: blog.keyword,
+      destination: blog.destination,
+      success: false,
+      imageSource: "catalog",
+      generatedBy: actorId,
+      error: reason,
+    });
+    return {
+      attempted: true,
+      success: false,
+      message: failureMessage(reason),
       blog,
     };
   }
 
   const monthlyCount = countSuccessfulImagesThisMonth();
   if (monthlyCount >= settings.openAiImagesMonthlyLimit) {
+    const reason = `Monthly image limit reached (${settings.openAiImagesMonthlyLimit} this month)`;
     await addImageGenerationLog({
       blogId: blog.id,
       blogTitle: blog.title,
@@ -142,13 +168,12 @@ export async function enrichBlogWithOpenAiFeaturedImage(
       success: false,
       imageSource: "catalog",
       generatedBy: actorId,
-      error: `Monthly limit reached (${settings.openAiImagesMonthlyLimit})`,
+      error: reason,
     });
     return {
       attempted: true,
       success: false,
-      message:
-        "AI image generation failed. Existing image selection has been used.",
+      message: failureMessage(reason),
       blog,
     };
   }
@@ -210,8 +235,7 @@ export async function enrichBlogWithOpenAiFeaturedImage(
     return {
       attempted: true,
       success: false,
-      message:
-        "AI image generation failed. Existing image selection has been used.",
+      message: failureMessage(errorMessage),
       blog,
     };
   }

@@ -1688,6 +1688,7 @@ export default function AiCenterClient() {
                             <th className="p-2">Blog</th>
                             <th className="p-2">Status</th>
                             <th className="p-2">Source</th>
+                            <th className="p-2">Error</th>
                             <th className="p-2">Cost</th>
                           </tr>
                         </thead>
@@ -1706,6 +1707,15 @@ export default function AiCenterClient() {
                                 </Badge>
                               </td>
                               <td className="p-2 capitalize">{log.imageSource}</td>
+                              <td className="p-2 text-xs text-destructive">
+                                {log.error ? (
+                                  <span className="line-clamp-3" title={log.error}>
+                                    {log.error}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
                               <td className="p-2">
                                 {log.success
                                   ? `$${(log.estimatedCostUsd ?? 0).toFixed(3)}`
