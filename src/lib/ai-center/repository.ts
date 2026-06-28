@@ -5,7 +5,7 @@ import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image
 import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
-import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap, getDuplicateBlogs } from "@/lib/ai-center/utils";
+import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap, getAllDuplicateBlogs, getOrphanBlogs, getProposedKeywordSlug, findActiveBlogBySlug, pickCanonicalBlog, slugify } from "@/lib/ai-center/utils";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -352,16 +352,24 @@ export async function saveCityKeywords(
   const start = Date.now();
   await hydrateAiCenterStore();
   const existing = new Set(keywordCache.map((k) => k.keyword.toLowerCase()));
+  const existingSlugs = new Set([
+    ...blogCache
+      .filter((b) => b.status !== "rejected")
+      .map((b) => b.slug.toLowerCase()),
+    ...seoMetaCache.map((m) => m.slug.toLowerCase()),
+  ]);
   const added: SeoKeyword[] = [];
   let duplicatesSkipped = 0;
 
   for (const kw of keywordRecords) {
     const key = kw.keyword.toLowerCase().trim();
-    if (!key || existing.has(key)) {
+    const slug = slugify(kw.keyword);
+    if (!key || existing.has(key) || existingSlugs.has(slug)) {
       duplicatesSkipped += 1;
       continue;
     }
     existing.add(key);
+    existingSlugs.add(slug);
     const record: SeoKeyword = {
       ...kw,
       status: "pending",
@@ -436,21 +444,27 @@ export async function approveKeyword(
   let blogError: string | undefined;
 
   if (!skipBlog) {
-    try {
-      await generateBlogFromKeyword(updated.id, approvedBy, {
-        generateAiImage:
-          settings.openAiImagesEnabled && settings.openAiImagesDefaultToggle,
-      });
-      blogCreated = true;
-    } catch (error) {
-      blogError = error instanceof Error ? error.message : "Blog generation failed";
-      await addAiCenterLog({
-        type: "error",
-        message: `Blog draft failed for: ${updated.keyword}`,
-        resourceId: updated.id,
-        resourceType: "keyword",
-        error: blogError,
-      });
+    const proposedSlug = getProposedKeywordSlug(updated, seoMetaCache);
+    const existingBySlug = findActiveBlogBySlug(blogCache, proposedSlug);
+    if (existingBySlug) {
+      blogError = `Skipped — /blog/${proposedSlug} already exists`;
+    } else {
+      try {
+        await generateBlogFromKeyword(updated.id, approvedBy, {
+          generateAiImage:
+            settings.openAiImagesEnabled && settings.openAiImagesDefaultToggle,
+        });
+        blogCreated = true;
+      } catch (error) {
+        blogError = error instanceof Error ? error.message : "Blog generation failed";
+        await addAiCenterLog({
+          type: "error",
+          message: `Blog draft failed for: ${updated.keyword}`,
+          resourceId: updated.id,
+          resourceType: "keyword",
+          error: blogError,
+        });
+      }
     }
   }
 
@@ -500,6 +514,14 @@ export async function generateBlogFromKeyword(
   }
 
   const seoMeta = seoMetaCache.find((m) => m.keywordId === keywordId);
+  const proposedSlug = getProposedKeywordSlug(keyword, seoMetaCache);
+  const slugCollision = findActiveBlogBySlug(blogCache, proposedSlug);
+  if (slugCollision) {
+    throw new Error(
+      `A blog with URL /blog/${proposedSlug} already exists (${slugCollision.title})`
+    );
+  }
+
   const settings = getAiCenterSettings();
   const blog = await generateBlogPost({ keyword, seoMeta, settings });
   blog.status = "pending_approval";
@@ -728,21 +750,43 @@ export async function deleteDuplicateBlogs(actorId?: string): Promise<{
 
   const canonicalMap = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache);
   const canonicalIds = new Set([...canonicalMap.values()].map((b) => b.id));
-  const duplicates = getDuplicateBlogs(keywordCache, blogCache, seoMetaCache).filter(
-    (blog) => !canonicalIds.has(blog.id)
-  );
 
-  if (duplicates.length === 0) {
-    return { deleted: 0, kept: canonicalIds.size, deletedIds: [] };
+  const slugKeepIds = new Set<string>();
+  const slugGroups = new Map<string, AiBlogPost[]>();
+  for (const blog of blogCache) {
+    if (blog.status === "rejected") continue;
+    const slug = blog.slug.toLowerCase();
+    const list = slugGroups.get(slug) ?? [];
+    list.push(blog);
+    slugGroups.set(slug, list);
+  }
+  for (const group of slugGroups.values()) {
+    const canonical = group.length === 1 ? group[0] : pickCanonicalBlog(group);
+    if (canonical) slugKeepIds.add(canonical.id);
   }
 
-  const deletedIds: string[] = duplicates.map((blog) => blog.id);
+  const keepIds = new Set([...canonicalIds, ...slugKeepIds]);
+  const duplicates = getAllDuplicateBlogs(keywordCache, blogCache, seoMetaCache).filter(
+    (blog) => !keepIds.has(blog.id)
+  );
+  const orphans = getOrphanBlogs(keywordCache, blogCache, seoMetaCache).filter(
+    (blog) => !keepIds.has(blog.id)
+  );
+  const toDelete = [...duplicates, ...orphans].filter(
+    (blog, index, list) => list.findIndex((b) => b.id === blog.id) === index
+  );
+
+  if (toDelete.length === 0) {
+    return { deleted: 0, kept: keepIds.size, deletedIds: [] };
+  }
+
+  const deletedIds: string[] = toDelete.map((blog) => blog.id);
   blogCache = blogCache.filter((b) => !deletedIds.includes(b.id));
   await batchDeleteDocs(COLLECTIONS.blogs, deletedIds);
 
   await addAiCenterLog({
     type: "blog_deleted",
-    message: `Cleaned up ${duplicates.length} duplicate blog copies (${canonicalIds.size} kept)`,
+    message: `Cleaned up ${toDelete.length} duplicate/orphan blog copies (${keepIds.size} kept)`,
     resourceType: "blog",
     resourceId: actorId,
   });
@@ -754,7 +798,7 @@ export async function deleteDuplicateBlogs(actorId?: string): Promise<{
     // no-op outside Next request context
   }
 
-  return { deleted: duplicates.length, kept: canonicalIds.size, deletedIds };
+  return { deleted: toDelete.length, kept: keepIds.size, deletedIds };
 }
 
 export async function getAiCenterStats() {

@@ -83,6 +83,88 @@ export function buildCanonicalBlogMap(
   return map;
 }
 
+/** Slug that would be used for a keyword's blog post. */
+export function getProposedKeywordSlug(
+  keyword: SeoKeyword,
+  seoMeta: SeoMetaRecord[] = []
+): string {
+  const meta = seoMeta.find((m) => m.keywordId === keyword.id);
+  return (meta?.slug ?? slugify(keyword.keyword)).toLowerCase();
+}
+
+export function findActiveBlogBySlug(
+  blogs: AiBlogPost[],
+  slug: string
+): AiBlogPost | undefined {
+  const normalized = slug.toLowerCase();
+  return blogs.find(
+    (b) => b.status !== "rejected" && b.slug.toLowerCase() === normalized
+  );
+}
+
+/** Extra copies that share the same /blog/slug URL (only one should be live). */
+export function getSlugDuplicateBlogs(blogs: AiBlogPost[]): AiBlogPost[] {
+  const groups = new Map<string, AiBlogPost[]>();
+
+  for (const blog of blogs) {
+    if (blog.status === "rejected") continue;
+    const slug = blog.slug.toLowerCase();
+    const list = groups.get(slug) ?? [];
+    list.push(blog);
+    groups.set(slug, list);
+  }
+
+  const duplicates: AiBlogPost[] = [];
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    const canonical = pickCanonicalBlog(group);
+    if (!canonical) continue;
+    duplicates.push(...group.filter((b) => b.id !== canonical.id));
+  }
+  return duplicates;
+}
+
+/** Keyword-level + slug-level duplicate copies (for cleanup UI). */
+export function getAllDuplicateBlogs(
+  keywords: SeoKeyword[],
+  blogs: AiBlogPost[],
+  seoMeta: SeoMetaRecord[] = []
+): AiBlogPost[] {
+  const seen = new Set<string>();
+  const merged: AiBlogPost[] = [];
+
+  for (const blog of [
+    ...getDuplicateBlogs(keywords, blogs, seoMeta),
+    ...getSlugDuplicateBlogs(blogs),
+  ]) {
+    if (seen.has(blog.id)) continue;
+    seen.add(blog.id);
+    merged.push(blog);
+  }
+  return merged;
+}
+
+/** Blogs not linked to any approved keyword (leftover after keyword deletes / re-runs). */
+export function getOrphanBlogs(
+  keywords: SeoKeyword[],
+  blogs: AiBlogPost[],
+  seoMeta: SeoMetaRecord[] = []
+): AiBlogPost[] {
+  const canonicalIds = new Set(
+    [...buildCanonicalBlogMap(keywords, blogs, seoMeta).values()].map((b) => b.id)
+  );
+
+  return blogs.filter((blog) => {
+    if (blog.status === "rejected" || canonicalIds.has(blog.id)) return false;
+    const linked = keywords.some(
+      (k) =>
+        k.status === "approved" &&
+        blogsMatchingKeyword(k, [blog], seoMeta).length > 0
+    );
+    return !linked;
+  });
+}
+
 /** Extra blog copies linked to a keyword but not the canonical one. */
 export function getDuplicateBlogs(
   keywords: SeoKeyword[],
@@ -103,13 +185,15 @@ export function getDuplicateBlogs(
   });
 }
 
-/** True when a non-rejected blog already exists for this keyword. */
+/** True when a non-rejected blog already exists for this keyword (or same URL slug). */
 export function keywordHasBlog(
   keyword: SeoKeyword,
   blogs: AiBlogPost[],
   seoMeta: SeoMetaRecord[] = []
 ): boolean {
-  return blogsMatchingKeyword(keyword, blogs, seoMeta).length > 0;
+  if (blogsMatchingKeyword(keyword, blogs, seoMeta).length > 0) return true;
+  const slug = getProposedKeywordSlug(keyword, seoMeta);
+  return Boolean(findActiveBlogBySlug(blogs, slug));
 }
 
 export function approvedKeywordsWithoutBlog(
@@ -149,6 +233,7 @@ export interface SeoPublishWorkflowStats {
     readyToPublish: number;
     published: number;
     duplicateBlogs: number;
+    orphanBlogs: number;
     totalBlogDocuments: number;
   };
 }
@@ -176,7 +261,8 @@ export function computeSeoPublishWorkflowStats(
 
   const canonicalMap = buildCanonicalBlogMap(keywords, blogs, seoMeta);
   const canonicalBlogs = [...canonicalMap.values()];
-  const duplicateBlogCount = getDuplicateBlogs(keywords, blogs, seoMeta).length;
+  const duplicateBlogCount = getAllDuplicateBlogs(keywords, blogs, seoMeta).length;
+  const orphanBlogCount = getOrphanBlogs(keywords, blogs, seoMeta).length;
 
   const blogDrafts = canonicalBlogs.filter(
     (b) => b.status === "draft" || b.status === "pending_approval"
@@ -289,6 +375,7 @@ export function computeSeoPublishWorkflowStats(
       readyToPublish: readyToPublish.length,
       published: published.length,
       duplicateBlogs: duplicateBlogCount,
+      orphanBlogs: orphanBlogCount,
       totalBlogDocuments: blogs.filter((b) => b.status !== "rejected").length,
     },
   };

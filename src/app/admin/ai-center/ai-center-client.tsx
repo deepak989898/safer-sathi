@@ -67,7 +67,7 @@ import {
   approvedKeywordsWithoutBlog,
   buildCanonicalBlogMap,
   computeSeoPublishWorkflowStats,
-  getDuplicateBlogs,
+  getAllDuplicateBlogs,
 } from "@/lib/ai-center/utils";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
@@ -337,7 +337,7 @@ export default function AiCenterClient() {
   );
   const canonicalBlogs = useMemo(() => [...canonicalBlogMap.values()], [canonicalBlogMap]);
   const duplicateBlogs = useMemo(
-    () => getDuplicateBlogs(keywords, blogs, seoMeta),
+    () => getAllDuplicateBlogs(keywords, blogs, seoMeta),
     [keywords, blogs, seoMeta]
   );
   const draftBlogs = useMemo(
@@ -960,7 +960,7 @@ export default function AiCenterClient() {
     if (count === 0) return;
     if (
       !confirm(
-        `Delete ${count} duplicate blog copies from the database?\n\nOne canonical blog per keyword will be kept (published copy preferred). This cannot be undone.`
+        `Delete ${count} duplicate/orphan blog copies from the database?\n\nOne published blog per keyword and per /blog/slug URL will be kept. This cannot be undone.`
       )
     ) {
       return;
@@ -1073,7 +1073,10 @@ export default function AiCenterClient() {
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <StatPill label="Keywords" value={stats?.keywordsTotal ?? 0} />
             <StatPill label="Pending" value={stats?.keywordsPending ?? 0} />
-            <StatPill label="Published Blogs" value={stats?.blogsPublished ?? 0} />
+            <StatPill
+              label="Published (unique)"
+              value={stats?.blogsPublished ?? 0}
+            />
             <StatPill label="SEO Meta" value={stats?.seoMetaCount ?? 0} />
           </div>
           <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => void loadAll()} disabled={busy}>
@@ -1393,13 +1396,21 @@ export default function AiCenterClient() {
             {duplicateBlogs.length > 0 && (
               <div className="mb-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p>
-                    <strong>{duplicateBlogs.length} duplicate blog copies</strong> found in the
-                    database ({workflowStats.summary.totalBlogDocuments} total documents for{" "}
-                    {approvedKeywords.length} keywords). Duplicates are hidden here and will not
-                    auto-approve or auto-publish. Only one blog per keyword is kept (published copy
-                    preferred).
-                  </p>
+                  <div className="space-y-1">
+                    <p>
+                      <strong>{duplicateBlogs.length} duplicate blog copies</strong> in the
+                      database ({workflowStats.summary.totalBlogDocuments} total documents ·{" "}
+                      {approvedKeywords.length} approved keywords).
+                    </p>
+                    <p className="text-xs opacity-90">
+                      Published count shows <strong>one unique blog per keyword</strong> (not total
+                      documents). City keyword search can re-create copies if the URL slug already
+                      exists — duplicates are hidden and blocked from auto-publish.
+                      {workflowStats.summary.orphanBlogs > 0
+                        ? ` ${workflowStats.summary.orphanBlogs} orphan document(s) also not linked to a keyword.`
+                        : ""}
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
