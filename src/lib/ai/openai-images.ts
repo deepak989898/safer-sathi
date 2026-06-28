@@ -5,7 +5,10 @@ export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "dall-e-2";
 export const OPENAI_IMAGE_SIZE = (process.env.OPENAI_IMAGE_SIZE ?? "512x512") as
   | "256x256"
   | "512x512"
-  | "1024x1024";
+  | "1024x1024"
+  | "1536x1024"
+  | "1024x1536"
+  | "auto";
 
 /** Approximate USD cost per image (dall-e-2 512×512). */
 export const OPENAI_IMAGE_ESTIMATED_COST_USD = Number(
@@ -16,6 +19,26 @@ export function isOpenAIImagesConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
+function isGptImageModel(model: string): boolean {
+  return model.startsWith("gpt-image");
+}
+
+/** GPT Image models reject 512×512 — use smallest supported size. */
+function resolveImageSize(model: string): OpenAI.Images.ImageGenerateParams["size"] {
+  if (!isGptImageModel(model)) {
+    return OPENAI_IMAGE_SIZE as OpenAI.Images.ImageGenerateParams["size"];
+  }
+  if (
+    OPENAI_IMAGE_SIZE === "1024x1024" ||
+    OPENAI_IMAGE_SIZE === "1536x1024" ||
+    OPENAI_IMAGE_SIZE === "1024x1536" ||
+    OPENAI_IMAGE_SIZE === "auto"
+  ) {
+    return OPENAI_IMAGE_SIZE;
+  }
+  return "1024x1024";
+}
+
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -24,22 +47,50 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
-/** Generate exactly one standard-quality image (no variations). */
-export async function generateOpenAIImage(prompt: string): Promise<Buffer> {
-  const client = getClient();
-
-  const response = await client.images.generate({
-    model: OPENAI_IMAGE_MODEL,
-    prompt,
-    n: 1,
-    size: OPENAI_IMAGE_SIZE,
-    response_format: "b64_json",
-  });
-
-  const b64 = response.data?.[0]?.b64_json;
-  if (!b64) {
+async function bufferFromImageItem(item: OpenAI.Images.Image | undefined): Promise<Buffer> {
+  if (!item) {
     throw new Error("OpenAI returned no image data");
   }
 
-  return Buffer.from(b64, "base64");
+  if (item.b64_json) {
+    return Buffer.from(item.b64_json, "base64");
+  }
+
+  if (item.url) {
+    const res = await fetch(item.url);
+    if (!res.ok) {
+      throw new Error(`Failed to download OpenAI image (${res.status})`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  throw new Error("OpenAI returned no image data");
+}
+
+/** Generate exactly one standard-quality image (no variations). */
+export async function generateOpenAIImage(prompt: string): Promise<Buffer> {
+  const client = getClient();
+  const model = OPENAI_IMAGE_MODEL;
+  const size = resolveImageSize(model);
+
+  if (isGptImageModel(model)) {
+    // gpt-image-* always returns base64; response_format is not supported.
+    const response = await client.images.generate({
+      model,
+      prompt,
+      n: 1,
+      size,
+      quality: "low",
+    });
+    return bufferFromImageItem(response.data?.[0]);
+  }
+
+  const response = await client.images.generate({
+    model,
+    prompt,
+    n: 1,
+    size,
+    response_format: "b64_json",
+  });
+  return bufferFromImageItem(response.data?.[0]);
 }
