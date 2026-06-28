@@ -452,7 +452,7 @@ export async function generateBlogFromKeyword(
   const seoMeta = seoMetaCache.find((m) => m.keywordId === keywordId);
   const settings = getAiCenterSettings();
   const blog = await generateBlogPost({ keyword, seoMeta, settings });
-  blog.status = settings.approvalRequired ? "pending_approval" : "draft";
+  blog.status = "pending_approval";
 
   blogCache = mergeCache(blogCache, blog);
   await persistDoc(COLLECTIONS.blogs, blog.id, blog);

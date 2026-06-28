@@ -182,6 +182,8 @@ export default function AiCenterClient() {
   const actorId = user?.id ?? user?.email ?? "super_admin";
 
   const [loading, setLoading] = useState(true);
+  const [generatingKeywordId, setGeneratingKeywordId] = useState<string | null>(null);
+  const [isAutoGeneratingBlogs, setIsAutoGeneratingBlogs] = useState(false);
   const [busy, setBusy] = useState(false);
   const [keywords, setKeywords] = useState<SeoKeyword[]>([]);
   const [seoMeta, setSeoMeta] = useState<SeoMetaRecord[]>([]);
@@ -206,8 +208,8 @@ export default function AiCenterClient() {
   const autoRunRef = useRef<{ tab: string; signature: string } | null>(null);
   const automationCancelRef = useRef(false);
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
+  const loadAll = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
       const [kwRes, blogRes, logRes, settingsRes] = await Promise.all([
         adminApiFetch("/api/admin/ai-center/keywords"),
@@ -238,8 +240,36 @@ export default function AiCenterClient() {
     } catch {
       toast.error("Failed to load AI Center");
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
+  }, []);
+
+  const refreshWorkflowData = useCallback(async () => {
+    try {
+      const [kwRes, blogRes] = await Promise.all([
+        adminApiFetch("/api/admin/ai-center/keywords"),
+        adminApiFetch("/api/admin/ai-center/blogs"),
+      ]);
+      const [kwJson, blogJson] = await Promise.all([kwRes.json(), blogRes.json()]);
+      if (kwJson.success) {
+        setKeywords(kwJson.data.keywords ?? []);
+        setSeoMeta(kwJson.data.seoMeta ?? []);
+        if (kwJson.data.stats) setStats(kwJson.data.stats);
+      }
+      if (blogJson.success) setBlogs(blogJson.data.blogs ?? []);
+    } catch {
+      /* non-blocking refresh */
+    }
+  }, []);
+
+  const mergeBlogIntoList = useCallback((prev: AiBlogPost[], blog: AiBlogPost) => {
+    const idx = prev.findIndex((b) => b.id === blog.id);
+    if (idx >= 0) {
+      const next = [...prev];
+      next[idx] = blog;
+      return next;
+    }
+    return [blog, ...prev];
   }, []);
 
   useEffect(() => {
@@ -474,47 +504,63 @@ export default function AiCenterClient() {
     await loadAll();
   };
 
-  const generateBlog = async (keywordId: string, silent = false, aiImage?: boolean) => {
-    const useAiImage =
-      aiImage ??
-      (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ??
-      false;
+  const generateBlog = useCallback(
+    async (keywordId: string, silent = false, aiImage?: boolean) => {
+      const useAiImage =
+        aiImage ??
+        (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ??
+        false;
 
-    const res = await adminApiFetch("/api/admin/ai-center/blogs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keywordId, generateAiImage: useAiImage }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
+      const res = await adminApiFetch("/api/admin/ai-center/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keywordId, generateAiImage: useAiImage }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
 
-    const imageMessage = json.data?.imageGenerationMessage as string | undefined;
+      const imageMessage = json.data?.imageGenerationMessage as string | undefined;
+      const blog = json.data?.blog as AiBlogPost | undefined;
+      if (!blog?.id) throw new Error("Blog was not returned from server");
 
-    if (!silent) {
-      toast.success("Blog draft generated");
-      if (imageMessage) {
+      setBlogs((prev) => mergeBlogIntoList(prev, blog));
+
+      if (!silent) {
+        toast.success("Blog draft generated — open Blog Drafts to review");
+        if (imageMessage) {
+          toast.warning(imageMessage);
+        }
+      } else if (imageMessage) {
         toast.warning(imageMessage);
       }
-      await loadAll();
-    } else if (imageMessage) {
-      toast.warning(imageMessage);
-    }
 
-    return json.data.blog as AiBlogPost;
-  };
+      return blog;
+    },
+    [
+      settings?.openAiImagesEnabled,
+      settings?.openAiImagesDefaultToggle,
+      mergeBlogIntoList,
+    ]
+  );
 
   const generateBlogClick = async (keywordId: string) => {
-    setBusy(true);
+    if (isAutoGeneratingBlogs) return;
+    if (generatingKeywordId && generatingKeywordId !== keywordId) {
+      toast.message("Please wait — finish the current blog first, then generate the next.");
+      return;
+    }
+    if (generatingKeywordId === keywordId) return;
+
+    setGeneratingKeywordId(keywordId);
     try {
       const useAiImage =
         generateAiImage && (settings?.openAiImagesEnabled ?? false);
-      await generateBlog(keywordId, true, useAiImage);
-      toast.success("Blog draft generated");
-      await loadAll();
+      await generateBlog(keywordId, false, useAiImage);
+      await refreshWorkflowData();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Blog generation failed");
     } finally {
-      setBusy(false);
+      setGeneratingKeywordId(null);
     }
   };
 
@@ -526,27 +572,44 @@ export default function AiCenterClient() {
     const useAiImage =
       (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ?? false;
     automationCancelRef.current = false;
-    setBusy(true);
+    setIsAutoGeneratingBlogs(true);
     let generated = 0;
     try {
       for (const kw of targets) {
         if (automationCancelRef.current) break;
-        await generateBlog(kw.id, true, useAiImage);
-        generated += 1;
+        setGeneratingKeywordId(kw.id);
+        try {
+          await generateBlog(kw.id, true, useAiImage);
+          generated += 1;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "";
+          if (msg.toLowerCase().includes("already exists")) {
+            continue;
+          }
+          throw e;
+        }
+        await refreshWorkflowData();
       }
       if (generated > 0 && !automationCancelRef.current) {
         toast.success(`Auto-generated ${generated} blog${generated === 1 ? "" : "s"}`);
       } else if (generated > 0) {
         toast.info(`Auto generate stopped (${generated} blog${generated === 1 ? "" : "s"} completed)`);
       }
-      await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Auto generate failed");
-      await loadAll();
+      await refreshWorkflowData();
     } finally {
-      setBusy(false);
+      setGeneratingKeywordId(null);
+      setIsAutoGeneratingBlogs(false);
     }
-  }, [keywords, blogs, loadAll, settings?.openAiImagesEnabled, settings?.openAiImagesDefaultToggle]);
+  }, [
+    keywords,
+    blogs,
+    refreshWorkflowData,
+    generateBlog,
+    settings?.openAiImagesEnabled,
+    settings?.openAiImagesDefaultToggle,
+  ]);
 
   const runAutoApproveAllKeywords = useCallback(async () => {
     const targets = keywords.filter((k) => k.status === "pending");
@@ -636,6 +699,8 @@ export default function AiCenterClient() {
     if (!enabled) {
       automationCancelRef.current = true;
       autoRunRef.current = null;
+      setIsAutoGeneratingBlogs(false);
+      setGeneratingKeywordId(null);
       const previous = settings[field];
       setSettings({ ...settings, [field]: false });
 
@@ -720,7 +785,14 @@ export default function AiCenterClient() {
   useEffect(() => {
     if (!settings?.autoBlogGenerateEnabled) return;
     if (automationCancelRef.current) return;
-    if (activeTab !== "blog-writer" || busy || blogWriterKeywords.length === 0) return;
+    if (
+      activeTab !== "blog-writer" ||
+      isAutoGeneratingBlogs ||
+      generatingKeywordId ||
+      blogWriterKeywords.length === 0
+    ) {
+      return;
+    }
     const signature = blogWriterKeywords.map((k) => k.id).join(",");
     if (
       autoRunRef.current?.tab === "blog-writer" &&
@@ -734,7 +806,8 @@ export default function AiCenterClient() {
     activeTab,
     settings?.autoBlogGenerateEnabled,
     blogWriterKeywords,
-    busy,
+    isAutoGeneratingBlogs,
+    generatingKeywordId,
     runAutoGenerateAll,
   ]);
 
@@ -1151,14 +1224,43 @@ export default function AiCenterClient() {
                       : `All ${approvedKeywords.length} approved keyword${approvedKeywords.length === 1 ? "" : "s"} already have blog drafts (${workflowStats.summary.published} published, ${workflowStats.summary.blogDrafts + workflowStats.summary.readyToPublish} in pipeline).`}
                   </p>
                 ) : (
-                  blogWriterKeywords.map((kw) => (
-                    <div key={kw.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
-                      <span className="font-medium">{kw.keyword}</span>
-                      <Button size="sm" disabled={busy} onClick={() => void generateBlogClick(kw.id)}>
-                        Generate Blog
-                      </Button>
-                    </div>
-                  ))
+                  blogWriterKeywords.map((kw) => {
+                    const isGenerating = generatingKeywordId === kw.id;
+                    const disableGenerate = isAutoGeneratingBlogs || isGenerating;
+
+                    return (
+                      <div
+                        key={kw.id}
+                        className={cn(
+                          "flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 transition-colors",
+                          isGenerating && "border-primary/40 bg-primary/5"
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">{kw.keyword}</span>
+                          {isGenerating && (
+                            <p className="mt-0.5 text-xs text-primary">
+                              {isAutoGeneratingBlogs ? "Auto-generating…" : "Generating blog draft…"}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          disabled={disableGenerate}
+                          onClick={() => void generateBlogClick(kw.id)}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              Generating…
+                            </>
+                          ) : (
+                            "Generate Blog"
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>

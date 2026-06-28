@@ -29,10 +29,13 @@ export function estimateWordCount(text: string): number {
 /** True when a non-rejected blog already exists for this keyword. */
 export function keywordHasBlog(keyword: SeoKeyword, blogs: AiBlogPost[]): boolean {
   const normalized = keyword.keyword.toLowerCase().trim();
+  const keywordSlug = slugify(keyword.keyword);
   return blogs.some((blog) => {
     if (blog.status === "rejected") return false;
-    if (blog.keywordId === keyword.id) return true;
-    return blog.keyword.toLowerCase().trim() === normalized;
+    if (blog.keywordId && blog.keywordId === keyword.id) return true;
+    if (blog.keyword.toLowerCase().trim() === normalized) return true;
+    if (keywordSlug.length >= 4 && blog.slug.includes(keywordSlug)) return true;
+    return false;
   });
 }
 
