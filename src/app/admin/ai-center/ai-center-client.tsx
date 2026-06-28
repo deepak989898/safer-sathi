@@ -63,7 +63,7 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
-import { approvedKeywordsWithoutBlog, computeSeoPublishWorkflowStats, keywordHasBlog } from "@/lib/ai-center/utils";
+import { approvedKeywordsWithoutBlog, computeSeoPublishWorkflowStats } from "@/lib/ai-center/utils";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
 import { ADMIN_BLOG_IMAGES_SECTION_HINT } from "@/lib/admin/image-upload-hints";
@@ -273,9 +273,13 @@ export default function AiCenterClient() {
     () => keywords.filter((k) => k.status === "approved"),
     [keywords]
   );
-  const blogWriterKeywords = useMemo(
+  const approvedKeywordsNeedingBlog = useMemo(
     () => approvedKeywordsWithoutBlog(keywords, blogs),
     [keywords, blogs]
+  );
+  const blogWriterKeywords = useMemo(
+    () => approvedKeywordsNeedingBlog,
+    [approvedKeywordsNeedingBlog]
   );
   const draftBlogs = useMemo(
     () => blogs.filter((b) => b.status === "draft" || b.status === "pending_approval"),
@@ -412,8 +416,8 @@ export default function AiCenterClient() {
       const approved = json.data.approvedCount as number;
       toast.success(`Saved ${added} keyword${added === 1 ? "" : "s"}`, {
         description: approved
-          ? `${approved} auto-approved with SEO meta.`
-          : "Open Keyword Research to approve or generate blogs.",
+          ? `${approved} auto-approved with SEO meta and blog drafts.`
+          : "Approve pending keywords in Keyword Research to create blog drafts.",
       });
       setCityPreview([]);
       setCityPreviewCity(null);
@@ -440,7 +444,21 @@ export default function AiCenterClient() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      toast.success(action === "approve" ? "Keyword approved + SEO meta generated" : "Keyword rejected");
+      if (action === "approve") {
+        if (json.data?.blogCreated) {
+          toast.success("Keyword approved — SEO meta and blog draft created", {
+            description: "Open Blog Drafts to review and approve the post.",
+          });
+        } else if (json.data?.blogError) {
+          toast.warning("Keyword approved — blog draft failed", {
+            description: String(json.data.blogError),
+          });
+        } else {
+          toast.success("Keyword approved + SEO meta generated");
+        }
+      } else {
+        toast.success("Keyword rejected");
+      }
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action failed");
@@ -1045,7 +1063,7 @@ export default function AiCenterClient() {
             />
             <BlogAutomationBar
               label="Auto Approve"
-              description="When on, all pending keywords are approved automatically (SEO meta is generated for each)."
+              description="When on, all pending keywords are approved automatically (SEO meta + blog draft for each)."
               enabled={settings?.autoKeywordApproveEnabled ?? false}
               disabled={busy || !settings}
               onToggle={(enabled) =>
@@ -1056,17 +1074,11 @@ export default function AiCenterClient() {
                 )
               }
             />
-            <GenerateAiImageBar
-              enabled={generateAiImage}
-              disabled={busy || !settings || !settings.openAiImagesEnabled}
-              masterEnabled={settings?.openAiImagesEnabled ?? false}
-              onToggle={setGenerateAiImage}
-            />
             <KeywordTable
               title={`Pending Keywords (${pendingKeywords.length})`}
               subtitle={
                 pendingKeywords.length > 0
-                  ? `${pendingKeywords.length} waiting for approval · ${workflowStats.stages[1]?.remaining ?? 0} will get SEO meta on approve`
+                  ? `${pendingKeywords.length} waiting for approval · approving creates SEO meta and a blog draft`
                   : "No keywords waiting — all caught up on approvals."
               }
               items={pendingKeywords}
@@ -1074,25 +1086,22 @@ export default function AiCenterClient() {
               onApprove={(id) => void keywordAction(id, "approve")}
               onReject={(id) => void keywordAction(id, "reject")}
               onDelete={(id) => void deleteKeyword(id)}
-              onGenerateBlog={(id) => void generateBlogClick(id)}
-              showGenerate
             />
             <div className="mt-6">
               <KeywordTable
-                title={`Approved Keywords (${approvedKeywords.length})`}
+                title={`Approved — Awaiting Blog (${approvedKeywordsNeedingBlog.length})`}
                 subtitle={
-                  approvedKeywords.length > 0
-                    ? `${workflowStats.summary.withSeoMeta} with SEO meta · ${workflowStats.summary.needBlog} need blog · ${workflowStats.summary.published} published live`
-                    : "Approve pending keywords to start the SEO and blog pipeline."
+                  approvedKeywordsNeedingBlog.length > 0
+                    ? "These approved keywords do not have a blog draft yet. Approve flow normally creates drafts automatically."
+                    : approvedKeywords.length > 0
+                      ? `All ${approvedKeywords.length} approved keyword${approvedKeywords.length === 1 ? "" : "s"} have blog drafts — review them in Blog Drafts.`
+                      : "Approve pending keywords to start the SEO and blog pipeline."
                 }
-                items={approvedKeywords}
-                blogs={blogs}
+                items={approvedKeywordsNeedingBlog}
                 busy={busy}
                 onApprove={() => {}}
                 onReject={() => {}}
                 onDelete={(id) => void deleteKeyword(id)}
-                onGenerateBlog={(id) => void generateBlogClick(id)}
-                showGenerate
                 hideActions
               />
             </div>
@@ -1113,7 +1122,7 @@ export default function AiCenterClient() {
               <CardContent className="space-y-3">
                 <BlogAutomationBar
                   label="Auto Generate"
-                  description="When on, all keywords below are generated automatically (one by one)."
+                  description="When on, generates blog drafts for approved keywords that still need a post (one by one)."
                   enabled={settings?.autoBlogGenerateEnabled ?? false}
                   disabled={busy || !settings}
                   onToggle={(enabled) =>
@@ -1131,8 +1140,9 @@ export default function AiCenterClient() {
                   onToggle={setGenerateAiImage}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Select an approved keyword and generate a full SEO blog ({settings?.blogWordLimit ?? 1500} words)
-                  with image prompts, FAQ, and meta tags.
+                  Approving a keyword in Keyword Research automatically creates a blog draft in{" "}
+                  <strong>Blog Drafts</strong>. Use Auto Generate here only for any remaining keywords
+                  without drafts ({settings?.blogWordLimit ?? 1500} words, images, FAQ, meta tags).
                 </p>
                 {blogWriterKeywords.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -1340,8 +1350,11 @@ export default function AiCenterClient() {
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
                     <div>
-                      <p className="font-medium">Auto Draft</p>
-                      <p className="text-xs text-muted-foreground">Auto-create blog drafts on keyword approve</p>
+                      <p className="font-medium">Auto Draft on Approve</p>
+                      <p className="text-xs text-muted-foreground">
+                        Blog drafts are created automatically when you approve a keyword. This setting
+                        only controls SEO Agent auto-approving sample keywords on research runs.
+                      </p>
                     </div>
                     <Switch
                       checked={settings.autoDraftEnabled}
@@ -2006,25 +2019,19 @@ function KeywordTable({
   title,
   subtitle,
   items,
-  blogs = [],
   busy,
   onApprove,
   onReject,
   onDelete,
-  onGenerateBlog,
-  showGenerate,
   hideActions,
 }: {
   title: string;
   subtitle?: string;
   items: SeoKeyword[];
-  blogs?: AiBlogPost[];
   busy: boolean;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onDelete: (id: string) => void;
-  onGenerateBlog: (id: string) => void;
-  showGenerate?: boolean;
   hideActions?: boolean;
 }) {
   return (
@@ -2070,13 +2077,6 @@ function KeywordTable({
                           <X className="h-3 w-3" />
                         </Button>
                       </>
-                    )}
-                    {showGenerate &&
-                      kw.status === "approved" &&
-                      !keywordHasBlog(kw, blogs) && (
-                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => onGenerateBlog(kw.id)}>
-                        Blog
-                      </Button>
                     )}
                     <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDelete(kw.id)}>
                       <Trash2 className="h-3 w-3" />

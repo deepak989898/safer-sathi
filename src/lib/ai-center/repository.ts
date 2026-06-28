@@ -334,7 +334,7 @@ export async function saveCityKeywords(
   const approved: SeoKeyword[] = [];
   if (autoApprove) {
     for (const kw of added) {
-      const result = await approveKeyword(kw.id, actorId ?? "system", true);
+      const result = await approveKeyword(kw.id, actorId ?? "system");
       approved.push(result.keyword);
     }
   }
@@ -346,7 +346,12 @@ export async function approveKeyword(
   id: string,
   approvedBy: string,
   skipBlog = false
-): Promise<{ keyword: SeoKeyword; seoMeta: SeoMetaRecord }> {
+): Promise<{
+  keyword: SeoKeyword;
+  seoMeta: SeoMetaRecord;
+  blogCreated?: boolean;
+  blogError?: string;
+}> {
   const start = Date.now();
   const keyword = keywordCache.find((k) => k.id === id);
   if (!keyword) throw new Error("Keyword not found");
@@ -380,14 +385,29 @@ export async function approveKeyword(
   });
 
   const settings = getAiCenterSettings();
-  if (settings.autoDraftEnabled && !skipBlog) {
-    await generateBlogFromKeyword(updated.id, approvedBy, {
-      generateAiImage:
-        settings.openAiImagesEnabled && settings.openAiImagesDefaultToggle,
-    });
+  let blogCreated = false;
+  let blogError: string | undefined;
+
+  if (!skipBlog) {
+    try {
+      await generateBlogFromKeyword(updated.id, approvedBy, {
+        generateAiImage:
+          settings.openAiImagesEnabled && settings.openAiImagesDefaultToggle,
+      });
+      blogCreated = true;
+    } catch (error) {
+      blogError = error instanceof Error ? error.message : "Blog generation failed";
+      await addAiCenterLog({
+        type: "error",
+        message: `Blog draft failed for: ${updated.keyword}`,
+        resourceId: updated.id,
+        resourceType: "keyword",
+        error: blogError,
+      });
+    }
   }
 
-  return { keyword: updated, seoMeta };
+  return { keyword: updated, seoMeta, blogCreated, blogError };
 }
 
 export async function rejectKeyword(id: string, reason?: string): Promise<SeoKeyword> {
