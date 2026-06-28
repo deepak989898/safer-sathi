@@ -2,6 +2,7 @@ import {
   generateOpenAIImage,
   isOpenAIImagesConfigured,
   OPENAI_IMAGE_ESTIMATED_COST_USD,
+  OPENAI_IMAGE_MODEL,
 } from "@/lib/ai/openai-images";
 import {
   addImageGenerationLog,
@@ -220,7 +221,7 @@ export async function enrichBlogWithOpenAiFeaturedImage(
     return { attempted: true, success: true, blog: updated };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "OpenAI image failed";
-    const modelHint = `model=${process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-2 (default)"}`;
+    const modelHint = `model=${OPENAI_IMAGE_MODEL}`;
     const fullError = `${errorMessage} [${modelHint}]`;
 
     await addImageGenerationLog({

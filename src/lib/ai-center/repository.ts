@@ -5,7 +5,7 @@ import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image
 import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
-import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap } from "@/lib/ai-center/utils";
+import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap, getDuplicateBlogs } from "@/lib/ai-center/utils";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -55,6 +55,22 @@ async function deleteDoc(collection: string, id: string): Promise<void> {
     await db.collection(collection).doc(id).delete();
   } catch (error) {
     console.warn(`Firebase delete ${collection}/${id} failed:`, error);
+  }
+}
+
+async function batchDeleteDocs(collection: string, ids: string[]): Promise<void> {
+  if (!ids.length || !isAdminEnvConfigured()) return;
+  const db = await getSafeAdminDb();
+  if (!db) return;
+
+  const BATCH_SIZE = 450;
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const chunk = ids.slice(i, i + BATCH_SIZE);
+    const batch = db.batch();
+    for (const id of chunk) {
+      batch.delete(db.collection(collection).doc(id));
+    }
+    await batch.commit();
   }
 }
 
@@ -678,6 +694,45 @@ export async function deleteBlog(id: string): Promise<void> {
       resourceType: "blog",
     });
   }
+}
+
+/** Permanently remove duplicate blog copies; keeps one canonical blog per approved keyword. */
+export async function deleteDuplicateBlogs(actorId?: string): Promise<{
+  deleted: number;
+  kept: number;
+  deletedIds: string[];
+}> {
+  await hydrateAiCenterStore();
+
+  const canonicalMap = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache);
+  const canonicalIds = new Set([...canonicalMap.values()].map((b) => b.id));
+  const duplicates = getDuplicateBlogs(keywordCache, blogCache, seoMetaCache).filter(
+    (blog) => !canonicalIds.has(blog.id)
+  );
+
+  if (duplicates.length === 0) {
+    return { deleted: 0, kept: canonicalIds.size, deletedIds: [] };
+  }
+
+  const deletedIds: string[] = duplicates.map((blog) => blog.id);
+  blogCache = blogCache.filter((b) => !deletedIds.includes(b.id));
+  await batchDeleteDocs(COLLECTIONS.blogs, deletedIds);
+
+  await addAiCenterLog({
+    type: "blog_deleted",
+    message: `Cleaned up ${duplicates.length} duplicate blog copies (${canonicalIds.size} kept)`,
+    resourceType: "blog",
+    resourceId: actorId,
+  });
+
+  try {
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/blog");
+  } catch {
+    // no-op outside Next request context
+  }
+
+  return { deleted: duplicates.length, kept: canonicalIds.size, deletedIds };
 }
 
 export async function getAiCenterStats() {

@@ -929,6 +929,37 @@ export default function AiCenterClient() {
     await loadAll();
   };
 
+  const cleanupDuplicateBlogs = async () => {
+    const count = duplicateBlogs.length;
+    if (count === 0) return;
+    if (
+      !confirm(
+        `Delete ${count} duplicate blog copies from the database?\n\nOne canonical blog per keyword will be kept (published copy preferred). This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await adminApiFetch("/api/admin/ai-center/blogs/cleanup-duplicates", {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+
+      const { deleted, kept } = json.data as { deleted: number; kept: number };
+      toast.success(`Removed ${deleted} duplicate blog${deleted === 1 ? "" : "s"}`, {
+        description: `${kept} canonical blog${kept === 1 ? "" : "s"} kept (one per keyword).`,
+      });
+      await loadAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete duplicates");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveSettings = async () => {
     if (!settings) return;
     setBusy(true);
@@ -1321,11 +1352,30 @@ export default function AiCenterClient() {
             <SeoPublishWorkflowProgress stats={workflowStats} onlyStageId="blog-approve" />
             {duplicateBlogs.length > 0 && (
               <div className="mb-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-                <strong>{duplicateBlogs.length} duplicate blog copies</strong> found in the
-                database ({workflowStats.summary.totalBlogDocuments} total documents for{" "}
-                {approvedKeywords.length} keywords). Duplicates are hidden here and will not
-                auto-approve or auto-publish. Only one blog per keyword is kept (published copy
-                preferred).
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    <strong>{duplicateBlogs.length} duplicate blog copies</strong> found in the
+                    database ({workflowStats.summary.totalBlogDocuments} total documents for{" "}
+                    {approvedKeywords.length} keywords). Duplicates are hidden here and will not
+                    auto-approve or auto-publish. Only one blog per keyword is kept (published copy
+                    preferred).
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 border-amber-300 bg-white hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:hover:bg-amber-900"
+                    disabled={busy}
+                    onClick={() => void cleanupDuplicateBlogs()}
+                  >
+                    {busy ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Delete {duplicateBlogs.length} duplicates
+                  </Button>
+                </div>
               </div>
             )}
             <BlogAutomationBar
@@ -1661,8 +1711,9 @@ export default function AiCenterClient() {
                   <div className="sm:col-span-2 pt-2 border-t">
                     <p className="text-sm font-semibold">Image Generation</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Optional OpenAI featured images for blog drafts. Uses dall-e-2 at 512×512 (~$
-                      {(imageGenerationStats?.estimatedCostPerImageUsd ?? 0.018).toFixed(3)} per image).
+                      Optional OpenAI featured images for blog drafts. Uses gpt-image-1-mini at
+                      1024×1024 (~$
+                      {(imageGenerationStats?.estimatedCostPerImageUsd ?? 0.02).toFixed(3)} per image).
                     </p>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
