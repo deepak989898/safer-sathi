@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
   BadgePercent,
@@ -12,11 +11,12 @@ import {
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PackageCard } from "@/components/customer/package-card";
 import { VehicleCard } from "@/components/customer/vehicle-card";
+import { SafeImage } from "@/components/ui/safe-image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, localizedText } from "@/lib/i18n";
 import { buildHomeTestimonials } from "@/lib/catalog/home-testimonials";
-import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
+import type { PopularDestinationItem } from "@/lib/catalog/homepage-showcase";
 import { useAppStore } from "@/store/app-store";
 import type { Hotel, Review, TourPackage, Vehicle } from "@/types";
 
@@ -27,50 +27,8 @@ const TRUST_ITEMS = [
   { icon: ShieldCheck, label: "Secure Booking", desc: "100% safe and secure" },
 ] as const;
 
-const POPULAR_DESTINATIONS = [
-  {
-    name: "Rajasthan",
-    subtitle: "Royal Heritage",
-    price: 4999,
-    image: TRAVEL_IMAGES.goldenTriangle,
-    href: "/packages?query=Rajasthan",
-    imagePosition: "center",
-  },
-  {
-    name: "Kerala",
-    subtitle: "Backwaters & Hills",
-    price: 5999,
-    image: TRAVEL_IMAGES.keralaBackwaters,
-    href: "/packages?query=Kerala",
-    imagePosition: "center",
-  },
-  {
-    name: "Goa",
-    subtitle: "Beaches & Nightlife",
-    price: 3999,
-    image: TRAVEL_IMAGES.beachResort,
-    href: "/packages?query=Goa",
-    imagePosition: "center top",
-  },
-  {
-    name: "Himachal",
-    subtitle: "Mountains & Adventure",
-    price: 5499,
-    image: TRAVEL_IMAGES.manaliAdventure,
-    href: "/packages?query=Manali",
-    imagePosition: "center",
-  },
-  {
-    name: "Kashmir",
-    subtitle: "Paradise on Earth",
-    price: 6999,
-    image: TRAVEL_IMAGES.charDham,
-    href: "/packages?query=Kashmir",
-    imagePosition: "center",
-  },
-] as const;
-
 interface DesktopHomeSectionsProps {
+  popularDestinations: PopularDestinationItem[];
   featuredPackages: TourPackage[];
   featuredHotels: Hotel[];
   featuredVehicles: Vehicle[];
@@ -78,6 +36,7 @@ interface DesktopHomeSectionsProps {
 }
 
 export function DesktopHomeSections({
+  popularDestinations,
   featuredPackages,
   featuredHotels,
   featuredVehicles,
@@ -106,19 +65,19 @@ export function DesktopHomeSections({
           locale={locale}
         />
         <div className="grid grid-cols-5 gap-4">
-          {POPULAR_DESTINATIONS.map((dest) => (
+          {popularDestinations.map((dest) => (
             <Link
               key={dest.name}
               href={dest.href}
               className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                <Image
+                <SafeImage
                   src={dest.image}
                   alt={dest.name}
                   fill
                   className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  style={{ objectPosition: dest.imagePosition }}
+                  style={{ objectPosition: dest.imagePosition ?? "center" }}
                   sizes="(min-width: 768px) 20vw, 50vw"
                 />
                 <span className="absolute bottom-2.5 right-2.5 rounded-md bg-black/75 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">

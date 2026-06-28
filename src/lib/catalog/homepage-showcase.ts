@@ -1,8 +1,111 @@
 import { getHotelsSeed } from "@/data/hotels-seed";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
+import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
 import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
+
+export interface PopularDestinationItem {
+  name: string;
+  subtitle: string;
+  price: number;
+  image: string;
+  href: string;
+  imagePosition?: string;
+}
+
+const POPULAR_DESTINATION_CONFIG = [
+  {
+    name: "Rajasthan",
+    subtitle: "Royal Heritage",
+    keywords: ["rajasthan", "jaipur", "udaipur", "jodhpur", "jaisalmer"],
+    query: "Rajasthan",
+    fallbackPrice: 4999,
+    fallbackImage: TRAVEL_IMAGES.goldenTriangle,
+  },
+  {
+    name: "Kerala",
+    subtitle: "Backwaters & Hills",
+    keywords: ["kerala", "kochi", "munnar", "alleppey", "thekkady"],
+    query: "Kerala",
+    fallbackPrice: 5999,
+    fallbackImage: TRAVEL_IMAGES.keralaBackwaters,
+  },
+  {
+    name: "Goa",
+    subtitle: "Beaches & Nightlife",
+    keywords: ["goa", "north goa", "south goa", "calangute", "panaji"],
+    query: "Goa",
+    fallbackPrice: 3999,
+    fallbackImage: TRAVEL_IMAGES.beachResort,
+    imagePosition: "center top",
+  },
+  {
+    name: "Himachal",
+    subtitle: "Mountains & Adventure",
+    keywords: ["himachal", "manali", "shimla", "dharamshala", "kasol"],
+    query: "Manali",
+    fallbackPrice: 5499,
+    fallbackImage: TRAVEL_IMAGES.manaliAdventure,
+  },
+  {
+    name: "Kashmir",
+    subtitle: "Paradise on Earth",
+    keywords: ["kashmir", "srinagar", "gulmarg", "pahalgam", "sonamarg"],
+    query: "Kashmir",
+    fallbackPrice: 6999,
+    fallbackImage: TRAVEL_IMAGES.charDham,
+  },
+] as const;
+
+function isPublishedPackage(pkg: TourPackage): boolean {
+  return !pkg.publishStatus || pkg.publishStatus === "published";
+}
+
+function packageMatchesDestination(
+  pkg: TourPackage,
+  keywords: readonly string[]
+): boolean {
+  const haystack = [pkg.title.en, pkg.title.hi, ...pkg.cities, pkg.slug]
+    .join(" ")
+    .toLowerCase();
+  return keywords.some((keyword) => haystack.includes(keyword));
+}
+
+/** Map homepage destination tiles to live package images when available. */
+export function buildPopularDestinations(
+  packages: TourPackage[]
+): PopularDestinationItem[] {
+  const published = packages.filter(isPublishedPackage);
+
+  return POPULAR_DESTINATION_CONFIG.map((config) => {
+    const matches = published
+      .filter((pkg) => packageMatchesDestination(pkg, config.keywords))
+      .sort((a, b) => Number(b.featured) - Number(a.featured));
+
+    const match = matches[0];
+
+    if (match?.images[0]) {
+      return {
+        name: config.name,
+        subtitle: config.subtitle,
+        price: match.price,
+        image: match.images[0],
+        href: `/packages/${match.slug}`,
+        imagePosition: "imagePosition" in config ? config.imagePosition : "center",
+      };
+    }
+
+    return {
+      name: config.name,
+      subtitle: config.subtitle,
+      price: config.fallbackPrice,
+      image: config.fallbackImage,
+      href: `/packages?query=${encodeURIComponent(config.query)}`,
+      imagePosition: "imagePosition" in config ? config.imagePosition : "center",
+    };
+  });
+}
 
 export interface MobileShowcaseItem {
   id: string;

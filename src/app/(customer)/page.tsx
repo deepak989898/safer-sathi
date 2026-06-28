@@ -8,6 +8,7 @@ import {
   buildHomepageHotels,
   buildHomepagePackages,
   buildHomepageVehicles,
+  buildPopularDestinations,
   toMobileHotelItems,
   toMobilePackageItems,
   toMobileVehicleItems,
@@ -29,6 +30,7 @@ export default async function HomePage() {
   const featuredPackages = buildHomepagePackages(packages);
   const featuredHotels = buildHomepageHotels(hotels);
   const featuredVehicles = buildHomepageVehicles(vehicles);
+  const popularDestinations = buildPopularDestinations(packages);
 
   const mobilePackages = toMobilePackageItems(packages);
   const mobileHotels = toMobileHotelItems(hotels);
@@ -37,6 +39,7 @@ export default async function HomePage() {
   return (
     <>
       <HomeShowcase
+        popularDestinations={popularDestinations}
         featuredPackages={featuredPackages}
         featuredHotels={featuredHotels}
         featuredVehicles={featuredVehicles}

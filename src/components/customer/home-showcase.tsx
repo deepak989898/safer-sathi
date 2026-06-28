@@ -3,10 +3,11 @@
 import { DesktopHomeHero } from "@/components/customer/desktop-home-hero";
 import { DesktopHomeSections } from "@/components/customer/desktop-home-sections";
 import { MobileHomeShowcase } from "@/components/customer/mobile-home-hero";
-import type { MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
+import type { MobileShowcaseItem, PopularDestinationItem } from "@/lib/catalog/homepage-showcase";
 import type { Hotel, Review, TourPackage, Vehicle } from "@/types";
 
 interface HomeShowcaseProps {
+  popularDestinations: PopularDestinationItem[];
   featuredPackages: TourPackage[];
   featuredHotels: Hotel[];
   featuredVehicles: Vehicle[];
@@ -17,6 +18,7 @@ interface HomeShowcaseProps {
 }
 
 export function HomeShowcase({
+  popularDestinations,
   featuredPackages,
   featuredHotels,
   featuredVehicles,
@@ -36,6 +38,7 @@ export function HomeShowcase({
       <DesktopHomeHero />
 
       <DesktopHomeSections
+        popularDestinations={popularDestinations}
         featuredPackages={featuredPackages}
         featuredHotels={featuredHotels}
         featuredVehicles={featuredVehicles}
