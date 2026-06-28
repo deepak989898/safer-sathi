@@ -51,3 +51,16 @@ export function filterByCity<T>(
     getCities(item).some((city) => normalizeCityKey(city) === selectedCity)
   );
 }
+
+/** Match any of the selected city keys (normalized). */
+export function filterByCities<T>(
+  items: T[],
+  selectedCities: string[],
+  getCities: (item: T) => string[]
+): T[] {
+  if (selectedCities.length === 0) return items;
+  const selected = new Set(selectedCities.map(normalizeCityKey));
+  return items.filter((item) =>
+    getCities(item).some((city) => selected.has(normalizeCityKey(city)))
+  );
+}

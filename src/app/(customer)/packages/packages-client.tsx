@@ -10,6 +10,7 @@ import {
   toggleFilterId,
   type BudgetTierId,
 } from "@/lib/catalog/budget-filters";
+import { buildCityCounts, filterByCities, normalizeCityKey } from "@/lib/admin/city-filter";
 import {
   PACKAGE_SORT_KEYS,
   sortPackages,
@@ -37,6 +38,7 @@ export default function PackagesClient({
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
   const [selectedBudget, setSelectedBudget] = useState<BudgetTierId[]>([]);
   const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
@@ -46,8 +48,26 @@ export default function PackagesClient({
       if (searchFilters.packageCategory) {
         setSelectedCategories([searchFilters.packageCategory]);
       }
+      if (searchFilters.query?.trim()) {
+        const q = normalizeCityKey(searchFilters.query);
+        const match = buildCityCounts(initialPackages, (p) => p.cities ?? []).find(
+          (c) => normalizeCityKey(c.label) === q || c.key === q
+        );
+        if (match) {
+          setSelectedPlaces([match.key]);
+        }
+      }
     }
-  }, [searchFilters]);
+  }, [searchFilters, initialPackages]);
+
+  const placeOptions = useMemo(
+    () =>
+      buildCityCounts(initialPackages, (p) => p.cities ?? []).map((city) => ({
+        id: city.key,
+        label: `${city.label} (${city.count})`,
+      })),
+    [initialPackages]
+  );
 
   const maxPrice = useMemo(
     () => Math.max(...initialPackages.map((p) => p.price), 50000),
@@ -62,6 +82,7 @@ export default function PackagesClient({
     setQuery("");
     setPriceRange([0, maxPrice]);
     setSelectedCategories([]);
+    setSelectedPlaces([]);
     setSelectedBudget([]);
     setSortBy("price_asc");
     resetSearchFilters();
@@ -72,9 +93,10 @@ export default function PackagesClient({
     if (query.trim()) count++;
     if (priceRange[0] > 0 || priceRange[1] < maxPrice) count++;
     if (selectedCategories.length > 0) count++;
+    if (selectedPlaces.length > 0) count++;
     if (selectedBudget.length > 0) count++;
     return count;
-  }, [query, priceRange, maxPrice, selectedCategories, selectedBudget]);
+  }, [query, priceRange, maxPrice, selectedCategories, selectedPlaces, selectedBudget]);
 
   const filterProps = {
     priceRange,
@@ -90,12 +112,18 @@ export default function PackagesClient({
     onCategoryToggle: (id: string) =>
       setSelectedCategories((prev) => toggleFilterId(prev, id)),
     categoryLabel: locale === "hi" ? "पैकेज श्रेणी" : "Package Category",
+    placeOptions,
+    selectedPlaces,
+    onPlaceToggle: (id: string) =>
+      setSelectedPlaces((prev) => toggleFilterId(prev, id)),
+    placeLabel: locale === "hi" ? "शहर / टूर स्थान" : "City / Tour Places",
     onClear: clearFilters,
     hasActiveFilters: activeFilterCount > 0,
   };
 
   const filtered = useMemo(() => {
-    return initialPackages.filter((p) => {
+    const byCity = filterByCities(initialPackages, selectedPlaces, (p) => p.cities ?? []);
+    return byCity.filter((p) => {
       const matchQuery =
         !query ||
         p.title.en.toLowerCase().includes(query.toLowerCase()) ||
@@ -107,7 +135,15 @@ export default function PackagesClient({
       const matchBudget = priceMatchesBudgetTiers(p.price, selectedBudget, maxPrice);
       return matchQuery && matchPrice && matchCat && matchBudget;
     });
-  }, [initialPackages, query, priceRange, selectedCategories, selectedBudget, maxPrice]);
+  }, [
+    initialPackages,
+    query,
+    priceRange,
+    selectedCategories,
+    selectedPlaces,
+    selectedBudget,
+    maxPrice,
+  ]);
 
   const sorted = useMemo(
     () => sortPackages(filtered, sortBy),

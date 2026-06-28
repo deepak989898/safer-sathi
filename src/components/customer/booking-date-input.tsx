@@ -53,6 +53,11 @@ function localDateToIso(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Local today as yyyy-mm-dd (for min travel dates). */
+export function todayIsoDate(): string {
+  return localDateToIso(new Date());
+}
+
 interface BookingDateInputProps {
   id?: string;
   value: string;
@@ -78,7 +83,8 @@ export function BookingDateInput({
   }, [value]);
 
   const selectedDate = useMemo(() => isoToLocalDate(value), [value]);
-  const minDate = useMemo(() => isoToLocalDate(min), [min]);
+  const minIso = min ?? todayIsoDate();
+  const minDate = useMemo(() => isoToLocalDate(minIso), [minIso]);
 
   const commitDisplay = (nextDisplay: string) => {
     setDisplay(nextDisplay);
@@ -88,14 +94,14 @@ export function BookingDateInput({
     }
     const iso = parseDisplayDateToIso(nextDisplay);
     if (!iso) return;
-    if (min && iso < min) return;
+    if (iso < minIso) return;
     onChange(iso);
   };
 
   const handleCalendarSelect = (date?: Date) => {
     if (!date) return;
     const iso = localDateToIso(date);
-    if (min && iso < min) return;
+    if (iso < minIso) return;
     onChange(iso);
     setDisplay(formatIsoDateForDisplay(iso));
     setOpen(false);
@@ -146,9 +152,9 @@ export function BookingDateInput({
           captionLayout="dropdown"
           selected={selectedDate}
           onSelect={handleCalendarSelect}
-          defaultMonth={selectedDate ?? minDate ?? new Date()}
+          defaultMonth={selectedDate ?? minDate}
           disabled={minDate ? { before: minDate } : undefined}
-          startMonth={minDate ?? new Date()}
+          startMonth={minDate}
           endMonth={new Date(new Date().getFullYear() + 3, 11, 31)}
         />
       </PopoverContent>

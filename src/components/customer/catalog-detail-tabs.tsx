@@ -3,13 +3,17 @@ import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 export const catalogDetailTabsListClass =
-  "h-auto w-full flex-wrap justify-start gap-0.5 border-b border-border/80 bg-transparent p-0";
+  "h-auto w-full flex-wrap justify-start gap-0 border-b border-border/60 bg-transparent p-0";
 
 export const catalogDetailTabTriggerClass = cn(
-  "rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium",
-  "text-[#64748b] hover:text-[#0c2444]",
-  "data-active:border-primary data-active:bg-primary/5 data-active:text-primary",
+  "rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium",
+  "-mb-px text-primary/75 hover:text-primary",
+  "data-active:border-x-transparent data-active:border-t-transparent data-active:border-b-primary",
+  "data-active:bg-transparent data-active:text-primary",
   "data-active:font-semibold data-active:shadow-none",
+  "dark:data-active:border-x-transparent dark:data-active:border-t-transparent dark:data-active:bg-transparent",
+  "after:!hidden",
+  "focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-none",
   "transition-colors"
 );
 

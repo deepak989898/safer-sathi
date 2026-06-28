@@ -27,6 +27,10 @@ interface FilterSidebarProps {
   selectedBudget?: string[];
   onBudgetToggle?: (id: string) => void;
   budgetLabel?: string;
+  placeOptions?: FilterOption[];
+  selectedPlaces?: string[];
+  onPlaceToggle?: (id: string) => void;
+  placeLabel?: string;
   onClear: () => void;
   hasActiveFilters?: boolean;
   extraFilters?: React.ReactNode;
@@ -40,18 +44,20 @@ function FilterCheckboxGroup({
   options,
   selected,
   onToggle,
+  scrollable,
 }: {
   label: string;
   options: FilterOption[];
   selected: string[];
   onToggle: (id: string) => void;
+  scrollable?: boolean;
 }) {
   if (options.length === 0) return null;
 
   return (
     <div className="space-y-3">
       <Label>{label}</Label>
-      <div className="space-y-2">
+      <div className={cn("space-y-2", scrollable && "max-h-52 overflow-y-auto pr-1")}>
         {options.map((option) => (
           <label key={option.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
             <Checkbox
@@ -78,6 +84,10 @@ export function FilterSidebar({
   selectedBudget = [],
   onBudgetToggle,
   budgetLabel = "Budget",
+  placeOptions,
+  selectedPlaces = [],
+  onPlaceToggle,
+  placeLabel = "City / Places",
   onClear,
   hasActiveFilters = false,
   extraFilters,
@@ -132,6 +142,16 @@ export function FilterSidebar({
           options={budgetOptions}
           selected={selectedBudget}
           onToggle={onBudgetToggle}
+        />
+      )}
+
+      {placeOptions && placeOptions.length > 0 && onPlaceToggle && (
+        <FilterCheckboxGroup
+          label={placeLabel}
+          options={placeOptions}
+          selected={selectedPlaces}
+          onToggle={onPlaceToggle}
+          scrollable
         />
       )}
 

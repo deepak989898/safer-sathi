@@ -19,6 +19,39 @@ async function waitForAuthReady(timeoutMs = 12_000): Promise<void> {
   throw new Error("Session expired. Please sign in again.");
 }
 
+/** Attach Bearer token when signed in; empty for guest checkout and public APIs. */
+async function getOptionalApiAuthHeaders(
+  waitForUserMs = 3_000
+): Promise<Record<string, string>> {
+  if (isFirebaseConfigured()) {
+    const { getFirebaseAuth } = await import("@/lib/firebase/client");
+    const auth = getFirebaseAuth();
+    await auth.authStateReady();
+
+    const deadline = Date.now() + waitForUserMs;
+    while (Date.now() < deadline) {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        return { Authorization: `Bearer ${token}` };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return {};
+  }
+
+  const session = localGetSession();
+  if (session && process.env.NODE_ENV === "development") {
+    return {
+      Authorization: "Bearer dev-local",
+      "X-User-Id": session.id,
+      "X-User-Role": session.role,
+      "X-User-Email": session.email,
+    };
+  }
+
+  return {};
+}
+
 /**
  * Vercel redirects thesafarsathi.com/api/* → www (308). Browsers drop Authorization
  * on that redirect. Always call the www API in production.
@@ -101,5 +134,15 @@ export async function customerApiFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  return adminApiFetch(input, init);
+  const authHeaders = await getOptionalApiAuthHeaders();
+  const headers = new Headers(init?.headers);
+  for (const [key, value] of Object.entries(authHeaders)) {
+    headers.set(key, value);
+  }
+
+  return fetch(resolveApiUrl(input), {
+    ...init,
+    headers,
+    cache: init?.cache ?? "no-store",
+  });
 }

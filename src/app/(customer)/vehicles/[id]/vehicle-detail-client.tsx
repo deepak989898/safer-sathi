@@ -29,7 +29,7 @@ import { VehicleInformationCard } from "@/components/customer/vehicle-informatio
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
-import { BookingDateInput } from "@/components/customer/booking-date-input";
+import { BookingDateInput, todayIsoDate } from "@/components/customer/booking-date-input";
 import { RewardRedeemPanel } from "@/components/customer/reward-redeem-panel";
 import { POINT_VALUE_INR } from "@/lib/rewards/constants";
 import { useAuth } from "@/contexts/auth-context";
@@ -58,10 +58,6 @@ import { getEffectivePricePerKm } from "@/lib/vehicles/capacity";
 const MIN_ONE_WAY_KM = 50;
 const DEFAULT_DEPARTURE = "Your Location";
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function tomorrowIso(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -80,7 +76,7 @@ export function VehicleDetailClient({
   const router = useRouter();
   const { completeCatalogBooking, paying } = useTravelCheckout();
   const [bookingMode, setBookingMode] = useState<VehiclePricingMode>("day");
-  const [startDate, setStartDate] = useState(todayIso);
+  const [startDate, setStartDate] = useState(todayIsoDate);
   const [endDate, setEndDate] = useState(tomorrowIso);
   const [guests, setGuests] = useState("1");
   const [distanceKm, setDistanceKm] = useState(String(MIN_ONE_WAY_KM));
@@ -473,7 +469,7 @@ export function VehicleDetailClient({
                       <div>
                         <Label>Pick-up Date</Label>
                         <BookingDateInput
-                          min={todayIso()}
+                          min={todayIsoDate()}
                           value={startDate}
                           onChange={setStartDate}
                           className="mt-1.5"
@@ -482,7 +478,7 @@ export function VehicleDetailClient({
                       <div>
                         <Label>Return Date</Label>
                         <BookingDateInput
-                          min={startDate || todayIso()}
+                          min={startDate || todayIsoDate()}
                           value={endDate}
                           onChange={setEndDate}
                           className="mt-1.5"
@@ -494,7 +490,7 @@ export function VehicleDetailClient({
                       <div>
                         <Label>Travel Date</Label>
                         <BookingDateInput
-                          min={todayIso()}
+                          min={todayIsoDate()}
                           value={startDate}
                           onChange={setStartDate}
                           className="mt-1.5"

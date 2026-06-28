@@ -27,7 +27,7 @@ import { RatingStars } from "@/components/customer/rating-stars";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { PaymentPlanSelector } from "@/components/customer/payment-plan-selector";
 import { CollapsibleBookingForm } from "@/components/customer/collapsible-booking-form";
-import { BookingDateInput } from "@/components/customer/booking-date-input";
+import { BookingDateInput, todayIsoDate } from "@/components/customer/booking-date-input";
 import { RewardRedeemPanel } from "@/components/customer/reward-redeem-panel";
 import { POINT_VALUE_INR } from "@/lib/rewards/constants";
 import { useAuth } from "@/contexts/auth-context";
@@ -435,6 +435,7 @@ export function HotelDetailClient({
                     <BookingDateInput
                       value={checkOut}
                       onChange={setCheckOut}
+                      min={checkIn || todayIsoDate()}
                       className="mt-1.5"
                     />
                   </div>
