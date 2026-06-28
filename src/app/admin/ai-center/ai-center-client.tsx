@@ -69,6 +69,10 @@ import {
   computeSeoPublishWorkflowStats,
   getAllDuplicateBlogs,
 } from "@/lib/ai-center/utils";
+import {
+  buildAiCenterSettingsPayload,
+  parseSettingsApiError,
+} from "@/lib/ai-center/settings-payload";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
 import { ADMIN_BLOG_IMAGES_SECTION_HINT } from "@/lib/admin/image-upload-hints";
@@ -1003,7 +1007,7 @@ export default function AiCenterClient() {
         body: JSON.stringify(updates),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) throw new Error(parseSettingsApiError(json));
       setSettings(json.data);
       setGenerateAiImage(json.data.openAiImagesDefaultToggle ?? false);
     } catch (e) {
@@ -1022,23 +1026,10 @@ export default function AiCenterClient() {
       const res = await adminApiFetch("/api/admin/ai-center/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blogWordLimit: settings.blogWordLimit,
-          keywordsPerDay: settings.keywordsPerDay,
-          autoDraftEnabled: settings.autoDraftEnabled,
-          autoPublishEnabled: settings.autoPublishEnabled,
-          autoBlogGenerateEnabled: settings.autoBlogGenerateEnabled,
-          autoKeywordApproveEnabled: settings.autoKeywordApproveEnabled,
-          autoBlogApproveEnabled: settings.autoBlogApproveEnabled,
-          approvalRequired: true,
-          openAiImagesEnabled: settings.openAiImagesEnabled,
-          openAiImagesDefaultToggle: settings.openAiImagesDefaultToggle,
-          openAiImagesMaxPerBlog: settings.openAiImagesMaxPerBlog,
-          openAiImagesMonthlyLimit: settings.openAiImagesMonthlyLimit,
-        }),
+        body: JSON.stringify(buildAiCenterSettingsPayload(settings)),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) throw new Error(parseSettingsApiError(json));
       setSettings(json.data);
       setGenerateAiImage(json.data.openAiImagesDefaultToggle ?? false);
       toast.success("AI settings saved");
@@ -1626,23 +1617,32 @@ export default function AiCenterClient() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Keywords per day</Label>
+                    <Label>Keywords per research run</Label>
                     <Input
                       type="number"
                       min={1}
-                      max={50}
+                      max={100}
                       value={settings.keywordsPerDay}
                       onChange={(e) =>
-                        setSettings({ ...settings, keywordsPerDay: Number(e.target.value) || 10 })
+                        setSettings({
+                          ...settings,
+                          keywordsPerDay: Math.min(
+                            100,
+                            Math.max(1, Number(e.target.value) || 10)
+                          ),
+                        })
                       }
                     />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Max 100 new keywords each time you click Run Keyword Research (SEO Agent).
+                    </p>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
                     <div>
-                      <p className="font-medium">Auto Draft on Approve</p>
+                      <p className="font-medium">Auto-approve on keyword research</p>
                       <p className="text-xs text-muted-foreground">
-                        Blog drafts are created automatically when you approve a keyword. This setting
-                        only controls SEO Agent auto-approving sample keywords on research runs.
+                        When on, Run Keyword Research auto-approves up to 2 sample pending keywords
+                        (not city search batches).
                       </p>
                     </div>
                     <Switch
@@ -1819,15 +1819,10 @@ export default function AiCenterClient() {
                       }
                     />
                   </div>
-                  <div>
-                    <Label>Maximum Images Per Blog</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={1}
-                      readOnly
-                      value={settings.openAiImagesMaxPerBlog ?? 1}
-                    />
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground">
+                      One OpenAI featured image per blog (fixed at 1).
+                    </p>
                   </div>
                   <div>
                     <Label>Monthly Image Limit</Label>

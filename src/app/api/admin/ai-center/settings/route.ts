@@ -4,6 +4,7 @@ import {
   hydrateAiCenterStore,
   updateAiCenterSettings,
 } from "@/lib/ai-center/repository";
+import type { AiCenterSettings } from "@/lib/ai-center/types";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { z } from "zod";
 
@@ -20,8 +21,11 @@ export async function GET(request: Request) {
 }
 
 const settingsSchema = z.object({
-  blogWordLimit: z.union([z.literal(1000), z.literal(1500), z.literal(2000), z.literal(3000)]).optional(),
-  keywordsPerDay: z.number().min(1).max(50).optional(),
+  blogWordLimit: z.coerce
+    .number()
+    .refine((n) => [1000, 1500, 2000, 3000].includes(n), "Must be 1000, 1500, 2000, or 3000")
+    .optional(),
+  keywordsPerDay: z.coerce.number().int().min(1).max(100).optional(),
   autoDraftEnabled: z.boolean().optional(),
   autoPublishEnabled: z.boolean().optional(),
   autoBlogGenerateEnabled: z.boolean().optional(),
@@ -30,8 +34,8 @@ const settingsSchema = z.object({
   approvalRequired: z.boolean().optional(),
   packageAutoDraftEnabled: z.boolean().optional(),
   packageApprovalRequired: z.boolean().optional(),
-  defaultPackageDuration: z.number().min(2).max(14).optional(),
-  defaultMarginPercent: z.number().min(5).max(40).optional(),
+  defaultPackageDuration: z.coerce.number().min(2).max(14).optional(),
+  defaultMarginPercent: z.coerce.number().min(5).max(40).optional(),
   voiceDefaultLocale: z.enum(["en", "hi", "auto"]).optional(),
   voiceGender: z.enum(["male", "female"]).optional(),
   voiceAutoDetectLanguage: z.boolean().optional(),
@@ -43,15 +47,27 @@ const settingsSchema = z.object({
   priceApprovalRequired: z.boolean().optional(),
   reviewApprovalRequired: z.boolean().optional(),
   manualPriceOverride: z.boolean().optional(),
-  fraudRiskThreshold: z.number().min(0).max(100).optional(),
-  leadHotThreshold: z.number().min(0).max(100).optional(),
-  leadWarmThreshold: z.number().min(0).max(100).optional(),
+  fraudRiskThreshold: z.coerce.number().min(0).max(100).optional(),
+  leadHotThreshold: z.coerce.number().min(0).max(100).optional(),
+  leadWarmThreshold: z.coerce.number().min(0).max(100).optional(),
   phase3NotificationsEnabled: z.boolean().optional(),
   openAiImagesEnabled: z.boolean().optional(),
   openAiImagesDefaultToggle: z.boolean().optional(),
-  openAiImagesMaxPerBlog: z.number().min(1).max(1).optional(),
-  openAiImagesMonthlyLimit: z.number().min(1).max(10000).optional(),
+  openAiImagesMaxPerBlog: z.coerce.number().int().min(1).max(1).optional(),
+  openAiImagesMonthlyLimit: z.coerce.number().int().min(1).max(10000).optional(),
 });
+
+function formatSettingsValidationError(error: z.ZodError): string {
+  const flat = error.flatten();
+  const entry = Object.entries(flat.fieldErrors)[0];
+  if (entry) {
+    const [field, messages] = entry;
+    if (Array.isArray(messages) && messages.length) {
+      return `Validation failed — ${field}: ${messages.join(", ")}`;
+    }
+  }
+  return flat.formErrors[0] ?? "Validation failed";
+}
 
 export async function PUT(request: Request) {
   try {
@@ -62,7 +78,9 @@ export async function PUT(request: Request) {
     if (error) return error;
 
     const parsed = settingsSchema.safeParse(body);
-    if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
+    if (!parsed.success) {
+      return apiError(formatSettingsValidationError(parsed.error), 400, parsed.error.flatten());
+    }
 
     const updates = { ...parsed.data };
     if (updates.autoPublishEnabled && updates.approvalRequired === false) {
@@ -73,7 +91,10 @@ export async function PUT(request: Request) {
     }
 
     await hydrateAiCenterStore();
-    const settings = await updateAiCenterSettings(updates, auth.user.id);
+    const settings = await updateAiCenterSettings(
+      updates as Partial<AiCenterSettings>,
+      auth.user.id
+    );
     return apiSuccess(settings);
   } catch (err) {
     return apiError("Failed to update settings", 500);
