@@ -128,8 +128,8 @@ const AI_CENTER_NAV_SECTIONS: AiCenterNavSection[] = [
     label: "System",
     description: "Activity logs and global AI configuration.",
     tabs: [
-      { id: "logs", label: "AI Logs", icon: ScrollText },
       { id: "settings", label: "AI Settings", icon: Settings },
+      { id: "logs", label: "AI Logs", icon: ScrollText },
     ],
   },
 ];
@@ -212,6 +212,7 @@ export default function AiCenterClient() {
   );
   const autoRunRef = useRef<{ tab: string; signature: string } | null>(null);
   const automationCancelRef = useRef(false);
+  const [logFilter, setLogFilter] = useState<"all" | "blog" | "seo" | "errors">("all");
 
   const loadAll = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -219,7 +220,7 @@ export default function AiCenterClient() {
       const [kwRes, blogRes, logRes, settingsRes] = await Promise.all([
         adminApiFetch("/api/admin/ai-center/keywords"),
         adminApiFetch("/api/admin/ai-center/blogs"),
-        adminApiFetch("/api/admin/ai-center/logs?limit=100"),
+        adminApiFetch("/api/admin/ai-center/logs?limit=300"),
         adminApiFetch("/api/admin/ai-center/settings"),
       ]);
       const [kwJson, blogJson, logJson, settingsJson] = await Promise.all([
@@ -365,6 +366,31 @@ export default function AiCenterClient() {
     () => computeSeoPublishWorkflowStats(keywords, blogs, seoMeta),
     [keywords, blogs, seoMeta]
   );
+
+  const filteredLogs = useMemo(() => {
+    const blogTypes = new Set([
+      "blog_generated",
+      "blog_approved",
+      "blog_published",
+      "blog_image_generated",
+      "blog_deleted",
+      "blog_rejected",
+    ]);
+    const seoTypes = new Set([
+      "keyword_generated",
+      "keyword_approved",
+      "keyword_rejected",
+      "seo_meta_generated",
+    ]);
+
+    return logs.filter((log) => {
+      if (logFilter === "all") return true;
+      if (logFilter === "blog") return blogTypes.has(log.type);
+      if (logFilter === "seo") return seoTypes.has(log.type);
+      if (logFilter === "errors") return log.type === "error" || Boolean(log.error);
+      return true;
+    });
+  }, [logs, logFilter]);
 
   const activeTabMeta = AI_CENTER_TAB_LOOKUP.get(activeTab);
 
@@ -960,6 +986,35 @@ export default function AiCenterClient() {
     }
   };
 
+  const saveImageSettings = async (updates: {
+    openAiImagesEnabled?: boolean;
+    openAiImagesDefaultToggle?: boolean;
+  }) => {
+    if (!settings) return;
+    const next = { ...settings, ...updates };
+    setSettings(next);
+    if (updates.openAiImagesDefaultToggle !== undefined) {
+      setGenerateAiImage(updates.openAiImagesDefaultToggle);
+    }
+    try {
+      const res = await adminApiFetch("/api/admin/ai-center/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setSettings(json.data);
+      setGenerateAiImage(json.data.openAiImagesDefaultToggle ?? false);
+    } catch (e) {
+      setSettings(settings);
+      if (updates.openAiImagesDefaultToggle !== undefined) {
+        setGenerateAiImage(settings.openAiImagesDefaultToggle ?? false);
+      }
+      toast.error(e instanceof Error ? e.message : "Failed to save image settings");
+    }
+  };
+
   const saveSettings = async () => {
     if (!settings) return;
     setBusy(true);
@@ -1139,21 +1194,6 @@ export default function AiCenterClient() {
                   Sources: Google Search suggestions (always) · template fallbacks · optional SerpAPI if{" "}
                   <code className="rounded bg-muted px-1">SERP_API_KEY</code> is set in Vercel env.
                 </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {seoMeta.slice(0, 6).map((meta) => (
-                    <div key={meta.id} className="rounded-lg border p-3 text-sm">
-                      <p className="font-semibold">{meta.seoTitle}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{meta.seoDescription}</p>
-                      <p className="text-xs mt-2">Focus: {meta.focusKeyword}</p>
-                      <Link href={`/blog/${meta.slug}`} className="text-xs text-primary hover:underline">
-                        /blog/{meta.slug}
-                      </Link>
-                    </div>
-                  ))}
-                  {seoMeta.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Approve keywords to generate SEO meta.</p>
-                  )}
-                </div>
 
                 <CityKeywordResearchPanel
                   citySearchName={citySearchName}
@@ -1503,11 +1543,31 @@ export default function AiCenterClient() {
                   AI Logs
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {logs.map((log) => (
+              <CardContent className="space-y-3 max-h-[60vh] overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["all", "All"],
+                      ["blog", "Blog"],
+                      ["seo", "SEO & Keywords"],
+                      ["errors", "Errors"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      size="sm"
+                      variant={logFilter === id ? "default" : "outline"}
+                      onClick={() => setLogFilter(id)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {filteredLogs.map((log) => (
                   <div key={log.id} className="rounded-lg border p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge variant="outline">{log.type}</Badge>
+                      <Badge variant="outline">{log.type.replace(/_/g, " ")}</Badge>
                       <span className="text-xs text-muted-foreground">
                         {new Date(log.createdAt).toLocaleString("en-IN")}
                         {log.durationMs ? ` · ${log.durationMs}ms` : ""}
@@ -1517,7 +1577,13 @@ export default function AiCenterClient() {
                     {log.error && <p className="text-xs text-destructive mt-1">{log.error}</p>}
                   </div>
                 ))}
-                {logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
+                {filteredLogs.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {logs.length === 0
+                      ? "No logs yet."
+                      : `No ${logFilter === "all" ? "" : `${logFilter} `}logs match this filter.`}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1725,7 +1791,7 @@ export default function AiCenterClient() {
                     </div>
                     <Switch
                       checked={settings.openAiImagesEnabled ?? false}
-                      onCheckedChange={(v) => setSettings({ ...settings, openAiImagesEnabled: v })}
+                      onCheckedChange={(v) => void saveImageSettings({ openAiImagesEnabled: v })}
                     />
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
@@ -1738,7 +1804,7 @@ export default function AiCenterClient() {
                     <Switch
                       checked={settings.openAiImagesDefaultToggle ?? false}
                       onCheckedChange={(v) =>
-                        setSettings({ ...settings, openAiImagesDefaultToggle: v })
+                        void saveImageSettings({ openAiImagesDefaultToggle: v })
                       }
                     />
                   </div>

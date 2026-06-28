@@ -114,19 +114,37 @@ function mergeCache<T extends { id: string }>(cache: T[], item: T): T[] {
   return [item, ...cache];
 }
 
+async function loadSettings(): Promise<AiCenterSettings> {
+  const fallback: AiCenterSettings = { ...DEFAULT_SETTINGS, id: "global" };
+  if (!isAdminEnvConfigured()) return fallback;
+
+  try {
+    const db = await getSafeAdminDb();
+    if (!db) return fallback;
+    const doc = await db.collection(COLLECTIONS.settings).doc("global").get();
+    if (doc.exists) {
+      return { ...DEFAULT_SETTINGS, ...doc.data(), id: "global" } as AiCenterSettings;
+    }
+  } catch (error) {
+    console.warn("loadSettings failed:", error);
+  }
+
+  return fallback;
+}
+
 export async function hydrateAiCenterStore(): Promise<void> {
   const [keywords, meta, blogs, logs, settings] = await Promise.all([
     loadAll<SeoKeyword>(COLLECTIONS.keywords),
     loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta),
     loadAll<AiBlogPost>(COLLECTIONS.blogs, 2000),
     loadAll<AiCenterLog>(COLLECTIONS.logs, 500),
-    loadAll<AiCenterSettings>(COLLECTIONS.settings, 1),
+    loadSettings(),
   ]);
   if (keywords.length) keywordCache = keywords;
   if (meta.length) seoMetaCache = meta;
   if (blogs.length) blogCache = blogs;
   if (logs.length) logCache = logs;
-  if (settings[0]) settingsCache = { ...DEFAULT_SETTINGS, ...settings[0] };
+  settingsCache = settings;
   await hydrateImageGenerationLogs();
 }
 
@@ -182,7 +200,11 @@ export function listBlogs(status?: BlogStatus): AiBlogPost[] {
 }
 
 export function listAiLogs(limit = 100): AiCenterLog[] {
-  return logCache.slice(0, limit);
+  return [...logCache]
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .slice(0, limit);
 }
 
 export {

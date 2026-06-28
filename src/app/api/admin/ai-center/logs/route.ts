@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     await hydrateAiCenterStore();
-    const limit = Number(searchParams.get("limit") ?? 100);
+    const limit = Number(searchParams.get("limit") ?? 300);
 
     return apiSuccess({
       logs: listAiLogs(limit),
