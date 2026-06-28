@@ -5,7 +5,7 @@ import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image
 import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
-import { keywordHasBlog } from "@/lib/ai-center/utils";
+import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap } from "@/lib/ai-center/utils";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -455,7 +455,10 @@ export async function generateBlogFromKeyword(
   if (keyword.status !== "approved") throw new Error("Keyword must be approved first");
 
   if (keywordHasBlog(keyword, blogCache, seoMetaCache)) {
-    throw new Error("A blog draft already exists for this keyword");
+    const existing = blogsMatchingKeyword(keyword, blogCache, seoMetaCache)[0];
+    throw new Error(
+      `A blog already exists for this keyword (${existing?.status ?? "existing"}: ${existing?.title ?? keyword.keyword})`
+    );
   }
 
   const seoMeta = seoMetaCache.find((m) => m.keywordId === keywordId);
@@ -540,6 +543,21 @@ export async function updateBlog(
 export async function approveBlog(id: string, approvedBy: string): Promise<AiBlogPost> {
   const blog = blogCache.find((b) => b.id === id);
   if (!blog) throw new Error("Blog not found");
+
+  if (blog.keywordId) {
+    const keyword = keywordCache.find((k) => k.id === blog.keywordId);
+    if (keyword) {
+      const canonical = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache).get(
+        keyword.id
+      );
+      if (canonical && canonical.id !== blog.id) {
+        throw new Error(
+          `Duplicate blog — use the canonical copy: ${canonical.title} (${canonical.status})`
+        );
+      }
+    }
+  }
+
   const updated: AiBlogPost = {
     ...blog,
     status: "approved",
@@ -591,6 +609,35 @@ export async function publishBlog(id: string, approvedBy: string): Promise<AiBlo
     throw new Error("Blog must be approved before publishing");
   }
 
+  if (blog.keywordId) {
+    const keyword = keywordCache.find((k) => k.id === blog.keywordId);
+    if (keyword) {
+      const canonical = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache).get(
+        keyword.id
+      );
+      if (canonical && canonical.id !== blog.id) {
+        throw new Error(
+          `Duplicate blog — publish the canonical copy instead: ${canonical.title}`
+        );
+      }
+      const alreadyPublished = blogsMatchingKeyword(keyword, blogCache, seoMetaCache).filter(
+        (b) => b.id !== blog.id && b.status === "published"
+      );
+      if (alreadyPublished.length > 0) {
+        throw new Error(
+          `This keyword already has a published blog: ${alreadyPublished[0].title}`
+        );
+      }
+    }
+  }
+
+  const slugPublished = blogCache.filter(
+    (b) => b.id !== blog.id && b.slug === blog.slug && b.status === "published"
+  );
+  if (slugPublished.length > 0) {
+    throw new Error(`Slug "${blog.slug}" is already published on another post`);
+  }
+
   const now = new Date().toISOString();
   const updated: AiBlogPost = {
     ...blog,
@@ -635,14 +682,18 @@ export async function deleteBlog(id: string): Promise<void> {
 
 export async function getAiCenterStats() {
   await hydrateAiCenterStore();
+  const canonicalMap = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache);
+  const canonical = [...canonicalMap.values()];
+
   return {
     keywordsTotal: keywordCache.length,
     keywordsPending: keywordCache.filter((k) => k.status === "pending").length,
     keywordsApproved: keywordCache.filter((k) => k.status === "approved").length,
-    blogsDraft: blogCache.filter((b) => b.status === "draft").length,
-    blogsPending: blogCache.filter((b) => b.status === "pending_approval").length,
-    blogsPublished: blogCache.filter((b) => b.status === "published").length,
+    blogsDraft: canonical.filter((b) => b.status === "draft").length,
+    blogsPending: canonical.filter((b) => b.status === "pending_approval").length,
+    blogsPublished: canonical.filter((b) => b.status === "published").length,
     blogsRejected: blogCache.filter((b) => b.status === "rejected").length,
+    blogsDuplicate: blogCache.filter((b) => b.status !== "rejected").length - canonical.length,
     seoMetaCount: seoMetaCache.length,
     lastLog: logCache[0] ?? null,
   };

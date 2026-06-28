@@ -63,7 +63,12 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import { toast } from "sonner";
-import { approvedKeywordsWithoutBlog, computeSeoPublishWorkflowStats } from "@/lib/ai-center/utils";
+import {
+  approvedKeywordsWithoutBlog,
+  buildCanonicalBlogMap,
+  computeSeoPublishWorkflowStats,
+  getDuplicateBlogs,
+} from "@/lib/ai-center/utils";
 import { blogImagesFromExisting } from "@/lib/media/blog-image-service";
 import { resolveBlogFeaturedImage, resolveBlogImageKey } from "@/lib/ai-center/blog-destination-images";
 import { ADMIN_BLOG_IMAGES_SECTION_HINT } from "@/lib/admin/image-upload-hints";
@@ -325,20 +330,32 @@ export default function AiCenterClient() {
     () => approvedKeywordsNeedingBlog,
     [approvedKeywordsNeedingBlog]
   );
+  const canonicalBlogMap = useMemo(
+    () => buildCanonicalBlogMap(keywords, blogs, seoMeta),
+    [keywords, blogs, seoMeta]
+  );
+  const canonicalBlogs = useMemo(() => [...canonicalBlogMap.values()], [canonicalBlogMap]);
+  const duplicateBlogs = useMemo(
+    () => getDuplicateBlogs(keywords, blogs, seoMeta),
+    [keywords, blogs, seoMeta]
+  );
   const draftBlogs = useMemo(
-    () => blogs.filter((b) => b.status === "draft" || b.status === "pending_approval"),
-    [blogs]
+    () =>
+      canonicalBlogs.filter(
+        (b) => b.status === "draft" || b.status === "pending_approval"
+      ),
+    [canonicalBlogs]
   );
   const scheduledBlogs = useMemo(
-    () => blogs.filter((b) => b.status === "approved"),
-    [blogs]
+    () => canonicalBlogs.filter((b) => b.status === "approved"),
+    [canonicalBlogs]
   );
   const publishedBlogs = useMemo(
     () =>
-      blogs
+      canonicalBlogs
         .filter((b) => b.status === "published")
         .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0)),
-    [blogs]
+    [canonicalBlogs]
   );
   const rejectedBlogs = useMemo(
     () => blogs.filter((b) => b.status === "rejected"),
@@ -651,11 +668,10 @@ export default function AiCenterClient() {
   }, [keywords, loadAll]);
 
   const runAutoApproveAll = useCallback(async () => {
-    const targets = blogs.filter(
-      (b) => b.status === "pending_approval" || b.status === "draft"
-    );
+    const targets = draftBlogs;
     if (targets.length === 0) return;
     setBusy(true);
+    let approved = 0;
     try {
       for (const blog of targets) {
         const res = await adminApiFetch(`/api/admin/ai-center/blogs/${blog.id}`, {
@@ -664,9 +680,16 @@ export default function AiCenterClient() {
           body: JSON.stringify({ action: "approve" }),
         });
         const json = await res.json();
-        if (!json.success) throw new Error(json.error);
+        if (!json.success) {
+          const msg = json.error ?? "Approve failed";
+          if (String(msg).toLowerCase().includes("duplicate")) continue;
+          throw new Error(msg);
+        }
+        approved += 1;
       }
-      toast.success(`Auto-approved ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      if (approved > 0) {
+        toast.success(`Auto-approved ${approved} blog${approved === 1 ? "" : "s"}`);
+      }
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Auto approve failed");
@@ -674,12 +697,13 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [blogs, loadAll]);
+  }, [draftBlogs, loadAll]);
 
   const runAutoPublishAll = useCallback(async () => {
-    const targets = blogs.filter((b) => b.status === "approved");
+    const targets = scheduledBlogs;
     if (targets.length === 0) return;
     setBusy(true);
+    let published = 0;
     try {
       for (const blog of targets) {
         const res = await adminApiFetch(`/api/admin/ai-center/blogs/${blog.id}`, {
@@ -688,9 +712,21 @@ export default function AiCenterClient() {
           body: JSON.stringify({ action: "publish" }),
         });
         const json = await res.json();
-        if (!json.success) throw new Error(json.error);
+        if (!json.success) {
+          const msg = json.error ?? "Publish failed";
+          if (
+            String(msg).toLowerCase().includes("duplicate") ||
+            String(msg).toLowerCase().includes("already has a published")
+          ) {
+            continue;
+          }
+          throw new Error(msg);
+        }
+        published += 1;
       }
-      toast.success(`Auto-published ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
+      if (published > 0) {
+        toast.success(`Auto-published ${published} blog${published === 1 ? "" : "s"}`);
+      }
       await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Auto publish failed");
@@ -698,7 +734,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [blogs, loadAll]);
+  }, [scheduledBlogs, loadAll]);
 
   const saveAutomationToggle = async (
     field:
@@ -1283,6 +1319,15 @@ export default function AiCenterClient() {
 
           <TabsContent value="drafts">
             <SeoPublishWorkflowProgress stats={workflowStats} onlyStageId="blog-approve" />
+            {duplicateBlogs.length > 0 && (
+              <div className="mb-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                <strong>{duplicateBlogs.length} duplicate blog copies</strong> found in the
+                database ({workflowStats.summary.totalBlogDocuments} total documents for{" "}
+                {approvedKeywords.length} keywords). Duplicates are hidden here and will not
+                auto-approve or auto-publish. Only one blog per keyword is kept (published copy
+                preferred).
+              </div>
+            )}
             <BlogAutomationBar
               className="mb-4 mt-3"
               label="Auto Approve"
