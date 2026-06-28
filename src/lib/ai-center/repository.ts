@@ -1,6 +1,8 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { generateCityKeywordResearch } from "@/lib/ai-center/city-keyword-research";
 import { generateBlogPost } from "@/lib/ai-center/blog-writer-agent";
+import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image-generator";
+import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
 import { keywordHasBlog } from "@/lib/ai-center/utils";
@@ -100,6 +102,7 @@ export async function hydrateAiCenterStore(): Promise<void> {
   if (blogs.length) blogCache = blogs;
   if (logs.length) logCache = logs;
   if (settings[0]) settingsCache = { ...DEFAULT_SETTINGS, ...settings[0] };
+  await hydrateImageGenerationLogs();
 }
 
 export async function addAiCenterLog(input: {
@@ -156,6 +159,12 @@ export function listBlogs(status?: BlogStatus): AiBlogPost[] {
 export function listAiLogs(limit = 100): AiCenterLog[] {
   return logCache.slice(0, limit);
 }
+
+export {
+  getImageGenerationStats,
+  hydrateImageGenerationLogs,
+  listImageGenerationLogs,
+} from "@/lib/ai-center/image-generation-logs";
 
 export function getBlogById(id: string): AiBlogPost | null {
   return blogCache.find((b) => b.id === id) ?? null;
@@ -372,7 +381,10 @@ export async function approveKeyword(
 
   const settings = getAiCenterSettings();
   if (settings.autoDraftEnabled && !skipBlog) {
-    await generateBlogFromKeyword(updated.id, approvedBy);
+    await generateBlogFromKeyword(updated.id, approvedBy, {
+      generateAiImage:
+        settings.openAiImagesEnabled && settings.openAiImagesDefaultToggle,
+    });
   }
 
   return { keyword: updated, seoMeta };
@@ -404,8 +416,9 @@ export async function deleteKeyword(id: string): Promise<void> {
 
 export async function generateBlogFromKeyword(
   keywordId: string,
-  actorId?: string
-): Promise<AiBlogPost> {
+  actorId?: string,
+  options?: { generateAiImage?: boolean }
+): Promise<{ blog: AiBlogPost; imageGenerationMessage?: string }> {
   const start = Date.now();
   await hydrateAiCenterStore();
   const keyword = keywordCache.find((k) => k.id === keywordId);
@@ -432,11 +445,39 @@ export async function generateBlogFromKeyword(
     durationMs: Date.now() - start,
   });
 
-  if (settings.autoPublishEnabled && !settings.approvalRequired) {
-    return publishBlog(blog.id, actorId ?? "system");
+  let finalBlog = blog;
+  let imageGenerationMessage: string | undefined;
+
+  const shouldGenerateImage =
+    options?.generateAiImage === true && settings.openAiImagesEnabled;
+
+  if (shouldGenerateImage) {
+    const enrichment = await enrichBlogWithOpenAiFeaturedImage(
+      blog,
+      settings,
+      actorId ?? "system"
+    );
+    if (enrichment.success && enrichment.blog) {
+      finalBlog = enrichment.blog;
+      blogCache = mergeCache(blogCache, finalBlog);
+      await persistDoc(COLLECTIONS.blogs, finalBlog.id, finalBlog);
+      await addAiCenterLog({
+        type: "blog_image_generated",
+        message: `OpenAI featured image: ${finalBlog.title}`,
+        resourceId: finalBlog.id,
+        resourceType: "blog",
+      });
+    } else if (enrichment.message) {
+      imageGenerationMessage = enrichment.message;
+    }
   }
 
-  return blog;
+  if (settings.autoPublishEnabled && !settings.approvalRequired) {
+    const published = await publishBlog(finalBlog.id, actorId ?? "system");
+    return { blog: published, imageGenerationMessage };
+  }
+
+  return { blog: finalBlog, imageGenerationMessage };
 }
 
 export async function updateBlog(

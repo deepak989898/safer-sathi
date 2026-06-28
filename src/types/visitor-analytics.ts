@@ -19,6 +19,8 @@ export interface VisitorEvent {
 export interface VisitorSession {
   id: string;
   visitorId: string;
+  /** Set when a logged-in customer is tracked. */
+  userId?: string;
   startedAt: string;
   endedAt: string;
   lastSeenAt: string;

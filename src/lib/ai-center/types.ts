@@ -27,6 +27,7 @@ export type AiLogType =
   | "blog_rejected"
   | "blog_published"
   | "blog_deleted"
+  | "blog_image_generated"
   | "package_generated"
   | "package_approved"
   | "package_rejected"
@@ -133,6 +134,10 @@ export interface AiBlogPost {
   content: string;
   featuredImage: string;
   imagePrompts: BlogImagePrompt[];
+  /** How the featured image was assigned (catalog default, openai, manual). */
+  imageSource?: "catalog" | "openai" | "manual";
+  imageGenerated?: boolean;
+  imageGeneratedAt?: string;
   faq: { question: string; answer: string }[];
   wordCount: number;
   viewCount?: number;
@@ -318,6 +323,20 @@ export interface AiPhase2Log {
   createdAt: string;
 }
 
+export interface AiImageGenerationLog {
+  id: string;
+  blogId: string;
+  blogTitle: string;
+  keyword?: string;
+  destination?: string;
+  success: boolean;
+  imageSource: "openai" | "catalog";
+  generatedBy: string;
+  estimatedCostUsd?: number;
+  error?: string;
+  createdAt: string;
+}
+
 export interface AiCenterSettings {
   id: "global";
   blogWordLimit: 1000 | 1500 | 2000 | 3000;
@@ -350,6 +369,14 @@ export interface AiCenterSettings {
   leadHotThreshold: number;
   leadWarmThreshold: number;
   phase3NotificationsEnabled: boolean;
+  /** Master switch for optional OpenAI featured image generation. */
+  openAiImagesEnabled: boolean;
+  /** Default ON/OFF for Generate AI Image toggle in Blog Writer. */
+  openAiImagesDefaultToggle: boolean;
+  /** Max OpenAI images per blog (default 1). */
+  openAiImagesMaxPerBlog: number;
+  /** Monthly cap on successful OpenAI image generations. */
+  openAiImagesMonthlyLimit: number;
   updatedAt: string;
   updatedBy?: string;
 }
@@ -383,6 +410,10 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   leadHotThreshold: 80,
   leadWarmThreshold: 50,
   phase3NotificationsEnabled: true,
+  openAiImagesEnabled: false,
+  openAiImagesDefaultToggle: false,
+  openAiImagesMaxPerBlog: 1,
+  openAiImagesMonthlyLimit: 100,
   updatedAt: new Date().toISOString(),
 };
 

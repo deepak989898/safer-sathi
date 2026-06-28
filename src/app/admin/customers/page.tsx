@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Eye } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { CustomerProfileDialog } from "@/components/admin/customer-profile-dialog";
 import { DataTable } from "@/components/admin/data-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -15,38 +17,73 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import { adminApiFetch } from "@/lib/admin/api-client";
 import { canManageUser, ROLE_LABELS } from "@/lib/auth/constants";
+import type { CustomerListItem } from "@/lib/admin/customer-insights";
 import { formatCurrency } from "@/lib/i18n";
 import type { User, UserRole } from "@/types";
 import { toast } from "sonner";
 
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export default function CustomersPage() {
   const { user, refreshUsers, approveUser, suspendUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
+  const [pendingStaff, setPendingStaff] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("customer");
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const actorRole = user?.role ?? "customer";
 
-  const loadUsers = useCallback(async () => {
+  const loadCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await refreshUsers();
-      // Guard against malformed/null records from remote auth/user store.
-      const safeUsers = (data ?? []).filter(
+      const roleQuery = roleFilter === "all" ? "" : `?role=${roleFilter}`;
+      const [customersRes, staffRes] = await Promise.all([
+        adminApiFetch(`/api/admin/customers${roleQuery}`),
+        refreshUsers(),
+      ]);
+
+      const customersJson = await customersRes.json();
+      if (customersJson.success) {
+        setCustomers(customersJson.data.customers ?? []);
+      } else {
+        throw new Error(customersJson.error);
+      }
+
+      const safeUsers = (staffRes ?? []).filter(
         (u): u is User => Boolean(u?.id && u?.name && u?.email && u?.role && u?.status)
       );
-      setUsers(safeUsers);
+      setPendingStaff(
+        safeUsers.filter(
+          (u) =>
+            u.status === "pending" &&
+            !u.approved &&
+            u.role !== "customer" &&
+            canManageUser(actorRole, u.role)
+        )
+      );
     } catch {
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
-  }, [refreshUsers]);
+  }, [roleFilter, refreshUsers, actorRole]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    void loadCustomers();
+  }, [loadCustomers]);
 
   const handleApprove = async (target: User) => {
     if (!canManageUser(actorRole, target.role)) {
@@ -56,7 +93,7 @@ export default function CustomersPage() {
     try {
       await approveUser(target.id);
       toast.success("User approved successfully");
-      loadUsers();
+      void loadCustomers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to approve user");
     }
@@ -70,40 +107,30 @@ export default function CustomersPage() {
     try {
       await suspendUser(target.id);
       toast.success("User suspended");
-      loadUsers();
+      void loadCustomers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to suspend user");
     }
   };
 
-  const pendingUsers = users.filter(
-    (u) =>
-      u.status === "pending" &&
-      !u.approved &&
-      u.role !== "customer" &&
-      canManageUser(actorRole, u.role)
-  );
+  const openProfile = (target: CustomerListItem) => {
+    setProfileUserId(target.id);
+    setProfileOpen(true);
+  };
 
-  const activeUsers = users.filter((u) => {
-    if (u.status !== "active" || !u.approved) return false;
-    if (actorRole === "super_admin") return true;
-    if (actorRole === "manager") {
-      return canManageUser(actorRole, u.role);
-    }
-    return u.role === "customer";
-  });
-
-  const filteredActiveUsers = useMemo(
-    () => activeUsers.filter((u) => roleFilter === "all" || u.role === roleFilter),
-    [activeUsers, roleFilter]
-  );
+  const activeUsers = useMemo(() => {
+    return customers.filter((u) => u.status === "active" && u.approved);
+  }, [customers]);
 
   const filteredPendingUsers = useMemo(
-    () => pendingUsers.filter((u) => roleFilter === "all" || u.role === roleFilter),
-    [pendingUsers, roleFilter]
+    () =>
+      pendingStaff.filter((u) => roleFilter === "all" || u.role === roleFilter),
+    [pendingStaff, roleFilter]
   );
 
-  const baseColumns: ColumnDef<User>[] = [
+  const showCustomerMetrics = roleFilter === "customer" || roleFilter === "all";
+
+  const baseColumns: ColumnDef<CustomerListItem>[] = [
     {
       accessorKey: "name",
       header: "User",
@@ -131,46 +158,110 @@ export default function CustomersPage() {
     },
   ];
 
-  const customerColumns: ColumnDef<User>[] = [
+  const customerColumns: ColumnDef<CustomerListItem>[] = [
     ...baseColumns,
+    ...(showCustomerMetrics
+      ? ([
+          {
+            id: "segment",
+            header: "Segment",
+            cell: ({ row }: { row: { original: CustomerListItem } }) => (
+              <StatusBadge status={row.original.segment ?? "regular"} />
+            ),
+          },
+          {
+            id: "joined",
+            header: "Joined",
+            cell: ({ row }: { row: { original: CustomerListItem } }) => (
+              <span className="text-xs whitespace-nowrap">
+                {formatDateTime(row.original.joinDate)}
+              </span>
+            ),
+          },
+          {
+            id: "firstBooking",
+            header: "First Booking",
+            cell: ({ row }: { row: { original: CustomerListItem } }) =>
+              row.original.role === "customer" ? (
+                <span className="text-xs whitespace-nowrap">
+                  {row.original.firstBookingAt
+                    ? formatDateTime(row.original.firstBookingAt)
+                    : "—"}
+                </span>
+              ) : (
+                "—"
+              ),
+          },
+          {
+            id: "visits",
+            header: "Visits",
+            cell: ({ row }: { row: { original: CustomerListItem } }) =>
+              row.original.role === "customer" ? row.original.visitCount : "—",
+          },
+        ] as ColumnDef<CustomerListItem>[])
+      : []),
     {
-      id: "segment",
-      header: "Segment",
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.segment ?? "regular"} />
-      ),
-    },
-    {
-      accessorKey: "totalBookings",
+      accessorKey: "computedTotalBookings",
       header: "Bookings",
-      cell: ({ row }) => row.original.totalBookings ?? 0,
+      cell: ({ row }) => row.original.computedTotalBookings ?? 0,
     },
     {
-      accessorKey: "totalSpent",
+      accessorKey: "computedTotalSpent",
       header: "Total Spent",
       cell: ({ row }) =>
-        row.original.totalSpent ? formatCurrency(row.original.totalSpent) : "—",
+        row.original.computedTotalSpent
+          ? formatCurrency(row.original.computedTotalSpent)
+          : "—",
     },
     {
       id: "actions",
       header: "Actions",
-      cell: ({ row }) =>
-        canManageUser(actorRole, row.original.role) ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSuspend(row.original)}
-          >
-            Suspend
-          </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">Protected</span>
-        ),
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-2">
+          {row.original.role === "customer" && (
+            <Button size="sm" variant="secondary" onClick={() => openProfile(row.original)}>
+              <Eye className="mr-1 h-3.5 w-3.5" />
+              Profile
+            </Button>
+          )}
+          {canManageUser(actorRole, row.original.role) ? (
+            <Button size="sm" variant="outline" onClick={() => handleSuspend(row.original)}>
+              Suspend
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Protected</span>
+          )}
+        </div>
+      ),
     },
   ];
 
   const pendingColumns: ColumnDef<User>[] = [
-    ...baseColumns,
+    {
+      accessorKey: "name",
+      header: "User",
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">{row.original.name}</p>
+          <p className="text-xs text-muted-foreground">{row.original.email}</p>
+        </div>
+      ),
+    },
+    {
+      id: "role",
+      header: "Role",
+      cell: ({ row }) => ROLE_LABELS[row.original.role],
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      accessorKey: "phone",
+      header: "Phone",
+      cell: ({ row }) => row.original.phone ?? "—",
+    },
     {
       id: "actions",
       header: "Actions",
@@ -180,18 +271,12 @@ export default function CustomersPage() {
             <Button size="sm" onClick={() => handleApprove(row.original)}>
               Approve
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleSuspend(row.original)}
-            >
+            <Button size="sm" variant="outline" onClick={() => handleSuspend(row.original)}>
               Reject
             </Button>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">
-            Super Admin only
-          </span>
+          <span className="text-xs text-muted-foreground">Super Admin only</span>
         ),
     },
   ];
@@ -210,7 +295,8 @@ export default function CustomersPage() {
       <div className="p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Filter users by role to review customers, managers, sales agents, drivers, etc.
+            Customers shown by default. View join date, first booking, visits, and full profile
+            details.
           </p>
           <div className="w-full max-w-xs">
             <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as "all" | UserRole)}>
@@ -218,8 +304,8 @@ export default function CustomersPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All roles</SelectItem>
                 <SelectItem value="customer">{ROLE_LABELS.customer}</SelectItem>
+                <SelectItem value="all">All roles</SelectItem>
                 <SelectItem value="super_admin">{ROLE_LABELS.super_admin}</SelectItem>
                 <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
                 <SelectItem value="sales_agent">{ROLE_LABELS.sales_agent}</SelectItem>
@@ -232,7 +318,7 @@ export default function CustomersPage() {
         <Tabs defaultValue="customers">
           <TabsList>
             <TabsTrigger value="customers">
-              Active Users ({filteredActiveUsers.length})
+              Active Users ({activeUsers.length})
             </TabsTrigger>
             <TabsTrigger value="pending">
               Pending Approval ({filteredPendingUsers.length})
@@ -245,7 +331,7 @@ export default function CustomersPage() {
             ) : (
               <DataTable
                 columns={customerColumns}
-                data={filteredActiveUsers}
+                data={activeUsers}
                 searchKey="name"
                 searchPlaceholder="Search users..."
               />
@@ -268,6 +354,12 @@ export default function CustomersPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CustomerProfileDialog
+        userId={profileUserId}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
     </>
   );
 }

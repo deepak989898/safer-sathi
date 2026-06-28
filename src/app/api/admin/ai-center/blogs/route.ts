@@ -33,6 +33,7 @@ export async function GET(request: Request) {
 
 const createSchema = z.object({
   keywordId: z.string().min(1),
+  generateAiImage: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -46,8 +47,12 @@ export async function POST(request: Request) {
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 400, parsed.error.flatten());
 
-    const blog = await generateBlogFromKeyword(parsed.data.keywordId, auth.user.id);
-    return apiSuccess({ blog });
+    const result = await generateBlogFromKeyword(
+      parsed.data.keywordId,
+      auth.user.id,
+      { generateAiImage: parsed.data.generateAiImage }
+    );
+    return apiSuccess(result);
   } catch (err) {
     console.error("Generate blog error:", err);
     return apiError(err instanceof Error ? err.message : "Failed to generate blog", 500);

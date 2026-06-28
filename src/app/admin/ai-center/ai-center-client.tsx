@@ -58,6 +58,7 @@ import type {
   AiBlogPost,
   AiCenterLog,
   AiCenterSettings,
+  AiImageGenerationLog,
   SeoKeyword,
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
@@ -187,6 +188,13 @@ export default function AiCenterClient() {
   const [blogs, setBlogs] = useState<AiBlogPost[]>([]);
   const [logs, setLogs] = useState<AiCenterLog[]>([]);
   const [settings, setSettings] = useState<AiCenterSettings | null>(null);
+  const [generateAiImage, setGenerateAiImage] = useState(false);
+  const [imageGenerationLogs, setImageGenerationLogs] = useState<AiImageGenerationLog[]>([]);
+  const [imageGenerationStats, setImageGenerationStats] = useState<{
+    monthlyGenerated: number;
+    monthlyCostEstimateUsd: number;
+    estimatedCostPerImageUsd: number;
+  } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [editBlog, setEditBlog] = useState<AiBlogPost | null>(null);
   const [citySearchName, setCitySearchName] = useState("");
@@ -222,7 +230,10 @@ export default function AiCenterClient() {
         setLogs(logJson.data.logs ?? []);
         if (logJson.data.stats) setStats(logJson.data.stats);
       }
-      if (settingsJson.success) setSettings(settingsJson.data);
+      if (settingsJson.success) {
+        setSettings(settingsJson.data);
+        setGenerateAiImage(settingsJson.data.openAiImagesDefaultToggle ?? false);
+      }
     } catch {
       toast.error("Failed to load AI Center");
     } finally {
@@ -233,6 +244,25 @@ export default function AiCenterClient() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  const loadImageGenerationLogs = useCallback(async () => {
+    try {
+      const res = await adminApiFetch("/api/admin/ai-center/image-generation");
+      const json = await res.json();
+      if (json.success) {
+        setImageGenerationLogs(json.data.logs ?? []);
+        setImageGenerationStats(json.data.stats ?? null);
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "settings") {
+      void loadImageGenerationLogs();
+    }
+  }, [activeTab, loadImageGenerationLogs]);
 
   const pendingKeywords = useMemo(
     () => keywords.filter((k) => k.status === "pending"),
@@ -425,25 +455,41 @@ export default function AiCenterClient() {
     await loadAll();
   };
 
-  const generateBlog = async (keywordId: string, silent = false) => {
+  const generateBlog = async (keywordId: string, silent = false, aiImage?: boolean) => {
+    const useAiImage =
+      aiImage ??
+      (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ??
+      false;
+
     const res = await adminApiFetch("/api/admin/ai-center/blogs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keywordId }),
+      body: JSON.stringify({ keywordId, generateAiImage: useAiImage }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
+
+    const imageMessage = json.data?.imageGenerationMessage as string | undefined;
+
     if (!silent) {
       toast.success("Blog draft generated");
+      if (imageMessage) {
+        toast.warning(imageMessage);
+      }
       await loadAll();
+    } else if (imageMessage) {
+      toast.warning(imageMessage);
     }
+
     return json.data.blog as AiBlogPost;
   };
 
   const generateBlogClick = async (keywordId: string) => {
     setBusy(true);
     try {
-      await generateBlog(keywordId, true);
+      const useAiImage =
+        generateAiImage && (settings?.openAiImagesEnabled ?? false);
+      await generateBlog(keywordId, true, useAiImage);
       toast.success("Blog draft generated");
       await loadAll();
     } catch (e) {
@@ -456,10 +502,12 @@ export default function AiCenterClient() {
   const runAutoGenerateAll = useCallback(async () => {
     const targets = approvedKeywordsWithoutBlog(keywords, blogs);
     if (targets.length === 0) return;
+    const useAiImage =
+      (settings?.openAiImagesEnabled && settings?.openAiImagesDefaultToggle) ?? false;
     setBusy(true);
     try {
       for (const kw of targets) {
-        await generateBlog(kw.id, true);
+        await generateBlog(kw.id, true, useAiImage);
       }
       toast.success(`Auto-generated ${targets.length} blog${targets.length === 1 ? "" : "s"}`);
       await loadAll();
@@ -469,7 +517,7 @@ export default function AiCenterClient() {
     } finally {
       setBusy(false);
     }
-  }, [keywords, blogs, loadAll]);
+  }, [keywords, blogs, loadAll, settings?.openAiImagesEnabled, settings?.openAiImagesDefaultToggle]);
 
   const runAutoApproveAllKeywords = useCallback(async () => {
     const targets = keywords.filter((k) => k.status === "pending");
@@ -731,12 +779,20 @@ export default function AiCenterClient() {
           autoKeywordApproveEnabled: settings.autoKeywordApproveEnabled,
           autoBlogApproveEnabled: settings.autoBlogApproveEnabled,
           approvalRequired: true,
+          openAiImagesEnabled: settings.openAiImagesEnabled,
+          openAiImagesDefaultToggle: settings.openAiImagesDefaultToggle,
+          openAiImagesMaxPerBlog: settings.openAiImagesMaxPerBlog,
+          openAiImagesMonthlyLimit: settings.openAiImagesMonthlyLimit,
         }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setSettings(json.data);
+      setGenerateAiImage(json.data.openAiImagesDefaultToggle ?? false);
       toast.success("AI settings saved");
+      if (activeTab === "settings") {
+        void loadImageGenerationLogs();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -976,6 +1032,12 @@ export default function AiCenterClient() {
                 )
               }
             />
+            <GenerateAiImageBar
+              enabled={generateAiImage}
+              disabled={busy || !settings || !settings.openAiImagesEnabled}
+              masterEnabled={settings?.openAiImagesEnabled ?? false}
+              onToggle={setGenerateAiImage}
+            />
             <KeywordTable
               title={`Pending Keywords (${pendingKeywords.length})`}
               subtitle={
@@ -1037,6 +1099,12 @@ export default function AiCenterClient() {
                       enabled ? runAutoGenerateAll : undefined
                     )
                   }
+                />
+                <GenerateAiImageBar
+                  enabled={generateAiImage}
+                  disabled={busy || !settings || !settings.openAiImagesEnabled}
+                  masterEnabled={settings?.openAiImagesEnabled ?? false}
+                  onToggle={setGenerateAiImage}
                 />
                 <p className="text-sm text-muted-foreground">
                   Select an approved keyword and generate a full SEO blog ({settings?.blogWordLimit ?? 1500} words)
@@ -1391,6 +1459,113 @@ export default function AiCenterClient() {
                     <Label>Hot lead threshold</Label>
                     <Input type="number" min={0} max={100} value={settings.leadHotThreshold ?? 80} onChange={(e) => setSettings({ ...settings, leadHotThreshold: Number(e.target.value) || 80 })} />
                   </div>
+                  <div className="sm:col-span-2 pt-2 border-t">
+                    <p className="text-sm font-semibold">Image Generation</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Optional OpenAI featured images for blog drafts. Uses dall-e-2 at 512×512 (~$
+                      {(imageGenerationStats?.estimatedCostPerImageUsd ?? 0.018).toFixed(3)} per image).
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Enable OpenAI Images</p>
+                      <p className="text-xs text-muted-foreground">
+                        Master switch — when off, blogs use the existing image catalog only.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.openAiImagesEnabled ?? false}
+                      onCheckedChange={(v) => setSettings({ ...settings, openAiImagesEnabled: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+                    <div>
+                      <p className="font-medium">Default Toggle</p>
+                      <p className="text-xs text-muted-foreground">
+                        Default ON/OFF for &quot;Generate AI Image&quot; in Blog Writer (OFF saves API cost).
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.openAiImagesDefaultToggle ?? false}
+                      onCheckedChange={(v) =>
+                        setSettings({ ...settings, openAiImagesDefaultToggle: v })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Maximum Images Per Blog</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={1}
+                      readOnly
+                      value={settings.openAiImagesMaxPerBlog ?? 1}
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Image Limit</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={settings.openAiImagesMonthlyLimit ?? 100}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          openAiImagesMonthlyLimit: Number(e.target.value) || 100,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 sm:col-span-2">
+                    <p className="text-sm font-medium">Monthly Cost Estimate</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {imageGenerationStats?.monthlyGenerated ?? 0} images this month · est. $
+                      {(imageGenerationStats?.monthlyCostEstimateUsd ?? 0).toFixed(2)} USD
+                    </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="mb-2 text-sm font-medium">Image Generation Logs</p>
+                    <div className="max-h-[280px] overflow-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="p-2">Time</th>
+                            <th className="p-2">Blog</th>
+                            <th className="p-2">Status</th>
+                            <th className="p-2">Source</th>
+                            <th className="p-2">Cost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {imageGenerationLogs.map((log) => (
+                            <tr key={log.id} className="border-b">
+                              <td className="p-2 text-xs text-muted-foreground">
+                                {new Date(log.createdAt).toLocaleString("en-IN")}
+                              </td>
+                              <td className="p-2">
+                                <span className="line-clamp-2">{log.blogTitle}</span>
+                              </td>
+                              <td className="p-2">
+                                <Badge variant={log.success ? "secondary" : "destructive"}>
+                                  {log.success ? "Success" : "Failed"}
+                                </Badge>
+                              </td>
+                              <td className="p-2 capitalize">{log.imageSource}</td>
+                              <td className="p-2">
+                                {log.success
+                                  ? `$${(log.estimatedCostUsd ?? 0).toFixed(3)}`
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {imageGenerationLogs.length === 0 && (
+                        <p className="p-4 text-sm text-muted-foreground">No image generation logs yet.</p>
+                      )}
+                    </div>
+                  </div>
                   <div className="sm:col-span-2">
                     <Button onClick={() => void saveSettings()} disabled={busy}>
                       Save Settings
@@ -1567,6 +1742,42 @@ function BlogAutomationBar({
       <div>
         <p className="font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{enabled ? "On" : "Off"}</span>
+        <Switch checked={enabled} disabled={disabled} onCheckedChange={onToggle} />
+      </div>
+    </div>
+  );
+}
+
+function GenerateAiImageBar({
+  enabled,
+  disabled,
+  masterEnabled,
+  onToggle,
+  className,
+}: {
+  enabled: boolean;
+  disabled?: boolean;
+  masterEnabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-3",
+        className
+      )}
+    >
+      <div>
+        <p className="font-medium">Generate AI Image</p>
+        <p className="text-xs text-muted-foreground">
+          {masterEnabled
+            ? "When on, one OpenAI featured image is created after blog content (uses API credits)."
+            : "Enable OpenAI Images in AI Settings to use this option."}
+        </p>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">{enabled ? "On" : "Off"}</span>

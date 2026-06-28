@@ -22,6 +22,7 @@ import type {
 export interface TrackVisitorEventInput {
   sessionId: string;
   visitorId: string;
+  userId?: string;
   event: {
     type: VisitorEventType;
     at: string;
@@ -85,6 +86,7 @@ function createSession(input: TrackVisitorEventInput, event: VisitorEvent): Visi
   return {
     id: input.sessionId,
     visitorId: input.visitorId,
+    userId: input.userId,
     startedAt: event.at,
     endedAt: event.at,
     lastSeenAt: event.at,
@@ -176,8 +178,9 @@ export async function trackVisitorEvent(input: TrackVisitorEventInput): Promise<
   if (shouldSkipHeartbeat({ ...current, id: input.sessionId })) return;
 
   const updated = mergeEvent({ ...current, id: input.sessionId }, event);
-  await ref.set(sanitize(updated), { merge: true });
-  upsertMemory(updated);
+  const withUser = input.userId ? { ...updated, userId: input.userId } : updated;
+  await ref.set(sanitize(withUser), { merge: true });
+  upsertMemory(withUser);
 }
 
 export async function listVisitorSessions(limit = 500): Promise<VisitorSession[]> {

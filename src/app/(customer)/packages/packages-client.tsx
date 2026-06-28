@@ -29,6 +29,38 @@ const CATEGORIES = [
   { id: "honeymoon", label: "Honeymoon" },
 ];
 
+function getPackageCities(pkg: TourPackage): string[] {
+  return (pkg.cities ?? []).map((city) => city.trim()).filter(Boolean);
+}
+
+function packageMatchesFilters(
+  pkg: TourPackage,
+  filters: {
+    query: string;
+    priceRange: [number, number];
+    selectedCategories: string[];
+    selectedBudget: BudgetTierId[];
+    maxPrice: number;
+  }
+): boolean {
+  const q = filters.query.trim().toLowerCase();
+  const matchQuery =
+    !q ||
+    pkg.title.en.toLowerCase().includes(q) ||
+    getPackageCities(pkg).some((city) => city.toLowerCase().includes(q));
+  const matchPrice =
+    pkg.price >= filters.priceRange[0] && pkg.price <= filters.priceRange[1];
+  const matchCat =
+    filters.selectedCategories.length === 0 ||
+    filters.selectedCategories.includes(pkg.category);
+  const matchBudget = priceMatchesBudgetTiers(
+    pkg.price,
+    filters.selectedBudget,
+    filters.maxPrice
+  );
+  return matchQuery && matchPrice && matchCat && matchBudget;
+}
+
 export default function PackagesClient({
   initialPackages,
 }: {
@@ -50,7 +82,7 @@ export default function PackagesClient({
       }
       if (searchFilters.query?.trim()) {
         const q = normalizeCityKey(searchFilters.query);
-        const match = buildCityCounts(initialPackages, (p) => p.cities ?? []).find(
+        const match = buildCityCounts(initialPackages, getPackageCities).find(
           (c) => normalizeCityKey(c.label) === q || c.key === q
         );
         if (match) {
@@ -60,19 +92,50 @@ export default function PackagesClient({
     }
   }, [searchFilters, initialPackages]);
 
-  const placeOptions = useMemo(
-    () =>
-      buildCityCounts(initialPackages, (p) => p.cities ?? []).map((city) => ({
-        id: city.key,
-        label: `${city.label} (${city.count})`,
-      })),
-    [initialPackages]
-  );
-
   const maxPrice = useMemo(
     () => Math.max(...initialPackages.map((p) => p.price), 50000),
     [initialPackages]
   );
+
+  const packagesForCityFilter = useMemo(
+    () =>
+      initialPackages.filter((pkg) =>
+        packageMatchesFilters(pkg, {
+          query,
+          priceRange,
+          selectedCategories,
+          selectedBudget,
+          maxPrice,
+        })
+      ),
+    [
+      initialPackages,
+      query,
+      priceRange,
+      selectedCategories,
+      selectedBudget,
+      maxPrice,
+    ]
+  );
+
+  const placeOptions = useMemo(
+    () =>
+      buildCityCounts(packagesForCityFilter, getPackageCities)
+        .filter((city) => city.count > 0)
+        .map((city) => ({
+          id: city.key,
+          label: `${city.label} (${city.count})`,
+        })),
+    [packagesForCityFilter]
+  );
+
+  useEffect(() => {
+    const validKeys = new Set(placeOptions.map((option) => option.id));
+    setSelectedPlaces((prev) => {
+      const next = prev.filter((id) => validKeys.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [placeOptions]);
 
   useEffect(() => {
     setPriceRange([0, maxPrice]);
@@ -122,19 +185,16 @@ export default function PackagesClient({
   };
 
   const filtered = useMemo(() => {
-    const byCity = filterByCities(initialPackages, selectedPlaces, (p) => p.cities ?? []);
-    return byCity.filter((p) => {
-      const matchQuery =
-        !query ||
-        p.title.en.toLowerCase().includes(query.toLowerCase()) ||
-        p.cities.some((c) => c.toLowerCase().includes(query.toLowerCase()));
-      const matchPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
-      const matchCat =
-        selectedCategories.length === 0 ||
-        selectedCategories.includes(p.category);
-      const matchBudget = priceMatchesBudgetTiers(p.price, selectedBudget, maxPrice);
-      return matchQuery && matchPrice && matchCat && matchBudget;
-    });
+    const byCity = filterByCities(initialPackages, selectedPlaces, getPackageCities);
+    return byCity.filter((pkg) =>
+      packageMatchesFilters(pkg, {
+        query,
+        priceRange,
+        selectedCategories,
+        selectedBudget,
+        maxPrice,
+      })
+    );
   }, [
     initialPackages,
     query,

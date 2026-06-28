@@ -47,6 +47,10 @@ const settingsSchema = z.object({
   leadHotThreshold: z.number().min(0).max(100).optional(),
   leadWarmThreshold: z.number().min(0).max(100).optional(),
   phase3NotificationsEnabled: z.boolean().optional(),
+  openAiImagesEnabled: z.boolean().optional(),
+  openAiImagesDefaultToggle: z.boolean().optional(),
+  openAiImagesMaxPerBlog: z.number().min(1).max(1).optional(),
+  openAiImagesMonthlyLimit: z.number().min(1).max(10000).optional(),
 });
 
 export async function PUT(request: Request) {

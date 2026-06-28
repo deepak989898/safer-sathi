@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import {
   detectDeviceName,
   getOrCreateDeviceId,
@@ -58,13 +59,15 @@ async function sendEvent(
     target?: string;
     searchQuery?: string;
   },
-  includeMeta = false
+  includeMeta = false,
+  userId?: string
 ) {
   if (extra.path.startsWith("/admin")) return;
 
   const payload = {
     sessionId: getSessionId(),
     visitorId: getOrCreateVisitorId(),
+    ...(userId ? { userId } : {}),
     event: {
       type,
       at: new Date().toISOString(),
@@ -100,8 +103,10 @@ function isSearchInput(el: HTMLElement): boolean {
 export function VisitorTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const firstPageRef = useRef(true);
   const searchTimers = useRef<Map<Element, ReturnType<typeof setTimeout>>>(new Map());
+  const userId = user?.role === "customer" ? user.id : undefined;
 
   const currentPath = useCallback(() => {
     const query = searchParams?.toString();
@@ -117,10 +122,11 @@ export function VisitorTracker() {
         path: currentPath(),
         title: document.title,
       },
-      firstPageRef.current
+      firstPageRef.current,
+      userId
     );
     firstPageRef.current = false;
-  }, [pathname, searchParams, currentPath]);
+  }, [pathname, searchParams, currentPath, userId]);
 
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin")) return;
@@ -141,7 +147,7 @@ export function VisitorTracker() {
         title: document.title,
         label,
         target: href,
-      });
+      }, false, userId);
     };
 
     const onSearchInput = (e: Event) => {
@@ -160,7 +166,7 @@ export function VisitorTracker() {
             title: document.title,
             searchQuery: q,
             label: q,
-          });
+          }, false, userId);
         }, 1200)
       );
     };
@@ -170,7 +176,7 @@ export function VisitorTracker() {
         path: currentPath(),
         title: document.title,
         label: "Session ended",
-      });
+      }, false, userId);
     };
 
     document.addEventListener("click", onClick, true);
@@ -179,7 +185,7 @@ export function VisitorTracker() {
     window.addEventListener("beforeunload", onExit);
 
     const heartbeat = window.setInterval(() => {
-      void sendEvent("heartbeat", { path: currentPath(), title: document.title });
+      void sendEvent("heartbeat", { path: currentPath(), title: document.title }, false, userId);
     }, 30_000);
 
     return () => {
@@ -191,7 +197,7 @@ export function VisitorTracker() {
       for (const timer of searchTimers.current.values()) clearTimeout(timer);
       searchTimers.current.clear();
     };
-  }, [pathname, currentPath]);
+  }, [pathname, currentPath, userId]);
 
   return null;
 }

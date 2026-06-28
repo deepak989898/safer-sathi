@@ -15,6 +15,7 @@ const eventSchema = z.object({
 const bodySchema = z.object({
   sessionId: z.string().min(8).max(80),
   visitorId: z.string().min(8).max(80),
+  userId: z.string().max(128).optional(),
   event: eventSchema,
   sessionMeta: z
     .object({
