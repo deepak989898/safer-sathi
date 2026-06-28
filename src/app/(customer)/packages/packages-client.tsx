@@ -10,7 +10,11 @@ import {
   toggleFilterId,
   type BudgetTierId,
 } from "@/lib/catalog/budget-filters";
-import { buildCityCounts, filterByCities, normalizeCityKey } from "@/lib/admin/city-filter";
+import {
+  buildPackagePlaceFilterOptions,
+  filterPackagesByPrimaryCities,
+  normalizeCityKey,
+} from "@/lib/admin/city-filter";
 import {
   PACKAGE_SORT_KEYS,
   sortPackages,
@@ -82,11 +86,11 @@ export default function PackagesClient({
       }
       if (searchFilters.query?.trim()) {
         const q = normalizeCityKey(searchFilters.query);
-        const match = buildCityCounts(initialPackages, getPackageCities).find(
-          (c) => normalizeCityKey(c.label) === q || c.key === q
+        const match = buildPackagePlaceFilterOptions(initialPackages).find(
+          (c) => normalizeCityKey(c.label) === q || c.id === q
         );
         if (match) {
-          setSelectedPlaces([match.key]);
+          setSelectedPlaces([match.id]);
         }
       }
     }
@@ -97,36 +101,9 @@ export default function PackagesClient({
     [initialPackages]
   );
 
-  const packagesForCityFilter = useMemo(
-    () =>
-      initialPackages.filter((pkg) =>
-        packageMatchesFilters(pkg, {
-          query,
-          priceRange,
-          selectedCategories,
-          selectedBudget,
-          maxPrice,
-        })
-      ),
-    [
-      initialPackages,
-      query,
-      priceRange,
-      selectedCategories,
-      selectedBudget,
-      maxPrice,
-    ]
-  );
-
   const placeOptions = useMemo(
-    () =>
-      buildCityCounts(packagesForCityFilter, getPackageCities)
-        .filter((city) => city.count > 0)
-        .map((city) => ({
-          id: city.key,
-          label: `${city.label} (${city.count})`,
-        })),
-    [packagesForCityFilter]
+    () => buildPackagePlaceFilterOptions(initialPackages),
+    [initialPackages]
   );
 
   useEffect(() => {
@@ -185,7 +162,7 @@ export default function PackagesClient({
   };
 
   const filtered = useMemo(() => {
-    const byCity = filterByCities(initialPackages, selectedPlaces, getPackageCities);
+    const byCity = filterPackagesByPrimaryCities(initialPackages, selectedPlaces);
     return byCity.filter((pkg) =>
       packageMatchesFilters(pkg, {
         query,
