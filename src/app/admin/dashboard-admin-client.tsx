@@ -19,6 +19,11 @@ interface AnalyticsData {
   totalCustomers: number;
   revenueByMonth: { month: string; revenue: number }[];
   topDestinations: { name: string; count: number }[];
+  bookingCounts?: {
+    pending: number;
+    upcoming: number;
+    completed: number;
+  };
   dailyChecklist?: AdminDailyChecklist;
 }
 
@@ -69,6 +74,7 @@ export default function DashboardAdminClient() {
     totalCustomers: 0,
     revenueByMonth: [],
     topDestinations: [],
+    bookingCounts: { pending: 0, upcoming: 0, completed: 0 },
     dailyChecklist: {
       pendingBookings: 0,
       unconvertedAiChats: 0,
@@ -82,6 +88,12 @@ export default function DashboardAdminClient() {
     unconvertedAiChats: 0,
     pendingApprovals: 0,
     items: [],
+  };
+
+  const bookingCounts = analytics.bookingCounts ?? {
+    pending: 0,
+    upcoming: 0,
+    completed: 0,
   };
 
   return (
@@ -98,6 +110,11 @@ export default function DashboardAdminClient() {
           <MetricCard
             title="Total Bookings"
             value={analytics.totalBookings.toLocaleString("en-IN")}
+            subStats={[
+              { value: bookingCounts.completed, label: "done (expired)" },
+              { value: bookingCounts.pending, label: "pending" },
+              { value: bookingCounts.upcoming, label: "upcoming" },
+            ]}
             change="Live from Firebase"
             changeType="neutral"
             icon={CalendarCheck}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { enGB } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -77,6 +77,20 @@ export function BookingDateInput({
 }: BookingDateInputProps) {
   const [open, setOpen] = useState(false);
   const [display, setDisplay] = useState(() => formatIsoDateForDisplay(value));
+  const suppressOpenRef = useRef(false);
+
+  const closeCalendar = useCallback(() => {
+    suppressOpenRef.current = true;
+    setOpen(false);
+    window.setTimeout(() => {
+      suppressOpenRef.current = false;
+    }, 200);
+  }, []);
+
+  const openCalendar = useCallback(() => {
+    if (suppressOpenRef.current) return;
+    setOpen(true);
+  }, []);
 
   useEffect(() => {
     setDisplay(formatIsoDateForDisplay(value));
@@ -99,16 +113,25 @@ export function BookingDateInput({
   };
 
   const handleCalendarSelect = (date?: Date) => {
-    if (!date) return;
+    if (!date) {
+      closeCalendar();
+      return;
+    }
     const iso = localDateToIso(date);
     if (iso < minIso) return;
     onChange(iso);
     setDisplay(formatIsoDateForDisplay(iso));
-    setOpen(false);
+    closeCalendar();
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && suppressOpenRef.current) return;
+        setOpen(nextOpen);
+      }}
+    >
       <div className={cn("relative", className)}>
         <Input
           id={id}
@@ -119,14 +142,16 @@ export function BookingDateInput({
           value={display}
           onChange={(event) => setDisplay(event.target.value)}
           onBlur={() => commitDisplay(display)}
-          onClick={() => setOpen(true)}
+          onClick={openCalendar}
+          onFocus={openCalendar}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               commitDisplay(display);
+              closeCalendar();
             }
             if (event.key === "ArrowDown" || event.key === " ") {
               event.preventDefault();
-              setOpen(true);
+              openCalendar();
             }
           }}
           className="cursor-pointer pr-10"
@@ -145,7 +170,12 @@ export function BookingDateInput({
         </PopoverTrigger>
       </div>
 
-      <PopoverContent className="z-[120] w-auto p-0" align="start" sideOffset={6}>
+      <PopoverContent
+        className="z-[120] w-auto p-0"
+        align="start"
+        sideOffset={6}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <Calendar
           mode="single"
           locale={enGB}

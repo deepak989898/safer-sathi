@@ -71,6 +71,91 @@ export function countBookingsByFilter(
   return bookings.filter((b) => matchesBookingAdminFilter(b, filter)).length;
 }
 
+export interface BookingDashboardCounts {
+  total: number;
+  pending: number;
+  upcoming: number;
+  completed: number;
+}
+
+function parseTravelDay(iso?: string): Date | null {
+  if (!iso) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getTravelEndDay(booking: Booking): Date | null {
+  return parseTravelDay(booking.endDate ?? booking.startDate);
+}
+
+function startOfTodayLocal(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function isInactiveBooking(booking: Booking): boolean {
+  return booking.status === "cancelled" || booking.status === "refunded";
+}
+
+export function isBookingPendingForDashboard(booking: Booking): boolean {
+  if (isInactiveBooking(booking)) return false;
+  return (
+    booking.status === "pending" ||
+    booking.paymentStatus === "pending" ||
+    booking.paymentStatus === "failed" ||
+    booking.paymentStatus === "partial"
+  );
+}
+
+export function isBookingUpcomingForDashboard(booking: Booking): boolean {
+  if (isInactiveBooking(booking) || isBookingPendingForDashboard(booking)) {
+    return false;
+  }
+  const travelEnd = getTravelEndDay(booking);
+  if (!travelEnd) return false;
+  return travelEnd >= startOfTodayLocal();
+}
+
+export function isBookingCompletedForDashboard(booking: Booking): boolean {
+  if (isInactiveBooking(booking) || isBookingPendingForDashboard(booking)) {
+    return false;
+  }
+  const travelEnd = getTravelEndDay(booking);
+  if (!travelEnd) return false;
+  return travelEnd < startOfTodayLocal();
+}
+
+/** Split active bookings into pending, upcoming, and done (travel date passed). */
+export function computeBookingDashboardCounts(
+  bookings: Booking[]
+): BookingDashboardCounts {
+  let pending = 0;
+  let upcoming = 0;
+  let completed = 0;
+
+  for (const booking of bookings) {
+    if (isBookingPendingForDashboard(booking)) {
+      pending += 1;
+    } else if (isBookingUpcomingForDashboard(booking)) {
+      upcoming += 1;
+    } else if (isBookingCompletedForDashboard(booking)) {
+      completed += 1;
+    }
+  }
+
+  return {
+    total: bookings.length,
+    pending,
+    upcoming,
+    completed,
+  };
+}
+
 export function searchBookings(bookings: Booking[], query: string): Booking[] {
   const q = query.trim().toLowerCase();
   if (!q) return bookings;

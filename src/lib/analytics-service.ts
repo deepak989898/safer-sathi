@@ -4,6 +4,7 @@ import { getAdminHotels, hydrateHotelsStore } from "@/lib/hotel-store";
 import { getAdminPackages, hydratePackagesStore } from "@/lib/package-store";
 import { getAdminVehicles, hydrateVehiclesStore } from "@/lib/vehicle-store";
 import { buildAdminDailyChecklist } from "@/lib/admin/daily-checklist";
+import { computeBookingDashboardCounts } from "@/lib/bookings/admin-display";
 import type { User, UserRole } from "@/types";
 
 function mapAdminUser(id: string, data: Record<string, unknown>): User {
@@ -81,6 +82,11 @@ function emptyAdminAnalytics() {
       unconvertedAiChats: 0,
       pendingApprovals: 0,
       items: [],
+    },
+    bookingCounts: {
+      pending: 0,
+      upcoming: 0,
+      completed: 0,
     },
   };
 }
@@ -164,6 +170,9 @@ async function buildAdminAnalytics(actorRole: UserRole) {
     })
   );
 
+  const bookingCounts = computeBookingDashboardCounts(bookings);
+  const { pending, upcoming, completed } = bookingCounts;
+
   return {
     totalBookings: bookings.length,
     totalRevenue,
@@ -177,5 +186,6 @@ async function buildAdminAnalytics(actorRole: UserRole) {
     topDestinations,
     recentBookings: bookings.slice(0, 10),
     dailyChecklist,
+    bookingCounts: { pending, upcoming, completed },
   };
 }

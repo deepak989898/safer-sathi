@@ -554,7 +554,10 @@ export function VehicleDetailClient({
                     />
                   </div>
                   <div>
-                    <Label>Special Request</Label>
+                    <Label>
+                      Special Request{" "}
+                      <span className="font-normal text-muted-foreground">(optional)</span>
+                    </Label>
                     <Textarea
                       value={specialRequest}
                       onChange={(e) => setSpecialRequest(e.target.value)}

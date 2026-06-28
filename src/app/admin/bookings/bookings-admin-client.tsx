@@ -249,20 +249,6 @@ export default function BookingsAdminClient() {
     [filteredBookings]
   );
 
-  const groupDateKeys = useMemo(
-    () => groupedBookings.map((group) => group.dateKey).join("|"),
-    [groupedBookings]
-  );
-
-  useEffect(() => {
-    if (groupedBookings.length === 0) {
-      setExpandedDates(new Set());
-      return;
-    }
-
-    setExpandedDates(new Set(groupedBookings.map((group) => group.dateKey)));
-  }, [groupDateKeys, groupedBookings]);
-
   const toggleDateGroup = (dateKey: string) => {
     setExpandedDates((prev) => {
       const next = new Set(prev);

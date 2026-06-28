@@ -7,6 +7,7 @@ interface MetricCardProps {
   value: string;
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
+  subStats?: { label: string; value: string | number }[];
   icon: LucideIcon;
   iconClassName?: string;
   compact?: boolean;
@@ -18,6 +19,7 @@ export function MetricCard({
   value,
   change,
   changeType = "neutral",
+  subStats,
   icon: Icon,
   iconClassName,
   compact = false,
@@ -51,6 +53,25 @@ export function MetricCard({
           >
             {value}
           </p>
+          {subStats && subStats.length > 0 && (
+            <div
+              className={cn(
+                "flex flex-wrap gap-x-3 gap-y-0.5 font-medium text-muted-foreground",
+                compact ? "text-[10px] leading-tight" : "text-xs"
+              )}
+            >
+              {subStats.map((stat) => (
+                <span key={stat.label}>
+                  <span className="text-foreground">
+                    {typeof stat.value === "number"
+                      ? stat.value.toLocaleString("en-IN")
+                      : stat.value}
+                  </span>{" "}
+                  {stat.label}
+                </span>
+              ))}
+            </div>
+          )}
           {change && (
             <p
               className={cn(
