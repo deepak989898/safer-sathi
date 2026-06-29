@@ -151,8 +151,11 @@ interface Stats {
   blogsDraft: number;
   blogsPending: number;
   blogsPublished: number;
+  blogsPublishedDocuments?: number;
   blogsRejected: number;
+  blogsDuplicate?: number;
   seoMetaCount: number;
+  approvedWithoutPublished?: number;
 }
 
 const AI_CENTER_TABS = new Set([
@@ -1063,10 +1066,17 @@ export default function AiCenterClient() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <StatPill label="Keywords" value={stats?.keywordsTotal ?? 0} />
+            <StatPill label="Approved" value={stats?.keywordsApproved ?? 0} />
             <StatPill label="Pending" value={stats?.keywordsPending ?? 0} />
             <StatPill
               label="Published (unique)"
               value={stats?.blogsPublished ?? 0}
+              hint={
+                stats?.blogsPublishedDocuments &&
+                stats.blogsPublishedDocuments !== stats.blogsPublished
+                  ? `${stats.blogsPublishedDocuments} docs in DB`
+                  : undefined
+              }
             />
             <StatPill label="SEO Meta" value={stats?.seoMetaCount ?? 0} />
           </div>
@@ -2122,9 +2132,21 @@ function GenerateAiImageBar({
   );
 }
 
-function StatPill({ label, value }: { label: string; value: number }) {
+function StatPill({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+}) {
   return (
-    <Badge variant="secondary" className="justify-center px-2 py-1 text-xs sm:px-3 sm:text-sm">
+    <Badge
+      variant="secondary"
+      className="justify-center px-2 py-1 text-xs sm:px-3 sm:text-sm"
+      title={hint}
+    >
       <span className="truncate">{label}:</span> <strong className="ml-1">{value}</strong>
     </Badge>
   );

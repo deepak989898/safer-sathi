@@ -134,14 +134,14 @@ async function loadSettings(): Promise<AiCenterSettings> {
 
 export async function hydrateAiCenterStore(): Promise<void> {
   const [keywords, meta, blogs, logs, settings] = await Promise.all([
-    loadAll<SeoKeyword>(COLLECTIONS.keywords),
-    loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta),
-    loadAll<AiBlogPost>(COLLECTIONS.blogs, 2000),
+    loadAll<SeoKeyword>(COLLECTIONS.keywords, 5000),
+    loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta, 5000),
+    loadAll<AiBlogPost>(COLLECTIONS.blogs, 5000),
     loadAll<AiCenterLog>(COLLECTIONS.logs, 500),
     loadSettings(),
   ]);
-  if (keywords.length) keywordCache = keywords;
-  if (meta.length) seoMetaCache = meta;
+  keywordCache = keywords;
+  seoMetaCache = meta;
   if (blogs.length) blogCache = blogs;
   if (logs.length) logCache = logs;
   settingsCache = settings;
@@ -805,17 +805,20 @@ export async function getAiCenterStats() {
   await hydrateAiCenterStore();
   const canonicalMap = buildCanonicalBlogMap(keywordCache, blogCache, seoMetaCache);
   const canonical = [...canonicalMap.values()];
+  const approved = keywordCache.filter((k) => k.status === "approved");
 
   return {
     keywordsTotal: keywordCache.length,
     keywordsPending: keywordCache.filter((k) => k.status === "pending").length,
-    keywordsApproved: keywordCache.filter((k) => k.status === "approved").length,
+    keywordsApproved: approved.length,
     blogsDraft: canonical.filter((b) => b.status === "draft").length,
     blogsPending: canonical.filter((b) => b.status === "pending_approval").length,
     blogsPublished: canonical.filter((b) => b.status === "published").length,
+    blogsPublishedDocuments: blogCache.filter((b) => b.status === "published").length,
     blogsRejected: blogCache.filter((b) => b.status === "rejected").length,
     blogsDuplicate: blogCache.filter((b) => b.status !== "rejected").length - canonical.length,
     seoMetaCount: seoMetaCache.length,
+    approvedWithoutPublished: approved.length - canonical.filter((b) => b.status === "published").length,
     lastLog: logCache[0] ?? null,
   };
 }
