@@ -31,13 +31,29 @@ export function BusSeatLayout({
   onToggle,
 }: BusSeatLayoutProps) {
   const { locale } = useAppStore();
-  const maxRow = Math.max(...seats.map((s) => s.row), 1);
-  const maxCol = Math.max(...seats.map((s) => s.column), 1);
-  const upper = seats.filter((s) => s.zIndex > 0);
-  const lower = seats.filter((s) => s.zIndex === 0);
+
+  if (!seats.length) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        No seats available to display.
+      </p>
+    );
+  }
+
+  const safeSeats = seats.map((seat) => ({
+    ...seat,
+    row: Number(seat.row) || 1,
+    column: Number(seat.column) || 1,
+    zIndex: Number(seat.zIndex) || 0,
+  }));
+
+  const maxRow = Math.max(1, ...safeSeats.map((s) => s.row));
+  const maxCol = Math.max(1, ...safeSeats.map((s) => s.column));
+  const upper = safeSeats.filter((s) => s.zIndex > 0);
+  const lower = safeSeats.filter((s) => s.zIndex === 0);
   const isSleeper = upper.length > 0;
 
-  const renderDeck = (deckSeats: SeatSellerSeat[], label: string) => (
+  const renderDeck = (deckSeats: typeof safeSeats, label: string) => (
     <div className="space-y-3">
       <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
@@ -120,7 +136,7 @@ export function BusSeatLayout({
           {renderDeck(upper, "Upper deck")}
         </div>
       ) : (
-        renderDeck(seats, "Select your seat")
+        renderDeck(safeSeats, "Select your seat")
       )}
 
       {selected.length > 0 && (

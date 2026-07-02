@@ -4,34 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
-  ArrowLeftRight,
-  ArrowRight,
-  Bus,
   Clock,
   Loader2,
-  MapPin,
   Shield,
 } from "lucide-react";
-import { PageHero } from "@/components/customer/page-hero";
-import { BusSeatLayout } from "@/components/bus/bus-seat-layout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { BusSearchScreen } from "@/components/bus/bus-search-screen";
+import { BusResultsScreen } from "@/components/bus/bus-results-screen";
+import { BusSeatScreen } from "@/components/bus/bus-seat-screen";
 import { useBusBookingApi } from "@/hooks/use-bus-booking";
 import { useAuth } from "@/contexts/auth-context";
 import type { BusSearchDebug } from "@/lib/bus/debug";
 import { logBusSearchDebug } from "@/lib/bus/debug";
-import { formatBusCityLabel } from "@/lib/bus/cities-search";
+import { normalizeSeatSellerSeats } from "@/lib/bus/normalize-seats";
 import {
   loadBusSearchResults,
   saveBusSearchResults,
@@ -44,9 +28,20 @@ import {
 } from "@/lib/bus/session";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
-import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { BusCityRecord } from "@/lib/seatseller/types";
 import type { BusPassengerDetail, SeatSellerSeat } from "@/lib/seatseller/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -100,13 +95,29 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   const [fromCityOptions, setFromCityOptions] = useState<BusCityRecord[]>([]);
   const [toCityOptions, setToCityOptions] = useState<BusCityRecord[]>([]);
-  const [session, setSession] = useState<BusBookingSession | null>(null);
-  const [search, setSearch] = useState<BusSearchParams>({
-    sourceCityId: "",
-    sourceCityName: "",
-    destinationCityId: "",
-    destinationCityName: "",
-    doj: tomorrowIso(),
+  const [session, setSession] = useState<BusBookingSession | null>(() => {
+    if (typeof window === "undefined") return null;
+    return loadBusSession();
+  });
+  const [search, setSearch] = useState<BusSearchParams>(() => {
+    if (typeof window === "undefined") {
+      return {
+        sourceCityId: "",
+        sourceCityName: "",
+        destinationCityId: "",
+        destinationCityName: "",
+        doj: tomorrowIso(),
+      };
+    }
+    const savedSession = loadBusSession();
+    const savedSearch = loadBusSearchResults();
+    return savedSession?.search ?? savedSearch?.search ?? {
+      sourceCityId: "",
+      sourceCityName: "",
+      destinationCityId: "",
+      destinationCityName: "",
+      doj: tomorrowIso(),
+    };
   });
   const [fromQuery, setFromQuery] = useState("");
   const [toQuery, setToQuery] = useState("");
@@ -132,6 +143,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [boardingId, setBoardingId] = useState("");
   const [droppingId, setDroppingId] = useState("");
   const [passengers, setPassengers] = useState<BusPassengerDetail[]>([]);
+  const [seatLayoutError, setSeatLayoutError] = useState<string | null>(null);
+  const [seatLayoutLoading, setSeatLayoutLoading] = useState(step === "seat-layout");
 
   const isBpDpSeatLayoutEnabled = (value: unknown): boolean =>
     value === true || String(value).toLowerCase() === "true";
@@ -305,34 +318,60 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     setShowToDropdown(false);
   };
 
-  const selectTrip = async (trip: BusBookingSession["trip"]) => {
+  const selectTrip = (trip: BusBookingSession["trip"]) => {
+    const activeSearch = search.sourceCityId
+      ? search
+      : loadBusSearchResults()?.search ?? loadBusSession()?.search ?? search;
     const next: BusBookingSession = {
-      search,
+      search: activeSearch,
       trip,
       selectedSeats: [],
     };
     saveBusSession(next);
     setSession(next);
+    setSearch(activeSearch);
+    setSeatLayoutError(null);
+    setTripDetails(null);
+    setSelectedSeats([]);
+    setBoardingId("");
+    setDroppingId("");
     router.push("/bus/seat-layout");
   };
 
   useEffect(() => {
-    if (step !== "seat-layout" || !session?.trip) return;
+    if (step !== "seat-layout" || !session?.trip?.id) return;
+    setSeatLayoutLoading(true);
+    setSeatLayoutError(null);
     void (async () => {
-      const [details, points] = await Promise.all([
-        api.fetchTripDetails({
-          tripId: String(session.trip.id),
-        }),
-        api.fetchBpDp(String(session.trip.id)),
-      ]);
-      if (details) {
+      try {
+        const [details, points] = await Promise.all([
+          api.fetchTripDetails({ tripId: String(session.trip.id) }),
+          api.fetchBpDp(String(session.trip.id)),
+        ]);
+        if (!details) {
+          setSeatLayoutError("Could not load seat layout. Please try another bus.");
+          return;
+        }
+        const seats = normalizeSeatSellerSeats(details.seats);
+        if (!seats.length) {
+          setSeatLayoutError("Seat layout is empty for this bus. Please choose another service.");
+          return;
+        }
         setTripDetails({
-          seats: details.seats,
-          maxSeatsPerTicket: details.maxSeatsPerTicket,
+          seats,
+          maxSeatsPerTicket: details.maxSeatsPerTicket || 6,
           forcedSeats: details.forcedSeats,
         });
+        if (points) {
+          setBpdp(points);
+          if (points.boardingPoints[0]) setBoardingId(points.boardingPoints[0].id);
+          if (points.droppingPoints[0]) setDroppingId(points.droppingPoints[0].id);
+        }
+      } catch (e) {
+        setSeatLayoutError(e instanceof Error ? e.message : "Failed to load seat layout");
+      } finally {
+        setSeatLayoutLoading(false);
       }
-      if (points) setBpdp(points);
     })();
   }, [step, session?.trip?.id]);
 
@@ -357,7 +396,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       .then((details) => {
         if (!details) return;
         setTripDetails({
-          seats: details.seats,
+          seats: normalizeSeatSellerSeats(details.seats),
           maxSeatsPerTicket: details.maxSeatsPerTicket,
           forcedSeats: details.forcedSeats,
         });
@@ -488,261 +527,86 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   if (step === "search") {
     return (
-      <>
-        <PageHero
-          title="Bus Booking"
-          subtitle="Search AC, sleeper & seater buses across India"
-          image={HERO_IMAGES.bus}
-        />
-        <section className="container mx-auto px-4 py-10">
-          <Card>
-            <CardContent className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-5">
-              <div>
-                <Label>From</Label>
-                <Input
-                  className="mt-1.5"
-                  placeholder="Search city"
-                  value={fromQuery || search.sourceCityName}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFromQuery(value);
-                    // User edited text manually; require fresh dropdown selection.
-                    setSearch((s) => ({ ...s, sourceCityId: "", sourceCityName: value }));
-                    setFromError(null);
-                  }}
-                  onFocus={() => {
-                    setShowFromDropdown(true);
-                    setShowToDropdown(false);
-                  }}
-                  onClick={() => {
-                    setShowFromDropdown(true);
-                    setShowToDropdown(false);
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (!search.sourceCityId && (fromQuery || search.sourceCityName)) {
-                        setFromError("Please select a valid bus city from suggestions.");
-                      }
-                    }, 120);
-                  }}
-                />
-                {showFromDropdown && (
-                  <div className="mt-1 max-h-40 overflow-auto rounded-md border bg-background shadow-sm">
-                    {fromCities.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => {
-                          setSearch((s) => ({
-                            ...s,
-                            sourceCityId: c.id,
-                            sourceCityName: c.name,
-                          }));
-                          setFromQuery("");
-                          setFromError(null);
-                          setShowFromDropdown(false);
-                        }}
-                      >
-                        {formatBusCityLabel(c)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {fromError && <p className="mt-1 text-xs text-destructive">{fromError}</p>}
-              </div>
-              <div className="flex items-end justify-center lg:items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  onClick={swapSourceDestination}
-                  title="Swap From and To"
-                >
-                  <ArrowLeftRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <div>
-                <Label>To</Label>
-                <Input
-                  className="mt-1.5"
-                  placeholder="Search city"
-                  value={toQuery || search.destinationCityName}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setToQuery(value);
-                    // User edited text manually; require fresh dropdown selection.
-                    setSearch((s) => ({
-                      ...s,
-                      destinationCityId: "",
-                      destinationCityName: value,
-                    }));
-                    setToError(null);
-                  }}
-                  onFocus={() => {
-                    setShowToDropdown(true);
-                    setShowFromDropdown(false);
-                  }}
-                  onClick={() => {
-                    setShowToDropdown(true);
-                    setShowFromDropdown(false);
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (!search.destinationCityId && (toQuery || search.destinationCityName)) {
-                        setToError("Please select a valid bus city from suggestions.");
-                      }
-                    }, 120);
-                  }}
-                />
-                {showToDropdown && (
-                  <div className="mt-1 max-h-40 overflow-auto rounded-md border bg-background shadow-sm">
-                    {toCities.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => {
-                          setSearch((s) => ({
-                            ...s,
-                            destinationCityId: c.id,
-                            destinationCityName: c.name,
-                          }));
-                          setToQuery("");
-                          setToError(null);
-                          setShowToDropdown(false);
-                        }}
-                      >
-                        {formatBusCityLabel(c)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {toError && <p className="mt-1 text-xs text-destructive">{toError}</p>}
-              </div>
-              <div>
-                <Label>Journey date</Label>
-                <Input
-                  type="date"
-                  className="mt-1.5"
-                  min={new Date().toISOString().slice(0, 10)}
-                  value={search.doj}
-                  onChange={(e) => setSearch((s) => ({ ...s, doj: e.target.value }))}
-                />
-              </div>
-              <div className="flex items-end lg:col-span-2">
-                <Button
-                  className="w-full"
-                  onClick={() => void handleSearch()}
-                  disabled={
-                    api.loading ||
-                    !search.sourceCityId ||
-                    !search.destinationCityId ||
-                    !search.doj
-                  }
-                >
-                  {api.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Search Buses
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </>
+      <BusSearchScreen
+        search={search}
+        fromQuery={fromQuery}
+        toQuery={toQuery}
+        fromCities={fromCities}
+        toCities={toCities}
+        showFromDropdown={showFromDropdown}
+        showToDropdown={showToDropdown}
+        fromError={fromError}
+        toError={toError}
+        loading={api.loading}
+        onFromQueryChange={(value) => {
+          setFromQuery(value);
+          setSearch((s) => ({ ...s, sourceCityId: "", sourceCityName: value }));
+          setFromError(null);
+        }}
+        onToQueryChange={(value) => {
+          setToQuery(value);
+          setSearch((s) => ({ ...s, destinationCityId: "", destinationCityName: value }));
+          setToError(null);
+        }}
+        onFromFocus={() => {
+          setShowFromDropdown(true);
+          setShowToDropdown(false);
+        }}
+        onToFocus={() => {
+          setShowToDropdown(true);
+          setShowFromDropdown(false);
+        }}
+        onFromBlur={() => {
+          setTimeout(() => {
+            if (!search.sourceCityId && (fromQuery || search.sourceCityName)) {
+              setFromError("Please select a valid bus city from suggestions.");
+            }
+          }, 120);
+        }}
+        onToBlur={() => {
+          setTimeout(() => {
+            if (!search.destinationCityId && (toQuery || search.destinationCityName)) {
+              setToError("Please select a valid bus city from suggestions.");
+            }
+          }, 120);
+        }}
+        onSelectFrom={(city) => {
+          setSearch((s) => ({ ...s, sourceCityId: city.id, sourceCityName: city.name }));
+          setFromQuery("");
+          setFromError(null);
+          setShowFromDropdown(false);
+        }}
+        onSelectTo={(city) => {
+          setSearch((s) => ({
+            ...s,
+            destinationCityId: city.id,
+            destinationCityName: city.name,
+          }));
+          setToQuery("");
+          setToError(null);
+          setShowToDropdown(false);
+        }}
+        onSwap={swapSourceDestination}
+        onDateChange={(value) => setSearch((s) => ({ ...s, doj: value }))}
+        onSearch={() => void handleSearch()}
+      />
     );
   }
 
   if (step === "results") {
-    const routeLabel =
-      search.sourceCityName && search.destinationCityName
-        ? `${search.sourceCityName} → ${search.destinationCityName}`
-        : "Select route on search page";
-    const dateLabel = search.doj || "—";
-
     return (
-      <section className="container mx-auto px-4 py-8">
-        <Link
-          href="/bus/search"
-          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Modify search
-        </Link>
-        <h1 className="text-2xl font-bold">Available buses</h1>
-        <p className="text-muted-foreground">
-          {routeLabel}
-        </p>
-        <p className="text-sm text-muted-foreground">Date: {dateLabel}</p>
-        {searchMessage && (
-          <p className="mt-2 text-sm text-muted-foreground">{searchMessage}</p>
-        )}
-        <div className="mt-6 space-y-4">
-          {resultsLoading && (
-            <Card>
-              <CardContent className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Searching buses...
-              </CardContent>
-            </Card>
-          )}
-          {!resultsLoading && api.error && (
-            <Card>
-              <CardContent className="py-4 text-sm text-destructive">{api.error}</CardContent>
-            </Card>
-          )}
-          {!resultsLoading && !api.error && trips.length === 0 && (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                No buses found for this route/date. Please try another date.
-              </CardContent>
-            </Card>
-          )}
-          {!resultsLoading &&
-            trips.map((trip) => (
-            <Card key={String(trip.id)} className="hover:shadow-md">
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Bus className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{trip.travels ?? trip.operator}</p>
-                    <p className="text-sm text-muted-foreground">{trip.busType}</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {trip.AC && <Badge variant="secondary">AC</Badge>}
-                      {trip.sleeper && <Badge variant="secondary">Sleeper</Badge>}
-                      {trip.seater && <Badge variant="secondary">Seater</Badge>}
-                      {trip.mTicketEnabled && <Badge variant="outline">mTicket</Badge>}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">{trip.departureTime}</span>
-                  <ArrowRight className="mx-2 inline h-4 w-4" />
-                  <span className="font-medium">{trip.arrivalTime}</span>
-                  {trip.duration && (
-                    <Badge variant="secondary" className="ml-2">
-                      {trip.duration}
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <MapPin className="mr-1 inline h-4 w-4" />
-                  {trip.availableSeats} seats left
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-primary">
-                    {formatCurrency(trip.startingFare ?? 0, locale)}
-                  </p>
-                  <Button size="sm" className="mt-2" onClick={() => void selectTrip(trip)}>
-                    Select seats
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {isStaff && searchDebug && (
+      <>
+        <BusResultsScreen
+          search={search}
+          trips={trips}
+          loading={resultsLoading}
+          error={api.error}
+          message={searchMessage}
+          locale={locale}
+          onSelectTrip={selectTrip}
+        />
+        {isStaff && searchDebug && (
+          <div className="container mx-auto px-4 pb-8">
             <Card>
               <CardContent className="space-y-2 pt-4">
                 <p className="text-sm font-semibold">Bus search debug (admin)</p>
@@ -751,83 +615,31 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                 </pre>
               </CardContent>
             </Card>
-          )}
-        </div>
-      </section>
+          </div>
+        )}
+      </>
     );
   }
 
   if (step === "seat-layout") {
     return (
-      <section className="container mx-auto px-4 py-8">
-        <Link
-          href="/bus/results"
-          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to buses
-        </Link>
-        <h1 className="text-xl font-bold">{session?.trip?.travels ?? "Select seats"}</h1>
-        {api.loading && !tripDetails ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : tripDetails ? (
-          <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
-            <Card>
-              <CardContent className="pt-6">
-                <BusSeatLayout
-                  seats={tripDetails.seats}
-                  selected={selectedSeats}
-                  maxSeats={tripDetails.maxSeatsPerTicket}
-                  onToggle={toggleSeat}
-                />
-              </CardContent>
-            </Card>
-            <Card className="h-fit lg:sticky lg:top-24">
-              <CardContent className="space-y-4 pt-6">
-                <div>
-                  <Label>Boarding point</Label>
-                  <Select value={boardingId} onValueChange={(v) => setBoardingId(v ?? "")}>
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Select boarding" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bpdp?.boardingPoints.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.time} — {b.location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Dropping point</Label>
-                  <Select value={droppingId} onValueChange={(v) => setDroppingId(v ?? "")}>
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Select dropping" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bpdp?.droppingPoints.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.time} — {d.location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={selectedSeats.length === 0}
-                  onClick={continueToPassengers}
-                >
-                  Continue
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        ) : null}
-      </section>
+      <BusSeatScreen
+        trip={session?.trip}
+        seats={tripDetails?.seats ?? []}
+        selectedSeats={selectedSeats}
+        maxSeats={tripDetails?.maxSeatsPerTicket ?? 6}
+        loading={seatLayoutLoading || (api.loading && !tripDetails)}
+        loadError={seatLayoutError}
+        boardingId={boardingId}
+        droppingId={droppingId}
+        boardingPoints={bpdp?.boardingPoints ?? []}
+        droppingPoints={bpdp?.droppingPoints ?? []}
+        locale={locale}
+        onToggleSeat={toggleSeat}
+        onBoardingChange={setBoardingId}
+        onDroppingChange={setDroppingId}
+        onContinue={continueToPassengers}
+      />
     );
   }
 

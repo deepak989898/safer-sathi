@@ -153,14 +153,22 @@ export function getDemoBpDp(tripId: string): SeatSellerBpDpDetails {
 
 export function getTripStartingFare(trip: SeatSellerTrip): number {
   if (trip.fareDetails?.length) {
-    return trip.fareDetails[0].totalFare;
+    const fare = trip.fareDetails[0].totalFare ?? trip.fareDetails[0].baseFare;
+    if (fare && Number(fare) > 0) return Number(fare);
   }
   if (Array.isArray(trip.fares) && trip.fares.length) {
-    return Number(trip.fares[0]);
+    const fare = Number(trip.fares[0]);
+    if (fare > 0) return fare;
   }
+  if (typeof trip.fares === "number" && trip.fares > 0) return trip.fares;
   if (trip.fares && typeof trip.fares === "object") {
-    const values = Object.values(trip.fares);
-    if (values.length) return Number(values[0]);
+    const values = Object.values(trip.fares).map(Number).filter((n) => n > 0);
+    if (values.length) return Math.min(...values);
+  }
+  const raw = trip as Record<string, unknown>;
+  for (const key of ["fare", "minFare", "startingFare", "baseFare"]) {
+    const value = Number(raw[key]);
+    if (value > 0) return value;
   }
   return 0;
 }
