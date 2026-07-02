@@ -14,6 +14,11 @@ export interface BusFlowDebugState {
   bpDpSeatLayout?: boolean;
   bpdpSource?: string;
   apiMessage?: string | null;
+  payloadShape?: {
+    topLevelKeys: string[];
+    arrayKeys: string[];
+    nestedPaths: string[];
+  };
   rawTrip?: unknown;
 }
 
@@ -38,6 +43,18 @@ export function BusDebugPanel({ debug }: BusDebugPanelProps) {
           <p>bpDpSeatLayout: {String(debug.bpDpSeatLayout ?? false)}</p>
           <p>BP/DP source: {debug.bpdpSource ?? "—"}</p>
         </div>
+        {debug.payloadShape && (
+          <div className="text-xs text-amber-950">
+            <p className="font-medium">API payload shape (live)</p>
+            <p>Keys: {debug.payloadShape.topLevelKeys.join(", ") || "—"}</p>
+            <p>Arrays: {debug.payloadShape.arrayKeys.join(", ") || "—"}</p>
+            {debug.payloadShape.nestedPaths.map((path) => (
+              <p key={path} className="truncate">
+                {path}
+              </p>
+            ))}
+          </div>
+        )}
         {debug.apiMessage && (
           <p className="text-xs text-amber-800">API: {debug.apiMessage}</p>
         )}

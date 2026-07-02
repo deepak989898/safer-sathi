@@ -239,7 +239,7 @@ export async function fetchAvailableTrips(input: {
         },
       });
       lastRaw = data;
-      const { trips, responseKeys } = parseSeatSellerTrips(data);
+      const { trips, responseKeys, payloadShape } = parseSeatSellerTrips(data);
       lastKeys = responseKeys;
       lastDoj = doj;
       lastUrl = `${getSeatSellerConfig().baseUrl}${endpoint}?source=${input.source}&destination=${input.destination}&doj=${doj}`;
@@ -268,6 +268,7 @@ export async function fetchAvailableTrips(input: {
           destination: input.destination,
           doj,
           responseKeys,
+          payloadShape,
           extractedTrips: trips.length,
           apiUrl: lastUrl,
         },

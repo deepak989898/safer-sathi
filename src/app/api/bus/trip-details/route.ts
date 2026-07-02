@@ -2,7 +2,9 @@ import { z } from "zod";
 import { busApiError } from "@/lib/bus/api-helpers";
 import { fetchTripDetails, fetchTripDetailsV2 } from "@/lib/seatseller/client";
 import { parseSeatSellerTripDetails } from "@/lib/seatseller/parse-trip-details";
+import { describeSeatSellerPayload } from "@/lib/seatseller/normalize";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 
 const schema = z.object({
   tripId: z.string().min(1),
@@ -32,7 +34,16 @@ export async function POST(request: Request) {
         : await fetchTripDetails(parsed.data.tripId);
 
     const details = parseSeatSellerTripDetails(raw);
-    return apiSuccess({ details, live: true });
+    const auth = await optionalAuthenticateRequest(request);
+    const includeDebug = Boolean(auth && isStaffUser(auth));
+
+    return apiSuccess({
+      details,
+      live: true,
+      ...(includeDebug
+        ? { debug: { payloadShape: describeSeatSellerPayload(raw), seatCount: details.seats.length } }
+        : {}),
+    });
   } catch (error) {
     return busApiError(error, "Failed to load seat layout");
   }

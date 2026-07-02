@@ -324,7 +324,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     void (async () => {
       try {
         const useBpDpLayout = isBpDpSeatLayoutEnabled(session?.trip?.bpDpSeatLayout);
-        const [details, resolved] = await Promise.all([
+        const [tripDetailsResponse, resolved] = await Promise.all([
           useBpDpLayout
             ? Promise.resolve(null)
             : api.fetchTripDetails({ tripId }),
@@ -335,7 +335,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           }),
         ]);
 
-        let tripDetailsResult = details;
+        let tripDetailsResult = tripDetailsResponse?.details ?? null;
         if (!useBpDpLayout) {
           if (!tripDetailsResult) {
             setSeatLayoutError(api.error ?? "Could not load seat layout. Please try another bus.");
@@ -374,6 +374,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           bpDpSeatLayout: isBpDpSeatLayoutEnabled(session?.trip?.bpDpSeatLayout),
           bpdpSource: resolved.source,
           apiMessage: resolved.message,
+          payloadShape: tripDetailsResponse?.debug?.payloadShape,
           rawTrip: session?.trip,
         });
       } catch (e) {
@@ -406,18 +407,19 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         dpId: droppingId,
         bpDpSeatLayout: true,
       })
-      .then((details) => {
-        if (!details) return;
-        const seats = normalizeSeatSellerSeats(details.seats);
+      .then((response) => {
+        if (!response?.details) return;
+        const seats = normalizeSeatSellerSeats(response.details.seats);
         setTripDetails({
           seats,
-          maxSeatsPerTicket: details.maxSeatsPerTicket,
-          forcedSeats: details.forcedSeats,
+          maxSeatsPerTicket: response.details.maxSeatsPerTicket,
+          forcedSeats: response.details.forcedSeats,
         });
         setFlowDebug((prev) => ({
           ...prev,
           seatCount: seats.length,
           totalFare: seats.reduce((s, seat) => s + getSeatApiFare(seat), 0),
+          payloadShape: response.debug?.payloadShape ?? prev.payloadShape,
         }));
       })
       .finally(() => setSeatLayoutLoading(false));

@@ -1,5 +1,14 @@
 import type { SeatSellerSeat, SeatSellerTrip } from "@/lib/seatseller/types";
-import { getTripStartingFare } from "@/lib/seatseller/demo-data";
+import {
+  asRecord,
+  extractBoardingPoints,
+  extractDroppingPoints,
+  formatSeatSellerTime,
+  pickBoolean,
+  pickFareFromRecord,
+  pickNumber,
+  pickString,
+} from "@/lib/seatseller/normalize";
 
 export interface NormalizedBusTrip extends SeatSellerTrip {
   id: string;
@@ -11,85 +20,95 @@ export interface NormalizedBusTrip extends SeatSellerTrip {
   embeddedDroppingCount: number;
 }
 
-export interface NormalizedBusTrip extends SeatSellerTrip {
-  id: string;
-  startingFare: number;
-  hasExactFare: boolean;
-  viewFareRequired: boolean;
-  bpDpSeatLayoutEnabled: boolean;
-  embeddedBoardingCount: number;
-  embeddedDroppingCount: number;
+function resolveStartingFare(trip: SeatSellerTrip, raw: Record<string, unknown>): number {
+  const fromRaw = pickFareFromRecord(raw);
+  if (fromRaw !== undefined && fromRaw > 0) return fromRaw;
+
+  if (trip.fareDetails?.length) {
+    const fare = trip.fareDetails[0].totalFare ?? trip.fareDetails[0].baseFare;
+    if (fare && Number(fare) > 0) return Number(fare);
+  }
+  if (Array.isArray(trip.fares) && trip.fares.length) {
+    const fare = Number(trip.fares[0]);
+    if (fare > 0) return fare;
+  }
+  if (typeof trip.fares === "number" && trip.fares > 0) return trip.fares;
+  if (trip.fares && typeof trip.fares === "object") {
+    const values = Object.values(trip.fares).map(Number).filter((n) => n > 0);
+    if (values.length) return Math.min(...values);
+  }
+
+  return 0;
 }
 
-function asBoolean(value: unknown): boolean {
-  return value === true || String(value).toLowerCase() === "true";
-}
+/** Normalize a single trip from sandbox/live available-trips item. */
+export function normalizeBusTrip(raw: unknown): NormalizedBusTrip {
+  const record = asRecord(raw) ?? {};
 
-/** Full trip normalization for search results (Phase 1). */
-export function normalizeBusTrip(raw: Record<string, unknown>): NormalizedBusTrip {
-  const fareDetails = Array.isArray(raw.fareDetails)
-    ? raw.fareDetails
-    : Array.isArray(raw.fare_details)
-      ? raw.fare_details
-      : undefined;
-
-  const boardingTimes = raw.boardingTimes ?? raw.boarding_times;
-  const droppingTimes = raw.droppingTimes ?? raw.dropping_times;
+  const boardingRaw = extractBoardingPoints(record);
+  const droppingRaw = extractDroppingPoints(record);
 
   const trip: SeatSellerTrip = {
-    ...raw,
-    id: String(raw.id ?? raw.tripId ?? raw.inventoryId ?? raw.availableTripId ?? ""),
-    travels:
-      String(raw.travels ?? raw.operatorName ?? raw.operator_name ?? raw.busRoutes ?? "").trim() ||
-      "Bus Operator",
-    operator: String(raw.operator ?? raw.operatorName ?? raw.travels ?? "Bus Operator"),
-    busType: String(raw.busType ?? raw.bus_type ?? "Bus"),
-    departureTime: String(raw.departureTime ?? raw.departure_time ?? ""),
-    arrivalTime: String(raw.arrivalTime ?? raw.arrival_time ?? ""),
-    availableSeats: Number(raw.availableSeats ?? raw.available_seats ?? 0) || 0,
-    maxSeatsPerTicket: Number(raw.maxSeatsPerTicket ?? raw.max_seats_per_ticket ?? 6) || 6,
-    callFareBreakupApi: asBoolean(raw.callFareBreakupApi ?? raw.call_fare_breakup_api),
-    bpDpSeatLayout: (raw.bpDpSeatLayout ?? raw.bp_dp_seat_layout) as SeatSellerTrip["bpDpSeatLayout"],
-    cancellationPolicy: raw.cancellationPolicy
-      ? String(raw.cancellationPolicy)
-      : undefined,
-    fareDetails: fareDetails as SeatSellerTrip["fareDetails"],
-    fares: (raw.fares ?? raw.fare) as SeatSellerTrip["fares"],
-    boardingTimes: boardingTimes as SeatSellerTrip["boardingTimes"],
-    droppingTimes: droppingTimes as SeatSellerTrip["droppingTimes"],
-    AC: asBoolean(raw.AC ?? raw.ac),
-    seater: asBoolean(raw.seater),
-    sleeper: asBoolean(raw.sleeper),
-    mTicketEnabled: asBoolean(raw.mTicketEnabled ?? raw.mTicket),
+    ...record,
+    id: pickString(record, ["id", "tripId", "inventoryId", "availableTripId", "routeId"], ""),
+    travels: pickString(
+      record,
+      ["travels", "operatorName", "operator_name", "busRoutes", "operator", "travelsName"],
+      "Bus Operator"
+    ),
+    operator: pickString(record, ["operator", "operatorName", "travels", "travelsName"], "Bus Operator"),
+    busType: pickString(record, ["busType", "bus_type", "busTypeName", "vehicleType"], "Bus"),
+    departureTime: formatSeatSellerTime(
+      record.departureTime ?? record.departure_time ?? record.depTime
+    ),
+    arrivalTime: formatSeatSellerTime(record.arrivalTime ?? record.arrival_time ?? record.arrTime),
+    availableSeats:
+      pickNumber(record, ["availableSeats", "available_seats", "seatsAvailable", "seatCount"]) ?? 0,
+    maxSeatsPerTicket:
+      pickNumber(record, ["maxSeatsPerTicket", "max_seats_per_ticket", "maxSeats"]) ?? 6,
+    callFareBreakupApi: pickBoolean(record, [
+      "callFareBreakupApi",
+      "call_fare_breakup_api",
+      "callFareAPI",
+    ]),
+    bpDpSeatLayout: (record.bpDpSeatLayout ??
+      record.bp_dp_seat_layout ??
+      record.bpDpLayout) as SeatSellerTrip["bpDpSeatLayout"],
+    cancellationPolicy:
+      pickString(record, ["cancellationPolicy", "cancellation_policy"], "") || undefined,
+    duration: pickString(record, ["duration", "journeyDuration"], "") || undefined,
+    fareDetails: (record.fareDetails ?? record.fare_details) as SeatSellerTrip["fareDetails"],
+    fares: (record.fares ?? record.fare) as SeatSellerTrip["fares"],
+    boardingTimes: (boardingRaw.length
+      ? boardingRaw
+      : record.boardingTimes ?? record.boarding_times) as SeatSellerTrip["boardingTimes"],
+    droppingTimes: (droppingRaw.length
+      ? droppingRaw
+      : record.droppingTimes ?? record.dropping_times) as SeatSellerTrip["droppingTimes"],
+    AC: pickBoolean(record, ["AC", "ac", "isAC"]),
+    seater: pickBoolean(record, ["seater", "isSeater"]),
+    sleeper: pickBoolean(record, ["sleeper", "isSleeper"]),
+    mTicketEnabled: pickBoolean(record, ["mTicketEnabled", "mTicket"]),
   };
 
-  const startingFare = getTripStartingFare(trip);
+  const startingFare = resolveStartingFare(trip, record);
 
   return {
     ...trip,
     startingFare,
     hasExactFare: startingFare > 0,
     viewFareRequired: startingFare <= 0,
-    bpDpSeatLayoutEnabled: asBoolean(trip.bpDpSeatLayout),
-    embeddedBoardingCount: Array.isArray(boardingTimes) ? boardingTimes.length : 0,
-    embeddedDroppingCount: Array.isArray(droppingTimes) ? droppingTimes.length : 0,
+    bpDpSeatLayoutEnabled:
+      pickBoolean(record, ["bpDpSeatLayout", "bp_dp_seat_layout", "bpDpLayout"]) === true,
+    embeddedBoardingCount: boardingRaw.length,
+    embeddedDroppingCount: droppingRaw.length,
   };
 }
 
-/** Exact seat fare from API — never invent from seat number. */
 export function getSeatApiFare(seat: SeatSellerSeat): number {
-  const candidates = [
-    seat.fare,
-    seat.baseFare,
-    seat.totalFare,
-    seat.totalFareWithTaxes,
-    (seat as Record<string, unknown>).totalFareWithTax,
-  ];
-  for (const value of candidates) {
-    const n = Number(value);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return 0;
+  const record = asRecord(seat);
+  const fare = record ? pickFareFromRecord(record) : undefined;
+  return fare !== undefined && fare > 0 ? fare : 0;
 }
 
 export function sumSeatFares(seats: SeatSellerSeat[]): number {
@@ -97,11 +116,8 @@ export function sumSeatFares(seats: SeatSellerSeat[]): number {
 }
 
 export function extractUpdatedFareTotal(raw: unknown): number | null {
-  if (!raw || typeof raw !== "object") return null;
-  const record = raw as Record<string, unknown>;
-  for (const key of ["totalFare", "total_fare", "fare", "amount"]) {
-    const n = Number(record[key]);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return null;
+  const record = asRecord(raw);
+  if (!record) return null;
+  const fare = pickFareFromRecord(record);
+  return fare !== undefined && fare > 0 ? fare : null;
 }

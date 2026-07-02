@@ -1,4 +1,5 @@
 import type { SeatSellerTrip } from "@/lib/seatseller/types";
+import { describeSeatSellerPayload, type PayloadShape } from "@/lib/seatseller/normalize";
 
 export interface BusSearchDebug {
   sourceCityName: string;
@@ -11,6 +12,7 @@ export interface BusSearchDebug {
   apiUrl: string;
   apiMethod: string;
   rawSeatSellerResponse: unknown;
+  payloadShape?: PayloadShape;
   parsedTripsCount: number;
   parsedTripsPreview: Array<Record<string, unknown>>;
   errorMessage: string | null;
@@ -43,6 +45,7 @@ export function buildBusSearchDebug(input: {
     apiUrl: input.apiUrl,
     apiMethod: input.apiMethod ?? "GET",
     rawSeatSellerResponse: input.rawSeatSellerResponse ?? null,
+    payloadShape: describeSeatSellerPayload(input.rawSeatSellerResponse),
     parsedTripsCount: trips.length,
     parsedTripsPreview: trips.slice(0, 3).map((trip) => ({
       id: trip.id,

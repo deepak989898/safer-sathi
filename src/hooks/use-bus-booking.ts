@@ -85,7 +85,12 @@ export function useBusBookingApi() {
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error ?? "Seat layout failed");
-        return json.data.details as SeatSellerTripDetails;
+        return {
+          details: json.data.details as SeatSellerTripDetails,
+          debug: json.data.debug as
+            | { payloadShape?: import("@/lib/seatseller/normalize").PayloadShape; seatCount?: number }
+            | undefined,
+        };
       });
     },
     [run]

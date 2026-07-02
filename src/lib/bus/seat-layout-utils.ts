@@ -1,4 +1,5 @@
 import type { SeatSellerSeat } from "@/lib/seatseller/types";
+import { asRecord, pickFareFromRecord, pickNumber } from "@/lib/seatseller/normalize";
 
 const MAX_GRID_DIMENSION = 40;
 
@@ -44,8 +45,11 @@ export function normalizeSeatSellerSeats(seats: SeatSellerSeat[] | undefined): S
   const valid = seats.filter((seat) => isValidBusSeatName(seat.name ?? seat.seatName));
 
   return valid.map((seat, index) => {
-    let row = readCoord(seat.row ?? seat.rowNo);
-    let column = readCoord(seat.column ?? seat.col ?? seat.columnNo);
+    const record = asRecord(seat);
+    let row = readCoord(seat.row ?? seat.rowNo ?? record?.row ?? record?.rowNo);
+    let column = readCoord(
+      seat.column ?? seat.col ?? seat.columnNo ?? record?.column ?? record?.col
+    );
 
     if (row === null) row = Math.floor(index / 4);
     if (column === null) column = index % 4;
@@ -55,21 +59,25 @@ export function normalizeSeatSellerSeats(seats: SeatSellerSeat[] | undefined): S
       String(seat.available).toLowerCase() !== "false" &&
       String(seat.available).toLowerCase() !== "0";
 
-    const rawName = String(seat.name ?? seat.seatName ?? `S${index + 1}`);
+    const rawName = String(
+      seat.name ?? seat.seatName ?? record?.name ?? record?.seatName ?? `S${index + 1}`
+    );
+
+    const fare = record ? pickFareFromRecord(record) : undefined;
 
     return {
       ...seat,
       name: formatBusSeatLabel(rawName),
       row,
       column,
-      zIndex: Number(seat.zIndex ?? 0) || 0,
-      length: Math.max(1, Number(seat.length ?? 1) || 1),
-      width: Math.max(1, Number(seat.width ?? 1) || 1),
+      zIndex: pickNumber(record ?? {}, ["zIndex", "z_index", "deck"], 0) ?? 0,
+      length: Math.max(1, pickNumber(record ?? {}, ["length", "rowSpan"], 1) ?? 1),
+      width: Math.max(1, pickNumber(record ?? {}, ["width", "colSpan"], 1) ?? 1),
       available,
       ladiesSeat:
         seat.ladiesSeat === true || String(seat.ladiesSeat).toLowerCase() === "true",
       malesSeat: seat.malesSeat === true || String(seat.malesSeat).toLowerCase() === "true",
-      fare: Number(seat.fare ?? seat.baseFare ?? 0) || undefined,
+      fare: fare !== undefined && fare > 0 ? fare : undefined,
     };
   });
 }

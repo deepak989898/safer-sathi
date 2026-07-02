@@ -1,53 +1,19 @@
 import type { SeatSellerSeat, SeatSellerTripDetails } from "@/lib/seatseller/types";
 import { normalizeSeatSellerSeats } from "@/lib/bus/seat-layout-utils";
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function formatPointTime(value: unknown): string {
-  if (value === undefined || value === null || value === "") return "";
-  const raw = String(value).trim();
-  if (raw.includes(":")) return raw;
-  const minutes = Number(raw);
-  if (!Number.isFinite(minutes)) return raw;
-  const hours = Math.floor(minutes / 60) % 24;
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
-
-function pickSeatsArray(record: Record<string, unknown>): unknown[] {
-  for (const key of ["seats", "Seats", "seatList", "seatDetails", "seatLayout"]) {
-    const value = record[key];
-    if (Array.isArray(value)) return value;
-  }
-  return [];
-}
-
-function collectNestedSeats(record: Record<string, unknown>): unknown[] {
-  const collected: unknown[] = [];
-
-  for (const key of ["tripdetails", "tripDetails", "tripdetail", "data", "result"]) {
-    const nested = record[key];
-    if (Array.isArray(nested)) {
-      for (const item of nested) {
-        const itemRecord = asRecord(item);
-        if (!itemRecord) continue;
-        collected.push(...pickSeatsArray(itemRecord));
-      }
-    } else {
-      const nestedRecord = asRecord(nested);
-      if (nestedRecord) collected.push(...pickSeatsArray(nestedRecord));
-    }
-  }
-
-  return collected;
-}
+import {
+  asRecord,
+  extractBoardingPoints,
+  extractDroppingPoints,
+  extractSeatList,
+  formatSeatSellerTime,
+  pickBoolean,
+  pickNumber,
+  pickString,
+  unwrapSeatSellerPayload,
+} from "@/lib/seatseller/normalize";
 
 export function parseSeatSellerTripDetails(raw: unknown): SeatSellerTripDetails {
-  const record = asRecord(raw);
+  const record = unwrapSeatSellerPayload(raw) ?? asRecord(raw);
   if (!record) {
     return {
       availableTripId: "",
@@ -56,76 +22,49 @@ export function parseSeatSellerTripDetails(raw: unknown): SeatSellerTripDetails 
     };
   }
 
-  const directSeats = pickSeatsArray(record);
-  const nestedSeats = directSeats.length ? [] : collectNestedSeats(record);
-  const allSeats = directSeats.length ? directSeats : nestedSeats;
-
-  if (allSeats.length) {
-    return {
-      ...record,
-      availableTripId: String(record.availableTripId ?? record.id ?? ""),
-      maxSeatsPerTicket: Number(record.maxSeatsPerTicket ?? 6) || 6,
-      callFareBreakupApi:
-        record.callFareBreakupApi === true ||
-        String(record.callFareBreakupApi).toLowerCase() === "true",
-      forcedSeats: Array.isArray(record.forcedSeats)
-        ? record.forcedSeats.map(String)
-        : undefined,
-      seats: normalizeSeatSellerSeats(allSeats as SeatSellerSeat[]),
-    };
-  }
-
-  for (const key of ["tripdetails", "tripDetails", "tripdetail", "data", "result"]) {
-    const nested = record[key];
-    if (Array.isArray(nested) && nested[0]) {
-      return parseSeatSellerTripDetails(nested[0]);
-    }
-    const nestedRecord = asRecord(nested);
-    if (nestedRecord) {
-      const parsed = parseSeatSellerTripDetails(nestedRecord);
-      if (parsed.seats.length) return parsed;
-    }
-  }
+  const allSeats = extractSeatList(raw);
 
   return {
-    availableTripId: String(record.availableTripId ?? record.id ?? ""),
-    maxSeatsPerTicket: Number(record.maxSeatsPerTicket ?? 6) || 6,
-    seats: [],
+    ...record,
+    availableTripId: pickString(record, ["availableTripId", "id", "tripId", "inventoryId"], ""),
+    maxSeatsPerTicket: pickNumber(record, ["maxSeatsPerTicket", "max_seats_per_ticket", "maxSeats"], 6) ?? 6,
+    callFareBreakupApi: pickBoolean(record, [
+      "callFareBreakupApi",
+      "call_fare_breakup_api",
+      "callFareAPI",
+    ]),
     forcedSeats: Array.isArray(record.forcedSeats)
       ? record.forcedSeats.map(String)
       : undefined,
+    seats: normalizeSeatSellerSeats(allSeats as SeatSellerSeat[]),
   };
 }
 
-function mapBoardingPoints(items: unknown) {
-  return (Array.isArray(items) ? items : [])
+function mapBoardingPoints(items: unknown[]) {
+  return items
     .map((item, index) => {
       const row = asRecord(item);
       if (!row) return null;
 
-      const id = String(row.id ?? row.bpId ?? row.Id ?? row.pointId ?? index + 1);
-      const landmark = String(row.landmark ?? row.Landmark ?? "").trim();
-      const address = String(row.address ?? row.Address ?? row.bpAddress ?? "").trim();
-      const contact = String(
-        row.contactNumber ?? row.contact ?? row.phone ?? row.mobile ?? ""
-      ).trim();
-      const name = String(
-        row.location ??
-          row.bpName ??
-          row.BpName ??
-          row.name ??
-          row.Name ??
-          landmark ??
-          address ??
-          ""
-      ).trim();
+      const id = pickString(row, ["id", "bpId", "Id", "pointId", "bp_id"], String(index + 1));
+      const landmark = pickString(row, ["landmark", "Landmark", "bpLandmark"]);
+      const address = pickString(row, ["address", "Address", "bpAddress", "bp_address"]);
+      const contact = pickString(row, ["contactNumber", "contact", "phone", "mobile"]);
+      const name = pickString(row, [
+        "location",
+        "bpName",
+        "BpName",
+        "name",
+        "Name",
+        "bpLocation",
+      ]);
 
       const location =
         name && name !== id
           ? name
           : landmark || address || `Boarding point ${index + 1}`;
 
-      const time = formatPointTime(
+      const time = formatSeatSellerTime(
         row.time ?? row.bpTime ?? row.BpTime ?? row.bpTimeString ?? row.Tm
       );
 
@@ -138,32 +77,30 @@ function mapBoardingPoints(items: unknown) {
     }>;
 }
 
-function mapDroppingPoints(items: unknown) {
-  return (Array.isArray(items) ? items : [])
+function mapDroppingPoints(items: unknown[]) {
+  return items
     .map((item, index) => {
       const row = asRecord(item);
       if (!row) return null;
 
-      const id = String(row.id ?? row.dpId ?? row.Id ?? row.pointId ?? index + 1);
-      const landmark = String(row.landmark ?? row.Landmark ?? "").trim();
-      const address = String(row.address ?? row.Address ?? row.dpAddress ?? "").trim();
-      const name = String(
-        row.location ??
-          row.dpName ??
-          row.DpName ??
-          row.name ??
-          row.Name ??
-          landmark ??
-          address ??
-          ""
-      ).trim();
+      const id = pickString(row, ["id", "dpId", "Id", "pointId", "dp_id"], String(index + 1));
+      const landmark = pickString(row, ["landmark", "Landmark", "dpLandmark"]);
+      const address = pickString(row, ["address", "Address", "dpAddress", "dp_address"]);
+      const name = pickString(row, [
+        "location",
+        "dpName",
+        "DpName",
+        "name",
+        "Name",
+        "dpLocation",
+      ]);
 
       const location =
         name && name !== id
           ? name
           : landmark || address || `Dropping point ${index + 1}`;
 
-      const time = formatPointTime(
+      const time = formatSeatSellerTime(
         row.time ?? row.dpTime ?? row.DpTime ?? row.dpTimeString ?? row.Tm
       );
 
@@ -180,48 +117,18 @@ export function parseSeatSellerBpDp(raw: unknown): {
   boardingPoints: Array<{ id: string; location: string; time: string }>;
   droppingPoints: Array<{ id: string; location: string; time: string }>;
 } {
-  const record = asRecord(raw);
+  const record = unwrapSeatSellerPayload(raw) ?? asRecord(raw);
   if (!record) {
     return { boardingPoints: [], droppingPoints: [] };
   }
 
-  for (const key of ["bpdpdetails", "bpDpDetails", "data", "result"]) {
-    const nested = asRecord(record[key]);
-    if (
-      nested &&
-      (nested.boardingPoints ||
-        nested.boardingpoints ||
-        nested.boardingTimes ||
-        nested.droppingPoints ||
-        nested.droppingpoints ||
-        nested.droppingTimes)
-    ) {
-      return parseSeatSellerBpDp(nested);
-    }
-  }
+  const boardingRaw = extractBoardingPoints(record);
+  const droppingRaw = extractDroppingPoints(record);
 
-  const boardingRaw =
-    record.boardingPoints ??
-    record.boardingpoints ??
-    record.BoardingPoints ??
-    record.boardingTimes ??
-    record.bpList ??
-    record.BPLt ??
-    [];
-
-  const droppingRaw =
-    record.droppingPoints ??
-    record.droppingpoints ??
-    record.DroppingPoints ??
-    record.droppingTimes ??
-    record.dpList ??
-    record.DPLt ??
-    [];
-
-  const boardingPoints = mapBoardingPoints(boardingRaw);
-  const droppingPoints = mapDroppingPoints(droppingRaw);
-
-  return { boardingPoints, droppingPoints };
+  return {
+    boardingPoints: mapBoardingPoints(boardingRaw),
+    droppingPoints: mapDroppingPoints(droppingRaw),
+  };
 }
 
 export function parseTripEmbeddedBpDp(trip: Record<string, unknown> | null | undefined): {
@@ -229,8 +136,12 @@ export function parseTripEmbeddedBpDp(trip: Record<string, unknown> | null | und
   droppingPoints: Array<{ id: string; location: string; time: string }>;
 } {
   if (!trip) return { boardingPoints: [], droppingPoints: [] };
+
+  const boardingRaw = extractBoardingPoints(trip);
+  const droppingRaw = extractDroppingPoints(trip);
+
   return {
-    boardingPoints: mapBoardingPoints(trip.boardingTimes ?? trip.boarding_times),
-    droppingPoints: mapDroppingPoints(trip.droppingTimes ?? trip.dropping_times),
+    boardingPoints: mapBoardingPoints(boardingRaw),
+    droppingPoints: mapDroppingPoints(droppingRaw),
   };
 }
