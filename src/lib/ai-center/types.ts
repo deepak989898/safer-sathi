@@ -377,6 +377,10 @@ export interface AiCenterSettings {
   openAiImagesMaxPerBlog: number;
   /** Monthly cap on successful OpenAI image generations. */
   openAiImagesMonthlyLimit: number;
+  /** gpt-image-1 (best) or gpt-image-1-mini (economy). */
+  openAiImageModel: "gpt-image-1" | "gpt-image-1-mini";
+  /** low = drafts, medium = balanced, high = sharpest (recommended). */
+  openAiImageQuality: "low" | "medium" | "high";
   updatedAt: string;
   updatedBy?: string;
 }
@@ -414,6 +418,8 @@ export const DEFAULT_AI_CENTER_SETTINGS: AiCenterSettings = {
   openAiImagesDefaultToggle: false,
   openAiImagesMaxPerBlog: 1,
   openAiImagesMonthlyLimit: 100,
+  openAiImageModel: "gpt-image-1",
+  openAiImageQuality: "high",
   updatedAt: new Date().toISOString(),
 };
 

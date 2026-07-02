@@ -1,5 +1,5 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { OPENAI_IMAGE_ESTIMATED_COST_USD } from "@/lib/ai/openai-images";
+import { estimateOpenAiImageCostUsd } from "@/lib/ai/openai-images";
 import type { AiImageGenerationLog } from "@/lib/ai-center/types";
 
 const COLLECTION = "ai_image_generation_logs";
@@ -42,7 +42,13 @@ export function estimateMonthlyImageCost(): number {
   const count = logCache.filter(
     (log) => log.success && log.createdAt.startsWith(key.slice(0, 7))
   ).length;
-  return Math.round(count * OPENAI_IMAGE_ESTIMATED_COST_USD * 1000) / 1000;
+  const avgCost =
+    logCache
+      .filter((log) => log.success && log.estimatedCostUsd)
+      .slice(0, 20)
+      .reduce((sum, log, _, arr) => sum + (log.estimatedCostUsd ?? 0) / arr.length, 0) ||
+    estimateOpenAiImageCostUsd();
+  return Math.round(count * avgCost * 1000) / 1000;
 }
 
 export async function addImageGenerationLog(
@@ -52,7 +58,7 @@ export async function addImageGenerationLog(
     ...entry,
     id: `imglog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
-    estimatedCostUsd: entry.success ? OPENAI_IMAGE_ESTIMATED_COST_USD : 0,
+    estimatedCostUsd: entry.success ? (entry.estimatedCostUsd ?? estimateOpenAiImageCostUsd()) : 0,
   };
 
   logCache = [log, ...logCache].slice(0, 300);
@@ -71,10 +77,18 @@ export async function addImageGenerationLog(
   return log;
 }
 
-export function getImageGenerationStats() {
+export function getImageGenerationStats(options?: {
+  model?: string;
+  quality?: "low" | "medium" | "high";
+}) {
+  const estimatedCostPerImageUsd = estimateOpenAiImageCostUsd({
+    model: options?.model,
+    quality: options?.quality,
+    size: "1536x1024",
+  });
   return {
     monthlyGenerated: countSuccessfulImagesThisMonth(),
     monthlyCostEstimateUsd: estimateMonthlyImageCost(),
-    estimatedCostPerImageUsd: OPENAI_IMAGE_ESTIMATED_COST_USD,
+    estimatedCostPerImageUsd,
   };
 }

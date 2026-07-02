@@ -1,4 +1,5 @@
 import type { BlogImagePrompt } from "@/lib/ai-center/types";
+import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image-generator";
 import { regenerateBlogContent } from "@/lib/ai-center/blog-writer-agent";
 import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
@@ -100,7 +101,20 @@ export async function PATCH(
         if (!existing) return apiError("Blog not found", 404);
         const settings = getAiCenterSettings();
         const regenerated = await regenerateBlogContent(existing, settings);
-        const blog = await updateBlog(id, regenerated);
+        let blog = await updateBlog(id, regenerated);
+
+        if (settings.openAiImagesEnabled) {
+          const enrichment = await enrichBlogWithOpenAiFeaturedImage(
+            blog,
+            settings,
+            actor,
+            { forceRegenerate: true }
+          );
+          if (enrichment.success && enrichment.blog) {
+            blog = await updateBlog(id, enrichment.blog);
+          }
+        }
+
         return apiSuccess({ blog });
       }
       default:

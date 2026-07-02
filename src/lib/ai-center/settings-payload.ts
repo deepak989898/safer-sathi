@@ -36,6 +36,8 @@ export function buildAiCenterSettingsPayload(
     openAiImagesDefaultToggle: settings.openAiImagesDefaultToggle,
     openAiImagesMaxPerBlog: 1,
     openAiImagesMonthlyLimit: settings.openAiImagesMonthlyLimit,
+    openAiImageModel: settings.openAiImageModel,
+    openAiImageQuality: settings.openAiImageQuality,
   };
 }
 

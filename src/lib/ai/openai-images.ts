@@ -1,9 +1,20 @@
 import OpenAI from "openai";
 
 /** DALL-E was retired May 2026 — use GPT Image family. */
-export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1-mini";
+export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1";
+
+const ECONOMY_OPENAI_IMAGE_MODEL = "gpt-image-1-mini";
 
 const LEGACY_DALLE_MODELS = new Set(["dall-e-2", "dall-e-3"]);
+
+export type OpenAiImageQuality = "low" | "medium" | "high";
+export type OpenAiImageSize = "1024x1024" | "1536x1024" | "1024x1536" | "auto";
+
+export interface OpenAiImageGenerateOptions {
+  model?: string;
+  quality?: OpenAiImageQuality;
+  size?: OpenAiImageSize;
+}
 
 function normalizeConfiguredModel(raw?: string): string {
   const configured = (raw ?? DEFAULT_OPENAI_IMAGE_MODEL).trim();
@@ -15,24 +26,48 @@ function normalizeConfiguredModel(raw?: string): string {
 
 export const OPENAI_IMAGE_MODEL = normalizeConfiguredModel(process.env.OPENAI_IMAGE_MODEL);
 
-export const OPENAI_IMAGE_SIZE = (process.env.OPENAI_IMAGE_SIZE ?? "1024x1024") as
-  | "256x256"
-  | "512x512"
-  | "1024x1024"
-  | "1536x1024"
-  | "1024x1536"
-  | "auto";
+export const OPENAI_IMAGE_SIZE = (process.env.OPENAI_IMAGE_SIZE ?? "1536x1024") as OpenAiImageSize;
 
-/** Approximate USD cost per image (gpt-image-1-mini, low quality). */
-export const OPENAI_IMAGE_ESTIMATED_COST_USD = Number(
-  process.env.OPENAI_IMAGE_ESTIMATED_COST_USD ?? "0.02"
-);
+export const OPENAI_IMAGE_QUALITY = normalizeQuality(process.env.OPENAI_IMAGE_QUALITY);
 
-const IMAGE_MODEL_FALLBACK_CHAIN = [
-  OPENAI_IMAGE_MODEL,
-  DEFAULT_OPENAI_IMAGE_MODEL,
-  "gpt-image-1",
-].filter((model, index, list) => list.indexOf(model) === index);
+function normalizeQuality(raw?: string): OpenAiImageQuality {
+  const value = (raw ?? "high").toLowerCase();
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+  return "high";
+}
+
+/** Landscape 1536×1024 list prices (USD) from OpenAI docs. */
+const COST_USD_LANDSCAPE: Record<string, Record<OpenAiImageQuality, number>> = {
+  "gpt-image-1": { low: 0.016, medium: 0.063, high: 0.25 },
+  "gpt-image-1-mini": { low: 0.006, medium: 0.015, high: 0.052 },
+};
+
+export function estimateOpenAiImageCostUsd(options?: OpenAiImageGenerateOptions): number {
+  const model = resolveModel(options?.model);
+  const quality = options?.quality ?? OPENAI_IMAGE_QUALITY;
+  const table = COST_USD_LANDSCAPE[model] ?? COST_USD_LANDSCAPE[DEFAULT_OPENAI_IMAGE_MODEL];
+  return table[quality] ?? table.high;
+}
+
+/** @deprecated Use estimateOpenAiImageCostUsd — kept for older imports. */
+export const OPENAI_IMAGE_ESTIMATED_COST_USD = estimateOpenAiImageCostUsd();
+
+function resolveModel(model?: string): string {
+  const configured = normalizeConfiguredModel(model ?? OPENAI_IMAGE_MODEL);
+  if (configured === ECONOMY_OPENAI_IMAGE_MODEL) {
+    return ECONOMY_OPENAI_IMAGE_MODEL;
+  }
+  return configured.startsWith("gpt-image") ? configured : DEFAULT_OPENAI_IMAGE_MODEL;
+}
+
+function buildModelFallbackChain(preferred?: string): string[] {
+  const primary = resolveModel(preferred);
+  return [primary, DEFAULT_OPENAI_IMAGE_MODEL, ECONOMY_OPENAI_IMAGE_MODEL].filter(
+    (model, index, list) => list.indexOf(model) === index
+  );
+}
 
 export function isOpenAIImagesConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
@@ -47,25 +82,29 @@ function isDalleModel(model: string): boolean {
   return LEGACY_DALLE_MODELS.has(model.toLowerCase());
 }
 
-/** GPT Image models reject 512×512 — use smallest supported size. */
-function resolveImageSize(model: string): OpenAI.Images.ImageGenerateParams["size"] {
+function resolveImageSize(
+  model: string,
+  requested?: OpenAiImageSize
+): OpenAI.Images.ImageGenerateParams["size"] {
+  const size = requested ?? OPENAI_IMAGE_SIZE;
+
   if (isGptImageModel(model)) {
     if (
-      OPENAI_IMAGE_SIZE === "1024x1024" ||
-      OPENAI_IMAGE_SIZE === "1536x1024" ||
-      OPENAI_IMAGE_SIZE === "1024x1536" ||
-      OPENAI_IMAGE_SIZE === "auto"
+      size === "1024x1024" ||
+      size === "1536x1024" ||
+      size === "1024x1536" ||
+      size === "auto"
     ) {
-      return OPENAI_IMAGE_SIZE;
+      return size;
     }
-    return "1024x1024";
+    return "1536x1024";
   }
 
   if (isDalleModel(model)) {
-    return OPENAI_IMAGE_SIZE as OpenAI.Images.ImageGenerateParams["size"];
+    return size as OpenAI.Images.ImageGenerateParams["size"];
   }
 
-  return "1024x1024";
+  return "1536x1024";
 }
 
 function getClient(): OpenAI {
@@ -109,9 +148,11 @@ function isRetryableModelError(message: string): boolean {
 async function generateWithModel(
   client: OpenAI,
   model: string,
-  prompt: string
+  prompt: string,
+  options?: OpenAiImageGenerateOptions
 ): Promise<Buffer> {
-  const size = resolveImageSize(model);
+  const size = resolveImageSize(model, options?.size);
+  const quality = options?.quality ?? OPENAI_IMAGE_QUALITY;
 
   const response = isGptImageModel(model)
     ? await client.images.generate({
@@ -119,7 +160,8 @@ async function generateWithModel(
         prompt,
         n: 1,
         size,
-        quality: "low",
+        quality,
+        output_format: "png",
       })
     : await client.images.generate({
         model,
@@ -133,15 +175,18 @@ async function generateWithModel(
 
 /**
  * Generate one blog hero image.
- * Uses GPT Image models (DALL-E retired). Falls back if configured model is unavailable.
+ * Defaults: gpt-image-1, high quality, 1536×1024 landscape.
  */
-export async function generateOpenAIImage(prompt: string): Promise<Buffer> {
+export async function generateOpenAIImage(
+  prompt: string,
+  options?: OpenAiImageGenerateOptions
+): Promise<Buffer> {
   const client = getClient();
   let lastError: Error | undefined;
 
-  for (const model of IMAGE_MODEL_FALLBACK_CHAIN) {
+  for (const model of buildModelFallbackChain(options?.model)) {
     try {
-      return await generateWithModel(client, model, prompt);
+      return await generateWithModel(client, model, prompt, options);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);

@@ -55,6 +55,8 @@ const settingsSchema = z.object({
   openAiImagesDefaultToggle: z.boolean().optional(),
   openAiImagesMaxPerBlog: z.coerce.number().int().min(1).max(1).optional(),
   openAiImagesMonthlyLimit: z.coerce.number().int().min(1).max(10000).optional(),
+  openAiImageModel: z.enum(["gpt-image-1", "gpt-image-1-mini"]).optional(),
+  openAiImageQuality: z.enum(["low", "medium", "high"]).optional(),
 });
 
 function formatSettingsValidationError(error: z.ZodError): string {

@@ -996,6 +996,8 @@ export default function AiCenterClient() {
   const saveImageSettings = async (updates: {
     openAiImagesEnabled?: boolean;
     openAiImagesDefaultToggle?: boolean;
+    openAiImageModel?: AiCenterSettings["openAiImageModel"];
+    openAiImageQuality?: AiCenterSettings["openAiImageQuality"];
   }) => {
     if (!settings) return;
     const next = { ...settings, ...updates };
@@ -1798,9 +1800,10 @@ export default function AiCenterClient() {
                   <div className="sm:col-span-2 pt-2 border-t">
                     <p className="text-sm font-semibold">Image Generation</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Optional OpenAI featured images for blog drafts. Uses gpt-image-1-mini at
-                      1024×1024 (~$
-                      {(imageGenerationStats?.estimatedCostPerImageUsd ?? 0.02).toFixed(3)} per image).
+                      OpenAI featured images for blogs — landscape 1536×1024. Default: gpt-image-1 at
+                      high quality (~$
+                      {(imageGenerationStats?.estimatedCostPerImageUsd ?? 0.25).toFixed(2)} per
+                      image). Use Regenerate on a blog to replace a low-quality hero.
                     </p>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
@@ -1833,6 +1836,45 @@ export default function AiCenterClient() {
                     <p className="text-xs text-muted-foreground">
                       One OpenAI featured image per blog (fixed at 1).
                     </p>
+                  </div>
+                  <div>
+                    <Label>Image model</Label>
+                    <Select
+                      value={settings.openAiImageModel ?? "gpt-image-1"}
+                      onValueChange={(v) =>
+                        void saveImageSettings({
+                          openAiImageModel: v as AiCenterSettings["openAiImageModel"],
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gpt-image-1">gpt-image-1 (best quality)</SelectItem>
+                        <SelectItem value="gpt-image-1-mini">gpt-image-1-mini (lower cost)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Image quality</Label>
+                    <Select
+                      value={settings.openAiImageQuality ?? "high"}
+                      onValueChange={(v) =>
+                        void saveImageSettings({
+                          openAiImageQuality: v as AiCenterSettings["openAiImageQuality"],
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High — sharpest (recommended)</SelectItem>
+                        <SelectItem value="medium">Medium — balanced</SelectItem>
+                        <SelectItem value="low">Low — drafts only</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label>Monthly Image Limit</Label>

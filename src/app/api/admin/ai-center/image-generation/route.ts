@@ -1,5 +1,6 @@
 import { requireAICenterAuth } from "@/lib/ai-center/api-auth";
 import {
+  getAiCenterSettings,
   getImageGenerationStats,
   hydrateAiCenterStore,
   listImageGenerationLogs,
@@ -13,7 +14,11 @@ export async function GET(request: Request) {
 
     await hydrateAiCenterStore();
     const logs = listImageGenerationLogs(100);
-    const stats = getImageGenerationStats();
+    const aiSettings = getAiCenterSettings();
+    const stats = getImageGenerationStats({
+      model: aiSettings.openAiImageModel,
+      quality: aiSettings.openAiImageQuality,
+    });
 
     return apiSuccess({ logs, stats });
   } catch (err) {

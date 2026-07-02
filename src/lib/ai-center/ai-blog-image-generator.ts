@@ -1,8 +1,10 @@
 import {
+  estimateOpenAiImageCostUsd,
   generateOpenAIImage,
   isOpenAIImagesConfigured,
-  OPENAI_IMAGE_ESTIMATED_COST_USD,
   OPENAI_IMAGE_MODEL,
+  type OpenAiImageGenerateOptions,
+  type OpenAiImageQuality,
 } from "@/lib/ai/openai-images";
 import {
   addImageGenerationLog,
@@ -19,13 +21,15 @@ import {
   generateSeoFileName,
 } from "@/lib/media/image-seo-generator";
 
-const CATEGORY_HINTS: Record<KeywordCategory, string> = {
-  tour_packages: "tour packages and sightseeing attractions",
-  hotels: "hotels and premium stays",
-  vehicles: "travel vehicles and road trips",
-  destinations: "travel destination highlights",
-  travel_guides: "travel guide and local experiences",
-  local: "local travel experiences",
+const CATEGORY_SCENES: Record<KeywordCategory, string> = {
+  tour_packages:
+    "iconic landmarks, scenic routes, and authentic travel experiences that match the package theme",
+  hotels: "premium hotel exterior or elegant room with destination skyline or landscape visible",
+  vehicles: "scenic Indian highway or mountain road with a travel vehicle in natural context",
+  destinations:
+    "the most recognizable landmark, ghat, temple, lake, or landscape of the destination",
+  travel_guides: "local culture, street life, food, or heritage sites visitors would explore",
+  local: "authentic local neighborhood, market, or cultural scene at the destination",
 };
 
 export interface OpenAiImageEnrichmentResult {
@@ -35,18 +39,60 @@ export interface OpenAiImageEnrichmentResult {
   blog?: AiBlogPost;
 }
 
+export interface OpenAiImageEnrichmentOptions {
+  /** Replace an existing OpenAI/catalog featured image (e.g. blog Regenerate). */
+  forceRegenerate?: boolean;
+}
+
+function extractRouteCities(keyword: string): { from?: string; to?: string } {
+  const match = keyword.match(/\b([A-Za-z][\w\s-]{1,40}?)\s+to\s+([A-Za-z][\w\s-]{1,40})\b/i);
+  if (!match) return {};
+  return {
+    from: match[1].trim(),
+    to: match[2].trim(),
+  };
+}
+
+function buildSceneBrief(blog: AiBlogPost, destination: string): string {
+  const keyword = blog.keyword.trim();
+  const route = extractRouteCities(keyword);
+  const scene = CATEGORY_SCENES[blog.category] ?? CATEGORY_SCENES.destinations;
+
+  if (route.to) {
+    return [
+      `Main subject: the famous scenery and landmarks of ${route.to}, India`,
+      `(travel route theme: ${route.from} to ${route.to}).`,
+      `Show ${scene}.`,
+    ].join(" ");
+  }
+
+  return `Main subject: ${destination}, India — show ${scene}.`;
+}
+
 function buildOpenAiImagePrompt(blog: AiBlogPost): string {
   const destination = resolveDestinationName(blog.keyword, blog.destination);
-  const categoryHint = CATEGORY_HINTS[blog.category] ?? "travel destination";
   const keyword = blog.keyword.trim();
+  const sceneBrief = buildSceneBrief(blog, destination);
 
   return [
-    `Create a realistic travel photograph of ${destination}, inspired by the topic "${blog.title}" and keyword "${keyword}".`,
-    `Focus on ${categoryHint}.`,
-    "Style: professional travel photography, natural colors, natural lighting.",
-    "No text, logos, watermarks, borders, or collage.",
-    "Suitable as a professional travel blog hero image.",
+    `Photorealistic editorial travel photograph for an Indian tourism blog.`,
+    `Article title: "${blog.title}".`,
+    sceneBrief,
+    `Keyword context: "${keyword}".`,
+    "Composition: wide landscape blog hero, rule of thirds, single clear focal point, clean horizon.",
+    "Camera: full-frame DSLR, 24mm wide-angle lens, f/8, tack-sharp focus, natural depth of field.",
+    "Lighting: golden hour or soft daylight, realistic colors, high dynamic range, no oversaturated HDR look.",
+    "People: optional small distant figures only — no close-up faces, no distorted hands.",
+    "Strictly avoid: text, logos, watermarks, borders, collage, cartoon, illustration, painting, blur, noise, AI artifacts.",
   ].join(" ");
+}
+
+function resolveImageOptions(settings: AiCenterSettings): OpenAiImageGenerateOptions {
+  return {
+    model: settings.openAiImageModel ?? "gpt-image-1",
+    quality: settings.openAiImageQuality ?? "high",
+    size: "1536x1024",
+  };
 }
 
 function buildFeaturedPromptEntry(
@@ -102,13 +148,19 @@ function failureMessage(reason: string): string {
 export async function enrichBlogWithOpenAiFeaturedImage(
   blog: AiBlogPost,
   settings: AiCenterSettings,
-  actorId: string
+  actorId: string,
+  options?: OpenAiImageEnrichmentOptions
 ): Promise<OpenAiImageEnrichmentResult> {
   if (!settings.openAiImagesEnabled) {
     return { attempted: false, success: false };
   }
 
-  if (blog.imageGenerated && blog.imageSource === "openai" && blog.featuredImage) {
+  if (
+    !options?.forceRegenerate &&
+    blog.imageGenerated &&
+    blog.imageSource === "openai" &&
+    blog.featuredImage
+  ) {
     return {
       attempted: false,
       success: true,
@@ -179,9 +231,12 @@ export async function enrichBlogWithOpenAiFeaturedImage(
     };
   }
 
+  const imageOptions = resolveImageOptions(settings);
+  const estimatedCostUsd = estimateOpenAiImageCostUsd(imageOptions);
+
   try {
     const prompt = buildOpenAiImagePrompt(blog);
-    const buffer = await generateOpenAIImage(prompt);
+    const buffer = await generateOpenAIImage(prompt, imageOptions);
     const fileName = generateSeoFileName(
       resolveDestinationName(blog.keyword, blog.destination),
       slugify(blog.title).slice(0, 40) || "featured",
@@ -215,13 +270,13 @@ export async function enrichBlogWithOpenAiFeaturedImage(
       success: true,
       imageSource: "openai",
       generatedBy: actorId,
-      estimatedCostUsd: OPENAI_IMAGE_ESTIMATED_COST_USD,
+      estimatedCostUsd,
     });
 
     return { attempted: true, success: true, blog: updated };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "OpenAI image failed";
-    const modelHint = `model=${OPENAI_IMAGE_MODEL}`;
+    const modelHint = `model=${imageOptions.model ?? OPENAI_IMAGE_MODEL}, quality=${imageOptions.quality ?? "high"}`;
     const fullError = `${errorMessage} [${modelHint}]`;
 
     await addImageGenerationLog({
@@ -243,3 +298,5 @@ export async function enrichBlogWithOpenAiFeaturedImage(
     };
   }
 }
+
+export type { OpenAiImageQuality };
