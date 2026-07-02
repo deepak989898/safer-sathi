@@ -25,6 +25,7 @@ import type {
 } from "@/lib/seatseller/types";
 import { getDemoBpDp, getDemoCities, getDemoTripDetails, getDemoTrips } from "@/lib/seatseller/demo-data";
 import { parseSeatSellerTrips } from "@/lib/seatseller/parse-trips";
+import { formatSeatSellerHttpError } from "@/lib/seatseller/errors";
 import { logBusApiCall } from "@/lib/bus/firestore";
 
 const availableTripsCache = new Map<
@@ -98,8 +99,8 @@ async function seatsellerRequest<T>(
   let body: string | undefined;
 
   if (method === "GET") {
-    const qs = new URLSearchParams({ ...query, ...signedOAuth });
-    fetchUrl = `${url.origin}${url.pathname}?${qs.toString()}`;
+    // SeatSeller docs show clean URLs (API params only). OAuth goes in Authorization header.
+    fetchUrl = url.toString();
   } else {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(options.body ?? {});
@@ -116,13 +117,11 @@ async function seatsellerRequest<T>(
     }
 
     if (!res.ok) {
-      const message =
-        typeof data === "object" && data && "message" in data
-          ? String((data as { message: string }).message)
-          : typeof data === "string"
-            ? data
-            : `SeatSeller API error (${res.status})`;
-      throw new SeatSellerApiError(message, res.status, data);
+      throw new SeatSellerApiError(
+        formatSeatSellerHttpError(res.status, data),
+        res.status,
+        data
+      );
     }
 
     await logBusApiCall({

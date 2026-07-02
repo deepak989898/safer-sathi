@@ -2,7 +2,7 @@ import { requireStaffAuth } from "@/lib/admin/api-auth";
 import { findBusCityByName } from "@/lib/bus/firestore";
 import { busApiError } from "@/lib/bus/api-helpers";
 import { apiSuccess } from "@/lib/api-response";
-import { fetchAvailableTrips } from "@/lib/seatseller/client";
+import { fetchAvailableTrips, SeatSellerApiError } from "@/lib/seatseller/client";
 
 export const maxDuration = 300;
 
@@ -49,25 +49,43 @@ export async function POST(request: Request) {
 
       for (let day = 0; day <= 15; day += 1) {
         const doj = addDaysIso(today, day);
-        const fetchResult = await fetchAvailableTrips({
-          source: sourceCity.id,
-          destination: destinationCity.id,
-          doj,
-        });
-        if (fetchResult.trips.length > 0) {
-          matched = {
-            route: `${route.source} → ${route.destination}`,
-            date: doj,
-            sourceId: sourceCity.id,
-            sourceName: sourceCity.name,
-            sourceState: sourceCity.state ?? null,
-            destinationId: destinationCity.id,
-            destinationName: destinationCity.name,
-            destinationState: destinationCity.state ?? null,
-            count: fetchResult.trips.length,
-            apiUrl: fetchResult.apiUrl,
-            journeyDateSentToApi: fetchResult.journeyDateSentToApi,
-          };
+        try {
+          const fetchResult = await fetchAvailableTrips({
+            source: sourceCity.id,
+            destination: destinationCity.id,
+            doj,
+          });
+          if (fetchResult.trips.length > 0) {
+            matched = {
+              route: `${route.source} → ${route.destination}`,
+              date: doj,
+              sourceId: sourceCity.id,
+              sourceName: sourceCity.name,
+              sourceState: sourceCity.state ?? null,
+              destinationId: destinationCity.id,
+              destinationName: destinationCity.name,
+              destinationState: destinationCity.state ?? null,
+              count: fetchResult.trips.length,
+              apiUrl: fetchResult.apiUrl,
+              journeyDateSentToApi: fetchResult.journeyDateSentToApi,
+            };
+            break;
+          }
+        } catch (error) {
+          if (!matched) {
+            matched = {
+              route: `${route.source} → ${route.destination}`,
+              error:
+                error instanceof SeatSellerApiError
+                  ? error.message
+                  : error instanceof Error
+                    ? error.message
+                    : "SeatSeller request failed",
+              statusCode: error instanceof SeatSellerApiError ? error.statusCode : undefined,
+              sourceId: sourceCity.id,
+              destinationId: destinationCity.id,
+            };
+          }
           break;
         }
       }

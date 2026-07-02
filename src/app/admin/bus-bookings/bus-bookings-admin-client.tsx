@@ -55,9 +55,34 @@ export default function BusBookingsAdminClient() {
         toast.info(message ?? `Cities already synced (${count ?? 0} in database)`);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "City sync failed");
+      const message = e instanceof Error ? e.message : "City sync failed";
+      toast.error(message.slice(0, 300));
     } finally {
       setSyncingCities(false);
+    }
+  };
+
+  const testConnection = async () => {
+    setTestingRoutes(true);
+    setRouteTestOutput(null);
+    toast.info("Testing SeatSeller cities + availabletrips...");
+    try {
+      const res = await adminApiFetch("/api/bus/debug/connection", { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Connection test failed");
+      const output = JSON.stringify(json.data, null, 2);
+      setRouteTestOutput(output);
+      console.log("[bus-connection-test]", json.data);
+      const trips = json.data?.availableTrips as { ok?: boolean; error?: string } | undefined;
+      if (trips?.ok) {
+        toast.success("SeatSeller connection OK — trips endpoint reachable");
+      } else {
+        toast.error(trips?.error?.slice(0, 200) ?? "Trips endpoint failed — see output");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message.slice(0, 300) : "Connection test failed");
+    } finally {
+      setTestingRoutes(false);
     }
   };
 
@@ -68,13 +93,20 @@ export default function BusBookingsAdminClient() {
     try {
       const res = await adminApiFetch("/api/bus/debug/test-routes", { method: "POST" });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) {
+        const msg =
+          typeof json.error === "string" && json.error.includes("<html")
+            ? "SeatSeller API returned 403 Forbidden. Cities may work but trips endpoint may need SeatSeller to enable access / whitelist your server IP."
+            : json.error;
+        throw new Error(msg ?? "Route test failed");
+      }
       const output = JSON.stringify(json.data.results, null, 2);
       setRouteTestOutput(output);
       console.log("[bus-test-routes]", json.data.results);
       toast.success("Route test completed — see results below / console");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Route test failed");
+      const message = e instanceof Error ? e.message : "Route test failed";
+      toast.error(message.slice(0, 300));
     } finally {
       setTestingRoutes(false);
     }
@@ -117,6 +149,15 @@ export default function BusBookingsAdminClient() {
               <Database className="mr-2 h-4 w-4" />
             )}
             Sync bus cities
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void testConnection()}
+            disabled={testingRoutes}
+          >
+            {testingRoutes ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Test API connection
           </Button>
           <Button
             variant="outline"
