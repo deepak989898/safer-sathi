@@ -1,4 +1,5 @@
 import type { SeatSellerTrip } from "@/lib/seatseller/types";
+import { normalizeBusTrip } from "@/lib/bus/fare-utils";
 
 function formatSeatSellerMinutes(value: unknown): string {
   if (value === undefined || value === null || value === "") return "";
@@ -11,59 +12,13 @@ function formatSeatSellerMinutes(value: unknown): string {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-function asBoolean(value: unknown): boolean | undefined {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") {
-    const v = value.toLowerCase();
-    if (v === "true") return true;
-    if (v === "false") return false;
-  }
-  return undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
 function normalizeTrip(raw: Record<string, unknown>): SeatSellerTrip {
-  const travels =
-    String(raw.travels ?? raw.operatorName ?? raw.operator_name ?? raw.busRoutes ?? "").trim() ||
-    "Bus Operator";
-
-  const fareDetails = Array.isArray(raw.fareDetails)
-    ? raw.fareDetails
-    : Array.isArray(raw.fare_details)
-      ? raw.fare_details
-      : undefined;
-
-  const fares = raw.fares ?? raw.fare;
-
+  const normalized = normalizeBusTrip(raw);
   return {
-    ...raw,
-    id: String(raw.id ?? raw.tripId ?? raw.inventoryId ?? ""),
-    travels,
-    operator: String(raw.operator ?? raw.operatorName ?? travels),
-    busType: String(raw.busType ?? raw.bus_type ?? "Bus"),
-    busTypeId: raw.busTypeId ? String(raw.busTypeId) : undefined,
-    departureTime: formatSeatSellerMinutes(raw.departureTime ?? raw.departure_time),
-    arrivalTime: formatSeatSellerMinutes(raw.arrivalTime ?? raw.arrival_time),
-    availableSeats: asNumber(raw.availableSeats ?? raw.available_seats) ?? 0,
-    AC: asBoolean(raw.AC ?? raw.ac),
-    seater: asBoolean(raw.seater),
-    sleeper: asBoolean(raw.sleeper),
-    mTicketEnabled: asBoolean(raw.mTicketEnabled ?? raw.mTicket),
-    maxSeatsPerTicket: asNumber(raw.maxSeatsPerTicket ?? raw.max_seats_per_ticket) ?? 6,
-    callFareBreakupApi: asBoolean(raw.callFareBreakupApi ?? raw.call_fare_breakup_api),
-    bpDpSeatLayout: (raw.bpDpSeatLayout ?? raw.bp_dp_seat_layout) as SeatSellerTrip["bpDpSeatLayout"],
-    cancellationPolicy: raw.cancellationPolicy
-      ? String(raw.cancellationPolicy)
-      : undefined,
-    duration: raw.duration ? String(raw.duration) : undefined,
-    fareDetails: fareDetails as SeatSellerTrip["fareDetails"],
-    fares: fares as SeatSellerTrip["fares"],
-    boardingTimes: (raw.boardingTimes ?? raw.boarding_times) as SeatSellerTrip["boardingTimes"],
-    droppingTimes: (raw.droppingTimes ?? raw.dropping_times) as SeatSellerTrip["droppingTimes"],
+    ...normalized,
+    departureTime: formatSeatSellerMinutes(raw.departureTime ?? raw.departure_time) || normalized.departureTime,
+    arrivalTime: formatSeatSellerMinutes(raw.arrivalTime ?? raw.arrival_time) || normalized.arrivalTime,
+    duration: raw.duration ? String(raw.duration) : normalized.duration,
   };
 }
 

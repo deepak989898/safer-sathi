@@ -35,6 +35,8 @@ export interface SeatSellerTrip {
   operator?: string;
   duration?: string;
   bpDpSeatLayout?: string | boolean;
+  boardingTimes?: unknown[];
+  droppingTimes?: unknown[];
   [key: string]: unknown;
 }
 
@@ -134,6 +136,8 @@ export type BusPassengerGender = "MALE" | "FEMALE";
 
 export interface BusPassengerDetail {
   title: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   age: number;
   gender: BusPassengerGender;
@@ -142,6 +146,11 @@ export interface BusPassengerDetail {
   idType: BusIdType;
   idNumber: string;
   address: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  emergencyContact?: string;
+  gst?: string;
   seatName: string;
   ladiesSeat: boolean;
   fare: number;
@@ -185,6 +194,7 @@ export interface BusBookingRecord {
   blockExpiresAt?: string;
   tin?: string;
   pnr?: string;
+  operatorPnr?: string;
   status: BusBookingStatus;
   paymentStatus: "pending" | "paid" | "failed" | "refunded";
   razorpayOrderId?: string;

@@ -1,22 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Clock,
   Loader2,
-  Shield,
 } from "lucide-react";
 import { BusSearchScreen } from "@/components/bus/bus-search-screen";
 import { BusResultsScreen } from "@/components/bus/bus-results-screen";
 import { BusSeatScreen } from "@/components/bus/bus-seat-screen";
+import { BusPassengerScreen } from "@/components/bus/bus-passenger-screen";
+import { BusPaymentScreen } from "@/components/bus/bus-payment-screen";
+import { BusDebugPanel, type BusFlowDebugState } from "@/components/bus/bus-debug-panel";
 import { useBusBookingApi } from "@/hooks/use-bus-booking";
 import { useAuth } from "@/contexts/auth-context";
 import type { BusSearchDebug } from "@/lib/bus/debug";
 import { logBusSearchDebug } from "@/lib/bus/debug";
+import { resolveBusBpDp } from "@/lib/bus/bpdp-resolver";
+import { getSeatApiFare } from "@/lib/bus/fare-utils";
 import { normalizeSeatSellerSeats } from "@/lib/bus/normalize-seats";
-import { parseTripEmbeddedBpDp } from "@/lib/seatseller/parse-trip-details";
 import {
   loadBusSearchResults,
   saveBusSearchResults,
@@ -24,27 +25,15 @@ import {
 import {
   loadBusSession,
   saveBusSession,
+  clearBusSession,
   type BusBookingSession,
   type BusSearchParams,
 } from "@/lib/bus/session";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
-import { formatCurrency } from "@/lib/i18n";
 import type { BusCityRecord } from "@/lib/seatseller/types";
-import type { BusPassengerDetail, SeatSellerSeat } from "@/lib/seatseller/types";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import type { BusBookingRecord, BusPassengerDetail, SeatSellerSeat } from "@/lib/seatseller/types";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAppStore } from "@/store/app-store";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export type BusFlowStep =
@@ -58,33 +47,6 @@ function tomorrowIso(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
-}
-
-function BlockTimer({ expiresAt }: { expiresAt: string }) {
-  const [remaining, setRemaining] = useState("");
-
-  useEffect(() => {
-    const tick = () => {
-      const ms = new Date(expiresAt).getTime() - Date.now();
-      if (ms <= 0) {
-        setRemaining("Expired");
-        return;
-      }
-      const m = Math.floor(ms / 60000);
-      const s = Math.floor((ms % 60000) / 1000);
-      setRemaining(`${m}:${String(s).padStart(2, "0")}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [expiresAt]);
-
-  return (
-    <Badge variant={remaining === "Expired" ? "destructive" : "secondary"}>
-      <Clock className="mr-1 h-3 w-3" />
-      Block expires in {remaining}
-    </Badge>
-  );
 }
 
 function emptySearch(): BusSearchParams {
@@ -136,6 +98,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [seatLayoutError, setSeatLayoutError] = useState<string | null>(null);
   const [seatLayoutLoading, setSeatLayoutLoading] = useState(step === "seat-layout");
   const [pointsLoading, setPointsLoading] = useState(step === "seat-layout");
+  const [bpdpMessage, setBpdpMessage] = useState<string | null>(null);
+  const [paymentBooking, setPaymentBooking] = useState<BusBookingRecord | null>(null);
+  const [paymentLoadError, setPaymentLoadError] = useState<string | null>(null);
+  const [flowDebug, setFlowDebug] = useState<BusFlowDebugState>({});
 
   const isBpDpSeatLayoutEnabled = (value: unknown): boolean =>
     value === true || String(value).toLowerCase() === "true";
@@ -166,7 +132,14 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }
 
     setReady(true);
-  }, [step]);
+
+    if (step === "passenger-details" && !loadBusSession()?.trip) {
+      router.replace("/bus/search");
+    }
+    if (step === "seat-layout" && !loadBusSession()?.trip) {
+      router.replace("/bus/results");
+    }
+  }, [step, router]);
 
   useEffect(() => {
     if (!showFromDropdown) return;
@@ -347,45 +320,62 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     setSeatLayoutLoading(true);
     setPointsLoading(true);
     setSeatLayoutError(null);
+    setBpdpMessage(null);
     void (async () => {
       try {
-        const embedded = parseTripEmbeddedBpDp(
-          session?.trip as Record<string, unknown> | undefined
-        );
-        const [details, points] = await Promise.all([
-          api.fetchTripDetails({ tripId }),
-          api.fetchBpDp(tripId),
+        const useBpDpLayout = isBpDpSeatLayoutEnabled(session?.trip?.bpDpSeatLayout);
+        const [details, resolved] = await Promise.all([
+          useBpDpLayout
+            ? Promise.resolve(null)
+            : api.fetchTripDetails({ tripId }),
+          resolveBusBpDp({
+            trip: session?.trip as Record<string, unknown> | undefined,
+            tripId,
+            fetchBpDp: (id) => api.fetchBpDp(id),
+          }),
         ]);
-        if (!details) {
-          setSeatLayoutError(api.error ?? "Could not load seat layout. Please try another bus.");
-          return;
-        }
-        const seats = normalizeSeatSellerSeats(details.seats);
-        if (!seats.length) {
-          setSeatLayoutError("Seat layout is empty for this bus. Please choose another service.");
-          return;
-        }
-        setTripDetails({
-          seats,
-          maxSeatsPerTicket: details.maxSeatsPerTicket || 6,
-          forcedSeats: details.forcedSeats,
-        });
 
-        const merged = {
-          boardingPoints:
-            points?.boardingPoints?.length
-              ? points.boardingPoints
-              : embedded.boardingPoints,
-          droppingPoints:
-            points?.droppingPoints?.length
-              ? points.droppingPoints
-              : embedded.droppingPoints,
-        };
-        setBpdp(merged);
-        const firstBoarding = merged.boardingPoints.find((p) => p.id);
-        const firstDropping = merged.droppingPoints.find((p) => p.id);
+        let tripDetailsResult = details;
+        if (!useBpDpLayout) {
+          if (!tripDetailsResult) {
+            setSeatLayoutError(api.error ?? "Could not load seat layout. Please try another bus.");
+            return;
+          }
+          const seats = normalizeSeatSellerSeats(tripDetailsResult.seats);
+          if (!seats.length) {
+            setSeatLayoutError("Seat layout is empty for this bus. Please choose another service.");
+            return;
+          }
+          setTripDetails({
+            seats,
+            maxSeatsPerTicket: tripDetailsResult.maxSeatsPerTicket || 6,
+            forcedSeats: tripDetailsResult.forcedSeats,
+          });
+        }
+
+        setBpdp({
+          boardingPoints: resolved.boardingPoints,
+          droppingPoints: resolved.droppingPoints,
+        });
+        setBpdpMessage(resolved.message);
+        const firstBoarding = resolved.boardingPoints.find((p) => p.id);
+        const firstDropping = resolved.droppingPoints.find((p) => p.id);
         if (firstBoarding) setBoardingId(firstBoarding.id);
         if (firstDropping) setDroppingId(firstDropping.id);
+
+        setFlowDebug({
+          tripId,
+          sourceCityId: session?.search.sourceCityId,
+          destinationCityId: session?.search.destinationCityId,
+          boardingCount: resolved.boardingPoints.length,
+          droppingCount: resolved.droppingPoints.length,
+          seatCount: tripDetailsResult?.seats?.length ?? 0,
+          callFareBreakupApi: session?.trip?.callFareBreakupApi,
+          bpDpSeatLayout: isBpDpSeatLayoutEnabled(session?.trip?.bpDpSeatLayout),
+          bpdpSource: resolved.source,
+          apiMessage: resolved.message,
+          rawTrip: session?.trip,
+        });
       } catch (e) {
         setSeatLayoutError(e instanceof Error ? e.message : "Failed to load seat layout");
       } finally {
@@ -408,6 +398,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       return;
     }
 
+    setSeatLayoutLoading(true);
     void api
       .fetchTripDetails({
         tripId,
@@ -417,18 +408,48 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       })
       .then((details) => {
         if (!details) return;
+        const seats = normalizeSeatSellerSeats(details.seats);
         setTripDetails({
-          seats: normalizeSeatSellerSeats(details.seats),
+          seats,
           maxSeatsPerTicket: details.maxSeatsPerTicket,
           forcedSeats: details.forcedSeats,
         });
-      });
+        setFlowDebug((prev) => ({
+          ...prev,
+          seatCount: seats.length,
+          totalFare: seats.reduce((s, seat) => s + getSeatApiFare(seat), 0),
+        }));
+      })
+      .finally(() => setSeatLayoutLoading(false));
   }, [step, session?.trip?.id, session?.trip?.bpDpSeatLayout, boardingId, droppingId]);
+
+  useEffect(() => {
+    if (!ready || step !== "payment") return;
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = session?.bookingId ?? params.get("bookingId");
+    if (!bookingId) {
+      setPaymentLoadError("No booking found. Please complete passenger details first.");
+      return;
+    }
+    setPaymentLoadError(null);
+    void api.fetchBooking(bookingId).then((booking) => {
+      if (!booking) {
+        setPaymentLoadError(api.error ?? "Booking not found");
+        return;
+      }
+      setPaymentBooking(booking);
+      if (booking.passengerDetails?.length) setPassengers(booking.passengerDetails);
+    });
+  }, [ready, step, session?.bookingId]);
 
   const toggleSeat = (seat: SeatSellerSeat) => {
     if (!tripDetails) return;
+    const exists = selectedSeats.find((s) => s.name === seat.name);
+    if (!exists) {
+      if (seat.ladiesSeat) toast.message(`Seat ${seat.name} is for female passengers`);
+      if (seat.malesSeat) toast.message(`Seat ${seat.name} is for male passengers`);
+    }
     setSelectedSeats((prev) => {
-      const exists = prev.find((s) => s.name === seat.name);
       if (exists) return prev.filter((s) => s.name !== seat.name);
       if (prev.length >= tripDetails.maxSeatsPerTicket) {
         toast.error(`Maximum ${tripDetails.maxSeatsPerTicket} seats per ticket`);
@@ -449,24 +470,33 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }
     const boarding = bpdp.boardingPoints.find((b) => b.id === boardingId)!;
     const dropping = bpdp.droppingPoints.find((d) => d.id === droppingId)!;
+    const contactEmail = user?.email ?? "";
+    const contactPhone = user?.phone ?? "";
+    const contactName = user?.name ?? "";
     const next: BusBookingSession = {
       ...session,
       selectedSeats,
       boardingPoint: boarding,
       droppingPoint: dropping,
-      passengers: selectedSeats.map((seat) => ({
+      passengers: selectedSeats.map((seat, index) => ({
         title: "Mr",
-        name: "",
+        firstName: index === 0 ? contactName.split(" ")[0] ?? "" : "",
+        lastName: index === 0 ? contactName.split(" ").slice(1).join(" ") ?? "" : "",
+        name: index === 0 ? contactName : "",
         age: 30,
         gender: seat.ladiesSeat ? "FEMALE" : "MALE",
-        mobile: "",
-        email: "",
+        mobile: index === 0 ? contactPhone : "",
+        email: index === 0 ? contactEmail : "",
         idType: "AADHAR",
         idNumber: "",
         address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        emergencyContact: "",
         seatName: seat.name,
         ladiesSeat: Boolean(seat.ladiesSeat),
-        fare: seat.fare ?? 0,
+        fare: getSeatApiFare(seat),
       })),
     };
     saveBusSession(next);
@@ -477,9 +507,17 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   const submitPassengers = async () => {
     if (!session?.trip || !session.boardingPoint || !session.droppingPoint) return;
-    for (const p of passengers) {
-      if (!p.name || !p.mobile || !p.email || !p.idNumber) {
-        toast.error("Fill all passenger details");
+    const normalized = passengers.map((p) => ({
+      ...p,
+      name:
+        p.name.trim() ||
+        `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim(),
+    }));
+    setPassengers(normalized);
+
+    for (const p of normalized) {
+      if (!p.name || !p.mobile || !p.email || !p.idNumber || !p.address) {
+        toast.error("Fill all required passenger details");
         return;
       }
       const seat = selectedSeats.find((s) => s.name === p.seatName);
@@ -504,7 +542,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       busType: session.trip.busType,
       boardingPoint: session.boardingPoint,
       droppingPoint: session.droppingPoint,
-      passengers,
+      passengers: normalized,
       callFareBreakupApi: session.trip.callFareBreakupApi,
       cancellationPolicy: session.trip.cancellationPolicy,
     });
@@ -512,7 +550,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     if (!result) return;
     const next: BusBookingSession = {
       ...session,
-      passengers,
+      passengers: normalized,
       bookingId: result.booking.bookingId,
       blockExpiresAt: result.blockExpiresAt,
     };
@@ -522,20 +560,27 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   };
 
   const payNow = async () => {
-    const bookingId = session?.bookingId ?? new URLSearchParams(window.location.search).get("bookingId");
-    if (!bookingId || !passengers[0]) return;
-
-    const res = await fetch(`/api/bus/bookings/${bookingId}`);
-    const json = await res.json();
-    if (!json.success) {
-      toast.error(json.error ?? "Booking not found");
+    const bookingId =
+      paymentBooking?.bookingId ??
+      session?.bookingId ??
+      new URLSearchParams(window.location.search).get("bookingId");
+    const primary = passengers[0] ?? paymentBooking?.passengerDetails?.[0];
+    if (!bookingId || !primary) {
+      toast.error("Booking details missing");
       return;
     }
 
-    const payResult = await api.payForBooking(json.data.booking, {
-      name: passengers[0].name,
-      email: passengers[0].email,
-      phone: passengers[0].mobile,
+    const booking =
+      paymentBooking ?? (await api.fetchBooking(bookingId));
+    if (!booking) {
+      toast.error(api.error ?? "Booking not found");
+      return;
+    }
+
+    const payResult = await api.payForBooking(booking, {
+      name: primary.name,
+      email: primary.email,
+      phone: primary.mobile,
     });
 
     if (!payResult) return;
@@ -544,6 +589,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     } else {
       toast.success("Bus ticket confirmed!");
     }
+    clearBusSession();
     router.push(`/bus/ticket/${bookingId}`);
   };
 
@@ -653,230 +699,55 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   if (step === "seat-layout") {
     return (
-      <BusSeatScreen
-        trip={session?.trip}
-        seats={tripDetails?.seats ?? []}
-        selectedSeats={selectedSeats}
-        maxSeats={tripDetails?.maxSeatsPerTicket ?? 6}
-        loading={seatLayoutLoading || (api.loading && !tripDetails)}
-        loadError={seatLayoutError}
-        boardingId={boardingId}
-        droppingId={droppingId}
-        boardingPoints={bpdp?.boardingPoints ?? []}
-        droppingPoints={bpdp?.droppingPoints ?? []}
-        pointsLoading={pointsLoading}
+      <>
+        <BusSeatScreen
+          trip={session?.trip}
+          seats={tripDetails?.seats ?? []}
+          selectedSeats={selectedSeats}
+          maxSeats={tripDetails?.maxSeatsPerTicket ?? 6}
+          loading={seatLayoutLoading || (api.loading && !tripDetails)}
+          loadError={seatLayoutError ?? bpdpMessage}
+          boardingId={boardingId}
+          droppingId={droppingId}
+          boardingPoints={bpdp?.boardingPoints ?? []}
+          droppingPoints={bpdp?.droppingPoints ?? []}
+          pointsLoading={pointsLoading}
+          locale={locale}
+          onToggleSeat={toggleSeat}
+          onBoardingChange={setBoardingId}
+          onDroppingChange={setDroppingId}
+          onContinue={continueToPassengers}
+        />
+        {isStaff && <div className="container mx-auto px-4 pb-8"><BusDebugPanel debug={flowDebug} /></div>}
+      </>
+    );
+  }
+
+  if (step === "passenger-details" && session?.trip) {
+    return (
+      <BusPassengerScreen
+        search={session.search}
+        trip={session.trip}
+        passengers={passengers}
+        loading={api.loading}
         locale={locale}
-        onToggleSeat={toggleSeat}
-        onBoardingChange={setBoardingId}
-        onDroppingChange={setDroppingId}
-        onContinue={continueToPassengers}
+        onChange={setPassengers}
+        onSubmit={() => void submitPassengers()}
       />
     );
   }
 
-  if (step === "passenger-details") {
+  if (step === "payment") {
     return (
-      <section className="container mx-auto max-w-3xl px-4 py-8">
-        <h1 className="text-xl font-bold">Passenger details</h1>
-        <div className="mt-6 space-y-6">
-          {passengers.map((p, index) => (
-            <Card key={p.seatName}>
-              <CardContent className="grid gap-3 pt-6 md:grid-cols-2">
-                <p className="md:col-span-2 font-medium">Seat {p.seatName}</p>
-                <div>
-                  <Label>Title</Label>
-                  <Select
-                    value={p.title}
-                    onValueChange={(v) =>
-                      setPassengers((list) =>
-                        list.map((row, i) => (i === index ? { ...row, title: v ?? "Mr" } : row))
-                      )
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Mr", "Mrs", "Ms"].map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Full name</Label>
-                  <Input
-                    className="mt-1.5"
-                    value={p.name}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, name: e.target.value } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Age</Label>
-                  <Input
-                    type="number"
-                    className="mt-1.5"
-                    value={p.age}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, age: Number(e.target.value) } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Gender</Label>
-                  <Select
-                    value={p.gender}
-                    onValueChange={(v) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index
-                            ? { ...row, gender: (v ?? "MALE") as "MALE" | "FEMALE" }
-                            : row
-                        )
-                      )
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MALE">Male</SelectItem>
-                      <SelectItem value="FEMALE">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Mobile</Label>
-                  <Input
-                    className="mt-1.5"
-                    value={p.mobile}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, mobile: e.target.value } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    className="mt-1.5"
-                    value={p.email}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, email: e.target.value } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>ID type</Label>
-                  <Select
-                    value={p.idType}
-                    onValueChange={(v) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index
-                            ? {
-                                ...row,
-                                idType: (v ?? "AADHAR") as BusPassengerDetail["idType"],
-                              }
-                            : row
-                        )
-                      )
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        "AADHAR",
-                        "PAN_CARD",
-                        "PASSPORT",
-                        "DRIVING_LICENCE",
-                        "VOTER_CARD",
-                        "RATION_CARD",
-                      ].map((id) => (
-                        <SelectItem key={id} value={id}>
-                          {id.replace(/_/g, " ")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>ID number</Label>
-                  <Input
-                    className="mt-1.5"
-                    value={p.idNumber}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, idNumber: e.target.value } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Address</Label>
-                  <Input
-                    className="mt-1.5"
-                    value={p.address}
-                    onChange={(e) =>
-                      setPassengers((list) =>
-                        list.map((row, i) =>
-                          i === index ? { ...row, address: e.target.value } : row
-                        )
-                      )
-                    }
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          <Button className="w-full" onClick={() => void submitPassengers()} disabled={api.loading}>
-            {api.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />}
-            Block seats & continue to payment
-          </Button>
-        </div>
-      </section>
+      <BusPaymentScreen
+        booking={paymentBooking}
+        loading={api.loading}
+        loadError={paymentLoadError}
+        locale={locale}
+        onPay={() => void payNow()}
+      />
     );
   }
 
-  return (
-    <section className="container mx-auto max-w-lg px-4 py-8">
-      <h1 className="text-xl font-bold">Complete payment</h1>
-      {session?.blockExpiresAt && <BlockTimer expiresAt={session.blockExpiresAt} />}
-      <Card className="mt-4">
-        <CardContent className="space-y-4 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Seats are held for 8 minutes. Pay now to confirm your ticket.
-          </p>
-          <Button className="w-full" onClick={() => void payNow()} disabled={api.loading}>
-            {api.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Pay with Razorpay
-          </Button>
-        </CardContent>
-      </Card>
-    </section>
-  );
+  return null;
 }

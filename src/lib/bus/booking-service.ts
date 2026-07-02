@@ -57,8 +57,8 @@ export async function blockBusTicket(
   input: BlockBusTicketInput
 ): Promise<BusBookingRecord> {
   const totalFare = input.passengers.reduce((sum, p) => sum + p.fare, 0);
-  const baseFare = input.passengers.reduce((sum, p) => sum + p.fare * 0.9, 0);
-  const taxes = totalFare - baseFare;
+  const baseFare = totalFare;
+  const taxes = 0;
 
   const bookingId = generateBusBookingId();
   const inventoryItems = input.passengers.map((p) => ({
@@ -179,6 +179,11 @@ export async function confirmBusTicketAfterPayment(input: {
         status: "confirmed",
         tin: bookResponse.tin,
         pnr: bookResponse.pnr,
+        operatorPnr: String(
+          (bookResponse as Record<string, unknown>).operatorPnr ??
+            (bookResponse as Record<string, unknown>).operator_pnr ??
+            ""
+        ) || undefined,
         totalFare: finalFare,
         apiResponses: {
           ...booking.apiResponses,

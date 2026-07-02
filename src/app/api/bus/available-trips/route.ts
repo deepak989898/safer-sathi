@@ -2,9 +2,9 @@ import { z } from "zod";
 import { logBusSearch } from "@/lib/bus/firestore";
 import { busApiError, getBusUserId } from "@/lib/bus/api-helpers";
 import { buildBusSearchDebug } from "@/lib/bus/debug";
+import { normalizeBusTrip } from "@/lib/bus/fare-utils";
 import { formatSeatSellerDojIso } from "@/lib/seatseller/config";
 import { SeatSellerApiError, fetchAvailableTrips } from "@/lib/seatseller/client";
-import { getTripStartingFare } from "@/lib/seatseller/demo-data";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { logBusApiCall } from "@/lib/bus/firestore";
@@ -54,10 +54,9 @@ export async function POST(request: Request) {
       doj,
     });
 
-    const normalized = fetchResult.trips.map((trip) => ({
-      ...trip,
-      startingFare: getTripStartingFare(trip),
-    }));
+    const normalized = fetchResult.trips
+      .map((trip) => normalizeBusTrip(trip as Record<string, unknown>))
+      .filter((trip) => Boolean(trip.id));
 
     const userId = await getBusUserId(request);
     await logBusSearch({

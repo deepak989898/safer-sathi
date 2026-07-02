@@ -215,6 +215,34 @@ export function useBusBookingApi() {
     [run]
   );
 
+  const fetchBooking = useCallback(
+    async (bookingId: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/bus/bookings/${bookingId}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Booking not found");
+        return json.data.booking as BusBookingRecord;
+      });
+    },
+    [run]
+  );
+
+  const fetchUpdatedFare = useCallback(
+    async (bookingId: string) => {
+      return run(async () => {
+        const res = await fetch("/api/bus/updated-fare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Fare update failed");
+        return json.data.fare as { totalFare?: number; baseFare?: number; taxes?: number };
+      });
+    },
+    [run]
+  );
+
   return {
     loading,
     error,
@@ -227,6 +255,8 @@ export function useBusBookingApi() {
     fetchMyBookings,
     fetchCancellationData,
     cancelBooking,
+    fetchBooking,
+    fetchUpdatedFare,
   };
 }
 

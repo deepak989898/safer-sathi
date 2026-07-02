@@ -106,6 +106,9 @@ function mapBoardingPoints(items: unknown) {
       const id = String(row.id ?? row.bpId ?? row.Id ?? row.pointId ?? index + 1);
       const landmark = String(row.landmark ?? row.Landmark ?? "").trim();
       const address = String(row.address ?? row.Address ?? row.bpAddress ?? "").trim();
+      const contact = String(
+        row.contactNumber ?? row.contact ?? row.phone ?? row.mobile ?? ""
+      ).trim();
       const name = String(
         row.location ??
           row.bpName ??
@@ -126,11 +129,13 @@ function mapBoardingPoints(items: unknown) {
         row.time ?? row.bpTime ?? row.BpTime ?? row.bpTimeString ?? row.Tm
       );
 
-      return { id, location, time };
+      return { id, location, time, landmark, address, contact: contact || undefined };
     })
-    .filter((point): point is { id: string; location: string; time: string } =>
-      Boolean(point?.id)
-    );
+    .filter((point) => Boolean(point?.id)) as Array<{
+      id: string;
+      location: string;
+      time: string;
+    }>;
 }
 
 function mapDroppingPoints(items: unknown) {
@@ -162,11 +167,13 @@ function mapDroppingPoints(items: unknown) {
         row.time ?? row.dpTime ?? row.DpTime ?? row.dpTimeString ?? row.Tm
       );
 
-      return { id, location, time };
+      return { id, location, time, landmark, address };
     })
-    .filter((point): point is { id: string; location: string; time: string } =>
-      Boolean(point?.id)
-    );
+    .filter((point) => Boolean(point?.id)) as Array<{
+      id: string;
+      location: string;
+      time: string;
+    }>;
 }
 
 export function parseSeatSellerBpDp(raw: unknown): {

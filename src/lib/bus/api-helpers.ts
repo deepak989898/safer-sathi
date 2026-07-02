@@ -15,6 +15,8 @@ export const busGenderSchema = z.enum(["MALE", "FEMALE"]);
 
 export const busPassengerSchema = z.object({
   title: z.string().min(1),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   name: z.string().min(2),
   age: z.coerce.number().int().min(1).max(120),
   gender: busGenderSchema,
@@ -23,6 +25,11 @@ export const busPassengerSchema = z.object({
   idType: busIdTypeSchema,
   idNumber: z.string().min(1),
   address: z.string().min(3),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  gst: z.string().optional(),
   seatName: z.string().min(1),
   ladiesSeat: z.boolean(),
   fare: z.number().positive(),
