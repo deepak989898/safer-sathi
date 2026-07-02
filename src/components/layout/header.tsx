@@ -37,7 +37,7 @@ const navLinks = [
   { href: "/packages", label: "packages", icon: Package },
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },
-  { href: "/bus-booking", label: "bus", icon: Bus },
+  { href: "/bus/search", label: "bus", icon: Bus },
 ];
 
 function isNavActive(pathname: string, href: string) {

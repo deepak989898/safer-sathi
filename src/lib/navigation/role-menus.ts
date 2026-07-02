@@ -36,7 +36,7 @@ export const CUSTOMER_NAV_ITEMS: NavMenuItem[] = [
   { href: "/packages", label: "packages", icon: Package },
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Building2 },
-  { href: "/bus-booking", label: "bus", icon: Bus },
+  { href: "/bus/search", label: "bus", icon: Bus },
   { href: "/my-bookings", label: "myBookings", icon: CalendarCheck },
 ];
 
@@ -69,6 +69,12 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
     id: "operations",
     label: "Bookings & Customers",
     items: [
+      {
+        href: "/admin/bus-bookings",
+        label: "Bus Bookings",
+        icon: Bus,
+        roles: ["super_admin", "manager", "sales_agent", "support_agent"],
+      },
       {
         href: "/admin/bookings",
         label: "Bookings",
