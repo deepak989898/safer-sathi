@@ -47,32 +47,30 @@ export function BusSeatLayout({
     zIndex: Number(seat.zIndex) || 0,
   }));
 
-  const maxRow = Math.max(1, ...safeSeats.map((s) => s.row));
-  const maxCol = Math.max(1, ...safeSeats.map((s) => s.column));
   const upper = safeSeats.filter((s) => s.zIndex > 0);
   const lower = safeSeats.filter((s) => s.zIndex === 0);
   const isSleeper = upper.length > 0;
 
-  const renderDeck = (deckSeats: typeof safeSeats, label: string) => (
-    <div className="space-y-3">
-      <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <div
-        className="mx-auto grid gap-2"
-        style={{
-          gridTemplateColumns: `repeat(${maxCol}, minmax(0, 1fr))`,
-          maxWidth: isSleeper ? 280 : 320,
-        }}
-      >
-        {Array.from({ length: maxRow }, (_, rowIdx) =>
-          Array.from({ length: maxCol }, (_, colIdx) => {
-            const seat = deckSeats.find(
-              (s) => s.row === rowIdx + 1 && s.column === colIdx + 1
-            );
-            if (!seat) {
-              return <div key={`empty-${rowIdx}-${colIdx}`} className="h-10" />;
-            }
+  const renderDeck = (deckSeats: typeof safeSeats, label: string) => {
+    if (!deckSeats.length) return null;
+
+    const maxRow = Math.max(...deckSeats.map((s) => s.row));
+    const maxCol = Math.max(...deckSeats.map((s) => s.column));
+
+    return (
+      <div className="space-y-3">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <div
+          className="mx-auto grid gap-2"
+          style={{
+            gridTemplateColumns: `repeat(${maxCol}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${maxRow}, minmax(0, auto))`,
+            maxWidth: isSleeper ? 280 : 320,
+          }}
+        >
+          {deckSeats.map((seat) => {
             const status = seatStatus(seat, selected);
             const disabled =
               status === "booked" ||
@@ -80,14 +78,18 @@ export function BusSeatLayout({
 
             return (
               <button
-                key={seat.name}
+                key={`${label}-${seat.name}`}
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggle(seat)}
+                style={{
+                  gridRow: seat.row,
+                  gridColumn: seat.column,
+                }}
                 title={
                   seat.fare
                     ? `${seat.name} — ${formatCurrency(seat.fare, locale)}`
-                    : seat.name
+                    : String(seat.name)
                 }
                 className={cn(
                   "flex items-center justify-center rounded-md border text-[10px] font-semibold transition-colors",
@@ -104,11 +106,11 @@ export function BusSeatLayout({
                 {seat.name}
               </button>
             );
-          })
-        )}
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">

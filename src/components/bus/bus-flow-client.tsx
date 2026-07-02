@@ -86,6 +86,16 @@ function BlockTimer({ expiresAt }: { expiresAt: string }) {
   );
 }
 
+function emptySearch(): BusSearchParams {
+  return {
+    sourceCityId: "",
+    sourceCityName: "",
+    destinationCityId: "",
+    destinationCityName: "",
+    doj: tomorrowIso(),
+  };
+}
+
 export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const router = useRouter();
   const { locale } = useAppStore();
@@ -93,32 +103,11 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const api = useBusBookingApi();
   const isStaff = user ? canShowAdminNav(user.role) : false;
 
+  const [ready, setReady] = useState(false);
   const [fromCityOptions, setFromCityOptions] = useState<BusCityRecord[]>([]);
   const [toCityOptions, setToCityOptions] = useState<BusCityRecord[]>([]);
-  const [session, setSession] = useState<BusBookingSession | null>(() => {
-    if (typeof window === "undefined") return null;
-    return loadBusSession();
-  });
-  const [search, setSearch] = useState<BusSearchParams>(() => {
-    if (typeof window === "undefined") {
-      return {
-        sourceCityId: "",
-        sourceCityName: "",
-        destinationCityId: "",
-        destinationCityName: "",
-        doj: tomorrowIso(),
-      };
-    }
-    const savedSession = loadBusSession();
-    const savedSearch = loadBusSearchResults();
-    return savedSession?.search ?? savedSearch?.search ?? {
-      sourceCityId: "",
-      sourceCityName: "",
-      destinationCityId: "",
-      destinationCityName: "",
-      doj: tomorrowIso(),
-    };
-  });
+  const [session, setSession] = useState<BusBookingSession | null>(null);
+  const [search, setSearch] = useState<BusSearchParams>(emptySearch);
   const [fromQuery, setFromQuery] = useState("");
   const [toQuery, setToQuery] = useState("");
   const [showFromDropdown, setShowFromDropdown] = useState(false);
@@ -151,6 +140,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   useEffect(() => {
     const saved = loadBusSession();
+    const cached = loadBusSearchResults();
+
     if (saved) {
       setSession(saved);
       setSearch(saved.search);
@@ -160,21 +151,19 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       if (saved.droppingPoint) setDroppingId(saved.droppingPoint.id);
     }
 
-    if (step !== "results") return;
-    const cached = loadBusSearchResults();
-    if (!cached) {
+    if (step === "results" && cached) {
+      setSearch(cached.search);
+      setTrips(cached.trips);
+      setSearchMessage(cached.message);
+      setSearchDebug(cached.debug ?? null);
       setResultsLoading(false);
-      return;
+      setResultsLoaded(true);
+      if (cached.debug) logBusSearchDebug(cached.debug);
+    } else if (step === "results") {
+      setResultsLoading(false);
     }
-    setSearch(cached.search);
-    setTrips(cached.trips);
-    setSearchMessage(cached.message);
-    setSearchDebug(cached.debug ?? null);
-    setResultsLoading(false);
-    setResultsLoaded(true);
-    if (cached.debug) {
-      logBusSearchDebug(cached.debug);
-    }
+
+    setReady(true);
   }, [step]);
 
   useEffect(() => {
@@ -322,9 +311,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     const activeSearch = search.sourceCityId
       ? search
       : loadBusSearchResults()?.search ?? loadBusSession()?.search ?? search;
+    const tripId = String(trip.id ?? (trip as { availableTripId?: string }).availableTripId ?? "");
     const next: BusBookingSession = {
       search: activeSearch,
-      trip,
+      trip: { ...trip, id: tripId },
       selectedSeats: [],
     };
     saveBusSession(next);
@@ -335,21 +325,33 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     setSelectedSeats([]);
     setBoardingId("");
     setDroppingId("");
+    setSeatLayoutLoading(true);
     router.push("/bus/seat-layout");
   };
 
+  const getTripId = (trip: BusBookingSession["trip"] | null | undefined): string =>
+    String(trip?.id ?? (trip as { availableTripId?: string } | undefined)?.availableTripId ?? "");
+
   useEffect(() => {
-    if (step !== "seat-layout" || !session?.trip?.id) return;
+    if (!ready || step !== "seat-layout") return;
+
+    const tripId = getTripId(session?.trip);
+    if (!tripId) {
+      setSeatLayoutLoading(false);
+      setSeatLayoutError(null);
+      return;
+    }
+
     setSeatLayoutLoading(true);
     setSeatLayoutError(null);
     void (async () => {
       try {
         const [details, points] = await Promise.all([
-          api.fetchTripDetails({ tripId: String(session.trip.id) }),
-          api.fetchBpDp(String(session.trip.id)),
+          api.fetchTripDetails({ tripId }),
+          api.fetchBpDp(tripId),
         ]);
         if (!details) {
-          setSeatLayoutError("Could not load seat layout. Please try another bus.");
+          setSeatLayoutError(api.error ?? "Could not load seat layout. Please try another bus.");
           return;
         }
         const seats = normalizeSeatSellerSeats(details.seats);
@@ -364,8 +366,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         });
         if (points) {
           setBpdp(points);
-          if (points.boardingPoints[0]) setBoardingId(points.boardingPoints[0].id);
-          if (points.droppingPoints[0]) setDroppingId(points.droppingPoints[0].id);
+          const firstBoarding = points.boardingPoints.find((p) => p.id);
+          const firstDropping = points.droppingPoints.find((p) => p.id);
+          if (firstBoarding) setBoardingId(firstBoarding.id);
+          if (firstDropping) setDroppingId(firstDropping.id);
         }
       } catch (e) {
         setSeatLayoutError(e instanceof Error ? e.message : "Failed to load seat layout");
@@ -373,12 +377,14 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         setSeatLayoutLoading(false);
       }
     })();
-  }, [step, session?.trip?.id]);
+  }, [ready, step, session?.trip?.id]);
 
   useEffect(() => {
+    const tripId = getTripId(session?.trip);
     if (
       step !== "seat-layout" ||
       !session?.trip ||
+      !tripId ||
       !boardingId ||
       !droppingId ||
       !isBpDpSeatLayoutEnabled(session.trip.bpDpSeatLayout)
@@ -388,7 +394,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
     void api
       .fetchTripDetails({
-        tripId: String(session.trip.id),
+        tripId,
         bpId: boardingId,
         dpId: droppingId,
         bpDpSeatLayout: true,
@@ -524,6 +530,14 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }
     router.push(`/bus/ticket/${bookingId}`);
   };
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1a4fa3]" />
+      </div>
+    );
+  }
 
   if (step === "search") {
     return (

@@ -69,6 +69,15 @@ export function BusSeatScreen({
 }: BusSeatScreenProps) {
   const totalFare = selectedSeats.reduce((sum, seat) => sum + (seat.fare ?? 0), 0);
 
+  const boardingOptions = boardingPoints.filter(
+    (point, index, list) => point.id && list.findIndex((p) => p.id === point.id) === index
+  );
+  const droppingOptions = droppingPoints.filter(
+    (point, index, list) => point.id && list.findIndex((p) => p.id === point.id) === index
+  );
+  const safeBoardingId = boardingOptions.some((p) => p.id === boardingId) ? boardingId : "";
+  const safeDroppingId = droppingOptions.some((p) => p.id === droppingId) ? droppingId : "";
+
   if (!trip) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
@@ -154,41 +163,49 @@ export function BusSeatScreen({
               <Label className="text-xs font-semibold uppercase text-slate-500">
                 Boarding Point
               </Label>
-              <Select
-                value={boardingId || undefined}
-                onValueChange={(v) => onBoardingChange(v ?? "")}
-              >
-                <SelectTrigger className="mt-2 h-11 rounded-xl">
-                  <SelectValue placeholder="Select boarding point" />
-                </SelectTrigger>
-                <SelectContent>
-                  {boardingPoints.map((point) => (
-                    <SelectItem key={point.id} value={point.id}>
-                      {point.time} — {point.location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {boardingOptions.length > 0 ? (
+                <Select
+                  value={safeBoardingId || undefined}
+                  onValueChange={(v) => onBoardingChange(v ?? "")}
+                >
+                  <SelectTrigger className="mt-2 h-11 rounded-xl">
+                    <SelectValue placeholder="Select boarding point" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boardingOptions.map((point) => (
+                      <SelectItem key={point.id} value={point.id}>
+                        {point.time} — {point.location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">Boarding points loading…</p>
+              )}
             </div>
             <div>
               <Label className="text-xs font-semibold uppercase text-slate-500">
                 Dropping Point
               </Label>
-              <Select
-                value={droppingId || undefined}
-                onValueChange={(v) => onDroppingChange(v ?? "")}
-              >
-                <SelectTrigger className="mt-2 h-11 rounded-xl">
-                  <SelectValue placeholder="Select dropping point" />
-                </SelectTrigger>
-                <SelectContent>
-                  {droppingPoints.map((point) => (
-                    <SelectItem key={point.id} value={point.id}>
-                      {point.time} — {point.location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {droppingOptions.length > 0 ? (
+                <Select
+                  value={safeDroppingId || undefined}
+                  onValueChange={(v) => onDroppingChange(v ?? "")}
+                >
+                  <SelectTrigger className="mt-2 h-11 rounded-xl">
+                    <SelectValue placeholder="Select dropping point" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {droppingOptions.map((point) => (
+                      <SelectItem key={point.id} value={point.id}>
+                        {point.time} — {point.location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">Dropping points loading…</p>
+              )}
             </div>
             {selectedSeats.length > 0 && (
               <div className="rounded-xl bg-blue-50 p-3 text-sm">

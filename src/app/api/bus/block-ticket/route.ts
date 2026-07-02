@@ -2,6 +2,7 @@ import { z } from "zod";
 import { blockBusTicket, validateSeatGenderRules } from "@/lib/bus/booking-service";
 import { busApiError, busPassengerSchema, getBusUserId } from "@/lib/bus/api-helpers";
 import { fetchTripDetails } from "@/lib/seatseller/client";
+import { parseSeatSellerTripDetails } from "@/lib/seatseller/parse-trip-details";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const tripDetails = await fetchTripDetails(parsed.data.tripId);
+    const tripDetails = parseSeatSellerTripDetails(await fetchTripDetails(parsed.data.tripId));
     const maxSeats = tripDetails.maxSeatsPerTicket ?? 6;
     if (parsed.data.passengers.length > maxSeats) {
       return apiError(`Maximum ${maxSeats} seats allowed per ticket`, 400);
