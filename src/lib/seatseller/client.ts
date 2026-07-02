@@ -6,10 +6,13 @@ import {
 } from "@/lib/seatseller/oauth";
 import {
   getSeatSellerConfig,
+  formatSeatSellerDojIso,
   formatSeatSellerDojNumeric,
+  getAvailableTripsCacheTtlMs,
   isSeatSellerDemoMode,
 } from "@/lib/seatseller/config";
 import type {
+  SeatSellerAlias,
   SeatSellerBlockTicketResponse,
   SeatSellerBookTicketResponse,
   SeatSellerBpDpDetails,
@@ -21,6 +24,11 @@ import type {
 } from "@/lib/seatseller/types";
 import { getDemoBpDp, getDemoCities, getDemoTripDetails, getDemoTrips } from "@/lib/seatseller/demo-data";
 import { logBusApiCall } from "@/lib/bus/firestore";
+
+const availableTripsCache = new Map<
+  string,
+  { expiresAt: number; trips: SeatSellerTrip[] }
+>();
 
 export class SeatSellerApiError extends Error {
   constructor(
@@ -139,13 +147,38 @@ async function seatsellerRequest<T>(
   }
 }
 
+async function requestFirstSuccess<T>(
+  paths: string[],
+  options: RequestOptions
+): Promise<T> {
+  let lastError: unknown;
+  for (const path of paths) {
+    try {
+      return await seatsellerRequest<T>(path, options);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("SeatSeller request failed");
+}
+
 export async function fetchCities(): Promise<SeatSellerCity[]> {
   if (isSeatSellerDemoMode()) return getDemoCities();
-  const data = await seatsellerRequest<SeatSellerCity[] | { cities?: SeatSellerCity[] }>(
-    "/cities"
+  const data = await requestFirstSuccess<SeatSellerCity[] | { cities?: SeatSellerCity[] }>(
+    ["/cities", "/Cities"],
+    {}
   );
   if (Array.isArray(data)) return data;
   return data.cities ?? [];
+}
+
+export async function fetchAliases(): Promise<SeatSellerAlias[]> {
+  if (isSeatSellerDemoMode()) return [];
+  const data = await requestFirstSuccess<
+    SeatSellerAlias[] | { aliases?: SeatSellerAlias[]; aliasNames?: SeatSellerAlias[] }
+  >(["/aliases", "/Aliases"], {});
+  if (Array.isArray(data)) return data;
+  return data.aliases ?? data.aliasNames ?? [];
 }
 
 export async function fetchAvailableTrips(input: {
@@ -156,10 +189,17 @@ export async function fetchAvailableTrips(input: {
   if (isSeatSellerDemoMode()) {
     return getDemoTrips(input.source, input.destination, input.doj);
   }
-  const extractTrips = (data: unknown): SeatSellerTrip[] => {
-    if (Array.isArray(data)) return data as SeatSellerTrip[];
-    if (!data || typeof data !== "object") return [];
+  const cacheKey = `${input.source}_${input.destination}_${input.doj}`;
+  const cached = availableTripsCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.trips;
+  }
+
+  const extractTrips = (data: unknown): { trips: SeatSellerTrip[]; keys: string[] } => {
+    if (Array.isArray(data)) return { trips: data as SeatSellerTrip[], keys: [] };
+    if (!data || typeof data !== "object") return { trips: [], keys: [] };
     const asRecord = data as Record<string, unknown>;
+    const keys = Object.keys(asRecord);
     const maybeKeys = [
       "availableTrips",
       "trips",
@@ -170,26 +210,48 @@ export async function fetchAvailableTrips(input: {
     ];
     for (const key of maybeKeys) {
       const value = asRecord[key];
-      if (Array.isArray(value)) return value as SeatSellerTrip[];
+      if (Array.isArray(value)) return { trips: value as SeatSellerTrip[], keys };
     }
-    return [];
+    return { trips: [], keys };
   };
 
   const tryDojValues = [
-    input.doj,
+    formatSeatSellerDojIso(input.doj),
     formatSeatSellerDojNumeric(input.doj),
+    input.doj,
   ].filter((v, i, arr) => arr.indexOf(v) === i);
 
+  const endpoints = ["/availabletrips", "/availableTrips"];
   for (const doj of tryDojValues) {
-    const data = await seatsellerRequest<unknown>("/availabletrips", {
-      query: {
-        source: input.source,
-        destination: input.destination,
-        doj,
-      },
-    });
-    const trips = extractTrips(data);
-    if (trips.length > 0) return trips;
+    for (const endpoint of endpoints) {
+      const data = await seatsellerRequest<unknown>(endpoint, {
+        query: {
+          source: input.source,
+          destination: input.destination,
+          doj,
+        },
+      });
+      const { trips, keys } = extractTrips(data);
+      await logBusApiCall({
+        endpoint,
+        method: "GET",
+        success: true,
+        meta: {
+          source: input.source,
+          destination: input.destination,
+          doj,
+          responseKeys: keys,
+          extractedTrips: trips.length,
+        },
+      });
+      if (trips.length > 0) {
+        availableTripsCache.set(cacheKey, {
+          trips,
+          expiresAt: Date.now() + getAvailableTripsCacheTtlMs(),
+        });
+        return trips;
+      }
+    }
   }
 
   return [];
@@ -197,14 +259,33 @@ export async function fetchAvailableTrips(input: {
 
 export async function fetchTripDetails(tripId: string): Promise<SeatSellerTripDetails> {
   if (isSeatSellerDemoMode()) return getDemoTripDetails(tripId);
-  return seatsellerRequest<SeatSellerTripDetails>("/tripdetails", {
+  return requestFirstSuccess<SeatSellerTripDetails>(["/tripdetails", "/tripDetails"], {
     query: { id: tripId },
   });
 }
 
+export async function fetchTripDetailsV2(input: {
+  inventoryId: string;
+  bpId: string;
+  dpId: string;
+}): Promise<SeatSellerTripDetails> {
+  if (isSeatSellerDemoMode()) return getDemoTripDetails(input.inventoryId);
+  return requestFirstSuccess<SeatSellerTripDetails>(
+    ["/tripdetailsV2", "/tripDetailsV2"],
+    {
+      method: "POST",
+      body: {
+        inventoryId: input.inventoryId,
+        bpId: input.bpId,
+        dpId: input.dpId,
+      },
+    }
+  );
+}
+
 export async function fetchBpDpDetails(tripId: string): Promise<SeatSellerBpDpDetails> {
   if (isSeatSellerDemoMode()) return getDemoBpDp(tripId);
-  return seatsellerRequest<SeatSellerBpDpDetails>("/bpdpdetails", {
+  return requestFirstSuccess<SeatSellerBpDpDetails>(["/bpdpDetails", "/bpdpdetails"], {
     query: { id: tripId },
   });
 }
@@ -234,10 +315,13 @@ export async function getUpdatedFare(
   if (isSeatSellerDemoMode()) {
     return { totalFare: 0, baseFare: 0, taxes: 0 };
   }
-  return seatsellerRequest<SeatSellerUpdatedFareResponse>("/getUpdatedFare", {
-    query: { blockKey },
-    bookingId,
-  });
+  return requestFirstSuccess<SeatSellerUpdatedFareResponse>(
+    ["/rtcfarebreakup", "/getUpdatedFare"],
+    {
+      query: { blockKey },
+      bookingId,
+    }
+  );
 }
 
 export async function bookTicket(

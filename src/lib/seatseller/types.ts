@@ -9,6 +9,12 @@ export interface SeatSellerCity {
   longitude?: number;
 }
 
+export interface SeatSellerAlias {
+  id: string;
+  cityName: string;
+  aliasNames: string[];
+}
+
 export interface SeatSellerTrip {
   id: string;
   travels: string;
@@ -28,6 +34,7 @@ export interface SeatSellerTrip {
   callFareBreakupApi?: boolean;
   operator?: string;
   duration?: string;
+  bpDpSeatLayout?: string | boolean;
   [key: string]: unknown;
 }
 
@@ -55,6 +62,13 @@ export interface SeatSellerTripDetails {
   seats: SeatSellerSeat[];
   forcedSeats?: string[];
   [key: string]: unknown;
+}
+
+export interface BusAliasRecord {
+  id: string;
+  cityName: string;
+  aliasNames: string[];
+  syncedAt: string;
 }
 
 export interface SeatSellerBoardingPoint {
@@ -201,5 +215,6 @@ export interface BusApiLog {
   error?: string;
   bookingId?: string;
   durationMs?: number;
+  meta?: Record<string, unknown>;
   createdAt: string;
 }

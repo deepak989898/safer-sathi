@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  ArrowUpDown,
+  ArrowLeftRight,
   ArrowRight,
   Bus,
   Clock,
@@ -116,6 +116,9 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [droppingId, setDroppingId] = useState("");
   const [passengers, setPassengers] = useState<BusPassengerDetail[]>([]);
 
+  const isBpDpSeatLayoutEnabled = (value: unknown): boolean =>
+    value === true || String(value).toLowerCase() === "true";
+
   useEffect(() => {
     void api.fetchCities().then((data) => data && setCities(data));
     const saved = loadBusSession();
@@ -152,7 +155,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       destination: search.destinationCityId,
       doj: search.doj,
     });
-    if (!result) return;
+    if (!result) {
+      toast.error(api.error ?? "Trip search failed. Please try again.");
+      return;
+    }
     setTrips(result.trips);
     if (result.trips.length === 0) {
       toast.message(
@@ -191,7 +197,9 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     if (step !== "seat-layout" || !session?.trip) return;
     void (async () => {
       const [details, points] = await Promise.all([
-        api.fetchTripDetails(String(session.trip.id)),
+        api.fetchTripDetails({
+          tripId: String(session.trip.id),
+        }),
         api.fetchBpDp(String(session.trip.id)),
       ]);
       if (details) {
@@ -204,6 +212,34 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       if (points) setBpdp(points);
     })();
   }, [step, session?.trip?.id]);
+
+  useEffect(() => {
+    if (
+      step !== "seat-layout" ||
+      !session?.trip ||
+      !boardingId ||
+      !droppingId ||
+      !isBpDpSeatLayoutEnabled(session.trip.bpDpSeatLayout)
+    ) {
+      return;
+    }
+
+    void api
+      .fetchTripDetails({
+        tripId: String(session.trip.id),
+        bpId: boardingId,
+        dpId: droppingId,
+        bpDpSeatLayout: true,
+      })
+      .then((details) => {
+        if (!details) return;
+        setTripDetails({
+          seats: details.seats,
+          maxSeatsPerTicket: details.maxSeatsPerTicket,
+          forcedSeats: details.forcedSeats,
+        });
+      });
+  }, [step, session?.trip?.id, session?.trip?.bpDpSeatLayout, boardingId, droppingId]);
 
   const toggleSeat = (seat: SeatSellerSeat) => {
     if (!tripDetails) return;
@@ -344,7 +380,12 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   className="mt-1.5"
                   placeholder="Search city"
                   value={fromQuery || search.sourceCityName}
-                  onChange={(e) => setFromQuery(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFromQuery(value);
+                    // User edited text manually; require fresh dropdown selection.
+                    setSearch((s) => ({ ...s, sourceCityId: "", sourceCityName: value }));
+                  }}
                   onFocus={() => {
                     setShowFromDropdown(true);
                     setShowToDropdown(false);
@@ -386,7 +427,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   onClick={swapSourceDestination}
                   title="Swap From and To"
                 >
-                  <ArrowUpDown className="h-4 w-4" />
+                  <ArrowLeftRight className="h-4 w-4" />
                 </Button>
               </div>
               <div>
@@ -395,7 +436,16 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   className="mt-1.5"
                   placeholder="Search city"
                   value={toQuery || search.destinationCityName}
-                  onChange={(e) => setToQuery(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setToQuery(value);
+                    // User edited text manually; require fresh dropdown selection.
+                    setSearch((s) => ({
+                      ...s,
+                      destinationCityId: "",
+                      destinationCityName: value,
+                    }));
+                  }}
                   onFocus={() => {
                     setShowToDropdown(true);
                     setShowFromDropdown(false);

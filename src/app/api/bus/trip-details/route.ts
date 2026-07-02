@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { busApiError } from "@/lib/bus/api-helpers";
-import { fetchTripDetails } from "@/lib/seatseller/client";
+import { fetchTripDetails, fetchTripDetailsV2 } from "@/lib/seatseller/client";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
   tripId: z.string().min(1),
+  bpId: z.string().optional(),
+  dpId: z.string().optional(),
+  bpDpSeatLayout: z.boolean().optional(),
 });
 
 /** Always live — never cache seat layout. */
@@ -18,7 +21,14 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const details = await fetchTripDetails(parsed.data.tripId);
+    const details =
+      parsed.data.bpDpSeatLayout && parsed.data.bpId && parsed.data.dpId
+        ? await fetchTripDetailsV2({
+            inventoryId: parsed.data.tripId,
+            bpId: parsed.data.bpId,
+            dpId: parsed.data.dpId,
+          })
+        : await fetchTripDetails(parsed.data.tripId);
     return apiSuccess({ details, live: true });
   } catch (error) {
     return busApiError(error, "Failed to load seat layout");

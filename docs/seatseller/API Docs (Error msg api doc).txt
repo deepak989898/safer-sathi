@@ -1,0 +1,36 @@
+Content
+
+1. General Errors
+
+
+General Errors
+
+1 ) Could not fetch trip details. Trip is not available anymore. and Seat is no longer available.
+Ans ) Please check, if you are caching data at your end for tripDetails() api. tripDetails will always be alive call.
+2 ) Seat reserved for Males.
+Ans) "Seat reserved for Males" , "Seat reserved for Ladies.Please select one of the seats reserved forgents: 11,3,UQ", “Tentative Booking Failed / ERROR: Reservation could not be performed. Please checkyour parameters..5B are available for ladies, Please re-select the seat numbers 6E..”, “Tentative BookingFailed / You Cannot Book Female Seat Near By Male Seat..” To avoid these failures due to genderrestrictions please implement below changes: – We share "ladiesSeat": "true", when the seat is reservedfor female passengers and "malesSeat": "true", when the seat is reserved for male passenger intripdetails api response. When there is a gender restriction at Bus operator end, we are sending validerror messages in blockTicket api. Such as :
+– You can show pink color for a female reserved seat and also add message in UI , if male tries to booka female reserved seat or Female tries to book a male reserved seat. You can show message as belowbefore calling blockTicket:
+– Also, you can reduce these failures by consuming forcedSeats param in tripDetails API. We are sharingforcedSeats property in tripDetails() response with '@' as the delimiter from which you have to take thefirst part as a female reserved seat and the second part as male reserved seats. "forcedSeats":
+"femaleseat1,femaleseat2@maleseat1,maleseat2" Sample Response: { "maxSeatsPerTicket": “6”,
+“forcedSeats”: ”U11@”, "seats": [ { "available": "true", "bankTrexAmt": "0.0", "baseFare": "850.00",
+"childFare": "0.0", "column": "4", For example "forcedSeats": "L4,L3@", So, here L4 and L3 are femalereserved seats. Now, vendor will not allow you to book any other seat for female passenger, if aforcedSeat is available. The forcesSeats needs to be filled first. If a user tries to book any other seat,
+partner needs to display a message like "Please select one of the seats reserved for ladies: [L4, L3]" inUI. With this implementation block will not fail and user can select the suggested seat. It will reduceyour Tentative Booking failure.
+3 ) Seat no longer available or invalid seat fare in booking request.
+Ans) This error occurs when incorrect fare sent in the block Request or the seat is not available. Pleasecheck if there is a cache at your end for tripDetails() api. tripDetails should always be a live call. Also,
+check if the correct fare is sent. Do not roundoff or add any amount in the fare value. Kindly pass fare intripdetails api response as fare in blockTicket request. "seats": [ { "available": "true", "bankTrexAmt":
+"0.0", "baseFare": "1057.00", "childFare": "0.0", "column": "8", "concession": "0.0", "doubleBirth":
+"false", "fare": "1109.85", "ladiesSeat": "false", "length": "2", "levyFare": "0.0", "malesSeat": "false",
+"markupFareAbsolute": "0.00", "markupFarePercentage": "0", "name": "U10",
+"operatorServiceChargeAbsolute": "0.00", "operatorServiceChargePercent": "0",
+"reservedForSocialDistancing": "false", "row": "1", "serviceTaxAbsolute": "52.85",
+"serviceTaxPercentage": "5.0000",
+4 ) Tentative Booking Failed / : REALTIME_UPDATE_FAILURE_IN_CONFIRM_BOOKINGAns) This error comes when the trip disabled or removed by the operator, so kindly check if you arecaching tripDetails and availableTrips api data5 ) Tentative Booking Failed / Journey is CanceledAns) This error comes when the trip disabled or removed by the operator, so kindly check if you arecaching tripDetails and availableTrips api data.
+6 ) Invalid boarding pointAns) This error will come when boardingpointid or droppingpointid passed in blockTicket request isincorrect. Please check, if the id is correctly passed, or if the data is cached at your end.
+7 ) Tentative Booking Failed / AGE_CANNOT_BE_ZERO_IN_PAX_DETAILSAns) Age field should not be blank or zero , it's a Mandatory field. Please put a check at your end toenter this field in UI, so that block should not fail.
+8 ) Tentative Booking Failed / Duplicate_Booking_RequestAns) (Error from ias end due to duplicate request, need to investigate ).
+9 ) Tentative Booking Failed / : IAS_TENTATIVE_BOOKING_FAILUREAns) This is a vendor side failure.
+10 ) BLOCK_FAILURE: VENDOR_OMEGA_ERRORDESC_MISSINGAns) ( vendor side error will need to investigate )
+11 ) Could not block seat.
+Ans) ( vendor side error will need to investigate )
+12 ) Tentative Booking Failed / Fares got mismatched for 5STAns) ( vendor side error will need to investigate )
+Back to top

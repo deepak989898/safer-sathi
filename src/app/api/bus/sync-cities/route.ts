@@ -2,10 +2,11 @@ import { requireStaffAuth } from "@/lib/admin/api-auth";
 import {
   getBusCitiesFromDb,
   getBusCitiesLastSyncedAt,
+  syncBusAliases,
   syncBusCities,
 } from "@/lib/bus/firestore";
 import { busApiError } from "@/lib/bus/api-helpers";
-import { fetchCities } from "@/lib/seatseller/client";
+import { fetchAliases, fetchCities } from "@/lib/seatseller/client";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const remote = await fetchCities();
+    const [remote, aliases] = await Promise.all([fetchCities(), fetchAliases()]);
     if (!remote.length) {
       return apiError("No cities returned from SeatSeller", 502);
     }
@@ -43,9 +44,18 @@ export async function POST(request: Request) {
     }));
 
     const count = await syncBusCities(records);
+    const aliasCount = await syncBusAliases(
+      aliases.map((a) => ({
+        id: String(a.id),
+        cityName: a.cityName,
+        aliasNames: a.aliasNames ?? [],
+        syncedAt: new Date().toISOString(),
+      }))
+    );
     return apiSuccess({
       synced: true,
       count,
+      aliasCount,
       lastSyncedAt: new Date().toISOString(),
     });
   } catch (error) {

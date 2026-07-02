@@ -1,0 +1,870 @@
+Content
+
+1. Location Information Service
+1.1 Cities API
+1.2 Aliased city list Api
+2. Booking Service
+2.1 Available trips API
+2.2 TripDetails API (or SeatLayout api)
+2.3 Boarding Point details
+2.4 Tripdetails V2 api
+2.5 Block Ticket API
+2.6 Get Updated Fare API
+2.7 Book Ticket API (or Confirm Ticket)
+3. Cancellation Service
+3.1 Cancellation Data API
+3.2 Cancel Ticket API
+4. Ticket Information Service
+4.1 Print Ticket API (or get Ticket API)
+4.2 Check Booked Ticket API
+4.3 Bus Cancellation Info API
+
+
+Location Information Service
+
+Service which provides information regarding cities1.1 Cities APIURL : http://api.seatseller.travel/cities
+Method: GET
+
+Description: API to get a list of all the cities along with their city ID.
+Output :
+ParameterData TypeDescriptionIdlongCity IDNameStringCity NamestateStringState NameStateIdlongState Id
+
+
+latitudedoubleLatitude of citylongitudedoubleLongitude of city
+
+1.2 Aliased city list ApiURL : http://api.seatseller.travel/aliases
+Method: GET
+
+Description: API to get a list of all the aliased cities w.r.t redbus.
+Output:
+ParameterData TypeDescriptionIdlongCity IDCityNameStringCity NamealiasNames[]List of Alias Names
+
+Booking Service
+
+This This service enables you to do transactions related to ticket booking.
+2.1 Available trips APIURL : http://api.seatseller.travel/availabletrips?source=2&destination=7&doj=2012-07-16
+Method: GET
+
+Description: API to get the list of bus services from the specified source city to the destination city on aspecified date.
+Input :
+ParameterData TypeMandatoryDescriptionExampleSourcelongYesCity ID of Source City3 ( City ID for Banglore )
+DestinationlongYesCity Id of Destination City6 ( City ID for Mumbai)
+dojstringYesTravel Date2020-02-22 ( 22-Feb-2020)
+
+Output : Trip ListIf response is success, the output will have the valid data about the bus services.
+availableTrips [ ]
+ParameterData TypeDescriptionACstringPossible values are True or False
+
+
+id long 
+Trip Id i.e. unique identifier which will populate the seatlayoutdetails (e.g. 10000005664300609)
+arrivalTimelongApprox arrival time at the destination.(e.g.:150) See FAQ 
+to convert time into format like 6:30 PM,10:15AM.
+availableSeatslongNumber of Seats Available.(e.g. : 4)
+bookablestringPossible values are True or FalseavlWindowSeatslongNumber of Window Seats Available.(e.g. : 1)
+boardingTimes[]List of boarding times for this service.
+bpDpSeatLayoutstringPossible values are True or FalsebusImageCountlongNumber of bus image.(e.g. : 1)
+busTypeIdlongbusType Id (e.g. 1101)
+busTypestringBus Type (e.g. Volvo A/C,2+1 Sleeper, etc)
+busRoutesstringBus Route (e.g.Bangalore-Hyderabad)
+cancellationPolicystringThis Specifies the Cancellation details and the relevantcharges applicable for this trip. (e.g. :
+0:12:100:0;12:24:50:0;24:-1:10:0) See FAQ formore details about cancellations.
+departureTimelongDeparture time(e.g. 1260) This is the departure time ofmain boarding point.
+droppingTime[] List of dropping time at destination.
+droppingTimes[]List of dropping time at destination.
+dropPointMandatorystringTo check if dropping point Mandatory or notfareDetails[]List of fares with complete fare detailsfaresdoubleList of Fares for particular trip(e.g. 750,550)
+operatorlongOperator id 
+otgEnabledstringPossible values are True or FalsepartialCancellationAllowedstringPossible values are True or FalsertcstringPossible values are True or FalseseaterstringPossible values are True or FalsemaxSeatsPerTicketlongMax no. of Seats per Ticket (e.g.6)
+zeroCancellationTimelongTime of zero Cancellation charges (e.g. 0)
+
+
+mTicketEnabledstringPossible values are True or FalsetravelsstringName of the travels(e.g. KPN travels)
+availSrCitizenstringPossible values are True or FalseavailCatCardstringPossible values are True or FalseidProofRequiredstringPossible values are True or FalseliveTrackingAvailablestringPossible values are True or FalsenonACstringPossible values are True or FalseprimaryPaxCancellablestringPossible values are True or FalsereschedulingPolicy[]
+routeIdlongRoute id (e.g.2000000100000062475)
+singleLadiesstringPossible values are True or FalsesleeperstringPossible values are True or FalsevehicleTypestringBUS
+
+boardingTimes [ ]
+ParameterData TypeDescriptionbpidlongId of the boarding point (e.g. 17977211)
+bpNameStringName of the boarding point (e.g.Madiwala)
+contactNumberlongBoarding point contact no.
+locationStringName of the boarding point location at Source(e.g.Madiwala)
+addressStringComplete address (e.g. Madivala Hosur Rd)
+landmarkStringLandmark details (e.g. In Front Of En Zen Building)
+primeStringPossible values are True or FalsetimelongTime of boarding at this location.(e.g. 795)
+
+droppingTimes [ ]
+ParameterData TypeDescriptionaddressstringComplete address (e.g. Near Bata showroom )
+bpidlongId of the dropping point (e.g. 24878)
+bpNamestringName of the dropping point (Lakdikapool)
+contactNumberlongDropping point contact no.
+
+
+locationstringName of the dropping point location at destination(e.g. abids)
+landmarkStringLandmark details (e.g. Near Bata showroom )
+primeStringPossible values are True or FalsetimelongTime of the dropping point at this location
+
+fareDetails[ ]
+ParameterData TypeDescription
+bankTrexAmt
+
+double
+
+(e.g. 0) 
+
+baseFare
+
+double
+
+Base Fare (e.g. 1900.00) 
+
+bookingFee
+
+double
+
+Booking Fee (e.g. 0) 
+
+childFare
+
+double
+
+(e.g. 0) 
+
+gst
+
+double
+
+GST (e.g. 95.00) 
+
+levyFare
+
+double
+
+(e.g. 0) 
+
+markupFareAbsolute
+
+double
+
+(e.g. 0) 
+
+markupFarePercentage
+
+double
+
+(e.g. 0) 
+
+opFare
+
+double
+
+(e.g. 0) 
+
+operatorServiceChargeAbsolute
+
+double
+
+(e.g. 0.00) 
+
+ 
+
+operatorServiceChargePercentage
+
+double
+
+(e.g. 0.00) 
+
+ 
+
+serviceCharge
+
+double
+
+Service Charge (e.g. 0.00) 
+
+serviceTaxAbsolute
+
+double
+
+Service Tax (e.g. 95.00) 
+
+serviceTaxPercentage
+
+double
+
+(e.g. 0) 
+
+srtFee
+
+double
+
+(e.g. 0) 
+
+tollFee
+
+double
+
+(e.g. 0) 
+
+totalFare
+
+double
+
+1995.00 
+
+
+
+List of Error Messages:
+Search cannot be performed for past dates
+No location found for given id
+
+
+
+2.2 TripDetails API (or SeatLayout api)
+URL : http://api.seatseller.travel/tripdetails?id=100000005664300609
+Method: GET
+
+Description: API to get the details of particular trip ID.
+The seat layout needs to be generated using the seat array map returned from the API /trip details.
+Seat layout: Click here to know more about Seat LayoutInput:
+ParameterDataTypeMandatoryDescriptionExampleid( Trip ID) long YesTrip Id for selected Trip (use thefield "id" from the available tripsapi call)
+Trip ID like100000005664300609
+
+Output :
+If response is success, the output will have the valid data about the particular Trip.
+tripdetails[ ]
+
+Parameter
+
+Data Type
+
+Description
+
+forcedSeats
+
+string
+
+e.g. C4@ , to check if female ormale reserved seat
+
+maxSeatsPerTicket
+
+long
+
+E.g. 6
+
+Seats [ ]
+
+ 
+
+Array of seats
+
+
+
+ Seats [ ]
+ParameterDataTypeDescriptionavailablestringSeat Availability possible values are True or Falsecolumnlonge.g 3faredoubleFare of the Seat (e.g. 1050)
+ladiesSeatstringSeats reserved for ladies possible values are True orFalselengthlongPossible Values are 1 or 2namelongSeat No. (e.g. 12)
+rowlonge.g. 1
+
+
+widthlongPossible values are 1 or 2zIndexlongLower Berth(zIndex - 0) and Upper Berth (zIndex - 1)
+bankTrexAmt
+
+double
+
+bankTrex amount (e.g. 0) 
+
+baseFare
+
+double
+
+baseFare (e.g.1000.00)
+
+childFare
+
+double
+
+Child Fare (e.g. 0.0) 
+
+concession
+
+double
+
+Concession amount(e.g. 0.0) 
+
+levyFare
+
+double
+
+(e.g. 0.0) 
+
+malesSeat
+
+string
+
+Seats reserved for male possible values are True orFalse
+
+markupFareAbsolute
+
+double
+
+(e.g. 0.0) 
+
+ 
+
+markupFarePercentage
+
+double
+
+(e.g. 0) 
+
+operatorServiceChargeAbsolute
+
+double
+
+(e.g. 0.0) 
+
+ 
+
+operatorServiceChargePercent
+
+double
+
+(e.g. 0) 
+
+serviceTaxAbsolute
+
+double
+
+(e.g.50.00) 
+
+ 
+
+serviceTaxPercentage
+
+double
+
+(e.g. 5.0000) 
+
+ 
+
+srtFee
+
+double
+
+(e.g. 0) 
+
+tollFee
+
+double
+
+(e.g. 0) 
+
+
+
+List of Error Messages:
+1. Could not fetch trip details for POST DOJ.
+2. Could not fetch trip details. 
+3. Trip is not available anymore.
+
+2.3 Boarding Point details :
+URL : http://api.seatseller.travel/bpdpDetails?id=1000005638305724125
+Method: Get
+
+
+Description: API to give the details of boarding and dropping points such as boardinglocation,landmark,complete address and contact numbers for the trip.
+Note: Please use locationName from getBPDPDetails() response and location from getavailableTrips()
+response.
+Here locationName and name can be the same sometimes but can be different too. name is only for SRPuse in your website, whereas locationName is the exact boarding point/ dropping point name. Kindly uselocationName for fetching the boarding point/ dropping point in the seat layout page.
+2.4 Tripdetails V2 api :
+URL : http://api.seatseller.travel/tripdetailsV2
+Method : Post
+
+Description: Please implement BP DP model for GSRTC, OSRTC, JKSRTC, and PEPSU. 
+We are passing "bpDpSeatLayout": "true" in getAvailableTrips() response. For seat layout, pass bpId anddpId for the trip ids where the bpDpSeatLayout flag is true. This will fetch the correct fare as the fare isupdated based on bp and dp.If the bpDpSeatLayout flag is false, pass only inventoryId or else thetripdetails() API will fail. For services where "bpDpSeatLayout" :"True" , partners have to send operatorid in the field "operator" in blockTicket request. Operator field mendatory for bp-dp model.
+Input:
+ParameterData TypeMandatoryDescriptionExampleinventoryIdlongYesTrip Id1000002626701642269bpIdlongYesBoarding point id17982030dpIdlongYesDropping point id17982022
+
+2.5 Block Ticket API 
+URL : http://api.seatseller.travel/blockTicket
+Method : POST
+
+Description: API to tentatively book (block) a ticket. This tentative ticket will be blocked for a specifiedtime and can be confirmed.
+This is a post method which takes BlockRequest in request body and returns BlockKey. Once user givesall the above details along with the seat numbers and boarding point, client calls the server to book theseats tentatively. If the specified seats are still available, the server blocks them tentatively and returnsa tentative booking reference number(Block key). The seats will be blocked under the given referencenumber. These seats are blocked for some specified time(8 Min)and this value is returned in thetentative booking confirmation.If there is no confirmation call (next step) from the client before thattime, the server will unblock the seats. 
+Sample JSON:
+
+Click here to ViewInput:
+Block Request
+ParameterMandatoryData TypeDescription
+
+
+availableTripIDyeslongAvailable Trip Id Selected (e.g. 100000005744040674)
+boardingPointIdyeslongId of the Boarding Point(e.g. 3975)
+droppingPointIdyeslongId of the Dropping Point (e.g. 41532)
+destinationyeslongId of the Destination(e.g. 3882)
+inventoryItems [ ]yesInventory Item details like fare,passenger deatils etc.
+sourceyeslongId of the Source(e.g. 972)
+
+invetoryItems [ ]
+ParameterMandatoryDataTypeDescriptionseatnameyesstringValid seat name(e.g. A15)
+fareyesdoubleFare of the seat in Rs(e.g. 1000)
+ladiesSeatyesstringSeat reserved for ladies(e.g. true or false)
+passenger [ ]yesPassenger details like name,email etc.
+passengerGSTDetails[
+]
+noPassenger GST details like gstId,registrationNameetc.
+
+passenger [ ] 
+ParameterMandatoryData TypeDescriptionaddressyesstringAddress detailsageyeslongAgeemailyesstringEmailgenderyesstringGender
+idNumber
+
+yes
+
+string
+
+ID number
+
+idType
+
+yes
+
+string
+
+Type of ID(e.g. Pancard)
+
+mobile
+
+yes
+
+long
+
+Mobile no
+
+name
+
+yes
+
+string
+
+Name
+
+primary
+
+yes
+
+string
+
+e.g true or false
+
+title
+
+yes
+
+string
+
+like Mr., Ms
+
+
+
+passengerGSTDetails[ ]
+
+
+
+
+Parameter
+
+Data Type
+
+Description
+
+registrationName
+
+string
+
+e.g. Ram
+
+gstId
+
+string
+
+e.g. API0234
+
+address
+
+string
+
+e.g. Bangalore
+
+emailId
+
+string
+
+e.g. abcd@gmail.com
+
+
+
+Note: If operator have the option of sending GST invoice, customers will get the GST invoice in theiremail.
+Output: blockKey
+
+ParameterData TypeDescriptionBlockKeyStringBlock Key
+
+ 
+List of Error Messages:
+1.Tentative Booking failed
+
+2.Seats no longer Available
+
+3.Itinerary expired
+
+4.Insufficient Balance
+
+5.Invalid boarding point
+
+6.Trip is not available anymore.
+
+6.please book available ladies seat FIRST
+
+7.Seat reserved for Ladies.
+
+2.6 Get Updated Fare APIURL : http://api.seatseller.travel/rtcfarebreakup?blockKey=31mLBZtYPs
+Method : GET
+
+Description: API to get updated fares.
+For few operators (OSRTC, HRTC, UPSRTC, PEPSU, JKSRTC, VRL and GSRTC) there will be fare changeafter invoking the blockTicket() method. To fetch the updated fares getUpdatedFare() method needs tobe invoked by passing the block key each time before invoking the bookTicket() method.
+We share "callFareBreakupApi":"true" in getAvailableTrips() response to identify these Bus operators. Donot invoke the Get Updated Fare API method, when the flag is false.
+Additional parameters such as Toll fee, Levy charges, etc will be applicable for these RTCsWe are passing these parameters in getUpdatedFare() response. Please find the attached samplegetUpdatedFare() responses and ticket templates. Kindly update the same at your end.
+Note: Please do not consider TOTAL_FARE from the customerPriceBreakUp. Kindly calculate Total Fare
+as the sum of Booking fee and other fare components from customerPriceBreakUp(except TOTAL_FARE).
+Please find the details below:
+a) Both boarding point and dropping point is mandatory for these bookings.
+b) Fare will change basis boarding point and dropping point selected for these services.
+c) We recommend you to use the attached ticket template for the hard copy of tickets.
+d) These RTCs might not honor the booking if the customer produces the ticket print out which is not thesame as the one shared with you.
+e) PNR and Trip Code are mandatory parameters and are shared in getTicket() API.
+Changes in API:
+a) Call getAvailableTrips() as usual. You will see these RTC services (if available) with pick up and droppoints. Note that the fare that you get on invoking this method is not the actual fare.
+b) No changes in getTripDetails() method.
+c) Invoke the blockTicket() method with dropping point in addition to other details (like name, contact,
+boarding point, etc) as the input parameter.
+d) Before calling the bookTicket() method, invoke getUpdatedFare() passing the block key as the inputparameter. This will give you the fare details of the selected boarding point and dropping point in case ofthese services. Do not invoke this method for other operators unless mentioned. Please find theattached sample response for the same and consider the fare components in calculating the total fare.
+e) Now invoke the bookTicket() method with the same block key as the input parameter.
+f) Invoke getTicket() method for ticket details.
+VRL Changes:
+For VRL (OperatorId: 5483), kindly use getUpdatedFare() API for all VRL services to check the updatedfare as there is a discount applicable to single ladies seat booking. VRL might not honor the bookings ifthe fare is not updated.
+As of now, we are passing discounted base fare in the customerPriceBreakUp. Please find the attachedsample getUpdatedFare() response for VRL and make the changes accordingly at your end. We areworking on passing the full break up. We will let you know once the changes are done to integrate thesame at your end.
+For cancellation, kindly refer "cancellationHandling" from the response. (Note: This is applicable to alloperators wherever we are sharing customerPriceBreakUp.)
+-If "cancellationHandling": "CANCELLATION_POLICY", then cancellation charges is applicable as per thecancellation policy.
+-If "cancellationHandling": "NOT_REFUNDED", then the component is non-refundable-If cancellationHandling": "FULLY_REFUNDED, then the component is fully refundable.
+Input:
+ParameterData TypeDescriptionBlockKeyStringBlock Key
+
+Output : We get the updated fare.
+ParameterData TypeDescriptionconvenienceFeeBig decimalBy default it is 0otherChargesBig decimalBy default it is 0previousFareBig decimalFare before updation
+
+
+reservationChargesBig decimalBy default it is 0updatedFareBig decimalUpdated farefareBreakup[]Seat wise fare breakup details
+
+fareBreakupcustomerPriceBreakUp[]
+seatNamelongSeat no.
+
+ 
+2.7 Book Ticket API (or Confirm Ticket)
+URL : http://api.seatseller.travel/bookticket?blockKey=29PuE2JriN
+Method : POST
+
+Description: API to confirm the previously tentative booked ticket.
+Once the ticket was tentatively booked, client/user collects the ticket fare from the customer and callsthe server to confirm the booking. The client needs to give the tentative reference number(Block key) toconfirm the ticket. The server will return the confirmed ticket details including Ticket number.
+Input:
+ParameterData TypeDescriptionBlockKeyStringBlock Key
+
+Output: TIN
+ParameterData TypeDescriptionTINStringTIN (ticket no.)
+
+If response (response code) is success, the output will return TIN or Ticket No.Eg. 35A8M46RList of Error Messages:
+No blocked itineraries found for the given blockid
+Confirm Booking failed
+Failed to book ticket.
+Ticket Expired
+
+
+Cancellation Service:
+
+This Service enables you to do transactions related to ticket cancellations.
+3.1 Cancellation Data APIURL :http://api.seatseller.travel/cancellationdata?tin=35A8M46R
+Method : Get
+
+
+Description: API to get the Cancellation details of booked ticket.
+Returns CancellationData object which contains cancellation charges and refund amount details.Clientwould make a call to get the details of the ticket to be cancelled.The server would return the amountthat can be refunded in case the ticket is cancelable. User then cancels the ticket and issues refund tothe customer.
+Input:
+ParameterData TypeMandatoryDescriptiontinStringYesTicket Identification Number.( TIN)
+
+Output:Cancellation DetailsIf response (response code) is success, the output will have cancellation Details of the ticket.
+Cancellationdata[ ]
+ParameterData TypeDescriptioncancellablestringCancellation Status(e.g. true or false)
+cancellationCharges [ ]
+fares [ ]
+partiallyCancellablestringPossible values are true or falseserviceChargedoublee.g.0tatkalTimedoublee.g.49.00
+
+cancellationCharges [ ]
+ParameterData TypeDescriptionkeylongSeat Name (Seat no) (e.g. 12)
+valuedoubleCancellation Charge ( e.g. 50.0)
+
+fares [ ]
+ParameterData TypeDescriptionkeylongSeat Name (Seat No) (e.g. 12)
+valuedoubleTotal Fare(e.g. 350.0)
+
+List of Error Messages: 
+No Itinerary Found
+
+
+
+3.2 Cancel Ticket APIURL : http://api.seatseller.travel/cancelticket
+Method : Post
+
+Description:API to cancel a previously booked confirmed ticket.
+This is post method which takes CancelRequest in request body Returns CancellationResponse whichcontains cancellation details. Client would make a call to server to cancel the ticket.
+Sample JSON: 
+Click here to ViewInput: 
+cancelRequest
+ParameterData TypeDescriptiontinstringTicket identification number (e.g. 35A8M46R)
+seatToCancelstringSeat Name to be cancelled(e.g. 16)
+
+Output: CancellationResultIf response (response code) is success, the output will have the valid data about the ticket cancellationtransaction.
+ParameterData TypeDescriptioncancellationchargedoubleCancellation charge ( e.g. 50)
+refundAmountdoubleAmount to be refund(e.g. 700)
+tinstringTicket Identification Number( e.g. 35A8M46R)
+
+List of Error Messages:
+Partial cancellation not allowed
+Itinerary not found
+Cancellation failed
+Ticket Not Cancellable
+Ticket not found
+Ticket is already cancelled.
+
+
+Ticket Information Service :
+
+This service helps to retrieve all transactions like ticket booking and cancellations.
+4.1 Print Ticket API (or get Ticket API)
+URL : http://api.seatseller.travel/ticket?tin=35A8M46R
+Method : Get
+
+Description: API to get the details of the booked ticket.
+Input:
+ParameterData TypeMandatoryDescriptionExampletinStringYesTicket Identification Number.35A8M46R
+
+Output: TicketDetailsIf response (response code) is success, the output will have the valid data about the tickets.
+ParameterDataTypeDescriptionbookingFeedoublee.g.0busTypestringe.g.A/C Seater/SleepercancellationPolicystringThis Specifies the Cancellation details and relevant Chargesapplicable.
+(e.g. cancellationPolicy=0:12:100:0;12:24:50:0;24:-1:10:0)
+dateOfIssuestringDate of Issue(e.g. 2020-02-27T14:31:01+05:30)
+destinationCityIdlongDestination City Id( 7 for mumbai)
+dojstringDate of journey( e.g.2020-03-01T00:00:00+05:30)
+inventoryIdlongInventory Id(e.g.100000005744040674)
+dropLocation
+
+string
+
+Dropping point location
+
+dropLocationAddress
+
+string
+
+Dropping location address
+
+dropLocationId
+
+long
+
+Dropping point location id e.g.41532
+
+dropLocationLandmark
+
+string
+
+Dropping point Landmark
+
+dropTime
+
+long
+
+Drop up Time(e.g. 1050)
+
+hasRTCBreakup
+
+string
+
+Possible values are true or false
+
+hasSpecialTemplate
+
+string
+
+Possible values are true or false
+
+inventoryItems[ ]
+
+ 
+
+Inventory Item details like fare,Passenger details.
+
+
+
+
+MTicketEnabled
+
+string
+
+Possible values are true or false
+
+partialCancellationAllowed
+
+string
+
+Possible values are true or false
+
+pickUpContactNo
+
+long
+
+Contact no of travels for this pick up location(9999988888)
+
+pickUpLocationAddress
+
+string
+
+Pick up location address(e.g. JNTU,K.P.H.B.)
+
+pickUpLocation
+
+string
+
+Pick up location(e.g. K.P.H.B.)
+
+pickUpLocationId
+
+long
+
+Pick up Location Id(e.g. 39758)
+
+pickUpLocationLandmark
+
+string
+
+Pick up Location landmark(e.g. Near Domlur Flyover)
+
+pickUpTime
+
+long
+
+Pick up Time(e.g. 1260)
+
+pnr
+
+string
+
+pnr details of ticket(RTTPH4T65876732-7680)
+
+primeDepartureTime
+
+long
+
+e.g.710
+
+reschedulingPolicy[]
+
+ 
+
+Rescheduling Policy details
+
+serviceCharge
+
+double
+
+Service Charge (e.g.0.00)
+
+sourceCity
+
+string
+
+Source City name (e.g.Bangalore)
+
+sourceCityId
+
+long
+
+City Id of Source(2 for Bangalore)
+
+Status
+
+string
+
+Status of ticket(e.g. Booked)
+
+tin
+
+string
+
+Ticket Identification Number(e.g.35A8M46R)
+
+travels
+
+string
+
+Travel Name ( e.g. National Travels)
+
+
+
+ 
+invetoryItems [ ]
+ParameterData TypeDescriptionfaredoubleFare of the seat(e.g. 1000)
+ladiesSeatstringSeat reserved for ladies(Possible values are true or false)
+malesSeatstringPossible values are true or falseoperatorServiceChargedoublee.g.0.00passenger [ ]Passenger details like name,email etc.
+seatNamelongSeat number(e.g.15)
+serviceTaxdoubleService tax (e.g. 16.50)
+
+
+passenger [ ]
+ParameterData TypeDescriptionaddressstringAddress detailsagelongAgeemailstringPassenger emailgenderstringGenderidNumberlongID numberidTypestringTyoe of ID(e.g. Pancard)
+mobilelongMobile nonamestringPassenger Nameprimarystringe.g true or falsetitlestringlike Mr., MssingleLadiesstringe.g true or false
+
+4.2 Check Booked Ticket API 
+URL : http://api.seatseller.travel/checkBookedTicket?blockKey=29PuE2JriN
+Method : GET
+
+It returns the ticket object if ticket was confirmed otherwise gives error in standard API format.
+To fetch the TIN from the block key this api can be used. In cases where you do not receive a responsefrom our end, kindly use the checkBookedTicket() api to check whether the block key is confirmed ornot. If it is confirmed you will get booking details otherwise the error : No confirmed ticket found for theblock key.
+ParameterData TypeMandatoryDescriptionExampleblock keyStringYesblock key.29PuE2JriN
+
+Output :Ticket details in case ticket is confirmed else error message
+
+4.3. Bus Cancellation Info API 
+URL : http://api.seatseller.travel/busCancellationInfo?from=2019-05-01&to=2019-05-20
+
+Method : GET
+
+Description : API for fetching Bus Cancelled, BO Cancellation (TINs which are cancelled by operatorsbut not marked as Bus Cancelled) and Alternate Arrangement tins.
+
+Input :
+
+ParameterData TypeDescriptionExamplefromStringFrom Date2019-05-01
+
+
+toStringTo Date2019-05-20
+
+Case1: If from and to query params are not passed in the url then response will return list of all the BusCancelled tins till date.
+Case2: If from and to query params are passed in the url then response will return only the list of tinsfor the date mentioned
+
+Output : List of tins 
+
+ParameterData TypeDescriptiontinStringTicket Identification Number.
+
+The refund amount, status and other details can be fetched from getTicket() API. To identify thesecancellations, consume cancellationReason in ticket details API.
+
+There will be two types of cancellationReason, in ticket details api.
+"cancellationReason": "Bus Cancellation"
+"cancellationReason": "BO Cancellation"
+
+For Alternate arrangement tins, we will pass “Alternate Arrangement done by BO” incancellationMessage field in ticket details API.
+
+Back to top

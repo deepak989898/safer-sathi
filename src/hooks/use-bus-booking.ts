@@ -58,12 +58,17 @@ export function useBusBookingApi() {
   );
 
   const fetchTripDetails = useCallback(
-    async (tripId: string) => {
+    async (input: {
+      tripId: string;
+      bpId?: string;
+      dpId?: string;
+      bpDpSeatLayout?: boolean;
+    }) => {
       return run(async () => {
         const res = await fetch("/api/bus/trip-details", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tripId }),
+          body: JSON.stringify(input),
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error ?? "Seat layout failed");

@@ -1,0 +1,98 @@
+Content
+
+1. Overview
+2. Activities
+2.1 Booking Service
+2.2 Location Information Service
+2.3 Search Trips
+2.4 Get Seat Layout and Boarding Point Details
+2.5 Select Seat and Capture Passenger Details
+2.6 Book Ticket Tentatively
+2.7 Confirm Ticket
+2.8 Cancellation Service
+2.9 Ticket Information Service
+
+
+Overview
+
+With the current set of web services provided, the client can perform the following functions:
+
+Check the availability
+Ticket Booking
+Ticket Cancellation
+
+
+This API gives partner an exposure to a large inventory of 700 bus operators and 10,000+ routes allover India. Its a secured API which follows OAUTH authentication parameters.
+
+Activities
+
+Booking Service
+
+Location Information ServiceDescription:
+http://api.seatseller.travel/citiesThis above provides information about all the cities to which services are available. Each city isrepresented by a unique city id. This service provides APIs to fetch the list of all cities with their cityids.The client would use this list to map city id to city name.A client would typically maintain the list ofcities in its database and would update the same periodically. It is suggested that client clears the entirelist and fetches the entire list at least once in 7days.
+Method:
+getCities() - Returns CityList object, call this to get the list of all the cities
+Sample Screen
+
+
+Search Trips
+
+Description:
+http://api.seatseller.travel/availabletrips?source=3&destination=6&doj=2021-01-09Client would display the list of sources and destinations and take the following inputs from the user.
+1. Source,
+2. Destination,
+3. Date of journeyMethod:
+getAvailableTrips(sourceId,DestinationId,DateOfJourney) - Returns AvailableTripList object (the full list ofall services across all the bus operators)
+Sample screen:
+Screen shot with pre-filled Source and Destination along with journey date.
+Description:
+http://api.seatseller.travel/availabletrips?source=3&destination=6&doj=2021-01-09Returns AvailableTripList object (the full list of all services across all the bus operators).Client wouldmake a call to the sever using the above parameters and fetch the list of all services across all theoperator. Client then displays the trip list (all available bus services) to the user and allows him to selectone of them.
+The above provides list of Boarding points to which services are available.Client would make a call to getlist of boarding points and their respective boarding times, landmark,complete address and contactnumbers for the specified route.
+Method:
+getTripDetails(tripId) - Returns TripDetails object for a particular TripSample screen:
+Get Seat Layout and Boarding Point Details
+
+Description:
+http://api.seatseller.travel/tripdetails?id=100000005664300609.
+Returns TripDetails object for a particular Trip.Client would make a call to get the Seat Layout for theparticular trip.
+Seat layout: Click here to know more about Seat Layouthttp://api.seatseller.travel/boardingPoint?id=1545164&tripId=1001528235062348161The getBPDPDetails () response provides Boarding point details. Client would make a call to get detailsof boarding point and dropping points such as boarding times, landmark,complete address and contactnumbers for the specified route.
+Sample screen:
+Select Seat and Capture Passenger Details
+
+Description:
+When Is Available is True,user selects the bus service which will fetch the Seat layout .The client alsofetches list of boarding points for the selected route and displays them for the user to select.User selectsSeat, boarding point and give passenger detailsWhen Is Available is False user is not allowed to select seat as they all are sold out.
+User needs to fill the following passenger details:
+1. Title (Mr/Mrs/Ms/Miss)
+2. Full name3. Age4. Mobile5. Email6.Gender7.IDtype8.IDnumber9.Bookingtype10.Primary11.AddressSample screen:
+Book Ticket Tentatively
+
+Description:
+http://api.seatseller.travel/blockTicketThis is post method which takes BlockRequest in request body and returns BlockKey (String. This hasbeen made as two steps to allow some payment collection before confirming the seat.
+Once user gives all the above details along with the seat numbers and boarding point, client calls theserver to book the seats tentatively. If the specified seats are still available, the server blocks themtentatively and returns a tentative booking reference number(Block key). The seats will be blockedunder the given reference number. These seats are blocked for some specified time(8 Min)and this valueis returned in the tentative booking confirmation .If there is no confirmation call (next step) from theclient before that time, the server will unblock the seats.
+Method:
+blockTicket(requestString) - This is post method which takes BlockRequest in request body ReturnsBlockKey (String), do this as a step before actually confirming the seat.
+This has been made as two steps to allow some payment collection before confirming the seat.
+bookTicket(tentativeresponsekey) - Returns TIN for booked ticket.
+Confirm Ticket
+
+Description:
+http://api.seatseller.travel/bookticket?blockKey=hfowlsjf Returns TIN for booked ticket.Once the ticketwas tentatively booked, client/user collects the ticket fare from the customer and calls the server to
+confirm the booking. The client needs to give the tentative reference number(Block key) to confirm theticket. The server will return the confirmed ticket details including Ticket number.
+Method:
+getTicket(tinString) - Returns Ticket object for given TIN
+Cancellation Service
+
+Description:
+This service provides the required APIs for ticket cancellation. getCancellationData - Gives thecancellation data (isCancellable, cancellation charges, refund amount etc.) for given tin.
+IsTicketCancellable - Cancellation status which tells if the ticket is cancelable, the refund amount,
+cancellation policy and cancellation charges.
+CancelTicket - To cancel the tickethttp://api.seatseller.travel/cancellationdata?tin=S293047480AHDReturns CancellationData object which contains cancellation charges and refund amount details.Clientwould make a call to get the details of the ticket to be cancelled.The server would return the amountthat can be refunded in case the ticket is cancelable. User then cancels the ticket and issues refund tothe customer.
+http://api.seatseller.travel/cancelticketThis is post method which takes CancelRequest in request body Returns CancellationResponse whichcontains cancellation details. Client would make a call to server to cancel the ticket.
+Method:
+getCancellationData(cancellationTinString) - Returns CancellationData object which contains cancellationcharges and refund amount details. cancelTicket(makeCancellationRequest) - This is post method whichtakes CancelRequest in request body Returns CancellationResponse which contains cancellation details.
+Sample screen:
+Ticket Information Service
+
+Description:
+http://api.seatseller.travel/ticket?tin=S293047480A6Above will Returns Ticket object for given TIN.Once the ticket is confirmed,Client would make a call toshow all the details of booked ticket like bus type,Source,Destination,DOJ,Cancellation Policy etc.
+Back to top

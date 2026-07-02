@@ -1,6 +1,7 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import type {
   BusApiLog,
+  BusAliasRecord,
   BusBookingRecord,
   BusBookingStatus,
   BusCityRecord,
@@ -8,6 +9,7 @@ import type {
 
 const COLLECTIONS = {
   cities: "busCities",
+  aliases: "busAliases",
   bookings: "busBookings",
   apiLogs: "busApiLogs",
   searchLogs: "busSearchLogs",
@@ -25,6 +27,7 @@ export async function logBusApiCall(input: {
   error?: string;
   bookingId?: string;
   durationMs?: number;
+  meta?: Record<string, unknown>;
 }): Promise<void> {
   if (!isAdminEnvConfigured()) return;
   try {
@@ -78,6 +81,29 @@ export async function syncBusCities(cities: BusCityRecord[]): Promise<number> {
   }
   await batch.commit();
   return cities.length;
+}
+
+export async function syncBusAliases(aliases: BusAliasRecord[]): Promise<number> {
+  if (!isAdminEnvConfigured()) return aliases.length;
+  const db = await getSafeAdminDb();
+  if (!db) return 0;
+
+  const batch = db.batch();
+  const now = new Date().toISOString();
+  for (const alias of aliases) {
+    const ref = db.collection(COLLECTIONS.aliases).doc(alias.id);
+    batch.set(ref, sanitize({ ...alias, syncedAt: now }), { merge: true });
+  }
+  await batch.commit();
+  return aliases.length;
+}
+
+export async function getBusAliasesFromDb(): Promise<BusAliasRecord[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+  const snap = await db.collection(COLLECTIONS.aliases).orderBy("cityName").limit(5000).get();
+  return snap.docs.map((d) => d.data() as BusAliasRecord);
 }
 
 export async function getBusCitiesFromDb(): Promise<BusCityRecord[]> {
