@@ -52,7 +52,31 @@ export function clearBusSession(): void {
 export function filterCities(cities: BusCityRecord[], query: string): BusCityRecord[] {
   const q = query.trim().toLowerCase();
   if (!q) return cities.slice(0, 20);
-  return cities
-    .filter((c) => c.name.toLowerCase().includes(q))
-    .slice(0, 20);
+
+  const normalize = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/\([^)]*\)/g, "")
+      .replace(/[^a-z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const ranked = cities
+    .map((city) => {
+      const raw = city.name.toLowerCase();
+      const normalized = normalize(city.name);
+      let rank = 99;
+      if (raw === q || normalized === q) rank = 0;
+      else if (raw.startsWith(q) || normalized.startsWith(q)) rank = 1;
+      else if (raw.includes(q) || normalized.includes(q)) rank = 2;
+      return { city, rank, normalized };
+    })
+    .filter((row) => row.rank <= 2)
+    .sort((a, b) => a.rank - b.rank || a.city.name.localeCompare(b.city.name));
+
+  const unique = new Map<string, BusCityRecord>();
+  for (const row of ranked) {
+    if (!unique.has(row.normalized)) unique.set(row.normalized, row.city);
+  }
+  return [...unique.values()].slice(0, 20);
 }
