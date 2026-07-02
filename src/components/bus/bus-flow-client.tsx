@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { useBusBookingApi } from "@/hooks/use-bus-booking";
 import {
-  filterCities,
   loadBusSession,
   saveBusSession,
   type BusBookingSession,
@@ -88,7 +87,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const { locale } = useAppStore();
   const api = useBusBookingApi();
 
-  const [cities, setCities] = useState<BusCityRecord[]>([]);
+  const [fromCityOptions, setFromCityOptions] = useState<BusCityRecord[]>([]);
+  const [toCityOptions, setToCityOptions] = useState<BusCityRecord[]>([]);
   const [session, setSession] = useState<BusBookingSession | null>(null);
   const [search, setSearch] = useState<BusSearchParams>({
     sourceCityId: "",
@@ -122,7 +122,6 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     value === true || String(value).toLowerCase() === "true";
 
   useEffect(() => {
-    void api.fetchCities().then((data) => data && setCities(data));
     const saved = loadBusSession();
     if (!saved) return;
     setSession(saved);
@@ -132,6 +131,24 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     if (saved.boardingPoint) setBoardingId(saved.boardingPoint.id);
     if (saved.droppingPoint) setDroppingId(saved.droppingPoint.id);
   }, []);
+
+  useEffect(() => {
+    if (!showFromDropdown) return;
+    const query = fromQuery || search.sourceCityName;
+    const timer = window.setTimeout(() => {
+      void api.fetchCities(query).then((data) => data && setFromCityOptions(data));
+    }, query.length >= 2 ? 200 : 0);
+    return () => window.clearTimeout(timer);
+  }, [fromQuery, search.sourceCityName, showFromDropdown]);
+
+  useEffect(() => {
+    if (!showToDropdown) return;
+    const query = toQuery || search.destinationCityName;
+    const timer = window.setTimeout(() => {
+      void api.fetchCities(query).then((data) => data && setToCityOptions(data));
+    }, query.length >= 2 ? 200 : 0);
+    return () => window.clearTimeout(timer);
+  }, [toQuery, search.destinationCityName, showToDropdown]);
 
   useEffect(() => {
     if (step !== "results" || !search.sourceCityId) return;
@@ -144,8 +161,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       .then((data) => data && setTrips(data.trips));
   }, [step, search.sourceCityId, search.destinationCityId, search.doj]);
 
-  const fromCities = useMemo(() => filterCities(cities, fromQuery), [cities, fromQuery]);
-  const toCities = useMemo(() => filterCities(cities, toQuery), [cities, toQuery]);
+  const fromCities = fromCityOptions;
+  const toCities = toCityOptions;
 
   const handleSearch = async () => {
     if (!search.sourceCityId || !search.destinationCityId || !search.doj) {
@@ -407,14 +424,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                     // User edited text manually; require fresh dropdown selection.
                     setSearch((s) => ({ ...s, sourceCityId: "", sourceCityName: value }));
                     setFromError(null);
-                    void api.fetchCities(value).then((data) => data && setCities(data));
                   }}
                   onFocus={() => {
                     setShowFromDropdown(true);
                     setShowToDropdown(false);
-                    void api
-                      .fetchCities(fromQuery || search.sourceCityName)
-                      .then((data) => data && setCities(data));
                   }}
                   onClick={() => {
                     setShowFromDropdown(true);
@@ -481,14 +494,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                       destinationCityName: value,
                     }));
                     setToError(null);
-                    void api.fetchCities(value).then((data) => data && setCities(data));
                   }}
                   onFocus={() => {
                     setShowToDropdown(true);
                     setShowFromDropdown(false);
-                    void api
-                      .fetchCities(toQuery || search.destinationCityName)
-                      .then((data) => data && setCities(data));
                   }}
                   onClick={() => {
                     setShowToDropdown(true);

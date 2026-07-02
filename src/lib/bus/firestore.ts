@@ -1,4 +1,5 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { POPULAR_BUS_CITY_SEARCH_NAMES } from "@/lib/bus/cities-search";
 import type {
   BusApiLog,
   BusAliasRecord,
@@ -141,6 +142,56 @@ export async function getBusCitiesFromDb(): Promise<BusCityRecord[]> {
   if (!db) return [];
   const snap = await db.collection(COLLECTIONS.cities).orderBy("name").limit(5000).get();
   return snap.docs.map((d) => d.data() as BusCityRecord);
+}
+
+/** Prefix search across all synced cities (not limited to first 5000 alphabetically). */
+export async function searchBusCitiesInDb(
+  query: string,
+  limit = 80
+): Promise<BusCityRecord[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+
+  const snap = await db
+    .collection(COLLECTIONS.cities)
+    .orderBy("searchName")
+    .startAt(q)
+    .endAt(`${q}\uf8ff`)
+    .limit(limit)
+    .get();
+
+  return snap.docs.map((d) => d.data() as BusCityRecord);
+}
+
+/** Quick picks for empty / short search — includes sandbox sample-route cities. */
+export async function getPopularBusCitiesFromDb(): Promise<BusCityRecord[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const names = [...POPULAR_BUS_CITY_SEARCH_NAMES];
+  const snap = await db
+    .collection(COLLECTIONS.cities)
+    .where("searchName", "in", names.slice(0, 30))
+    .get();
+
+  const bySearchName = new Map<string, BusCityRecord>();
+  for (const doc of snap.docs) {
+    const city = doc.data() as BusCityRecord;
+    const key = city.searchName ?? city.name.toLowerCase().trim();
+    const existing = bySearchName.get(key);
+    if (!existing || city.name.length < existing.name.length) {
+      bySearchName.set(key, city);
+    }
+  }
+
+  return names
+    .map((name) => bySearchName.get(name))
+    .filter((city): city is BusCityRecord => Boolean(city));
 }
 
 export async function getBusCitiesLastSyncedAt(): Promise<string | null> {
