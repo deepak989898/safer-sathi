@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Database, Loader2, RefreshCw } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 export default function BusBookingsAdminClient() {
   const [bookings, setBookings] = useState<BusBookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncingCities, setSyncingCities] = useState(false);
   const [selected, setSelected] = useState<BusBookingRecord | null>(null);
   const [note, setNote] = useState("");
 
@@ -37,6 +38,25 @@ export default function BusBookingsAdminClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const syncCities = async () => {
+    setSyncingCities(true);
+    try {
+      const res = await adminApiFetch("/api/bus/sync-cities?force=true", { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const { synced, count, aliasCount, message } = json.data ?? {};
+      if (synced) {
+        toast.success(`Synced ${count ?? 0} cities${aliasCount ? ` and ${aliasCount} aliases` : ""}`);
+      } else {
+        toast.info(message ?? `Cities already synced (${count ?? 0} in database)`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "City sync failed");
+    } finally {
+      setSyncingCities(false);
+    }
+  };
 
   const runAction = async (bookingId: string, action: string, adminNotes?: string) => {
     try {
@@ -62,9 +82,24 @@ export default function BusBookingsAdminClient() {
         <p className="text-sm text-muted-foreground">
           SeatSeller bus bookings — pending, confirmed, manual review & cancelled
         </p>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => void syncCities()}
+            disabled={syncingCities}
+          >
+            {syncingCities ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="mr-2 h-4 w-4" />
+            )}
+            Sync bus cities
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 p-4 lg:grid-cols-[1fr_380px]">
