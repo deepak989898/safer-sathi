@@ -41,6 +41,7 @@ export default function BusBookingsAdminClient() {
 
   const syncCities = async () => {
     setSyncingCities(true);
+    toast.info("Syncing cities from SeatSeller — this can take 1–2 minutes on first run.");
     try {
       const res = await adminApiFetch("/api/bus/sync-cities?force=true", { method: "POST" });
       const json = await res.json();

@@ -13,7 +13,11 @@ const COLLECTIONS = {
   bookings: "busBookings",
   apiLogs: "busApiLogs",
   searchLogs: "busSearchLogs",
+  meta: "busMeta",
 } as const;
+
+/** Firestore allows max 500 operations per batch — stay safely under that. */
+const FIRESTORE_BATCH_SIZE = 400;
 
 function sanitize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -68,33 +72,59 @@ export async function logBusSearch(input: {
   }
 }
 
-export async function syncBusCities(cities: BusCityRecord[]): Promise<number> {
-  if (!isAdminEnvConfigured()) return cities.length;
+async function commitCollectionInBatches(
+  collection: string,
+  records: Array<{ id: string; data: Record<string, unknown> }>
+): Promise<number> {
+  if (!records.length) return 0;
   const db = await getSafeAdminDb();
   if (!db) return 0;
 
-  const batch = db.batch();
-  for (const city of cities) {
-    const ref = db.collection(COLLECTIONS.cities).doc(city.id);
-    batch.set(ref, sanitize(city), { merge: true });
+  let written = 0;
+  for (let i = 0; i < records.length; i += FIRESTORE_BATCH_SIZE) {
+    const chunk = records.slice(i, i + FIRESTORE_BATCH_SIZE);
+    const batch = db.batch();
+    for (const record of chunk) {
+      const ref = db.collection(collection).doc(record.id);
+      batch.set(ref, sanitize(record.data), { merge: true });
+    }
+    await batch.commit();
+    written += chunk.length;
   }
-  await batch.commit();
-  return cities.length;
+  return written;
+}
+
+export async function syncBusCities(cities: BusCityRecord[]): Promise<number> {
+  if (!isAdminEnvConfigured()) return cities.length;
+  const count = await commitCollectionInBatches(
+    COLLECTIONS.cities,
+    cities.map((city) => ({ id: city.id, data: city as unknown as Record<string, unknown> }))
+  );
+  if (count > 0) {
+    const db = await getSafeAdminDb();
+    if (db) {
+      await db.collection(COLLECTIONS.meta).doc("cities").set(
+        sanitize({
+          lastSyncedAt: new Date().toISOString(),
+          count,
+        }),
+        { merge: true }
+      );
+    }
+  }
+  return count;
 }
 
 export async function syncBusAliases(aliases: BusAliasRecord[]): Promise<number> {
   if (!isAdminEnvConfigured()) return aliases.length;
-  const db = await getSafeAdminDb();
-  if (!db) return 0;
-
-  const batch = db.batch();
   const now = new Date().toISOString();
-  for (const alias of aliases) {
-    const ref = db.collection(COLLECTIONS.aliases).doc(alias.id);
-    batch.set(ref, sanitize({ ...alias, syncedAt: now }), { merge: true });
-  }
-  await batch.commit();
-  return aliases.length;
+  return commitCollectionInBatches(
+    COLLECTIONS.aliases,
+    aliases.map((alias) => ({
+      id: alias.id,
+      data: { ...alias, syncedAt: now } as Record<string, unknown>,
+    }))
+  );
 }
 
 export async function getBusAliasesFromDb(): Promise<BusAliasRecord[]> {
@@ -114,6 +144,16 @@ export async function getBusCitiesFromDb(): Promise<BusCityRecord[]> {
 }
 
 export async function getBusCitiesLastSyncedAt(): Promise<string | null> {
+  if (!isAdminEnvConfigured()) return null;
+  const db = await getSafeAdminDb();
+  if (!db) return null;
+
+  const meta = await db.collection(COLLECTIONS.meta).doc("cities").get();
+  if (meta.exists) {
+    const lastSyncedAt = meta.data()?.lastSyncedAt;
+    if (typeof lastSyncedAt === "string" && lastSyncedAt) return lastSyncedAt;
+  }
+
   const cities = await getBusCitiesFromDb();
   if (!cities.length) return null;
   return cities.reduce(
