@@ -1,16 +1,20 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { Bus } from "lucide-react";
 import type { SeatSellerSeat } from "@/lib/seatseller/types";
+import {
+  buildDeckLayout,
+  splitSeatsByDeck,
+  type LayoutSeat,
+} from "@/lib/bus/seat-layout-utils";
 import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/i18n";
-import { useAppStore } from "@/store/app-store";
 
 interface BusSeatLayoutProps {
   seats: SeatSellerSeat[];
   selected: SeatSellerSeat[];
   maxSeats: number;
   onToggle: (seat: SeatSellerSeat) => void;
-  passengerGenders?: Array<"MALE" | "FEMALE" | null>;
 }
 
 function seatStatus(
@@ -24,135 +28,201 @@ function seatStatus(
   return "available";
 }
 
+function SeatButton({
+  seat,
+  selected,
+  maxSeats,
+  onToggle,
+  tall,
+}: {
+  seat: LayoutSeat;
+  selected: SeatSellerSeat[];
+  maxSeats: number;
+  onToggle: (seat: SeatSellerSeat) => void;
+  tall: boolean;
+}) {
+  const status = seatStatus(seat, selected);
+  const disabled =
+    status === "booked" || (selected.length >= maxSeats && status !== "selected");
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onToggle(seat)}
+      title={seat.fare ? `${seat.name} — ₹${seat.fare}` : seat.name}
+      style={{
+        gridRow: `span ${seat.rowSpan}`,
+      }}
+      className={cn(
+        "flex w-11 items-center justify-center rounded-lg border-2 text-[11px] font-bold transition-all",
+        tall ? "min-h-[52px]" : "h-10",
+        status === "booked" &&
+          "cursor-not-allowed border-rose-200 bg-rose-100 text-rose-400",
+        status === "available" &&
+          "border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#1a4fa3] hover:shadow",
+        status === "selected" &&
+          "border-emerald-600 bg-emerald-500 text-white shadow-md ring-2 ring-emerald-200",
+        status === "ladies" &&
+          "border-pink-300 bg-pink-50 text-pink-800 hover:border-pink-500",
+        status === "male" &&
+          "border-sky-300 bg-sky-50 text-sky-800 hover:border-sky-500"
+      )}
+    >
+      {seat.name}
+    </button>
+  );
+}
+
+function DeckSection({
+  label,
+  seats,
+  selected,
+  maxSeats,
+  onToggle,
+  tall,
+}: {
+  label: string;
+  seats: SeatSellerSeat[];
+  selected: SeatSellerSeat[];
+  maxSeats: number;
+  onToggle: (seat: SeatSellerSeat) => void;
+  tall: boolean;
+}) {
+  const { seats: layoutSeats } = buildDeckLayout(seats);
+  if (!layoutSeats.length) return null;
+
+  const rowGroups = new Map<number, LayoutSeat[]>();
+  for (const seat of layoutSeats) {
+    const group = rowGroups.get(seat.gridRow) ?? [];
+    group.push(seat);
+    rowGroups.set(seat.gridRow, group);
+  }
+
+  const sortedRows = [...rowGroups.keys()].sort((a, b) => a - b);
+
+  return (
+    <div className="flex-1 min-w-0">
+      <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-slate-500">
+        {label}
+      </p>
+      <div className="mx-auto max-w-[220px] space-y-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+        {sortedRows.map((rowNum) => {
+          const rowSeats = [...(rowGroups.get(rowNum) ?? [])].sort(
+            (a, b) => a.gridCol - b.gridCol
+          );
+
+          const nodes: ReactNode[] = [];
+          for (let i = 0; i < rowSeats.length; i += 1) {
+            const seat = rowSeats[i];
+            const prev = rowSeats[i - 1];
+            if (prev && seat.gridCol - prev.gridCol > 1) {
+              nodes.push(
+                <div
+                  key={`aisle-${rowNum}-${i}`}
+                  className="mx-1 w-5 shrink-0 border-l border-dashed border-slate-300"
+                  aria-hidden
+                />
+              );
+            }
+            nodes.push(
+              <SeatButton
+                key={seat.name}
+                seat={seat}
+                selected={selected}
+                maxSeats={maxSeats}
+                onToggle={onToggle}
+                tall={tall}
+              />
+            );
+          }
+
+          return (
+            <div key={rowNum} className="flex items-center justify-center gap-1.5">
+              {nodes}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function BusSeatLayout({
   seats,
   selected,
   maxSeats,
   onToggle,
 }: BusSeatLayoutProps) {
-  const { locale } = useAppStore();
-
   if (!seats.length) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
+      <p className="py-8 text-center text-sm text-slate-500">
         No seats available to display.
       </p>
     );
   }
 
-  const safeSeats = seats.map((seat) => ({
-    ...seat,
-    row: Number(seat.row) || 1,
-    column: Number(seat.column) || 1,
-    zIndex: Number(seat.zIndex) || 0,
-  }));
-
-  const upper = safeSeats.filter((s) => s.zIndex > 0);
-  const lower = safeSeats.filter((s) => s.zIndex === 0);
-  const isSleeper = upper.length > 0;
-
-  const renderDeck = (deckSeats: typeof safeSeats, label: string) => {
-    if (!deckSeats.length) return null;
-
-    const maxRow = Math.max(...deckSeats.map((s) => s.row));
-    const maxCol = Math.max(...deckSeats.map((s) => s.column));
-
-    return (
-      <div className="space-y-3">
-        <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <div
-          className="mx-auto grid gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${maxCol}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${maxRow}, minmax(0, auto))`,
-            maxWidth: isSleeper ? 280 : 320,
-          }}
-        >
-          {deckSeats.map((seat) => {
-            const status = seatStatus(seat, selected);
-            const disabled =
-              status === "booked" ||
-              (selected.length >= maxSeats && status !== "selected");
-
-            return (
-              <button
-                key={`${label}-${seat.name}`}
-                type="button"
-                disabled={disabled}
-                onClick={() => onToggle(seat)}
-                style={{
-                  gridRow: seat.row,
-                  gridColumn: seat.column,
-                }}
-                title={
-                  seat.fare
-                    ? `${seat.name} — ${formatCurrency(seat.fare, locale)}`
-                    : String(seat.name)
-                }
-                className={cn(
-                  "flex items-center justify-center rounded-md border text-[10px] font-semibold transition-colors",
-                  isSleeper ? "h-14" : "h-10",
-                  status === "booked" && "cursor-not-allowed bg-muted text-muted-foreground",
-                  status === "available" && "border-border bg-background hover:border-primary",
-                  status === "selected" && "border-primary bg-primary text-primary-foreground",
-                  status === "ladies" &&
-                    "border-pink-300 bg-pink-50 text-pink-800 hover:border-pink-500",
-                  status === "male" &&
-                    "border-blue-300 bg-blue-50 text-blue-800 hover:border-blue-500"
-                )}
-              >
-                {seat.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const { lower, upper, isSleeper } = splitSeatsByDeck(seats);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap justify-center gap-4 text-xs">
-        <span className="flex items-center gap-1.5">
-          <span className="h-4 w-4 rounded border bg-background" /> Available
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-8 rounded-md border-2 border-slate-200 bg-white" />
+          Available
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-4 w-4 rounded border border-primary bg-primary" /> Selected
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-8 rounded-md border-2 border-emerald-600 bg-emerald-500" />
+          Selected
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-4 w-4 rounded bg-muted" /> Booked
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-8 rounded-md border-2 border-rose-200 bg-rose-100" />
+          Booked
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-4 w-4 rounded border-pink-300 bg-pink-50" /> Ladies
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-8 rounded-md border-2 border-pink-300 bg-pink-50" />
+          Ladies
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-4 w-4 rounded border-blue-300 bg-blue-50" /> Male
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-8 rounded-md border-2 border-sky-300 bg-sky-50" />
+          Male
         </span>
       </div>
 
-      {isSleeper ? (
-        <div className="grid gap-8 md:grid-cols-2">
-          {renderDeck(lower, "Lower deck")}
-          {renderDeck(upper, "Upper deck")}
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex h-10 w-24 items-center justify-center rounded-t-2xl rounded-b-md border-2 border-slate-300 bg-slate-100">
+          <Bus className="h-5 w-5 text-slate-400" />
         </div>
-      ) : (
-        renderDeck(safeSeats, "Select your seat")
-      )}
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+          Front
+        </p>
+      </div>
 
-      {selected.length > 0 && (
-        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-          <p className="font-medium">Selected: {selected.map((s) => s.name).join(", ")}</p>
-          <p className="text-muted-foreground">
-            Total:{" "}
-            {formatCurrency(
-              selected.reduce((sum, s) => sum + (s.fare ?? 0), 0),
-              locale
-            )}
-          </p>
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex gap-6",
+          isSleeper ? "flex-col md:flex-row md:items-start" : "justify-center"
+        )}
+      >
+        <DeckSection
+          label={isSleeper ? "Lower Deck" : "Select your seat"}
+          seats={isSleeper ? lower : seats}
+          selected={selected}
+          maxSeats={maxSeats}
+          onToggle={onToggle}
+          tall={isSleeper}
+        />
+        {isSleeper && upper.length > 0 && (
+          <DeckSection
+            label="Upper Deck"
+            seats={upper}
+            selected={selected}
+            maxSeats={maxSeats}
+            onToggle={onToggle}
+            tall
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import type { BusSearchDebug } from "@/lib/bus/debug";
 import { logBusSearchDebug } from "@/lib/bus/debug";
 import { normalizeSeatSellerSeats } from "@/lib/bus/normalize-seats";
+import { parseTripEmbeddedBpDp } from "@/lib/seatseller/parse-trip-details";
 import {
   loadBusSearchResults,
   saveBusSearchResults,
@@ -134,6 +135,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [passengers, setPassengers] = useState<BusPassengerDetail[]>([]);
   const [seatLayoutError, setSeatLayoutError] = useState<string | null>(null);
   const [seatLayoutLoading, setSeatLayoutLoading] = useState(step === "seat-layout");
+  const [pointsLoading, setPointsLoading] = useState(step === "seat-layout");
 
   const isBpDpSeatLayoutEnabled = (value: unknown): boolean =>
     value === true || String(value).toLowerCase() === "true";
@@ -343,9 +345,13 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }
 
     setSeatLayoutLoading(true);
+    setPointsLoading(true);
     setSeatLayoutError(null);
     void (async () => {
       try {
+        const embedded = parseTripEmbeddedBpDp(
+          session?.trip as Record<string, unknown> | undefined
+        );
         const [details, points] = await Promise.all([
           api.fetchTripDetails({ tripId }),
           api.fetchBpDp(tripId),
@@ -364,17 +370,27 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           maxSeatsPerTicket: details.maxSeatsPerTicket || 6,
           forcedSeats: details.forcedSeats,
         });
-        if (points) {
-          setBpdp(points);
-          const firstBoarding = points.boardingPoints.find((p) => p.id);
-          const firstDropping = points.droppingPoints.find((p) => p.id);
-          if (firstBoarding) setBoardingId(firstBoarding.id);
-          if (firstDropping) setDroppingId(firstDropping.id);
-        }
+
+        const merged = {
+          boardingPoints:
+            points?.boardingPoints?.length
+              ? points.boardingPoints
+              : embedded.boardingPoints,
+          droppingPoints:
+            points?.droppingPoints?.length
+              ? points.droppingPoints
+              : embedded.droppingPoints,
+        };
+        setBpdp(merged);
+        const firstBoarding = merged.boardingPoints.find((p) => p.id);
+        const firstDropping = merged.droppingPoints.find((p) => p.id);
+        if (firstBoarding) setBoardingId(firstBoarding.id);
+        if (firstDropping) setDroppingId(firstDropping.id);
       } catch (e) {
         setSeatLayoutError(e instanceof Error ? e.message : "Failed to load seat layout");
       } finally {
         setSeatLayoutLoading(false);
+        setPointsLoading(false);
       }
     })();
   }, [ready, step, session?.trip?.id]);
@@ -648,6 +664,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         droppingId={droppingId}
         boardingPoints={bpdp?.boardingPoints ?? []}
         droppingPoints={bpdp?.droppingPoints ?? []}
+        pointsLoading={pointsLoading}
         locale={locale}
         onToggleSeat={toggleSeat}
         onBoardingChange={setBoardingId}
