@@ -203,7 +203,11 @@ export interface BusCityRecord {
   id: string;
   name: string;
   state?: string;
-  syncedAt: string;
+  stateId?: string;
+  latitude?: number;
+  longitude?: number;
+  searchName: string;
+  updatedAt: string;
 }
 
 export interface BusApiLog {

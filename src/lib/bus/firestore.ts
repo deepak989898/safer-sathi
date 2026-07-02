@@ -74,10 +74,9 @@ export async function syncBusCities(cities: BusCityRecord[]): Promise<number> {
   if (!db) return 0;
 
   const batch = db.batch();
-  const now = new Date().toISOString();
   for (const city of cities) {
     const ref = db.collection(COLLECTIONS.cities).doc(city.id);
-    batch.set(ref, sanitize({ ...city, syncedAt: now }), { merge: true });
+    batch.set(ref, sanitize(city), { merge: true });
   }
   await batch.commit();
   return cities.length;
@@ -117,7 +116,10 @@ export async function getBusCitiesFromDb(): Promise<BusCityRecord[]> {
 export async function getBusCitiesLastSyncedAt(): Promise<string | null> {
   const cities = await getBusCitiesFromDb();
   if (!cities.length) return null;
-  return cities.reduce((latest, c) => (c.syncedAt > latest ? c.syncedAt : latest), cities[0].syncedAt);
+  return cities.reduce(
+    (latest, c) => (c.updatedAt > latest ? c.updatedAt : latest),
+    cities[0].updatedAt
+  );
 }
 
 export async function createBusBooking(

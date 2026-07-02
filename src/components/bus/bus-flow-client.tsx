@@ -101,6 +101,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [toQuery, setToQuery] = useState("");
   const [showFromDropdown, setShowFromDropdown] = useState(false);
   const [showToDropdown, setShowToDropdown] = useState(false);
+  const [fromError, setFromError] = useState<string | null>(null);
+  const [toError, setToError] = useState<string | null>(null);
   const [trips, setTrips] = useState<BusBookingSession["trip"][]>([]);
   const [tripDetails, setTripDetails] = useState<{
     seats: SeatSellerSeat[];
@@ -147,33 +149,43 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   const handleSearch = async () => {
     if (!search.sourceCityId || !search.destinationCityId || !search.doj) {
-      toast.error("Please select source, destination and date");
+      if (!search.sourceCityId) setFromError("Please select a valid source city from dropdown");
+      if (!search.destinationCityId) {
+        setToError("Please select a valid destination city from dropdown");
+      }
+      toast.error("Please select valid source, destination and date");
       return;
     }
-    const result = await api.searchTrips({
+    setFromError(null);
+    setToError(null);
+
+    const requestBody = {
       source: search.sourceCityId,
       destination: search.destinationCityId,
-      doj: search.doj,
+      doj: search.doj.slice(0, 10),
       sourceName: search.sourceCityName,
       destinationName: search.destinationCityName,
+    };
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[bus-search] selected city IDs", {
+        sourceCityId: requestBody.source,
+        destinationCityId: requestBody.destination,
+      });
+      console.log("[bus-search] request body", requestBody);
+    }
+
+    const result = await api.searchTrips({
+      ...requestBody,
     });
     if (!result) {
       toast.error(api.error ?? "Trip search failed. Please try again.");
       return;
     }
-    setTrips(result.trips);
-    if (result.trips.length === 0) {
-      if (
-        result.meta &&
-        (result.meta.sourceUsed !== result.meta.sourceRequested ||
-          result.meta.destinationUsed !== result.meta.destinationRequested)
-      ) {
-        toast.message("Used canonical city IDs from SeatSeller aliases. No buses found for this date.");
-      }
-      toast.message(
-        "No trips found for this route/date. Try sample routes: Bangalore-Hyderabad, Bangalore-Chennai, Mysore-Bangalore."
-      );
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[bus-search] response count", result.count);
     }
+    setTrips(result.trips);
+    toast.message(result.message || "Search completed");
     router.push("/bus/results");
   };
 
@@ -394,14 +406,26 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                     setFromQuery(value);
                     // User edited text manually; require fresh dropdown selection.
                     setSearch((s) => ({ ...s, sourceCityId: "", sourceCityName: value }));
+                    setFromError(null);
+                    void api.fetchCities(value).then((data) => data && setCities(data));
                   }}
                   onFocus={() => {
                     setShowFromDropdown(true);
                     setShowToDropdown(false);
+                    void api
+                      .fetchCities(fromQuery || search.sourceCityName)
+                      .then((data) => data && setCities(data));
                   }}
                   onClick={() => {
                     setShowFromDropdown(true);
                     setShowToDropdown(false);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (!search.sourceCityId && (fromQuery || search.sourceCityName)) {
+                        setFromError("Please choose a valid city from suggestions");
+                      }
+                    }, 120);
                   }}
                 />
                 {showFromDropdown && (
@@ -418,6 +442,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                             sourceCityName: c.name,
                           }));
                           setFromQuery("");
+                          setFromError(null);
                           setShowFromDropdown(false);
                         }}
                       >
@@ -426,6 +451,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                     ))}
                   </div>
                 )}
+                {fromError && <p className="mt-1 text-xs text-destructive">{fromError}</p>}
               </div>
               <div className="flex items-end justify-center lg:items-center">
                 <Button
@@ -454,14 +480,26 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                       destinationCityId: "",
                       destinationCityName: value,
                     }));
+                    setToError(null);
+                    void api.fetchCities(value).then((data) => data && setCities(data));
                   }}
                   onFocus={() => {
                     setShowToDropdown(true);
                     setShowFromDropdown(false);
+                    void api
+                      .fetchCities(toQuery || search.destinationCityName)
+                      .then((data) => data && setCities(data));
                   }}
                   onClick={() => {
                     setShowToDropdown(true);
                     setShowFromDropdown(false);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (!search.destinationCityId && (toQuery || search.destinationCityName)) {
+                        setToError("Please choose a valid city from suggestions");
+                      }
+                    }, 120);
                   }}
                 />
                 {showToDropdown && (
@@ -478,6 +516,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                             destinationCityName: c.name,
                           }));
                           setToQuery("");
+                          setToError(null);
                           setShowToDropdown(false);
                         }}
                       >
@@ -486,6 +525,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                     ))}
                   </div>
                 )}
+                {toError && <p className="mt-1 text-xs text-destructive">{toError}</p>}
               </div>
               <div>
                 <Label>Journey date</Label>
@@ -525,10 +565,15 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           {search.sourceCityName} → {search.destinationCityName} · {search.doj}
         </p>
         <div className="mt-6 space-y-4">
+          {api.error && (
+            <Card>
+              <CardContent className="py-4 text-sm text-destructive">{api.error}</CardContent>
+            </Card>
+          )}
           {trips.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground">
-                No buses found. Try another date or route.
+                No buses found for this route/date. Please try another date.
               </CardContent>
             </Card>
           )}

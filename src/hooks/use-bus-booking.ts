@@ -29,9 +29,10 @@ export function useBusBookingApi() {
     }
   }, []);
 
-  const fetchCities = useCallback(async () => {
+  const fetchCities = useCallback(async (query?: string) => {
     return run(async () => {
-      const res = await fetch("/api/bus/cities");
+      const qs = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+      const res = await fetch(`/api/bus/cities${qs}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Failed to load cities");
       return json.data.cities as BusCityRecord[];
@@ -53,18 +54,15 @@ export function useBusBookingApi() {
           body: JSON.stringify(input),
         });
         const json = await res.json();
-        if (!json.success) throw new Error(json.error ?? "Search failed");
+        if (!json.success) {
+          const raw = json.details?.rawError ? ` | raw: ${JSON.stringify(json.details.rawError)}` : "";
+          throw new Error(`${json.error ?? "Search failed"}${raw}`);
+        }
         return {
           trips: json.data.trips as BusSelectedTrip[],
+          count: Number(json.data.count ?? 0),
+          message: String(json.data.message ?? ""),
           doj: json.data.doj as string,
-          meta: json.data.meta as
-            | {
-                sourceRequested: string;
-                destinationRequested: string;
-                sourceUsed: string;
-                destinationUsed: string;
-              }
-            | undefined,
         };
       });
     },

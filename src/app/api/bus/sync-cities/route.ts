@@ -40,7 +40,17 @@ export async function POST(request: Request) {
       id: String(c.id),
       name: c.name,
       state: c.state,
-      syncedAt: new Date().toISOString(),
+      stateId: c.stateId ? String(c.stateId) : undefined,
+      latitude:
+        typeof c.latitude === "number" ? c.latitude : c.latitude ? Number(c.latitude) : undefined,
+      longitude:
+        typeof c.longitude === "number"
+          ? c.longitude
+          : c.longitude
+            ? Number(c.longitude)
+            : undefined,
+      searchName: c.name.toLowerCase().trim(),
+      updatedAt: new Date().toISOString(),
     }));
 
     const count = await syncBusCities(records);
