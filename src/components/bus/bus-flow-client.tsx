@@ -154,6 +154,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       source: search.sourceCityId,
       destination: search.destinationCityId,
       doj: search.doj,
+      sourceName: search.sourceCityName,
+      destinationName: search.destinationCityName,
     });
     if (!result) {
       toast.error(api.error ?? "Trip search failed. Please try again.");
@@ -161,6 +163,13 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }
     setTrips(result.trips);
     if (result.trips.length === 0) {
+      if (
+        result.meta &&
+        (result.meta.sourceUsed !== result.meta.sourceRequested ||
+          result.meta.destinationUsed !== result.meta.destinationRequested)
+      ) {
+        toast.message("Used canonical city IDs from SeatSeller aliases. No buses found for this date.");
+      }
       toast.message(
         "No trips found for this route/date. Try sample routes: Bangalore-Hyderabad, Bangalore-Chennai, Mysore-Bangalore."
       );

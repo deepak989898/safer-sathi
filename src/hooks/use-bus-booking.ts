@@ -39,7 +39,13 @@ export function useBusBookingApi() {
   }, [run]);
 
   const searchTrips = useCallback(
-    async (input: { source: string; destination: string; doj: string }) => {
+    async (input: {
+      source: string;
+      destination: string;
+      doj: string;
+      sourceName?: string;
+      destinationName?: string;
+    }) => {
       return run(async () => {
         const res = await fetch("/api/bus/available-trips", {
           method: "POST",
@@ -51,6 +57,14 @@ export function useBusBookingApi() {
         return {
           trips: json.data.trips as BusSelectedTrip[],
           doj: json.data.doj as string,
+          meta: json.data.meta as
+            | {
+                sourceRequested: string;
+                destinationRequested: string;
+                sourceUsed: string;
+                destinationUsed: string;
+              }
+            | undefined,
         };
       });
     },

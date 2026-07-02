@@ -232,6 +232,21 @@ export async function fetchAvailableTrips(input: {
         },
       });
       const { trips, keys } = extractTrips(data);
+      const possibleError =
+        data && typeof data === "object"
+          ? String(
+              (data as Record<string, unknown>).error ??
+                (data as Record<string, unknown>).message ??
+                ""
+            )
+          : "";
+      if (!trips.length && possibleError) {
+        throw new SeatSellerApiError(
+          `SeatSeller availabletrips error: ${possibleError}`,
+          undefined,
+          data
+        );
+      }
       await logBusApiCall({
         endpoint,
         method: "GET",
