@@ -28,12 +28,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBusBookingApi } from "@/hooks/use-bus-booking";
+import { useAuth } from "@/contexts/auth-context";
+import type { BusSearchDebug } from "@/lib/bus/debug";
+import { logBusSearchDebug } from "@/lib/bus/debug";
+import { formatBusCityLabel } from "@/lib/bus/cities-search";
+import {
+  loadBusSearchResults,
+  saveBusSearchResults,
+} from "@/lib/bus/search-session";
 import {
   loadBusSession,
   saveBusSession,
   type BusBookingSession,
   type BusSearchParams,
 } from "@/lib/bus/session";
+import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
 import type { BusCityRecord } from "@/lib/seatseller/types";
@@ -85,7 +94,9 @@ function BlockTimer({ expiresAt }: { expiresAt: string }) {
 export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const router = useRouter();
   const { locale } = useAppStore();
+  const { user } = useAuth();
   const api = useBusBookingApi();
+  const isStaff = user ? canShowAdminNav(user.role) : false;
 
   const [fromCityOptions, setFromCityOptions] = useState<BusCityRecord[]>([]);
   const [toCityOptions, setToCityOptions] = useState<BusCityRecord[]>([]);
@@ -104,6 +115,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   const [fromError, setFromError] = useState<string | null>(null);
   const [toError, setToError] = useState<string | null>(null);
   const [trips, setTrips] = useState<BusBookingSession["trip"][]>([]);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [searchDebug, setSearchDebug] = useState<BusSearchDebug | null>(null);
+  const [resultsLoading, setResultsLoading] = useState(step === "results");
+  const [resultsLoaded, setResultsLoaded] = useState(false);
   const [tripDetails, setTripDetails] = useState<{
     seats: SeatSellerSeat[];
     maxSeatsPerTicket: number;
@@ -123,14 +138,31 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
 
   useEffect(() => {
     const saved = loadBusSession();
-    if (!saved) return;
-    setSession(saved);
-    setSearch(saved.search);
-    if (saved.selectedSeats?.length) setSelectedSeats(saved.selectedSeats);
-    if (saved.passengers?.length) setPassengers(saved.passengers);
-    if (saved.boardingPoint) setBoardingId(saved.boardingPoint.id);
-    if (saved.droppingPoint) setDroppingId(saved.droppingPoint.id);
-  }, []);
+    if (saved) {
+      setSession(saved);
+      setSearch(saved.search);
+      if (saved.selectedSeats?.length) setSelectedSeats(saved.selectedSeats);
+      if (saved.passengers?.length) setPassengers(saved.passengers);
+      if (saved.boardingPoint) setBoardingId(saved.boardingPoint.id);
+      if (saved.droppingPoint) setDroppingId(saved.droppingPoint.id);
+    }
+
+    if (step !== "results") return;
+    const cached = loadBusSearchResults();
+    if (!cached) {
+      setResultsLoading(false);
+      return;
+    }
+    setSearch(cached.search);
+    setTrips(cached.trips);
+    setSearchMessage(cached.message);
+    setSearchDebug(cached.debug ?? null);
+    setResultsLoading(false);
+    setResultsLoaded(true);
+    if (cached.debug) {
+      logBusSearchDebug(cached.debug);
+    }
+  }, [step]);
 
   useEffect(() => {
     if (!showFromDropdown) return;
@@ -151,24 +183,44 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   }, [toQuery, search.destinationCityName, showToDropdown]);
 
   useEffect(() => {
-    if (step !== "results" || !search.sourceCityId) return;
+    if (step !== "results" || resultsLoaded || !search.sourceCityId) return;
+    setResultsLoading(true);
     void api
       .searchTrips({
         source: search.sourceCityId,
         destination: search.destinationCityId,
         doj: search.doj,
+        sourceName: search.sourceCityName,
+        destinationName: search.destinationCityName,
       })
-      .then((data) => data && setTrips(data.trips));
-  }, [step, search.sourceCityId, search.destinationCityId, search.doj]);
+      .then((data) => {
+        if (!data) return;
+        setTrips(data.trips);
+        setSearchMessage(data.message);
+        setSearchDebug(data.debug ?? null);
+        if (data.debug) logBusSearchDebug(data.debug);
+      })
+      .finally(() => setResultsLoading(false));
+  }, [
+    step,
+    resultsLoaded,
+    search.sourceCityId,
+    search.destinationCityId,
+    search.doj,
+    search.sourceCityName,
+    search.destinationCityName,
+  ]);
 
   const fromCities = fromCityOptions;
   const toCities = toCityOptions;
 
   const handleSearch = async () => {
     if (!search.sourceCityId || !search.destinationCityId || !search.doj) {
-      if (!search.sourceCityId) setFromError("Please select a valid source city from dropdown");
+      if (!search.sourceCityId) {
+        setFromError("Please select a valid bus city from suggestions.");
+      }
       if (!search.destinationCityId) {
-        setToError("Please select a valid destination city from dropdown");
+        setToError("Please select a valid bus city from suggestions.");
       }
       toast.error("Please select valid source, destination and date");
       return;
@@ -183,26 +235,59 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       sourceName: search.sourceCityName,
       destinationName: search.destinationCityName,
     };
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[bus-search] selected city IDs", {
-        sourceCityId: requestBody.source,
-        destinationCityId: requestBody.destination,
-      });
-      console.log("[bus-search] request body", requestBody);
-    }
 
-    const result = await api.searchTrips({
-      ...requestBody,
+    const debugLog = {
+      sourceCityName: search.sourceCityName,
+      sourceCityId: search.sourceCityId,
+      destinationCityName: search.destinationCityName,
+      destinationCityId: search.destinationCityId,
+      journeyDate: search.doj.slice(0, 10),
+    };
+    console.log("[bus-search] submit", debugLog);
+    logBusSearchDebug({
+      ...debugLog,
+      destinationCityId: debugLog.destinationCityId,
+      sourceCityId: debugLog.sourceCityId,
+      journeyDateInput: debugLog.journeyDate,
+      journeyDateSentToApi: debugLog.journeyDate,
+      requestBody,
+      apiUrl: "/api/bus/available-trips",
+      apiMethod: "POST",
+      rawSeatSellerResponse: null,
+      parsedTripsCount: 0,
+      parsedTripsPreview: [],
+      errorMessage: null,
+      timestamp: new Date().toISOString(),
     });
+
+    const result = await api.searchTrips(requestBody);
     if (!result) {
       toast.error(api.error ?? "Trip search failed. Please try again.");
       return;
     }
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[bus-search] response count", result.count);
+
+    if (result.debug) {
+      logBusSearchDebug(result.debug);
+      if (isStaff) setSearchDebug(result.debug);
     }
+
     setTrips(result.trips);
-    toast.message(result.message || "Search completed");
+    setSearchMessage(result.message);
+    setResultsLoaded(true);
+    saveBusSearchResults({
+      search: { ...search, doj: requestBody.doj },
+      trips: result.trips,
+      count: result.count,
+      message: result.message,
+      debug: result.debug ?? null,
+      fetchedAt: new Date().toISOString(),
+    });
+
+    if (result.count > 0) {
+      toast.success(result.message);
+    } else {
+      toast.message(result.message);
+    }
     router.push("/bus/results");
   };
 
@@ -436,7 +521,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   onBlur={() => {
                     setTimeout(() => {
                       if (!search.sourceCityId && (fromQuery || search.sourceCityName)) {
-                        setFromError("Please choose a valid city from suggestions");
+                        setFromError("Please select a valid bus city from suggestions.");
                       }
                     }, 120);
                   }}
@@ -459,7 +544,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                           setShowFromDropdown(false);
                         }}
                       >
-                        {c.name}
+                        {formatBusCityLabel(c)}
                       </button>
                     ))}
                   </div>
@@ -506,7 +591,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   onBlur={() => {
                     setTimeout(() => {
                       if (!search.destinationCityId && (toQuery || search.destinationCityName)) {
-                        setToError("Please choose a valid city from suggestions");
+                        setToError("Please select a valid bus city from suggestions.");
                       }
                     }, 120);
                   }}
@@ -529,7 +614,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                           setShowToDropdown(false);
                         }}
                       >
-                        {c.name}
+                        {formatBusCityLabel(c)}
                       </button>
                     ))}
                   </div>
@@ -547,7 +632,16 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                 />
               </div>
               <div className="flex items-end lg:col-span-2">
-                <Button className="w-full" onClick={() => void handleSearch()} disabled={api.loading}>
+                <Button
+                  className="w-full"
+                  onClick={() => void handleSearch()}
+                  disabled={
+                    api.loading ||
+                    !search.sourceCityId ||
+                    !search.destinationCityId ||
+                    !search.doj
+                  }
+                >
                   {api.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Search Buses
                 </Button>
@@ -560,6 +654,12 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   }
 
   if (step === "results") {
+    const routeLabel =
+      search.sourceCityName && search.destinationCityName
+        ? `${search.sourceCityName} → ${search.destinationCityName}`
+        : "Select route on search page";
+    const dateLabel = search.doj || "—";
+
     return (
       <section className="container mx-auto px-4 py-8">
         <Link
@@ -571,22 +671,35 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         </Link>
         <h1 className="text-2xl font-bold">Available buses</h1>
         <p className="text-muted-foreground">
-          {search.sourceCityName} → {search.destinationCityName} · {search.doj}
+          {routeLabel}
         </p>
+        <p className="text-sm text-muted-foreground">Date: {dateLabel}</p>
+        {searchMessage && (
+          <p className="mt-2 text-sm text-muted-foreground">{searchMessage}</p>
+        )}
         <div className="mt-6 space-y-4">
-          {api.error && (
+          {resultsLoading && (
+            <Card>
+              <CardContent className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Searching buses...
+              </CardContent>
+            </Card>
+          )}
+          {!resultsLoading && api.error && (
             <Card>
               <CardContent className="py-4 text-sm text-destructive">{api.error}</CardContent>
             </Card>
           )}
-          {trips.length === 0 && (
+          {!resultsLoading && !api.error && trips.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground">
                 No buses found for this route/date. Please try another date.
               </CardContent>
             </Card>
           )}
-          {trips.map((trip) => (
+          {!resultsLoading &&
+            trips.map((trip) => (
             <Card key={String(trip.id)} className="hover:shadow-md">
               <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
                 <div className="flex items-center gap-4">
@@ -629,6 +742,16 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
               </CardContent>
             </Card>
           ))}
+          {isStaff && searchDebug && (
+            <Card>
+              <CardContent className="space-y-2 pt-4">
+                <p className="text-sm font-semibold">Bus search debug (admin)</p>
+                <pre className="max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">
+                  {JSON.stringify(searchDebug, null, 2)}
+                </pre>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
     );

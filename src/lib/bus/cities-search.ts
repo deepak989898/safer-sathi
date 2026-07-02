@@ -99,3 +99,8 @@ export function prepareBusCityResults(
   const ranked = query.trim() ? rankBusCities(normalized, query) : normalized;
   return dedupeBusCities(ranked).slice(0, limit);
 }
+
+export function formatBusCityLabel(city: BusCityRecord): string {
+  const state = city.state?.trim();
+  return state ? `${city.name}, ${state}` : city.name;
+}

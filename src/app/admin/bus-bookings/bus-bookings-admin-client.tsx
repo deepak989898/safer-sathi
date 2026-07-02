@@ -18,6 +18,8 @@ export default function BusBookingsAdminClient() {
   const [bookings, setBookings] = useState<BusBookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingCities, setSyncingCities] = useState(false);
+  const [testingRoutes, setTestingRoutes] = useState(false);
+  const [routeTestOutput, setRouteTestOutput] = useState<string | null>(null);
   const [selected, setSelected] = useState<BusBookingRecord | null>(null);
   const [note, setNote] = useState("");
 
@@ -59,6 +61,25 @@ export default function BusBookingsAdminClient() {
     }
   };
 
+  const testSampleRoutes = async () => {
+    setTestingRoutes(true);
+    setRouteTestOutput(null);
+    toast.info("Testing SeatSeller sample routes (today + 15 days)...");
+    try {
+      const res = await adminApiFetch("/api/bus/debug/test-routes", { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const output = JSON.stringify(json.data.results, null, 2);
+      setRouteTestOutput(output);
+      console.log("[bus-test-routes]", json.data.results);
+      toast.success("Route test completed — see results below / console");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Route test failed");
+    } finally {
+      setTestingRoutes(false);
+    }
+  };
+
   const runAction = async (bookingId: string, action: string, adminNotes?: string) => {
     try {
       const res = await adminApiFetch(`/api/bus/bookings/${bookingId}`, {
@@ -97,11 +118,33 @@ export default function BusBookingsAdminClient() {
             )}
             Sync bus cities
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void testSampleRoutes()}
+            disabled={testingRoutes}
+          >
+            {testingRoutes ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Test sample routes
+          </Button>
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
         </div>
       </div>
+
+      {routeTestOutput && (
+        <div className="px-4 pb-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="mb-2 text-sm font-semibold">Sample route test output</p>
+              <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs">
+                {routeTestOutput}
+              </pre>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-4 p-4 lg:grid-cols-[1fr_380px]">
         <div className="space-y-3">

@@ -6,6 +6,7 @@ import {
 } from "@/lib/seatseller/oauth";
 import {
   getSeatSellerConfig,
+  formatSeatSellerDoj,
   formatSeatSellerDojIso,
   formatSeatSellerDojNumeric,
   getAvailableTripsCacheTtlMs,
@@ -23,6 +24,7 @@ import type {
   SeatSellerUpdatedFareResponse,
 } from "@/lib/seatseller/types";
 import { getDemoBpDp, getDemoCities, getDemoTripDetails, getDemoTrips } from "@/lib/seatseller/demo-data";
+import { parseSeatSellerTrips } from "@/lib/seatseller/parse-trips";
 import { logBusApiCall } from "@/lib/bus/firestore";
 
 const availableTripsCache = new Map<
@@ -181,47 +183,53 @@ export async function fetchAliases(): Promise<SeatSellerAlias[]> {
   return data.aliases ?? data.aliasNames ?? [];
 }
 
+export interface AvailableTripsFetchResult {
+  trips: SeatSellerTrip[];
+  journeyDateSentToApi: string;
+  apiUrl: string;
+  rawSeatSellerResponse: unknown;
+  responseKeys: string[];
+}
+
 export async function fetchAvailableTrips(input: {
   source: string;
   destination: string;
   doj: string;
-}): Promise<SeatSellerTrip[]> {
+}): Promise<AvailableTripsFetchResult> {
   if (isSeatSellerDemoMode()) {
-    return getDemoTrips(input.source, input.destination, input.doj);
+    const trips = getDemoTrips(input.source, input.destination, input.doj);
+    return {
+      trips,
+      journeyDateSentToApi: formatSeatSellerDojIso(input.doj),
+      apiUrl: "demo://availabletrips",
+      rawSeatSellerResponse: { availableTrips: trips },
+      responseKeys: ["availableTrips"],
+    };
   }
   const cacheKey = `${input.source}_${input.destination}_${input.doj}`;
   const cached = availableTripsCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.trips;
+    return {
+      trips: cached.trips,
+      journeyDateSentToApi: formatSeatSellerDojIso(input.doj),
+      apiUrl: `${getSeatSellerConfig().baseUrl}/availabletrips`,
+      rawSeatSellerResponse: { availableTrips: cached.trips, cached: true },
+      responseKeys: ["availableTrips", "cached"],
+    };
   }
-
-  const extractTrips = (data: unknown): { trips: SeatSellerTrip[]; keys: string[] } => {
-    if (Array.isArray(data)) return { trips: data as SeatSellerTrip[], keys: [] };
-    if (!data || typeof data !== "object") return { trips: [], keys: [] };
-    const asRecord = data as Record<string, unknown>;
-    const keys = Object.keys(asRecord);
-    const maybeKeys = [
-      "availableTrips",
-      "trips",
-      "availabletrips",
-      "availableTrip",
-      "data",
-      "result",
-    ];
-    for (const key of maybeKeys) {
-      const value = asRecord[key];
-      if (Array.isArray(value)) return { trips: value as SeatSellerTrip[], keys };
-    }
-    return { trips: [], keys };
-  };
 
   const tryDojValues = [
     formatSeatSellerDojIso(input.doj),
+    formatSeatSellerDoj(input.doj),
     formatSeatSellerDojNumeric(input.doj),
-    input.doj,
   ].filter((v, i, arr) => arr.indexOf(v) === i);
 
   const endpoints = ["/availabletrips", "/availableTrips"];
+  let lastRaw: unknown = null;
+  let lastKeys: string[] = [];
+  let lastUrl = `${getSeatSellerConfig().baseUrl}/availabletrips`;
+  let lastDoj = tryDojValues[0];
+
   for (const doj of tryDojValues) {
     for (const endpoint of endpoints) {
       const data = await seatsellerRequest<unknown>(endpoint, {
@@ -231,7 +239,12 @@ export async function fetchAvailableTrips(input: {
           doj,
         },
       });
-      const { trips, keys } = extractTrips(data);
+      lastRaw = data;
+      const { trips, responseKeys } = parseSeatSellerTrips(data);
+      lastKeys = responseKeys;
+      lastDoj = doj;
+      lastUrl = `${getSeatSellerConfig().baseUrl}${endpoint}?source=${input.source}&destination=${input.destination}&doj=${doj}`;
+
       const possibleError =
         data && typeof data === "object"
           ? String(
@@ -255,8 +268,9 @@ export async function fetchAvailableTrips(input: {
           source: input.source,
           destination: input.destination,
           doj,
-          responseKeys: keys,
+          responseKeys,
           extractedTrips: trips.length,
+          apiUrl: lastUrl,
         },
       });
       if (trips.length > 0) {
@@ -264,12 +278,24 @@ export async function fetchAvailableTrips(input: {
           trips,
           expiresAt: Date.now() + getAvailableTripsCacheTtlMs(),
         });
-        return trips;
+        return {
+          trips,
+          journeyDateSentToApi: doj,
+          apiUrl: lastUrl,
+          rawSeatSellerResponse: data,
+          responseKeys,
+        };
       }
     }
   }
 
-  return [];
+  return {
+    trips: [],
+    journeyDateSentToApi: lastDoj,
+    apiUrl: lastUrl,
+    rawSeatSellerResponse: lastRaw,
+    responseKeys: lastKeys,
+  };
 }
 
 export async function fetchTripDetails(tripId: string): Promise<SeatSellerTripDetails> {

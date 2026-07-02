@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { logBusSearch } from "@/lib/bus/firestore";
 import { busApiError, getBusUserId } from "@/lib/bus/api-helpers";
-import { formatSeatSellerDoj } from "@/lib/seatseller/config";
+import { buildBusSearchDebug } from "@/lib/bus/debug";
+import { formatSeatSellerDojIso } from "@/lib/seatseller/config";
 import { SeatSellerApiError, fetchAvailableTrips } from "@/lib/seatseller/client";
 import { getTripStartingFare } from "@/lib/seatseller/demo-data";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
+import { logBusApiCall } from "@/lib/bus/firestore";
 
 const schema = z.object({
   source: z.string().min(1),
@@ -13,6 +16,17 @@ const schema = z.object({
   sourceName: z.string().optional(),
   destinationName: z.string().optional(),
 });
+
+function normalizeJourneyDate(input: string): string {
+  const trimmed = input.trim().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = new Date(`${trimmed}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return trimmed;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -24,36 +38,68 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const doj = parsed.data.doj.slice(0, 10);
-    const trips = await fetchAvailableTrips({
+    const journeyDateInput = parsed.data.doj;
+    const doj = normalizeJourneyDate(journeyDateInput);
+    const requestBody = {
+      source: parsed.data.source,
+      destination: parsed.data.destination,
+      doj,
+      sourceName: parsed.data.sourceName ?? "",
+      destinationName: parsed.data.destinationName ?? "",
+    };
+
+    const fetchResult = await fetchAvailableTrips({
       source: parsed.data.source,
       destination: parsed.data.destination,
       doj,
     });
 
-    const userId = await getBusUserId(request);
-    await logBusSearch({
-      sourceCityId: parsed.data.source,
-      destinationCityId: parsed.data.destination,
-      doj: formatSeatSellerDoj(doj),
-      resultCount: trips.length,
-      userId,
-    });
-
-    const normalized = trips.map((trip) => ({
+    const normalized = fetchResult.trips.map((trip) => ({
       ...trip,
       startingFare: getTripStartingFare(trip),
     }));
 
-    return apiSuccess({
-      success: true,
+    const userId = await getBusUserId(request);
+    await logBusSearch({
+      sourceCityId: parsed.data.source,
+      destinationCityId: parsed.data.destination,
+      doj: fetchResult.journeyDateSentToApi,
+      resultCount: normalized.length,
+      userId,
+    });
+
+    const debug = buildBusSearchDebug({
+      sourceCityName: parsed.data.sourceName,
+      sourceCityId: parsed.data.source,
+      destinationCityName: parsed.data.destinationName,
+      destinationCityId: parsed.data.destination,
+      journeyDateInput,
+      journeyDateSentToApi: fetchResult.journeyDateSentToApi,
+      requestBody,
+      apiUrl: fetchResult.apiUrl,
+      rawSeatSellerResponse: fetchResult.rawSeatSellerResponse,
       trips: normalized,
+    });
+
+    await logBusApiCall({
+      endpoint: "/api/bus/available-trips",
+      method: "POST",
+      success: true,
+      meta: debug as unknown as Record<string, unknown>,
+    });
+
+    const auth = await optionalAuthenticateRequest(request);
+    const includeDebug = Boolean(auth && isStaffUser(auth));
+
+    return apiSuccess({
       count: normalized.length,
+      trips: normalized,
       message:
         normalized.length > 0
           ? "Trips fetched successfully"
           : "No buses found for this route/date. Please try another date.",
-      doj: formatSeatSellerDoj(doj),
+      doj: formatSeatSellerDojIso(doj),
+      ...(includeDebug ? { debug } : {}),
     });
   } catch (error) {
     if (error instanceof SeatSellerApiError) {

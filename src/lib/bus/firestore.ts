@@ -194,6 +194,30 @@ export async function getPopularBusCitiesFromDb(): Promise<BusCityRecord[]> {
     .filter((city): city is BusCityRecord => Boolean(city));
 }
 
+export async function findBusCityByName(name: string): Promise<BusCityRecord | null> {
+  if (!isAdminEnvConfigured()) return null;
+  const db = await getSafeAdminDb();
+  if (!db) return null;
+
+  const searchName = name.toLowerCase().trim();
+  const snap = await db
+    .collection(COLLECTIONS.cities)
+    .where("searchName", "==", searchName)
+    .limit(10)
+    .get();
+
+  if (!snap.empty) {
+    const cities = snap.docs.map((d) => d.data() as BusCityRecord);
+    return cities.sort((a, b) => a.name.length - b.name.length)[0];
+  }
+
+  const prefixMatches = await searchBusCitiesInDb(searchName, 20);
+  const exact = prefixMatches.find(
+    (city) => (city.searchName ?? city.name.toLowerCase().trim()) === searchName
+  );
+  return exact ?? prefixMatches[0] ?? null;
+}
+
 export async function getBusCitiesLastSyncedAt(): Promise<string | null> {
   if (!isAdminEnvConfigured()) return null;
   const db = await getSafeAdminDb();

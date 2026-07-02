@@ -48,7 +48,7 @@ export function useBusBookingApi() {
       destinationName?: string;
     }) => {
       return run(async () => {
-        const res = await fetch("/api/bus/available-trips", {
+        const res = await customerApiFetch("/api/bus/available-trips", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -63,6 +63,7 @@ export function useBusBookingApi() {
           count: Number(json.data.count ?? 0),
           message: String(json.data.message ?? ""),
           doj: json.data.doj as string,
+          debug: json.data.debug as import("@/lib/bus/debug").BusSearchDebug | undefined,
         };
       });
     },
