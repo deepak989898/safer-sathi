@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const doj = formatSeatSellerDoj(parsed.data.doj);
+    const doj = parsed.data.doj;
     const trips = await fetchAvailableTrips({
       source: parsed.data.source,
       destination: parsed.data.destination,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     await logBusSearch({
       sourceCityId: parsed.data.source,
       destinationCityId: parsed.data.destination,
-      doj,
+      doj: formatSeatSellerDoj(parsed.data.doj),
       resultCount: trips.length,
       userId,
     });
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       startingFare: getTripStartingFare(trip),
     }));
 
-    return apiSuccess({ trips: normalized, doj, cached: false });
+    return apiSuccess({ trips: normalized, doj: formatSeatSellerDoj(parsed.data.doj), cached: false });
   } catch (error) {
     return busApiError(error, "Failed to fetch trips");
   }

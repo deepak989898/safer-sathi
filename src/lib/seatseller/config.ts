@@ -46,3 +46,12 @@ export function parseSeatSellerDoj(doj: string): string {
   if (Number.isNaN(parsed.getTime())) return doj;
   return parsed.toISOString().slice(0, 10);
 }
+
+/** Some SeatSeller accounts accept dd-MM-yyyy. */
+export function formatSeatSellerDojNumeric(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00`);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}

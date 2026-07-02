@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowUpDown,
   ArrowRight,
   Bus,
   Clock,
@@ -98,6 +99,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   });
   const [fromQuery, setFromQuery] = useState("");
   const [toQuery, setToQuery] = useState("");
+  const [showFromDropdown, setShowFromDropdown] = useState(false);
+  const [showToDropdown, setShowToDropdown] = useState(false);
   const [trips, setTrips] = useState<BusBookingSession["trip"][]>([]);
   const [tripDetails, setTripDetails] = useState<{
     seats: SeatSellerSeat[];
@@ -151,7 +154,26 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     });
     if (!result) return;
     setTrips(result.trips);
+    if (result.trips.length === 0) {
+      toast.message(
+        "No trips found for this route/date. Try sample routes: Bangalore-Hyderabad, Bangalore-Chennai, Mysore-Bangalore."
+      );
+    }
     router.push("/bus/results");
+  };
+
+  const swapSourceDestination = () => {
+    setSearch((prev) => ({
+      ...prev,
+      sourceCityId: prev.destinationCityId,
+      sourceCityName: prev.destinationCityName,
+      destinationCityId: prev.sourceCityId,
+      destinationCityName: prev.sourceCityName,
+    }));
+    setFromQuery("");
+    setToQuery("");
+    setShowFromDropdown(false);
+    setShowToDropdown(false);
   };
 
   const selectTrip = async (trip: BusBookingSession["trip"]) => {
@@ -315,7 +337,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
         />
         <section className="container mx-auto px-4 py-10">
           <Card>
-            <CardContent className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-4">
+            <CardContent className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-5">
               <div>
                 <Label>From</Label>
                 <Input
@@ -323,8 +345,16 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   placeholder="Search city"
                   value={fromQuery || search.sourceCityName}
                   onChange={(e) => setFromQuery(e.target.value)}
+                  onFocus={() => {
+                    setShowFromDropdown(true);
+                    setShowToDropdown(false);
+                  }}
+                  onClick={() => {
+                    setShowFromDropdown(true);
+                    setShowToDropdown(false);
+                  }}
                 />
-                {fromQuery && (
+                {showFromDropdown && (
                   <div className="mt-1 max-h-40 overflow-auto rounded-md border bg-background shadow-sm">
                     {fromCities.map((c) => (
                       <button
@@ -337,7 +367,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                             sourceCityId: c.id,
                             sourceCityName: c.name,
                           }));
-                          setFromQuery(c.name);
+                          setFromQuery("");
+                          setShowFromDropdown(false);
                         }}
                       >
                         {c.name}
@@ -346,6 +377,18 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   </div>
                 )}
               </div>
+              <div className="flex items-end justify-center lg:items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={swapSourceDestination}
+                  title="Swap From and To"
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+              </div>
               <div>
                 <Label>To</Label>
                 <Input
@@ -353,8 +396,16 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   placeholder="Search city"
                   value={toQuery || search.destinationCityName}
                   onChange={(e) => setToQuery(e.target.value)}
+                  onFocus={() => {
+                    setShowToDropdown(true);
+                    setShowFromDropdown(false);
+                  }}
+                  onClick={() => {
+                    setShowToDropdown(true);
+                    setShowFromDropdown(false);
+                  }}
                 />
-                {toQuery && (
+                {showToDropdown && (
                   <div className="mt-1 max-h-40 overflow-auto rounded-md border bg-background shadow-sm">
                     {toCities.map((c) => (
                       <button
@@ -367,7 +418,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                             destinationCityId: c.id,
                             destinationCityName: c.name,
                           }));
-                          setToQuery(c.name);
+                          setToQuery("");
+                          setShowToDropdown(false);
                         }}
                       >
                         {c.name}
@@ -386,7 +438,7 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
                   onChange={(e) => setSearch((s) => ({ ...s, doj: e.target.value }))}
                 />
               </div>
-              <div className="flex items-end">
+              <div className="flex items-end lg:col-span-2">
                 <Button className="w-full" onClick={() => void handleSearch()} disabled={api.loading}>
                   {api.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Search Buses

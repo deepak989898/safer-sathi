@@ -6,6 +6,7 @@ import {
 } from "@/lib/seatseller/oauth";
 import {
   getSeatSellerConfig,
+  formatSeatSellerDojNumeric,
   isSeatSellerDemoMode,
 } from "@/lib/seatseller/config";
 import type {
@@ -155,17 +156,43 @@ export async function fetchAvailableTrips(input: {
   if (isSeatSellerDemoMode()) {
     return getDemoTrips(input.source, input.destination, input.doj);
   }
-  const data = await seatsellerRequest<
-    SeatSellerTrip[] | { availableTrips?: SeatSellerTrip[] }
-  >("/availabletrips", {
-    query: {
-      source: input.source,
-      destination: input.destination,
-      doj: input.doj,
-    },
-  });
-  if (Array.isArray(data)) return data;
-  return data.availableTrips ?? [];
+  const extractTrips = (data: unknown): SeatSellerTrip[] => {
+    if (Array.isArray(data)) return data as SeatSellerTrip[];
+    if (!data || typeof data !== "object") return [];
+    const asRecord = data as Record<string, unknown>;
+    const maybeKeys = [
+      "availableTrips",
+      "trips",
+      "availabletrips",
+      "availableTrip",
+      "data",
+      "result",
+    ];
+    for (const key of maybeKeys) {
+      const value = asRecord[key];
+      if (Array.isArray(value)) return value as SeatSellerTrip[];
+    }
+    return [];
+  };
+
+  const tryDojValues = [
+    input.doj,
+    formatSeatSellerDojNumeric(input.doj),
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+  for (const doj of tryDojValues) {
+    const data = await seatsellerRequest<unknown>("/availabletrips", {
+      query: {
+        source: input.source,
+        destination: input.destination,
+        doj,
+      },
+    });
+    const trips = extractTrips(data);
+    if (trips.length > 0) return trips;
+  }
+
+  return [];
 }
 
 export async function fetchTripDetails(tripId: string): Promise<SeatSellerTripDetails> {
