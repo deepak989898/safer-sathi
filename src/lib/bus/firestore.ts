@@ -208,7 +208,14 @@ export async function findBusCityByName(name: string): Promise<BusCityRecord | n
 
   if (!snap.empty) {
     const cities = snap.docs.map((d) => d.data() as BusCityRecord);
-    return cities.sort((a, b) => a.name.length - b.name.length)[0];
+    return cities.sort((a, b) => {
+      const lenDiff = a.name.length - b.name.length;
+      if (lenDiff !== 0) return lenDiff;
+      const aId = Number(a.id);
+      const bId = Number(b.id);
+      if (Number.isFinite(aId) && Number.isFinite(bId)) return aId - bId;
+      return a.name.localeCompare(b.name);
+    })[0];
   }
 
   const prefixMatches = await searchBusCitiesInDb(searchName, 20);

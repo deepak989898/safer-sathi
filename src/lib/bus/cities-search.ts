@@ -24,6 +24,38 @@ export const POPULAR_BUS_CITY_SEARCH_NAMES = [
 
 const POPULAR_SET = new Set<string>(POPULAR_BUS_CITY_SEARCH_NAMES);
 
+/** Exact hub names that SeatSeller uses for sample sandbox routes. */
+const CANONICAL_HUB_NAMES = new Set([
+  "bangalore",
+  "bengaluru",
+  "hyderabad",
+  "chennai",
+  "mumbai",
+  "delhi",
+  "pune",
+  "mysore",
+  "mysuru",
+  "mangalore",
+]);
+
+function isCanonicalHub(city: BusCityRecord): boolean {
+  const raw = city.name.toLowerCase().trim();
+  const searchName = (city.searchName ?? raw).trim();
+  return CANONICAL_HUB_NAMES.has(raw) || CANONICAL_HUB_NAMES.has(searchName);
+}
+
+function compareHubCities(a: BusCityRecord, b: BusCityRecord): number {
+  const aHub = isCanonicalHub(a);
+  const bHub = isCanonicalHub(b);
+  if (aHub !== bHub) return aHub ? -1 : 1;
+  const lenDiff = a.name.length - b.name.length;
+  if (lenDiff !== 0) return lenDiff;
+  const aId = Number(a.id);
+  const bId = Number(b.id);
+  if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) return aId - bId;
+  return a.name.localeCompare(b.name);
+}
+
 const BLOCKED_NAME_FRAGMENTS = [
   "darshan",
   "sight",
@@ -60,7 +92,7 @@ export function rankBusCities(cities: BusCityRecord[], query: string): BusCityRe
     else if (searchName.includes(q) || raw.includes(q)) score = popular ? 30 : 40;
     else score = 99;
 
-    return { city, score, len: city.name.length };
+    return { city, score, len: city.name.length, hub: isCanonicalHub(city) };
   });
 
   return scored
@@ -68,8 +100,9 @@ export function rankBusCities(cities: BusCityRecord[], query: string): BusCityRe
     .sort(
       (a, b) =>
         a.score - b.score ||
+        (a.hub === b.hub ? 0 : a.hub ? -1 : 1) ||
         a.len - b.len ||
-        a.city.name.localeCompare(b.city.name)
+        compareHubCities(a.city, b.city)
     )
     .map((row) => row.city);
 }
@@ -79,7 +112,7 @@ export function dedupeBusCities(cities: BusCityRecord[]): BusCityRecord[] {
   for (const city of cities) {
     const key = (city.searchName ?? city.name.toLowerCase()).trim();
     const existing = seen.get(key);
-    if (!existing || city.name.length < existing.name.length) {
+    if (!existing || compareHubCities(city, existing) < 0) {
       seen.set(key, city);
     }
   }
