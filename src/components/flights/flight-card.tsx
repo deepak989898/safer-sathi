@@ -1,7 +1,8 @@
 "use client";
 
-import { Plane } from "lucide-react";
+import { ArrowRight, Plane } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/i18n";
 import type { NormalizedFlight } from "@/lib/tripjack/types";
@@ -10,9 +11,10 @@ import type { Locale } from "@/types";
 interface FlightCardProps {
   flight: NormalizedFlight;
   locale: Locale;
+  onReview?: (flight: NormalizedFlight) => void;
 }
 
-export function FlightCard({ flight, locale }: FlightCardProps) {
+export function FlightCard({ flight, locale, onReview }: FlightCardProps) {
   const stopsLabel =
     flight.stops === 0
       ? "Non-stop"
@@ -88,6 +90,16 @@ export function FlightCard({ flight, locale }: FlightCardProps) {
                 <p className="text-amber-700">{flight.seatsRemaining} seat(s) left</p>
               )}
             </div>
+            {onReview && flight.priceId && (
+              <Button
+                className="mt-3 w-full rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]"
+                size="sm"
+                onClick={() => onReview(flight)}
+              >
+                Review Fare / Continue
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

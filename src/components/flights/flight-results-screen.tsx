@@ -30,6 +30,7 @@ interface FlightResultsScreenProps {
   error: string | null;
   message: string;
   locale: Locale;
+  onReviewFlight?: (flight: NormalizedFlight) => void;
 }
 
 function FlightCardSkeleton() {
@@ -56,6 +57,7 @@ export function FlightResultsScreen({
   error,
   message,
   locale,
+  onReviewFlight,
 }: FlightResultsScreenProps) {
   const [filters, setFilters] = useState<FlightFilters>(() => initFiltersFromFlights(flights));
   const [page, setPage] = useState(1);
@@ -188,6 +190,7 @@ export function FlightResultsScreen({
                       key={`${flight.priceId}-${flight.flightNumber}-${flight.departureTime}-${flight.fareIdentifier}`}
                       flight={flight}
                       locale={locale}
+                      onReview={onReviewFlight}
                     />
                   ))}
 

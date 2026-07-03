@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FlightDebugPanel } from "@/components/flights/flight-debug-panel";
 import { FlightResultsScreen } from "@/components/flights/flight-results-screen";
@@ -11,12 +12,14 @@ import {
   defaultFlightSearchParams,
   loadFlightSearchSession,
   saveFlightSearchSession,
-} from "@/lib/flights/session";
+  saveFlightSelection,
+} from "@/lib/flights/flight-session";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type { FlightSearchParams, NormalizedFlight } from "@/lib/tripjack/types";
 import { useAppStore } from "@/store/app-store";
 
 export function FlightFlowClient() {
+  const router = useRouter();
   const { locale } = useAppStore();
   const { user } = useAuth();
   const { loading, error, setError, searchFlights } = useFlightSearch();
@@ -100,6 +103,18 @@ export function FlightFlowClient() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [params, searchFlights, setError]);
 
+  const handleReviewFlight = useCallback(
+    (flight: NormalizedFlight) => {
+      if (!flight.priceId) {
+        toast.error("This fare cannot be reviewed. Please select another flight.");
+        return;
+      }
+      saveFlightSelection({ flight, params });
+      router.push("/flights/review");
+    },
+    [params, router]
+  );
+
   return (
     <>
       <FlightSearchScreen
@@ -119,6 +134,7 @@ export function FlightFlowClient() {
           error={error}
           message={message}
           locale={locale}
+          onReviewFlight={handleReviewFlight}
         />
       )}
 

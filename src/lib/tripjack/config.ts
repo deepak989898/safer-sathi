@@ -9,6 +9,8 @@ export function getTripJackProxyConfig() {
     baseUrl,
     searchPath: "/api/tripjack/flights/search",
     searchUrl: `${baseUrl}/api/tripjack/flights/search`,
+    reviewPath: "/api/tripjack/flights/review",
+    reviewUrl: `${baseUrl}/api/tripjack/flights/review`,
   };
 }
 

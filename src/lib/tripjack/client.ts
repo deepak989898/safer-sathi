@@ -1,6 +1,7 @@
 import { getTripJackProxyConfig } from "@/lib/tripjack/config";
 import { normalizeTripJackFlights } from "@/lib/tripjack/normalize";
-import type { FlightSearchParams, FlightSearchResult } from "@/lib/tripjack/types";
+import { normalizeTripJackReview } from "@/lib/tripjack/parse-review";
+import type { FlightReviewResult, FlightSearchParams, FlightSearchResult } from "@/lib/tripjack/types";
 
 export class TripJackApiError extends Error {
   constructor(
@@ -98,4 +99,61 @@ export async function searchTripJackFlights(
     },
     rawResponse: raw,
   };
+}
+
+export function buildTripJackReviewBody(priceIds: string[]) {
+  return { priceIds };
+}
+
+export async function reviewTripJackFlight(input: {
+  priceId: string;
+  searchParams?: FlightSearchParams;
+  searchTotalFare?: number;
+}): Promise<FlightReviewResult> {
+  const { reviewUrl } = getTripJackProxyConfig();
+  const body = buildTripJackReviewBody([input.priceId]);
+
+  const response = await fetch(reviewUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const rawText = await response.text();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(rawText);
+  } catch {
+    throw new TripJackApiError("Invalid JSON from TripJack review proxy", response.status, rawText);
+  }
+
+  const record = raw as Record<string, unknown>;
+  if (!response.ok) {
+    throw new TripJackApiError(
+      String(record.error ?? record.message ?? `Review proxy error ${response.status}`),
+      response.status,
+      raw
+    );
+  }
+
+  if (record.success === false) {
+    throw new TripJackApiError(
+      String(record.error ?? record.message ?? "TripJack review failed"),
+      response.status,
+      raw
+    );
+  }
+
+  const review = normalizeTripJackReview(raw, {
+    priceId: input.priceId,
+    searchParams: input.searchParams,
+    searchTotalFare: input.searchTotalFare,
+  });
+
+  if (!review) {
+    throw new TripJackApiError("Could not parse TripJack review response", response.status, raw);
+  }
+
+  return { review, rawResponse: raw };
 }
