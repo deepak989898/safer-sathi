@@ -1,39 +1,10 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { FlightPassengersClient } from "@/components/flights/flight-passengers-client";
 
 export const metadata = {
   title: "Passenger Details | Safar Sathi Flights",
-  description: "Flight passenger details — Phase 3",
+  description: "Enter passenger details and validate flight fare",
 };
 
 export default function FlightPassengersPage() {
-  return (
-    <div className="min-h-screen bg-slate-50 py-16">
-      <div className="container mx-auto max-w-lg px-4">
-        <Card className="rounded-2xl border-slate-200 shadow-sm">
-          <CardContent className="space-y-4 pt-8 text-center">
-            <h1 className="text-xl font-bold text-slate-900">Passenger details</h1>
-            <p className="text-sm text-slate-600">
-              Passenger details will be implemented in Phase 3.
-            </p>
-            <div className="flex flex-col gap-2 pt-4 sm:flex-row sm:justify-center">
-              <Link href="/flights/review">
-                <Button variant="outline" type="button">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to review
-                </Button>
-              </Link>
-              <Link href="/flights">
-                <Button className="bg-[#1a4fa3]" type="button">
-                  Back to search
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  return <FlightPassengersClient />;
 }

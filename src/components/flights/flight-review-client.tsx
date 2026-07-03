@@ -11,6 +11,7 @@ import {
   type FlightSearchContext,
 } from "@/lib/flights/flight-session";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
+import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 import type { NormalizedFlightReview } from "@/lib/tripjack/types";
 import { useAppStore } from "@/store/app-store";
 
@@ -52,6 +53,7 @@ export function FlightReviewClient() {
     setReview(result.review);
 
     if (isStaff) {
+      console.log("[flight-review] bookingId:", result.review.bookingId);
       console.log("[flight-review] request body:", result.requestBody);
       console.log("[flight-review] raw review response:", result.debug?.rawResponse ?? result);
       console.log("[flight-review] normalized review:", result.review);
@@ -70,11 +72,19 @@ export function FlightReviewClient() {
   const handleContinue = () => {
     if (!review) return;
     const selection = loadFlightSelection();
+    const rawResponse = review.rawReviewResponse;
+    const bookingId = review.bookingId || extractTripJackBookingId(rawResponse);
+
+    const normalized = { ...review, bookingId };
+
     saveFlightReviewSession({
-      rawResponse: review.rawReviewResponse,
-      normalized: review,
+      rawResponse,
+      normalized,
+      searchContext: selection.context ?? context,
     });
+
     if (isStaff) {
+      console.log("[flight-review] bookingId:", bookingId);
       console.log("[flight-review] saved session, navigating to passengers");
     }
     router.push("/flights/passengers");

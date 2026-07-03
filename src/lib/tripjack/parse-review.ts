@@ -4,6 +4,7 @@ import type {
   PaxFareLine,
 } from "@/lib/tripjack/types";
 import type { FlightSearchParams } from "@/lib/tripjack/types";
+import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -314,6 +315,7 @@ export function normalizeTripJackReview(
       (fareChangedByAmount
         ? "Fare updated by airline. Please review the latest fare."
         : null),
+    bookingId: extractTripJackBookingId(rawResponse),
     rawReviewResponse: rawResponse,
   };
 }

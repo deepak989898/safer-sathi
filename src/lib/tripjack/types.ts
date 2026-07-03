@@ -116,10 +116,99 @@ export interface NormalizedFlightReview {
   ssrInfo: unknown;
   fareUpdated: boolean;
   fareAlertMessage: string | null;
+  bookingId: string;
   rawReviewResponse: unknown;
 }
 
 export interface FlightReviewResult {
   review: NormalizedFlightReview;
+  rawResponse: unknown;
+}
+
+export type PassengerTitle = "Mr" | "Ms" | "Mrs" | "Mstr" | "Miss";
+export type PassengerType = "ADULT" | "CHILD" | "INFANT";
+
+export interface TripJackSsrItem {
+  key: string;
+  code: string;
+}
+
+export interface TripJackTravellerPayload {
+  ti: PassengerTitle;
+  pt: PassengerType;
+  fN: string;
+  lN: string;
+  ssrBaggageInfos?: TripJackSsrItem[];
+  ssrMealInfos?: TripJackSsrItem[];
+  ssrSeatInfos?: TripJackSsrItem[];
+  ssrFastForwardInfos?: TripJackSsrItem[];
+}
+
+export interface TripJackDeliveryInfoPayload {
+  emails: string[];
+  contacts: string[];
+  code: string[];
+}
+
+export interface FareValidateRequest {
+  travellerInfo: TripJackTravellerPayload[];
+  bookingId: string;
+  deliveryInfo: TripJackDeliveryInfoPayload;
+}
+
+export interface FlightPassengerFormRow {
+  ti: PassengerTitle;
+  pt: PassengerType;
+  fN: string;
+  lN: string;
+  gender: string;
+  dateOfBirth: string;
+  nationality: string;
+  passportNumber: string;
+  ssrBaggageInfos?: TripJackSsrItem[];
+  ssrMealInfos?: TripJackSsrItem[];
+  ssrSeatInfos?: TripJackSsrItem[];
+  ssrFastForwardInfos?: TripJackSsrItem[];
+}
+
+export interface FlightPassengerDeliveryForm {
+  email: string;
+  contact: string;
+  countryCode: string;
+}
+
+export interface NormalizedFareValidate {
+  bookingId: string;
+  tripInfos: unknown[];
+  segments: FlightReviewSegment[];
+  airlineName: string;
+  airlineCode: string;
+  flightNumber: string;
+  departureAirportCode: string;
+  departureCity: string;
+  departureTime: string;
+  arrivalAirportCode: string;
+  arrivalCity: string;
+  arrivalTime: string;
+  durationMinutes: number;
+  durationFormatted: string;
+  totalFare: number;
+  baseFare: number;
+  taxesAndFees: number;
+  netFare: number;
+  fareIdentifier: string;
+  priceId: string;
+  refundableType: string;
+  baggage: { cabin: string; checkin: string };
+  ssrInfo: unknown;
+  travellerInfo: TripJackTravellerPayload[];
+  deliveryInfo: TripJackDeliveryInfoPayload;
+  fareChanged: boolean;
+  fareAlertMessage: string | null;
+  rawFareValidateResponse: unknown;
+}
+
+export interface FareValidateResult {
+  validated: NormalizedFareValidate;
   rawResponse: unknown;
 }

@@ -11,6 +11,8 @@ export function getTripJackProxyConfig() {
     searchUrl: `${baseUrl}/api/tripjack/flights/search`,
     reviewPath: "/api/tripjack/flights/review",
     reviewUrl: `${baseUrl}/api/tripjack/flights/review`,
+    fareValidatePath: "/api/tripjack/flights/fare-validate",
+    fareValidateUrl: `${baseUrl}/api/tripjack/flights/fare-validate`,
   };
 }
 

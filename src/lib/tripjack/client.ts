@@ -1,7 +1,14 @@
 import { getTripJackProxyConfig } from "@/lib/tripjack/config";
 import { normalizeTripJackFlights } from "@/lib/tripjack/normalize";
 import { normalizeTripJackReview } from "@/lib/tripjack/parse-review";
-import type { FlightReviewResult, FlightSearchParams, FlightSearchResult } from "@/lib/tripjack/types";
+import { normalizeTripJackFareValidate } from "@/lib/tripjack/parse-fare-validate";
+import type {
+  FareValidateRequest,
+  FareValidateResult,
+  FlightReviewResult,
+  FlightSearchParams,
+  FlightSearchResult,
+} from "@/lib/tripjack/types";
 
 export class TripJackApiError extends Error {
   constructor(
@@ -156,4 +163,61 @@ export async function reviewTripJackFlight(input: {
   }
 
   return { review, rawResponse: raw };
+}
+
+export async function fareValidateTripJackFlight(input: {
+  request: FareValidateRequest;
+  previousTotalFare?: number;
+}): Promise<FareValidateResult> {
+  const { fareValidateUrl } = getTripJackProxyConfig();
+
+  const response = await fetch(fareValidateUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input.request),
+    cache: "no-store",
+  });
+
+  const rawText = await response.text();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(rawText);
+  } catch {
+    throw new TripJackApiError(
+      "Invalid JSON from TripJack fare validate proxy",
+      response.status,
+      rawText
+    );
+  }
+
+  const record = raw as Record<string, unknown>;
+  if (!response.ok) {
+    throw new TripJackApiError(
+      String(record.error ?? record.message ?? `Fare validate proxy error ${response.status}`),
+      response.status,
+      raw
+    );
+  }
+
+  if (record.success === false) {
+    throw new TripJackApiError(
+      String(record.error ?? record.message ?? "TripJack fare validate failed"),
+      response.status,
+      raw
+    );
+  }
+
+  const validated = normalizeTripJackFareValidate(raw, input.request, {
+    previousTotalFare: input.previousTotalFare,
+  });
+
+  if (!validated) {
+    throw new TripJackApiError(
+      "Could not parse TripJack fare validate response",
+      response.status,
+      raw
+    );
+  }
+
+  return { validated, rawResponse: raw };
 }

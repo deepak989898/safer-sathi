@@ -7,6 +7,12 @@ export const FLIGHT_SESSION_KEYS = {
   searchContext: "tripjack_search_context",
   reviewResponse: "tripjack_review_response",
   reviewNormalized: "tripjack_review_normalized",
+  reviewBookingId: "tripjack_review_booking_id",
+  reviewPriceId: "tripjack_review_price_id",
+  passengers: "tripjack_passengers",
+  fareValidateRequest: "tripjack_fare_validate_request",
+  fareValidateResponse: "tripjack_fare_validate_response",
+  fareValidateNormalized: "tripjack_fare_validate_normalized",
 } as const;
 
 export interface FlightSearchContext {
@@ -26,6 +32,11 @@ export interface FlightSelectedPrice {
   rawPrice: unknown;
   fareIdentifier: string;
   totalFare: number;
+}
+
+export interface FlightPassengersSession {
+  passengers: import("@/lib/tripjack/types").FlightPassengerFormRow[];
+  delivery: import("@/lib/tripjack/types").FlightPassengerDeliveryForm;
 }
 
 export function saveJsonSession(key: string, value: unknown): void {
@@ -82,24 +93,68 @@ export function loadFlightSelection(): {
 export function saveFlightReviewSession(input: {
   rawResponse: unknown;
   normalized: import("@/lib/tripjack/types").NormalizedFlightReview;
+  searchContext?: FlightSearchContext | null;
 }): void {
-  saveJsonSession(FLIGHT_SESSION_KEYS.reviewResponse, input.rawResponse);
-  saveJsonSession(FLIGHT_SESSION_KEYS.reviewNormalized, input.normalized);
+  const { normalized, rawResponse, searchContext } = input;
+  saveJsonSession(FLIGHT_SESSION_KEYS.reviewResponse, rawResponse);
+  saveJsonSession(FLIGHT_SESSION_KEYS.reviewNormalized, normalized);
+  saveJsonSession(FLIGHT_SESSION_KEYS.reviewBookingId, normalized.bookingId);
+  saveJsonSession(FLIGHT_SESSION_KEYS.reviewPriceId, normalized.priceId);
+  if (searchContext) {
+    saveJsonSession(FLIGHT_SESSION_KEYS.searchContext, searchContext);
+  }
 }
 
 export function loadFlightReviewSession(): {
   rawResponse: unknown;
   normalized: import("@/lib/tripjack/types").NormalizedFlightReview;
+  bookingId: string;
+  priceId: string;
+  searchContext: FlightSearchContext | null;
 } | null {
   const normalized = loadJsonSession<import("@/lib/tripjack/types").NormalizedFlightReview>(
     FLIGHT_SESSION_KEYS.reviewNormalized
   );
-  const rawResponse = loadJsonSession<unknown>(FLIGHT_SESSION_KEYS.reviewResponse);
   if (!normalized) return null;
-  return { rawResponse, normalized };
+
+  return {
+    rawResponse: loadJsonSession<unknown>(FLIGHT_SESSION_KEYS.reviewResponse),
+    normalized,
+    bookingId:
+      loadJsonSession<string>(FLIGHT_SESSION_KEYS.reviewBookingId) || normalized.bookingId || "",
+    priceId: loadJsonSession<string>(FLIGHT_SESSION_KEYS.reviewPriceId) || normalized.priceId || "",
+    searchContext: loadJsonSession<FlightSearchContext>(FLIGHT_SESSION_KEYS.searchContext),
+  };
 }
 
-// Re-export search session helpers (existing key)
+export function saveFareValidateSession(input: {
+  request: import("@/lib/tripjack/types").FareValidateRequest;
+  rawResponse: unknown;
+  normalized: import("@/lib/tripjack/types").NormalizedFareValidate;
+  passengers: FlightPassengersSession;
+}): void {
+  saveJsonSession(FLIGHT_SESSION_KEYS.passengers, input.passengers);
+  saveJsonSession(FLIGHT_SESSION_KEYS.fareValidateRequest, input.request);
+  saveJsonSession(FLIGHT_SESSION_KEYS.fareValidateResponse, input.rawResponse);
+  saveJsonSession(FLIGHT_SESSION_KEYS.fareValidateNormalized, input.normalized);
+}
+
+export function loadFareValidateSession(): {
+  passengers: FlightPassengersSession | null;
+  request: import("@/lib/tripjack/types").FareValidateRequest | null;
+  normalized: import("@/lib/tripjack/types").NormalizedFareValidate | null;
+} {
+  return {
+    passengers: loadJsonSession<FlightPassengersSession>(FLIGHT_SESSION_KEYS.passengers),
+    request: loadJsonSession<import("@/lib/tripjack/types").FareValidateRequest>(
+      FLIGHT_SESSION_KEYS.fareValidateRequest
+    ),
+    normalized: loadJsonSession<import("@/lib/tripjack/types").NormalizedFareValidate>(
+      FLIGHT_SESSION_KEYS.fareValidateNormalized
+    ),
+  };
+}
+
 export {
   saveFlightSearchSession,
   loadFlightSearchSession,
