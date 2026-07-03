@@ -1,9 +1,24 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Plane } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FlightCard } from "@/components/flights/flight-card";
+import {
+  FlightFiltersMobileBar,
+  FlightFiltersSidebar,
+} from "@/components/flights/flight-filters-sidebar";
+import { FlightPagination } from "@/components/flights/flight-pagination";
+import {
+  applyFlightFilters,
+  buildFlightFilterMeta,
+  countActiveFilters,
+  initFiltersFromFlights,
+  paginateFlights,
+  type FlightFilters,
+} from "@/lib/flights/filters";
 import type { FlightSearchParams, NormalizedFlight } from "@/lib/tripjack/types";
 import type { Locale } from "@/types";
 
@@ -42,6 +57,39 @@ export function FlightResultsScreen({
   message,
   locale,
 }: FlightResultsScreenProps) {
+  const [filters, setFilters] = useState<FlightFilters>(() => initFiltersFromFlights(flights));
+  const [page, setPage] = useState(1);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const meta = useMemo(() => buildFlightFilterMeta(flights), [flights]);
+
+  useEffect(() => {
+    setFilters(initFiltersFromFlights(flights));
+    setPage(1);
+  }, [flights]);
+
+  const filteredFlights = useMemo(
+    () => applyFlightFilters(flights, filters),
+    [flights, filters]
+  );
+
+  const pagination = useMemo(
+    () => paginateFlights(filteredFlights, page),
+    [filteredFlights, page]
+  );
+
+  const activeFilterCount = countActiveFilters(filters, meta);
+
+  const handleFilterChange = (patch: Partial<FlightFilters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
+    setPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(initFiltersFromFlights(flights));
+    setPage(1);
+  };
+
   const routeLabel = `${params.fromCode} → ${params.toCode}`;
   const paxLabel = `${params.adults} Adult${params.adults > 1 ? "s" : ""}${
     params.children ? `, ${params.children} Child` : ""
@@ -65,7 +113,7 @@ export function FlightResultsScreen({
                 ? "Searching..."
                 : error
                   ? "Search failed"
-                  : `${onwardCount} flight(s) · sorted by lowest fare`}
+                  : `${onwardCount} flight(s) from API · ${filteredFlights.length} matching filters`}
             </p>
           </div>
         </div>
@@ -104,16 +152,76 @@ export function FlightResultsScreen({
         )}
 
         {!loading && !error && flights.length > 0 && (
-          <div className="space-y-4">
-            {flights.map((flight) => (
-              <FlightCard
-                key={`${flight.priceId}-${flight.flightNumber}-${flight.departureTime}`}
-                flight={flight}
-                locale={locale}
+          <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+            <aside className="hidden lg:block">
+              <div className="sticky top-24">
+                <FlightFiltersSidebar
+                  filters={filters}
+                  meta={meta}
+                  locale={locale}
+                  activeCount={activeFilterCount}
+                  onChange={handleFilterChange}
+                  onReset={handleResetFilters}
+                />
+              </div>
+            </aside>
+
+            <div className="space-y-4">
+              <FlightFiltersMobileBar
+                activeCount={activeFilterCount}
+                onOpen={() => setMobileFiltersOpen(true)}
               />
-            ))}
+
+              {filteredFlights.length === 0 ? (
+                <Card className="rounded-2xl border-slate-200">
+                  <CardContent className="py-10 text-center">
+                    <p className="font-semibold text-slate-900">No flights match your filters</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Try clearing filters or widening your price range.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {pagination.items.map((flight) => (
+                    <FlightCard
+                      key={`${flight.priceId}-${flight.flightNumber}-${flight.departureTime}-${flight.fareIdentifier}`}
+                      flight={flight}
+                      locale={locale}
+                    />
+                  ))}
+
+                  <FlightPagination
+                    page={pagination.page}
+                    totalPages={pagination.totalPages}
+                    total={pagination.total}
+                    startIndex={pagination.startIndex}
+                    endIndex={pagination.endIndex}
+                    onPageChange={setPage}
+                  />
+                </>
+              )}
+            </div>
           </div>
         )}
+
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="left" className="w-full max-w-sm overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Filter flights</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <FlightFiltersSidebar
+                filters={filters}
+                meta={meta}
+                locale={locale}
+                activeCount={activeFilterCount}
+                onChange={handleFilterChange}
+                onReset={handleResetFilters}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </section>
   );
