@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Moon,
   Package,
+  Plane,
   Sun,
   User,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const navLinks = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },
   { href: "/bus/search", label: "bus", icon: Bus },
+  { href: "/flights", label: "flights", icon: Plane },
 ];
 
 function isNavActive(pathname: string, href: string) {

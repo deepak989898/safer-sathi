@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Package,
+  Plane,
   Sparkles,
   Search,
   User,
@@ -37,6 +38,7 @@ export const CUSTOMER_NAV_ITEMS: NavMenuItem[] = [
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Building2 },
   { href: "/bus/search", label: "bus", icon: Bus },
+  { href: "/flights", label: "flights", icon: Plane },
   { href: "/my-bookings", label: "myBookings", icon: CalendarCheck },
 ];
 
