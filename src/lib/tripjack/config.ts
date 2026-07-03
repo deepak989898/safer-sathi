@@ -13,6 +13,12 @@ export function getTripJackProxyConfig() {
     reviewUrl: `${baseUrl}/api/tripjack/flights/review`,
     fareValidatePath: "/api/tripjack/flights/fare-validate",
     fareValidateUrl: `${baseUrl}/api/tripjack/flights/fare-validate`,
+    bookPath: "/api/tripjack/flights/book",
+    bookUrl: `${baseUrl}/api/tripjack/flights/book`,
+    bookingDetailsPath: "/api/tripjack/flights/booking-details",
+    bookingDetailsUrl: `${baseUrl}/api/tripjack/flights/booking-details`,
+    confirmFarePath: "/api/tripjack/flights/confirm-fare-before-ticket",
+    confirmFareUrl: `${baseUrl}/api/tripjack/flights/confirm-fare-before-ticket`,
   };
 }
 

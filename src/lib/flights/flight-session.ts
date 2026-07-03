@@ -143,6 +143,7 @@ export function loadFareValidateSession(): {
   passengers: FlightPassengersSession | null;
   request: import("@/lib/tripjack/types").FareValidateRequest | null;
   normalized: import("@/lib/tripjack/types").NormalizedFareValidate | null;
+  fareValidateResponse: unknown;
 } {
   return {
     passengers: loadJsonSession<FlightPassengersSession>(FLIGHT_SESSION_KEYS.passengers),
@@ -152,6 +153,7 @@ export function loadFareValidateSession(): {
     normalized: loadJsonSession<import("@/lib/tripjack/types").NormalizedFareValidate>(
       FLIGHT_SESSION_KEYS.fareValidateNormalized
     ),
+    fareValidateResponse: loadJsonSession<unknown>(FLIGHT_SESSION_KEYS.fareValidateResponse),
   };
 }
 

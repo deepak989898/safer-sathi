@@ -9,6 +9,7 @@ import type {
   FlightSearchParams,
   FlightSearchResult,
 } from "@/lib/tripjack/types";
+import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 
 export class TripJackApiError extends Error {
   constructor(
@@ -220,4 +221,56 @@ export async function fareValidateTripJackFlight(input: {
   }
 
   return { validated, rawResponse: raw };
+}
+
+async function tripjackProxyPost(url: string, body: unknown): Promise<unknown> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const rawText = await response.text();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(rawText);
+  } catch {
+    throw new TripJackApiError(`Invalid JSON from TripJack proxy`, response.status, rawText);
+  }
+
+  const record = raw as Record<string, unknown>;
+  if (!response.ok || record.success === false) {
+    throw new TripJackApiError(
+      String(record.error ?? record.message ?? `TripJack proxy error ${response.status}`),
+      response.status,
+      raw
+    );
+  }
+
+  return raw;
+}
+
+export async function bookTripJackFlight(
+  request: import("@/lib/tripjack/build-book").TripJackBookRequest
+): Promise<import("@/lib/tripjack/types").FlightBookResult> {
+  const { bookUrl } = getTripJackProxyConfig();
+  const raw = await tripjackProxyPost(bookUrl, request);
+  const payload = raw as Record<string, unknown>;
+  const data = (payload.data ?? payload) as Record<string, unknown>;
+  const bookingId =
+    extractTripJackBookingId(raw) ||
+    String(data.bookingId ?? request.bookingId ?? "");
+
+  return { bookingId, rawResponse: raw };
+}
+
+export async function fetchTripJackBookingDetails(bookingId: string): Promise<unknown> {
+  const { bookingDetailsUrl } = getTripJackProxyConfig();
+  return tripjackProxyPost(bookingDetailsUrl, { bookingId });
+}
+
+export async function confirmTripJackFareBeforeTicket(bookingId: string): Promise<unknown> {
+  const { confirmFareUrl } = getTripJackProxyConfig();
+  return tripjackProxyPost(confirmFareUrl, { bookingId });
 }

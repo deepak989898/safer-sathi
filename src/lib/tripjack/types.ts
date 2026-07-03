@@ -138,6 +138,11 @@ export interface TripJackTravellerPayload {
   pt: PassengerType;
   fN: string;
   lN: string;
+  dob?: string;
+  pNat?: string;
+  pNum?: string;
+  pid?: string;
+  eD?: string;
   ssrBaggageInfos?: TripJackSsrItem[];
   ssrMealInfos?: TripJackSsrItem[];
   ssrSeatInfos?: TripJackSsrItem[];
@@ -210,5 +215,31 @@ export interface NormalizedFareValidate {
 
 export interface FareValidateResult {
   validated: NormalizedFareValidate;
+  rawResponse: unknown;
+}
+
+export interface NormalizedFlightBookingDetails {
+  bookingId: string;
+  orderStatus: string;
+  amount: number;
+  pnr: string;
+  airlinePnr: string;
+  ticketNumber: string;
+  passengers: Array<{ name: string; type: string; ticketNumber?: string }>;
+  tripInfos: unknown[];
+  flightSegments: FlightReviewSegment[];
+  fareDetails: {
+    baseFare: number;
+    taxesAndFees: number;
+    totalFare: number;
+    fareIdentifier: string;
+  };
+  ticketStatus: string;
+  rawBookingResponse: unknown;
+  rawBookingDetailsResponse: unknown;
+}
+
+export interface FlightBookResult {
+  bookingId: string;
   rawResponse: unknown;
 }
