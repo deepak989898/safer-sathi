@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { ListingLayout } from "@/components/customer/listing-filter-sort";
@@ -184,6 +185,12 @@ export default function HotelsClient({
 
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
+      <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
+        Looking for live TripJack hotel rates?{" "}
+        <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
+          Search live hotels
+        </Link>
+      </div>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
