@@ -116,6 +116,32 @@ export function FlightFlowClient() {
     [params, router]
   );
 
+  const handleSelectDate = useCallback(
+    (date: string) => {
+      setParams((prev) => ({ ...prev, departureDate: date }));
+      // Re-run search with the new date using existing search handler path.
+      void (async () => {
+        const next = { ...params, departureDate: date };
+        if (next.fromCode.length !== 3 || next.toCode.length !== 3) return;
+        setError(null);
+        setHasSearched(true);
+        const result = await searchFlights(next);
+        if (!result) return;
+        setFlights(result.flights);
+        setOnwardCount(result.onwardCount);
+        setMessage(result.message);
+        saveFlightSearchSession({
+          params: next,
+          flights: result.flights,
+          onwardCount: result.onwardCount,
+          message: result.message,
+          searchedAt: new Date().toISOString(),
+        });
+      })();
+    },
+    [params, searchFlights, setError]
+  );
+
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
       <FlightStepBar current={hasSearched ? "results" : "search"} />
@@ -138,6 +164,7 @@ export function FlightFlowClient() {
           message={message}
           locale={locale}
           onReviewFlight={handleReviewFlight}
+          onSelectDate={handleSelectDate}
         />
       )}
 

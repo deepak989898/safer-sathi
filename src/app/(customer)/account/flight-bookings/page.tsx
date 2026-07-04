@@ -24,15 +24,20 @@ const TABS: Array<{ id: string; label: string; statuses: FlightBookingStatus[] |
       "payment_success",
       "booking_pending",
       "confirmed",
+      "manual_review_required",
     ],
   },
-  { id: "confirmed", label: "Confirmed", statuses: ["confirmed"] },
+  { id: "completed", label: "Completed", statuses: ["confirmed"] },
   {
     id: "pending",
     label: "Pending",
     statuses: ["booking_pending", "payment_success", "manual_review_required"],
   },
-  { id: "failed", label: "Failed", statuses: ["payment_failed", "booking_failed"] },
+  {
+    id: "cancelled",
+    label: "Cancelled",
+    statuses: ["payment_failed", "booking_failed"],
+  },
 ];
 
 function statusTone(status: FlightBookingStatus) {

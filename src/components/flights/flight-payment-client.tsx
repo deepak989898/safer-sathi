@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { FlightPaymentScreen } from "@/components/flights/flight-payment-screen";
+import {
+  FlightBookingConfirmationScreen,
+  FlightPaymentSuccessScreen,
+} from "@/components/flights/flight-status-screens";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightBookingApi } from "@/hooks/use-flight-booking";
 import {
@@ -15,6 +19,8 @@ import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { useAppStore } from "@/store/app-store";
 
+type PaymentUiPhase = "pay" | "payment_success" | "booking_status";
+
 export function FlightPaymentClient() {
   const router = useRouter();
   const { locale } = useAppStore();
@@ -24,6 +30,8 @@ export function FlightPaymentClient() {
   const [ready, setReady] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [booking, setBooking] = useState<FlightBookingRecord | null>(null);
+  const [phase, setPhase] = useState<PaymentUiPhase>("pay");
+  const [confirmedBooking, setConfirmedBooking] = useState<FlightBookingRecord | null>(null);
 
   const isStaff = user ? canShowAdminNav(user.role) : false;
 
@@ -105,25 +113,25 @@ export function FlightPaymentClient() {
       { isStaff }
     );
 
-    if (!result) return;
+    if (!result?.booking) return;
+
+    setConfirmedBooking(result.booking);
+    setPhase("payment_success");
 
     if (result.manualReview) {
       toast.info(
         result.message ??
-          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly."
+          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly.",
+        { duration: 3500 }
       );
     } else if (result.booking.status === "confirmed") {
-      toast.success("Flight booking confirmed!");
-    } else {
-      toast.success(result.message ?? "Payment successful");
+      toast.success("Flight booking confirmed!", { duration: 2500 });
     }
-
-    router.push(`/flights/ticket/${result.booking.bookingId}`);
   };
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
         <p className="text-slate-600">Preparing payment...</p>
       </div>
     );
@@ -131,7 +139,7 @@ export function FlightPaymentClient() {
 
   if (sessionError || !session) {
     return (
-      <div className="min-h-screen bg-slate-50 py-16">
+      <div className="min-h-screen bg-[#f4f7fb] py-16">
         <div className="container mx-auto max-w-lg px-4 text-center">
           <p className="font-semibold text-slate-900">
             {sessionError ?? "Booking session expired. Please search again."}
@@ -141,6 +149,26 @@ export function FlightPaymentClient() {
           </Link>
         </div>
       </div>
+    );
+  }
+
+  if (phase === "payment_success" && confirmedBooking) {
+    return (
+      <FlightPaymentSuccessScreen
+        booking={confirmedBooking}
+        locale={locale}
+        onContinue={() => setPhase("booking_status")}
+      />
+    );
+  }
+
+  if (phase === "booking_status" && confirmedBooking) {
+    return (
+      <FlightBookingConfirmationScreen
+        booking={confirmedBooking}
+        locale={locale}
+        onViewTicket={() => router.push(`/flights/ticket/${confirmedBooking.bookingId}`)}
+      />
     );
   }
 

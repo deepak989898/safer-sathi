@@ -22,8 +22,8 @@ export function FlightStepBar({ current }: { current: FlightStepId }) {
   const currentIndex = FLIGHT_STEPS.findIndex((s) => s.id === current);
 
   return (
-    <div className="hidden overflow-x-auto border-b border-blue-100 bg-white md:block">
-      <div className="container mx-auto flex items-center gap-1 px-4 py-3">
+    <div className="overflow-x-auto border-b border-blue-100 bg-white">
+      <div className="container mx-auto flex min-w-[520px] items-center gap-1 px-4 py-3">
         {FLIGHT_STEPS.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;

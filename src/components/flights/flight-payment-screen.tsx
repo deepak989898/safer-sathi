@@ -155,7 +155,7 @@ export function FlightPaymentScreen({
                 ) : (
                   <>
                     <CreditCard className="mr-2 h-4 w-4" />
-                    Pay {formatCurrency(totalFare, locale)}
+                    Pay Now · {formatCurrency(totalFare, locale)}
                   </>
                 )}
               </Button>

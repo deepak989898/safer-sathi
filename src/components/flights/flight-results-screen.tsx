@@ -33,6 +33,24 @@ interface FlightResultsScreenProps {
   message: string;
   locale: Locale;
   onReviewFlight?: (flight: NormalizedFlight) => void;
+  onSelectDate?: (date: string) => void;
+}
+
+function buildDateStrip(centerDate: string): string[] {
+  const base = new Date(`${centerDate}T12:00:00`);
+  if (Number.isNaN(base.getTime())) return [centerDate];
+  const dates: string[] = [];
+  for (let offset = -3; offset <= 3; offset += 1) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + offset);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function formatStripDay(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 }
 
 function FlightCardSkeleton() {
@@ -60,7 +78,12 @@ export function FlightResultsScreen({
   message,
   locale,
   onReviewFlight,
+  onSelectDate,
 }: FlightResultsScreenProps) {
+  const dateStrip = useMemo(
+    () => buildDateStrip(params.departureDate),
+    [params.departureDate]
+  );
   const [filters, setFilters] = useState<FlightFilters>(() => initFiltersFromFlights(flights));
   const [page, setPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -130,6 +153,33 @@ export function FlightResultsScreen({
               )}
             </div>
           </div>
+
+          {/* Date strip — selects date and reuses existing search */}
+          <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
+            {dateStrip.map((date) => {
+              const active = date === params.departureDate;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  disabled={!onSelectDate || loading}
+                  onClick={() => onSelectDate?.(date)}
+                  className={`min-w-[92px] shrink-0 rounded-2xl border px-3 py-2 text-left transition ${
+                    active
+                      ? "border-[#1a4fa3] bg-[#1a4fa3] text-white shadow-md"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
+                  }`}
+                >
+                  <p className={`text-[11px] font-medium ${active ? "text-blue-100" : "text-slate-500"}`}>
+                    {formatStripDay(date)}
+                  </p>
+                  <p className={`mt-0.5 text-xs font-bold ${active ? "text-white" : "text-[#1a4fa3]"}`}>
+                    {active && cheapest != null ? formatCurrency(cheapest, locale) : "Search"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -183,10 +233,27 @@ export function FlightResultsScreen({
             </aside>
 
             <div className="space-y-4">
-              <FlightFiltersMobileBar
-                activeCount={activeFilterCount}
-                onOpen={() => setMobileFiltersOpen(true)}
-              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <FlightFiltersMobileBar
+                  activeCount={activeFilterCount}
+                  onOpen={() => setMobileFiltersOpen(true)}
+                />
+                <p className="text-xs font-medium text-slate-500">
+                  Sort:{" "}
+                  <span className="text-slate-800">
+                    {filters.sortBy === "price_asc"
+                      ? "Price (low to high)"
+                      : filters.sortBy === "price_desc"
+                        ? "Price (high to low)"
+                        : filters.sortBy === "duration_asc"
+                          ? "Duration"
+                          : filters.sortBy === "departure_asc"
+                            ? "Departure"
+                            : "Recommended"}
+                  </span>
+                  <span className="text-slate-400"> · use filters to change</span>
+                </p>
+              </div>
 
               {filteredFlights.length === 0 ? (
                 <FlightSoftCard>

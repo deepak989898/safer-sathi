@@ -9,7 +9,6 @@ import {
   FlightRouteStrip,
   FlightSoftCard,
   FlightStepBar,
-  FlightSuccessPanel,
 } from "@/components/flights/flight-ui";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
@@ -77,38 +76,13 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
     <div className="space-y-6">
       <FlightStepBar current="ticket" />
 
-      {booking.status === "confirmed" && (
-        <FlightSuccessPanel
-          title="Booking Confirmed!"
-          description="Your flight is booked. Save or print your e-ticket below."
-        >
-          <div className="mt-4 grid gap-2 text-left text-sm">
-            <div className="flex justify-between rounded-xl bg-slate-50 px-3 py-2">
-              <span className="text-slate-500">Booking ID</span>
-              <span className="font-mono font-semibold">{booking.bookingId}</span>
-            </div>
-            {pnr && (
-              <div className="flex justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">PNR</span>
-                <span className="font-mono font-semibold">{pnr}</span>
-              </div>
-            )}
-          </div>
-        </FlightSuccessPanel>
-      )}
-
       {booking.paymentStatus === "paid" && booking.status === "manual_review_required" && (
-        <FlightSuccessPanel
-          title="Payment Successful!"
-          description="Payment received. Ticket confirmation is pending. Our team will verify and update shortly."
-          tone="warning"
-        >
-          {booking.razorpayPaymentId && (
-            <p className="mt-4 text-xs text-slate-500">
-              Payment ID: <span className="font-mono">{booking.razorpayPaymentId}</span>
-            </p>
-          )}
-        </FlightSuccessPanel>
+        <FlightSoftCard className="border-amber-200 bg-amber-50">
+          <p className="p-4 text-sm text-amber-900">
+            Payment received. Ticket confirmation is pending. Our team will verify and update
+            shortly.
+          </p>
+        </FlightSoftCard>
       )}
 
       <FlightSoftCard
@@ -296,6 +270,40 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
           My flight bookings
         </Link>
       </div>
+
+      {/* Email confirmation preview — UI only (reference screen 13) */}
+      <FlightSoftCard className="print:hidden">
+        <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
+          Email confirmation preview
+        </div>
+        <div className="space-y-3 p-4 text-sm">
+          <p className="text-xs text-slate-500">
+            To: <span className="font-medium text-slate-800">{booking.customerEmail}</span>
+          </p>
+          <p className="font-semibold text-slate-900">
+            Your Flight Booking Confirmation — {booking.bookingId}
+          </p>
+          <p className="text-slate-600">
+            Thank you for booking with Safar Sathi. Your flight from{" "}
+            <strong>
+              {booking.sourceCode} → {booking.destinationCode}
+            </strong>{" "}
+            on <strong>{booking.travelDate}</strong> is{" "}
+            {booking.status === "confirmed" ? "confirmed" : "being processed"}.
+          </p>
+          <div className="rounded-xl bg-blue-50 px-3 py-2 text-xs text-slate-700">
+            Booking ID: <strong className="font-mono">{booking.bookingId}</strong>
+            {pnr ? (
+              <>
+                {" "}
+                · PNR: <strong className="font-mono">{pnr}</strong>
+              </>
+            ) : null}
+            {" "}
+            · Fare: <strong>{formatCurrency(booking.totalFare, locale)}</strong>
+          </div>
+        </div>
+      </FlightSoftCard>
     </div>
   );
 }

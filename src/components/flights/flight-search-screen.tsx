@@ -55,20 +55,33 @@ export function FlightSearchScreen({
         <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-sky-300/20 blur-2xl" />
 
         <div className="container relative mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#1a4fa3] shadow-sm ring-1 ring-blue-100">
-              <Plane className="h-3.5 w-3.5" />
-              Safar Sathi Flights
+          <div className="mx-auto grid max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="text-center lg:text-left">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#1a4fa3] shadow-sm ring-1 ring-blue-100">
+                <Plane className="h-3.5 w-3.5" />
+                Safar Sathi Flights
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-5xl">
+                Find The Best Flight Deals
+              </h1>
+              <p className="mx-auto mt-3 max-w-xl text-sm text-slate-600 md:text-base lg:mx-0">
+                Search one-way flights, review fares, pay securely, and get your e-ticket instantly.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-5xl">
-              Find The Best Flight Deals
-            </h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-slate-600 md:text-base">
-              Search one-way flights, review fares, pay securely, and get your e-ticket instantly.
-            </p>
+            <div className="hidden justify-center lg:flex">
+              {/* Decorative plane — UI only, no functional impact */}
+              <div className="relative h-44 w-full max-w-sm">
+                <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[#1a4fa3]/15 to-sky-200/40" />
+                <img
+                  src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80"
+                  alt=""
+                  className="absolute inset-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-3xl object-cover shadow-lg"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="mx-auto mt-8 max-w-4xl rounded-3xl border border-white/80 bg-white p-5 shadow-xl shadow-blue-900/5 md:p-8">
+          <div className="mx-auto mt-8 max-w-4xl rounded-3xl border border-white/80 bg-white p-4 shadow-xl shadow-blue-900/5 sm:p-5 md:p-8">
             <div className="mb-5 flex flex-wrap gap-2">
               <span className="rounded-full bg-[#1a4fa3] px-4 py-1.5 text-xs font-semibold text-white">
                 One Way
