@@ -1,43 +1,16 @@
-import { getFlightBookingById } from "@/lib/flights/firestore";
+import { z } from "zod";
+import {
+  canAccessFlightBooking,
+  requireFlightBookingStaff,
+} from "@/lib/flights/booking-access";
 import { flightApiError } from "@/lib/flights/api-helpers";
-import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
-import { requireStaffAuth } from "@/lib/admin/api-auth";
-import { apiError, apiSuccess } from "@/lib/api-response";
-
-async function canAccessFlightBooking(
-  request: Request,
-  bookingId: string
-): Promise<
-  { booking: NonNullable<Awaited<ReturnType<typeof getFlightBookingById>>> } | { error: Response }
-> {
-  const booking = await getFlightBookingById(bookingId);
-  if (!booking) return { error: apiError("Booking not found", 404) };
-
-  const staff = await requireStaffAuth(request);
-  if (!("error" in staff)) return { booking };
-
-  const auth = await optionalAuthenticateRequest(request);
-  if (
-    auth &&
-    (booking.userId === auth.id ||
-      booking.customerEmail.toLowerCase() === auth.email?.toLowerCase())
-  ) {
-    return { booking };
-  }
-
-  // Paid tickets are reachable by opaque bookingId (post-payment ticket page).
-  const paidStatuses = new Set([
-    "payment_success",
-    "booking_pending",
-    "confirmed",
-    "manual_review_required",
-  ]);
-  if (booking.paymentStatus === "paid" || paidStatuses.has(booking.status)) {
-    return { booking };
-  }
-
-  return { error: apiError("Unauthorized", 401) };
-}
+import {
+  pollFlightAmendment,
+  refreshFlightBookingDetails,
+  releaseFlightPnr,
+} from "@/lib/flights/post-booking-service";
+import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
+import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 export async function GET(
   request: Request,
@@ -47,8 +20,62 @@ export async function GET(
     const { id } = await params;
     const access = await canAccessFlightBooking(request, id);
     if ("error" in access) return access.error;
-    return apiSuccess({ booking: access.booking });
+
+    const auth = await optionalAuthenticateRequest(request);
+    const includeDebug = Boolean(auth && isStaffUser(auth));
+
+    return apiSuccess({
+      booking: access.booking,
+      ...(includeDebug
+        ? {
+            debug: {
+              bookingDetailResponse: access.booking.bookingDetailResponse,
+              getChargesResponse: access.booking.getChargesResponse,
+              submitAmendmentResponse: access.booking.submitAmendmentResponse,
+              pollAmendmentResponse: access.booking.pollAmendmentResponse,
+              releasePnrResponse: access.booking.releasePnrResponse,
+            },
+          }
+        : {}),
+    });
   } catch (err) {
     return flightApiError(err, "Failed to load booking");
+  }
+}
+
+const patchSchema = z.object({
+  action: z.enum(["retry_poll", "retry_booking_detail", "retry_release_pnr"]),
+});
+
+/** Admin-only retries. */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const access = await requireFlightBookingStaff(request, id);
+    if ("error" in access) return access.error;
+
+    const { data: body, error } = await parseJsonBody(request);
+    if (error) return error;
+
+    const parsed = patchSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError("Validation failed", 400, parsed.error.flatten());
+    }
+
+    let booking = access.booking;
+    if (parsed.data.action === "retry_poll") {
+      booking = await pollFlightAmendment(id);
+    } else if (parsed.data.action === "retry_booking_detail") {
+      booking = await refreshFlightBookingDetails(id);
+    } else if (parsed.data.action === "retry_release_pnr") {
+      booking = await releaseFlightPnr(id);
+    }
+
+    return apiSuccess({ booking });
+  } catch (err) {
+    return flightApiError(err, "Admin action failed");
   }
 }

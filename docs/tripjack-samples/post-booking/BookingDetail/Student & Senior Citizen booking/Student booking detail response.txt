@@ -1,0 +1,109 @@
+{
+    "order": {
+        "bookingId": "TGS119910044190",
+        "amount": 49302.86,
+        "markup": 0.00,
+        "deliveryInfo": {
+            "emails": [
+                "abcc@technogramsolutions.com"
+            ],
+            "contacts": [
+                "9999999999"
+            ]
+        },
+        "status": "SUCCESS",
+        "createdOn": "2022-04-21T16:46:04.263"
+    },
+    "itemInfos": {
+        "AIR": {
+            "tripInfos": [
+                {
+                    "sI": [
+                        {
+                            "id": "104293",
+                            "fD": {
+                                "aI": {
+                                    "code": "EK",
+                                    "name": "Emirates Airlines",
+                                    "isLcc": false
+                                },
+                                "fN": "515",
+                                "eT": "77W"
+                            },
+                            "stops": 0,
+                            "duration": 215,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi intl airport",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "DXB",
+                                "name": "Dubai Intl Arpt",
+                                "cityCode": "DXB",
+                                "city": "Dubai",
+                                "country": "United Arab Emirates",
+                                "countryCode": "AE",
+                                "terminal": "Terminal 3"
+                            },
+                            "dt": "2022-04-21T21:50",
+                            "at": "2022-04-21T23:55",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ]
+                }
+            ],
+            "travellerInfos": [
+                {
+                    "pnrDetails": {
+                        "DEL-DXB": "GL2QFJ"
+                    },
+                    "ticketNumberDetails": {
+                        "DEL-DXB": "1766937933495"
+                    },
+                    "ti": "Mr",
+                    "pt": "ADULT",
+                    "fN": "test",
+                    "lN": "test",
+                    "dob": "2000-12-07",
+                    "pNum": "123456",
+                    "eD": "2032-01-01",
+                    "pNat": "IN",
+                    "pid": "2022-01-01",
+                    "di": "abc123"
+                }
+            ],
+            "totalPriceInfo": {
+                "totalFareDetail": {
+                    "fC": {
+                        "BF": 42675.00,
+                        "TAF": 6627.86,
+                        "NF": 49302.86,
+                        "IGST": 4.86,
+                        "TF": 49302.86
+                    },
+                    "afC": {
+                        "TAF": {
+                            "MF": 27.00,
+                            "OT": 1338.00,
+                            "AGST": 2283.00,
+                            "YQ": 2975.00,
+                            "MFT": 4.86
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "gstInfo": {},
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    }
+}

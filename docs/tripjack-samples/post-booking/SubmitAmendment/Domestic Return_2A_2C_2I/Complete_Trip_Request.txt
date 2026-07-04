@@ -1,0 +1,5 @@
+{
+    "bookingId": "TJ101330019559",
+    "remarks":"test CANCELLATION",
+    "type": "CANCELLATION"
+}

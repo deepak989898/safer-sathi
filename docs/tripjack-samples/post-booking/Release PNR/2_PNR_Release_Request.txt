@@ -1,0 +1,1 @@
+{"bookingId":"TJ103W01AAAAAA","pnrs":["PNRAAA","PNRAAB"]}

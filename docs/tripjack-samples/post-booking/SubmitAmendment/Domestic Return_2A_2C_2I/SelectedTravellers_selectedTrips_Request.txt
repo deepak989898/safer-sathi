@@ -1,0 +1,37 @@
+{
+    "bookingId": "TJ101330019559",
+    "type": "CANCELLATION",
+    "remarks":"test CANCELLATION",
+    "trips":[
+        {
+            "src":"DEL",
+            "dest":"BOM",
+            "departureDate":"2020-10-12",
+             "travellers":[
+                {
+                    "fn":"TEST1",
+                    "ln":"TEST1"
+                },
+                {
+                    "fn":"TEST2",
+                    "ln":"TEST2"
+                }
+            ]
+        },
+        {
+            "src":"BOM",
+            "dest":"DEL",
+            "departureDate":"2020-10-16",
+             "travellers":[
+                {
+                    "fn":"TEST1",
+                    "ln":"TEST1"
+                },
+                {
+                    "fn":"TEST2",
+                    "ln":"TEST2"
+                }
+            ]
+        }
+    ]
+}

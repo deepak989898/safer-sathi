@@ -1,0 +1,298 @@
+{
+    "tripInfos": [
+        {
+            "sI": [
+                {
+                    "id": "680",
+                    "fD": {
+                        "aI": {
+                            "code": "SG",
+                            "name": "SpiceJet",
+                            "isLcc": true
+                        },
+                        "fN": "8105",
+                        "eT": "737"
+                    },
+                    "stops": 0,
+                    "so": [],
+                    "duration": 175,
+                    "da": {
+                        "code": "DEL",
+                        "name": "Delhi Indira Gandhi Intl",
+                        "cityCode": "DEL",
+                        "city": "Delhi",
+                        "country": "India",
+                        "countryCode": "IN",
+                        "terminal": "Terminal 3"
+                    },
+                    "aa": {
+                        "code": "MAA",
+                        "name": "Chennai Arpt",
+                        "cityCode": "MAA",
+                        "city": "Chennai",
+                        "country": "India",
+                        "countryCode": "IN",
+                        "terminal": "Terminal 1"
+                    },
+                    "dt": "2021-12-19T20:15",
+                    "at": "2021-12-19T23:10",
+                    "iand": false,
+                    "isRs": false,
+                    "sN": 0,
+                    "ssrInfo": {
+                        "BAGGAGE": [
+                            {
+                                "code": "BOF1",
+                                "amount": 100.00,
+                                "desc": "Bag Out First with 1 Bag"
+                            },
+                            {
+                                "code": "BOF2",
+                                "amount": 200.00,
+                                "desc": "Bag Out First with 2 Bag"
+                            },
+                            {
+                                "code": "BOF3",
+                                "amount": 300.00,
+                                "desc": "Bag Out First with 3 Bag"
+                            },
+                            {
+                                "code": "EB05",
+                                "amount": 1900.00,
+                                "desc": "5KG"
+                            },
+                            {
+                                "code": "EB10",
+                                "amount": 3800.00,
+                                "desc": "10KG"
+                            },
+                            {
+                                "code": "EB15",
+                                "amount": 5700.00,
+                                "desc": "15KG"
+                            },
+                            {
+                                "code": "EB20",
+                                "amount": 7600.00,
+                                "desc": "20KG"
+                            },
+                            {
+                                "code": "EB30",
+                                "amount": 11400.00,
+                                "desc": "30KG"
+                            }
+                        ],
+                        "MEAL": [
+                            {
+                                "code": "VGML",
+                                "amount": 0.00,
+                                "desc": "Veg Meal"
+                            },
+                            {
+                                "code": "JNML",
+                                "amount": 0.00,
+                                "desc": "Jain Hot Meal"
+                            },
+                            {
+                                "code": "GFVG",
+                                "amount": 0.00,
+                                "desc": "Vegetarian Gluten-free Hot Meal "
+                            },
+                            {
+                                "code": "GFNV",
+                                "amount": 0.00,
+                                "desc": "Non Vegetarian Gluten-free Hot Meal"
+                            },
+                            {
+                                "code": "GFCM",
+                                "amount": 0.00,
+                                "desc": "Vegetarian Gluten-free Cold Meal "
+                            },
+                            {
+                                "code": "FPML",
+                                "amount": 0.00,
+                                "desc": "Fruit Platter"
+                            },
+                            {
+                                "code": "DNVL",
+                                "amount": 0.00,
+                                "desc": "Non Vegetarian Diabetic Hot Meal "
+                            },
+                            {
+                                "code": "DBML",
+                                "amount": 0.00,
+                                "desc": "Vegetarian Diabetic Hot Meal"
+                            },
+                            {
+                                "code": "CHML",
+                                "amount": 0.00,
+                                "desc": "Kids meal"
+                            },
+                            {
+                                "code": "JNSW",
+                                "amount": 229.00,
+                                "desc": "Jain Cold Sandwich (current Cucumber and Tomato sandwich)"
+                            },
+                            {
+                                "code": "LCVS",
+                                "amount": 244.00,
+                                "desc": "Low cal salad Vegetarian"
+                            },
+                            {
+                                "code": "LCNS",
+                                "amount": 244.00,
+                                "desc": "Low cal salad Non Vegetarian"
+                            },
+                            {
+                                "code": "VCC2",
+                                "amount": 300.00,
+                                "desc": "Vegetable in Red Thai Curry with Steamed Rice "
+                            },
+                            {
+                                "code": "NCC6",
+                                "amount": 300.00,
+                                "desc": "Chicken schezwan on bed of fried rice "
+                            },
+                            {
+                                "code": "NCC5",
+                                "amount": 300.00,
+                                "desc": "Tawa Fish masala on bed of  Steamed rice with tadka masoordal "
+                            },
+                            {
+                                "code": "NCC4",
+                                "amount": 300.00,
+                                "desc": "Tandoori Chicken tangri with chicken haryali tikka & vegetable shami kebab"
+                            },
+                            {
+                                "code": "NCC2",
+                                "amount": 300.00,
+                                "desc": "Chicken in Red Thai Curry with Steamed Rice "
+                            },
+                            {
+                                "code": "NCC1",
+                                "amount": 300.00,
+                                "desc": "Grilled Chicken Breast with Mushroom Sauce, Yellow Rice, Saut Carrot & Beans Baton "
+                            }
+                        ]
+                    }
+                }
+            ],
+            "totalPriceList": [
+                {
+                    "fd": {
+                        "ADULT": {
+                            "fC": {
+                                "NF": 5020.70,
+                                "BF": 4385.00,
+                                "TF": 5020.70,
+                                "TAF": 635.70
+                            },
+                            "afC": {
+                                "TAF": {
+                                    "MFT": 2.70,
+                                    "YQ": 0.00,
+                                    "AGST": 223.00,
+                                    "OT": 395.00,
+                                    "MF": 15.00
+                                }
+                            },
+                            "sR": 1,
+                            "bI": {
+                                "iB": "15 Kg",
+                                "cB": "7 Kg"
+                            },
+                            "rT": 1,
+                            "cc": "ECONOMY",
+                            "cB": "RS",
+                            "fB": "USAV",
+                            "mI": false
+                        }
+                    },
+                    "fareIdentifier": "PUBLISHED",
+                    "id": "4-2314586056_0DELMAASG8105_15090303857465983",
+                    "pc": {
+                        "code": "SG",
+                        "name": "SpiceJet",
+                        "isLcc": true
+                    }
+                }
+            ]
+        }
+    ],
+    "searchQuery": {
+        "routeInfos": [
+            {
+                "fromCityOrAirport": {
+                    "code": "DEL",
+                    "name": "Delhi Indira Gandhi Intl",
+                    "cityCode": "DEL",
+                    "city": "Delhi",
+                    "country": "India",
+                    "countryCode": "IN"
+                },
+                "toCityOrAirport": {
+                    "code": "MAA",
+                    "name": "Chennai Arpt",
+                    "cityCode": "MAA",
+                    "city": "Chennai",
+                    "country": "India",
+                    "countryCode": "IN"
+                },
+                "travelDate": "2021-12-19"
+            }
+        ],
+        "cabinClass": "ECONOMY",
+        "paxInfo": {
+            "ADULT": 1,
+            "CHILD": 0,
+            "INFANT": 0
+        },
+        "searchType": "ONEWAY",
+        "searchModifiers": {
+            "isDirectFlight": true,
+            "isConnectingFlight": false
+        },
+        "isDomestic": true
+    },
+    "bookingId": "TJS108500125746",
+    "totalPriceInfo": {
+        "totalFareDetail": {
+            "fC": {
+                "NF": 5020.70,
+                "BF": 4385.00,
+                "TF": 5020.70,
+                "TAF": 635.70
+            },
+            "afC": {
+                "TAF": {
+                    "MFT": 2.70,
+                    "YQ": 0.00,
+                    "AGST": 223.00,
+                    "OT": 395.00,
+                    "MF": 15.00
+                }
+            }
+        }
+    },
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "conditions": {
+        "ffas": [],
+        "isa": true,
+        "dob": {
+            "adobr": false,
+            "cdobr": false,
+            "idobr": true
+        },
+        "iecr": false,
+        "isBA": true,
+        "st": 840,
+        "sct": "2021-10-20T13:10:10.928",
+        "gst": {
+            "gstappl": true,
+            "igm": false
+        }
+    }
+}

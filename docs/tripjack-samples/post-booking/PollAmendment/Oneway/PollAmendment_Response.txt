@@ -1,0 +1,42 @@
+{
+  "bookingId": "xxxxxxx",
+  "amendmentId": "yyyyyyy",
+  "amendmentStatus": "SUCCESS",
+  "amendmentCharges": 0,
+  "refundableamount": -3740,
+  "trips": [
+    {
+      "src": "DEL",
+      "dest": "MAA",
+      "date": "2020-09-24T04:50",
+      "flightNumbers": [
+        "6834",
+        "171"
+      ],
+      "airlines": [
+        "6E"
+      ],
+      "travellers": [
+        {
+          "fn": "TEST1",
+          "ln": "TEST1",
+          "amendmentCharges": 3067.7,
+          "refundableamount": 1870,
+          "totalFare": 4937.7
+        },
+        {
+          "fn": "TEST2",
+          "ln": "TEST2",
+          "amendmentCharges": 3067.7,
+          "refundableamount": 1870,
+          "totalFare": 4937.7
+        }
+      ]
+    }
+  ],
+  "status": {
+    "success": true,
+    "httpStatus": 200
+  },
+  "metaInfo": {}
+}

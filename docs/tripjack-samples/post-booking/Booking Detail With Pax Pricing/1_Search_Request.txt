@@ -1,0 +1,25 @@
+{
+    "searchQuery": {
+        "cabinClass": "ECONOMY",
+        "paxInfo": {
+            "ADULT": "1",
+            "CHILD": "0",
+            "INFANT": "0"
+        },
+        "routeInfos": [
+            {
+                "fromCityOrAirport": {
+                    "code": "DEL"
+                },
+                "toCityOrAirport": {
+                    "code": "MAA"
+                },
+                "travelDate": "2021-12-19"
+            }
+        ],
+        "searchModifiers": {
+            "isDirectFlight": true,
+            "isConnectingFlight": false
+        }
+    }
+}

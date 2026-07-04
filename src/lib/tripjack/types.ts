@@ -218,28 +218,102 @@ export interface FareValidateResult {
   rawResponse: unknown;
 }
 
+export interface NormalizedBookingPassenger {
+  title: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  type: string;
+  pnr?: string;
+  ticketNumber?: string;
+  status?: string;
+  fare?: {
+    baseFare: number;
+    taxesAndFees: number;
+    totalFare: number;
+  };
+}
+
 export interface NormalizedFlightBookingDetails {
   bookingId: string;
   orderStatus: string;
   amount: number;
+  markup: number;
   pnr: string;
   airlinePnr: string;
   ticketNumber: string;
-  passengers: Array<{ name: string; type: string; ticketNumber?: string }>;
+  passengers: NormalizedBookingPassenger[];
   tripInfos: unknown[];
   flightSegments: FlightReviewSegment[];
   fareDetails: {
     baseFare: number;
     taxesAndFees: number;
     totalFare: number;
+    netFare: number;
     fareIdentifier: string;
   };
+  gstInfo: Record<string, unknown>;
+  deliveryInfo: { emails: string[]; contacts: string[] };
+  isHoldBooking: boolean;
+  timeLimit: string;
   ticketStatus: string;
+  tripStatus: string;
+  passengerFares: Array<{
+    name: string;
+    type: string;
+    baseFare: number;
+    taxesAndFees: number;
+    totalFare: number;
+  }>;
   rawBookingResponse: unknown;
   rawBookingDetailsResponse: unknown;
 }
 
 export interface FlightBookResult {
   bookingId: string;
+  rawResponse: unknown;
+}
+
+/** From GetCharges sample (Complete_Trip / SelectedTrip). */
+export interface NormalizedCancellationCharges {
+  bookingId: string;
+  trips: Array<{
+    src: string;
+    dest: string;
+    departureDate: string;
+    flightNumbers: string[];
+    airlines: string[];
+    paxCharges: Array<{
+      type: string;
+      amendmentCharges: number;
+      refundAmount: number;
+      totalFare: number;
+    }>;
+  }>;
+  cancellationCharges: number;
+  refundAmount: number;
+  refundableAmount: number;
+  airlineCharges: number;
+  supplierCharges: number;
+  convenienceFee: number;
+  rawResponse: unknown;
+}
+
+/** From SubmitAmendment sample response. */
+export interface NormalizedSubmitAmendment {
+  bookingId: string;
+  amendmentId: string;
+  success: boolean;
+  rawResponse: unknown;
+}
+
+/** From Poll Amendment sample response. */
+export interface NormalizedPollAmendment {
+  bookingId: string;
+  amendmentId: string;
+  amendmentStatus: string;
+  amendmentCharges: number;
+  refundableAmount: number;
+  trips: unknown[];
   rawResponse: unknown;
 }

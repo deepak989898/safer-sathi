@@ -1,0 +1,53 @@
+{
+    "bookingId": "TJ110120019597",
+    "type": "CANCELLATION",
+    "remarks":"test CANCELLATION",
+    "trips": [
+        {
+            "src": "BOM",
+            "dest": "DXB",
+            "departureDate": "2020-10-19",
+            "travellers": [
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA"
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD"
+                },
+                {
+                    "fn": "TESTB",
+                    "ln": "TESTB"
+                },
+                {
+                    "fn": "TESTc",
+                    "ln": "TESTc"
+                }
+            ]
+        },
+        {
+            "src": "DXB",
+            "dest": "BOM",
+            "departureDate": "2020-10-23",
+            "travellers": [
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA"
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD"
+                },
+                {
+                    "fn": "TESTB",
+                    "ln": "TESTB"
+                },
+                {
+                    "fn": "TESTc",
+                    "ln": "TESTc"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,102 @@
+{
+  "order": {
+    "bookingId": "TJ103480048150",
+    "amount": 13305,
+    "markup": 0,
+    "deliveryInfo": {
+      "emails": [
+        "agent2@tripjack.com"
+      ],
+      "contacts": [
+        "1234567892"
+      ]
+    },
+    "status": "SUCCESS",
+    "createdOn": "2022-07-18T11:57:02.114"
+  },
+  "itemInfos": {
+    "AIR": {
+      "tripInfos": [
+        {
+          "sI": [
+            {
+              "id": "106606",
+              "fD": {
+                "aI": {
+                  "code": "AI",
+                  "name": "Air India",
+                  "isLcc": false
+                },
+                "fN": "502",
+                "eT": "32B"
+              },
+              "stops": 0,
+              "duration": 165,
+              "da": {
+                "code": "DEL",
+                "name": "Delhi intl airport",
+                "cityCode": "DEL",
+                "city": "Delhi",
+                "country": "India",
+                "countryCode": "IN",
+                "terminal": "Terminal 3"
+              },
+              "aa": {
+                "code": "BLR",
+                "name": "Bengaluru Intl Arpt",
+                "cityCode": "BLR",
+                "city": "Bengaluru",
+                "country": "India",
+                "countryCode": "IN"
+              },
+              "dt": "2022-07-20T13:30",
+              "at": "2022-07-20T16:15",
+              "iand": false,
+              "isRs": false,
+              "sN": 0
+            }
+          ]
+        }
+      ],
+      "travellerInfos": [
+        {
+          "pnrDetails": {
+            "DEL-BLR": "579SJH"
+          },
+          "ticketNumberDetails": {
+            "DEL-BLR": "0983906288031"
+          },
+          "gdsPnrs": {
+            "DEL-BLR": "1TK1L7"
+          },
+          "ti": "Mr",
+          "pt": "ADULT",
+          "fN": "TEST",
+          "lN": "TEST"
+        }
+      ],
+      "totalPriceInfo": {
+        "totalFareDetail": {
+          "fC": {
+            "TAF": 1175,
+            "TF": 13305,
+            "NF": 13305,
+            "BF": 12130
+          },
+          "afC": {
+            "TAF": {
+              "OT": 390,
+              "YR": 170,
+              "AGST": 615
+            }
+          }
+        }
+      }
+    }
+  },
+  "gstInfo": {},
+  "status": {
+    "success": true,
+    "httpStatus": 200
+  }
+}

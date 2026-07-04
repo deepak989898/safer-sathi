@@ -17,8 +17,18 @@ export function getTripJackProxyConfig() {
     bookUrl: `${baseUrl}/api/tripjack/flights/book`,
     bookingDetailsPath: "/api/tripjack/flights/booking-details",
     bookingDetailsUrl: `${baseUrl}/api/tripjack/flights/booking-details`,
+    bookingDetailPath: "/api/tripjack/flights/booking-detail",
+    bookingDetailUrl: `${baseUrl}/api/tripjack/flights/booking-detail`,
     confirmFarePath: "/api/tripjack/flights/confirm-fare-before-ticket",
     confirmFareUrl: `${baseUrl}/api/tripjack/flights/confirm-fare-before-ticket`,
+    getChargesPath: "/api/tripjack/flights/get-charges",
+    getChargesUrl: `${baseUrl}/api/tripjack/flights/get-charges`,
+    submitAmendmentPath: "/api/tripjack/flights/submit-amendment",
+    submitAmendmentUrl: `${baseUrl}/api/tripjack/flights/submit-amendment`,
+    pollAmendmentPath: "/api/tripjack/flights/poll-amendment",
+    pollAmendmentUrl: `${baseUrl}/api/tripjack/flights/poll-amendment`,
+    releasePnrPath: "/api/tripjack/flights/release-pnr",
+    releasePnrUrl: `${baseUrl}/api/tripjack/flights/release-pnr`,
   };
 }
 

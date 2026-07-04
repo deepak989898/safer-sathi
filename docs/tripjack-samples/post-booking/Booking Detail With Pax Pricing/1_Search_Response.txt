@@ -1,0 +1,1845 @@
+{
+    "searchResult": {
+        "tripInfos": {
+            "ONWARD": [
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "SG",
+                                    "name": "SpiceJet",
+                                    "isLcc": true
+                                },
+                                "fN": "8105",
+                                "eT": "737"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T20:15",
+                            "at": "2021-12-19T23:10",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 5020.70,
+                                        "BF": 4385.00,
+                                        "TF": 5020.70,
+                                        "TAF": 635.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "AGST": 223.00,
+                                            "OT": 395.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 1,
+                                    "bI": {
+                                        "iB": "15 Kg",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "RS",
+                                    "fB": "USAV",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "4-2314586056_0DELMAASG8105_15089947672481599",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "704",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T03:00",
+                            "at": "2021-12-19T05:55",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_0DELMAA6E704_15089946838400399",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_0DELMAA6E704_15089946838403779",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_0DELMAA6E704_15089946838404690",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "5015",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T08:35",
+                            "at": "2021-12-19T11:30",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_1DELMAA6E5015_15089946842223377",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_1DELMAA6E5015_15089946842226749",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_1DELMAA6E5015_15089946842227439",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "2129",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 180,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T09:50",
+                            "at": "2021-12-19T12:50",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_2DELMAA6E2129_15089946845413097",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_2DELMAA6E2129_15089946845416699",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_2DELMAA6E2129_15089946845417478",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "864",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 180,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T15:40",
+                            "at": "2021-12-19T18:40",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_3DELMAA6E864_15089946849114722",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_3DELMAA6E864_15089946849117914",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_3DELMAA6E864_15089946849118595",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "2169",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 180,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T17:15",
+                            "at": "2021-12-19T20:15",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_4DELMAA6E2169_15089946852344646",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_4DELMAA6E2169_15089946852348027",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_4DELMAA6E2169_15089946852348700",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "623",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 180,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T18:45",
+                            "at": "2021-12-19T21:45",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_5DELMAA6E623_15089946856086411",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_5DELMAA6E623_15089946856089660",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_5DELMAA6E623_15089946856090382",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "2162",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T20:15",
+                            "at": "2021-12-19T23:10",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_6DELMAA6E2162_15089946859561281",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_6DELMAA6E2162_15089946859564670",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_6DELMAA6E2162_15089946859565605",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "616",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 170,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T22:40",
+                            "at": "2021-12-20T01:30",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 1562.70,
+                                        "BF": 1000.00,
+                                        "TF": 1712.70,
+                                        "TAF": 712.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 545.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "B",
+                                    "fB": "RZIP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "LITE",
+                            "id": "5-2314586056_7DELMAA6E616_15089946863048885",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2612.70,
+                                        "BF": 2000.00,
+                                        "TF": 2762.70,
+                                        "TAF": 762.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 595.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "R",
+                                    "fB": "R015AP",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "5-2314586056_7DELMAA6E616_15089946863052176",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3350.70,
+                                        "BF": 2703.00,
+                                        "TF": 3500.70,
+                                        "TAF": 797.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "MU": 150.00,
+                                            "MFT": 2.70,
+                                            "YQ": 0.00,
+                                            "OT": 630.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "bI": {
+                                        "iB": "15 Kg (01 Piece only)",
+                                        "cB": "01 Small Handbag under the seat"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "J",
+                                    "fB": "RUIP",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "FLEXI_PLUS",
+                            "id": "5-2314586056_7DELMAA6E616_15089946863052972",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "H1",
+                                    "name": "Hahn Air",
+                                    "isLcc": false
+                                },
+                                "fN": "1727",
+                                "eT": "737"
+                            },
+                            "oB": {
+                                "code": "SG",
+                                "name": "SpiceJet",
+                                "isLcc": true
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 165,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T18:25",
+                            "at": "2021-12-19T21:10",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 20106.70,
+                                        "BF": 12850.00,
+                                        "TF": 20106.70,
+                                        "TAF": 7256.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 3500.00,
+                                            "MFT": 2.70,
+                                            "YQ": 2410.00,
+                                            "AGST": 939.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 9,
+                                    "bI": {
+                                        "iB": "1 Unit(s)",
+                                        "cB": "7Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "K",
+                                    "fB": "KOWSG"
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_0DELMAAH11727_15089947863240626",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "AI",
+                                    "name": "Air India",
+                                    "isLcc": false
+                                },
+                                "fN": "439",
+                                "eT": "32B"
+                            },
+                            "stops": 0,
+                            "so": [],
+                            "duration": 170,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN"
+                            },
+                            "dt": "2021-12-19T06:05",
+                            "at": "2021-12-19T08:55",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 39279.70,
+                                        "BF": 36850.00,
+                                        "TF": 39279.70,
+                                        "TAF": 2429.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 170.00,
+                                            "MFT": 2.70,
+                                            "AGST": 1852.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 9,
+                                    "bI": {
+                                        "iB": "25 Kg (01 Piece only)",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "Y",
+                                    "fB": "YIFOW",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_1DELMAAAI439_15089947864029420",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 59693.70,
+                                        "BF": 52763.00,
+                                        "TF": 59693.70,
+                                        "TAF": 6930.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 170.00,
+                                            "MFT": 2.70,
+                                            "AGST": 6353.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 2,
+                                    "bI": {
+                                        "iB": "35 Kg",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "BUSINESS",
+                                    "cB": "J",
+                                    "fB": "CIFOW",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_1DELMAAAI439_15089947864032037",
+                            "msri": []
+                        },
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3095.70,
+                                        "BF": 2390.00,
+                                        "TF": 3095.70,
+                                        "TAF": 705.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 170.00,
+                                            "MFT": 2.70,
+                                            "AGST": 128.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 5,
+                                    "bI": {
+                                        "iB": "25 Kg (01 Piece only)",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "U",
+                                    "fB": "UAP30",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_1DELMAAAI439_15089947864033014",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "833",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 170,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T07:20",
+                            "at": "2021-12-19T10:10",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2516.20,
+                                        "BF": 2014.00,
+                                        "NCM": 142.50,
+                                        "TF": 2658.70,
+                                        "TAF": 644.70
+                                    },
+                                    "afC": {
+                                        "NCM": {
+                                            "OT": 150.00,
+                                            "TDS": -7.50
+                                        },
+                                        "TAF": {
+                                            "YR": 130.00,
+                                            "MFT": 2.70,
+                                            "AGST": 107.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 2,
+                                    "bI": {
+                                        "iB": "1  Piece",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "O",
+                                    "fB": "O8RPRYL",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_2DELMAAUK833_15089947868148445",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "837",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 170,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T17:25",
+                            "at": "2021-12-19T20:15",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2936.20,
+                                        "BF": 2414.00,
+                                        "NCM": 142.50,
+                                        "TF": 3078.70,
+                                        "TAF": 664.70
+                                    },
+                                    "afC": {
+                                        "NCM": {
+                                            "OT": 150.00,
+                                            "TDS": -7.50
+                                        },
+                                        "TAF": {
+                                            "YR": 130.00,
+                                            "MFT": 2.70,
+                                            "AGST": 127.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 2,
+                                    "bI": {
+                                        "iB": "1  Piece",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "E",
+                                    "fB": "E8RPRYL",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_3DELMAAUK837_15089947869019864",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "835",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 170,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T19:55",
+                            "at": "2021-12-19T22:45",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 2936.20,
+                                        "BF": 2414.00,
+                                        "NCM": 142.50,
+                                        "TF": 3078.70,
+                                        "TAF": 664.70
+                                    },
+                                    "afC": {
+                                        "NCM": {
+                                            "OT": 150.00,
+                                            "TDS": -7.50
+                                        },
+                                        "TAF": {
+                                            "YR": 130.00,
+                                            "MFT": 2.70,
+                                            "AGST": 127.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 9,
+                                    "bI": {
+                                        "iB": "1  Piece",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "E",
+                                    "fB": "E8RPRYL",
+                                    "mI": true
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_4DELMAAUK835_15089947869918442",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "AI",
+                                    "name": "Air India",
+                                    "isLcc": false
+                                },
+                                "fN": "429",
+                                "eT": "321"
+                            },
+                            "stops": 0,
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T09:45",
+                            "at": "2021-12-19T12:40",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3095.70,
+                                        "BF": 2390.00,
+                                        "TF": 3095.70,
+                                        "TAF": 705.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 170.00,
+                                            "MFT": 2.70,
+                                            "AGST": 128.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 2,
+                                    "bI": {
+                                        "iB": "25 Kg (01 Piece only)",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "U",
+                                    "fB": "UAP30",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_5DELMAAAI429_15089947870741886",
+                            "msri": []
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "fD": {
+                                "aI": {
+                                    "code": "AI",
+                                    "name": "Air India",
+                                    "isLcc": false
+                                },
+                                "fN": "540",
+                                "eT": "321"
+                            },
+                            "stops": 0,
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T20:40",
+                            "at": "2021-12-19T23:35",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ],
+                    "totalPriceList": [
+                        {
+                            "fd": {
+                                "ADULT": {
+                                    "fC": {
+                                        "NF": 3095.70,
+                                        "BF": 2390.00,
+                                        "TF": 3095.70,
+                                        "TAF": 705.70
+                                    },
+                                    "afC": {
+                                        "TAF": {
+                                            "YR": 170.00,
+                                            "MFT": 2.70,
+                                            "AGST": 128.00,
+                                            "OT": 390.00,
+                                            "MF": 15.00
+                                        }
+                                    },
+                                    "sR": 9,
+                                    "bI": {
+                                        "iB": "25 Kg (01 Piece only)",
+                                        "cB": "7 Kg"
+                                    },
+                                    "rT": 1,
+                                    "cc": "ECONOMY",
+                                    "cB": "U",
+                                    "fB": "UAP30",
+                                    "mI": false
+                                }
+                            },
+                            "fareIdentifier": "PUBLISHED",
+                            "id": "15-2-10-2314586056_6DELMAAAI540_15089947871559480",
+                            "msri": []
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "bookingId": "TJ110120019597",
+    "amendmentId": "9160019607",
+    "amendmentStatus": "SUCCESS",
+    "amendmentCharges": 0.00,
+    "refundableAmount": -19174.00,
+    "trips": [
+        {
+            "src": "BOM",
+            "dest": "DXB",
+            "departureDate": "2020-10-19T09:05",
+            "flightNumbers": [
+                "5"
+            ],
+            "airlines": [
+                "SG"
+            ],
+            "travellers": [
+                {
+                    "fn": "TESTC",
+                    "ln": "TESTC",
+                    "amendmentCharges": 4500.00,
+                    "refundableamount": 2224.00,
+                    "totalFare": 6724.00
+                },
+                {
+                    "fn": "TESTB",
+                    "ln": "TESTB",
+                    "amendmentCharges": 4500.00,
+                    "refundableamount": 2224.00,
+                    "totalFare": 6724.00
+                },
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA",
+                    "amendmentCharges": 4500.00,
+                    "refundableamount": 2224.00,
+                    "totalFare": 6724.00
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 2501.00,
+                    "totalFare": 2501.00
+                }
+            ]
+        },
+        {
+            "src": "DXB",
+            "dest": "BOM",
+            "departureDate": "2020-10-23T02:15",
+            "flightNumbers": [
+                "14"
+            ],
+            "airlines": [
+                "SG"
+            ],
+            "travellers": [
+                {
+                    "fn": "TESTB",
+                    "ln": "TESTB",
+                    "amendmentCharges": 3450.00,
+                    "refundableamount": 2540.00,
+                    "totalFare": 5990.00
+                },
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA",
+                    "amendmentCharges": 3450.00,
+                    "refundableamount": 2540.00,
+                    "totalFare": 5990.00
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 2381.00,
+                    "totalFare": 2381.00
+                },
+                {
+                    "fn": "TESTC",
+                    "ln": "TESTC",
+                    "amendmentCharges": 3450.00,
+                    "refundableamount": 2540.00,
+                    "totalFare": 5990.00
+                }
+            ]
+        }
+    ],
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}

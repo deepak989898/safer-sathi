@@ -1,0 +1,66 @@
+{
+    "bookingId": "TJ110120019597",
+    "trips": [
+        {
+            "src": "BOM",
+            "dest": "DXB",
+            "departureDate": "2020-10-19T09:05",
+            "flightNumbers": [
+                "5"
+            ],
+            "airlines": [
+                "SG"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 4500.00,
+                    "refundAmount": 2224.00,
+                    "totalFare": 6724.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 4500.00,
+                    "refundAmount": 2224.00,
+                    "totalFare": 6724.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 2501.00,
+                    "totalFare": 2501.00
+                }
+            }
+        },
+        {
+            "src": "DXB",
+            "dest": "BOM",
+            "departureDate": "2020-10-23T02:15",
+            "flightNumbers": [
+                "14"
+            ],
+            "airlines": [
+                "SG"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 3450.00,
+                    "refundAmount": 2540.00,
+                    "totalFare": 5990.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 3450.00,
+                    "refundAmount": 2540.00,
+                    "totalFare": 5990.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 2381.00,
+                    "totalFare": 2381.00
+                }
+            }
+        }
+    ],
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}

@@ -1,0 +1,26 @@
+{
+    "bookingId": {{bookingId}},
+    "paymentInfos": [
+        {
+            "amount": {{TF}}
+        }
+    ],
+    "travellerInfo": [
+        {
+            "ti": "Mr",
+            "fN": "TestA",
+            "lN": "AdultA",
+            "pt": "ADULT",
+            "dob": "1996-08-09"
+        }
+    ],
+    "gstInfo": {},
+    "deliveryInfo": {
+        "emails": [
+            "xyz@xyz.com"
+        ],
+        "contacts": [
+            "9489275524"
+        ]
+    }
+}

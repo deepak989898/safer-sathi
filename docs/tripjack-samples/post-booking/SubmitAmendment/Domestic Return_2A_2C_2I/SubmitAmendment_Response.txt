@@ -1,0 +1,9 @@
+{
+    "bookingId": "xxxxxxx",
+    "amendmentId": "yyyyyy",
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}

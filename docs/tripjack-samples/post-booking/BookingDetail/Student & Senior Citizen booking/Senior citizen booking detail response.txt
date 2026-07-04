@@ -1,0 +1,100 @@
+{
+    "order": {
+        "bookingId": "TGS102790044186",
+        "amount": 2792.86,
+        "markup": 0.00,
+        "deliveryInfo": {
+            "emails": [
+                "abcc@technogramsolutions.com"
+            ],
+            "contacts": [
+                "9999999999"
+            ]
+        },
+        "status": "SUCCESS",
+        "createdOn": "2022-04-21T16:29:29"
+    },
+    "itemInfos": {
+        "AIR": {
+            "tripInfos": [
+                {
+                    "sI": [
+                        {
+                            "id": "104288",
+                            "fD": {
+                                "aI": {
+                                    "code": "6E",
+                                    "name": "IndiGo",
+                                    "isLcc": true
+                                },
+                                "fN": "2132",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 110,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi intl airport",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2"
+                            },
+                            "aa": {
+                                "code": "IXR",
+                                "name": "Birsa Munda Arpt",
+                                "cityCode": "IXR",
+                                "city": "Ranchi",
+                                "country": "India",
+                                "countryCode": "IN"
+                            },
+                            "dt": "2022-04-21T18:40",
+                            "at": "2022-04-21T20:30",
+                            "iand": false,
+                            "isRs": false,
+                            "sN": 0
+                        }
+                    ]
+                }
+            ],
+            "travellerInfos": [
+                {
+                    "pnrDetails": {
+                        "DEL-IXR": "DFL7RM"
+                    },
+                    "ti": "Mr",
+                    "pt": "ADULT",
+                    "fN": "test",
+                    "lN": "test",
+                    "dob": "1960-12-07"
+                }
+            ],
+            "totalPriceInfo": {
+                "totalFareDetail": {
+                    "fC": {
+                        "BF": 2159.00,
+                        "TAF": 633.86,
+                        "NF": 2792.86,
+                        "IGST": 4.86,
+                        "TF": 2792.86
+                    },
+                    "afC": {
+                        "TAF": {
+                            "MF": 27.00,
+                            "OT": 489.00,
+                            "AGST": 113.00,
+                            "YQ": 0.00,
+                            "MFT": 4.86
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "gstInfo": {},
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    }
+}

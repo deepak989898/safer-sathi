@@ -1,0 +1,173 @@
+{
+  "order": {
+    "bookingId": "TJXXXXXXXXXX",
+    "amount": 12345.6,
+    "markup": 0,
+    "orderType":"AIR",
+    "deliveryInfo": {
+      "emails": [
+        "XXXXX@XXX.in"
+      ],
+      "contacts": [
+        "XXXXXXX"
+      ]
+    },
+    "status": "ON_HOLD",
+    "createdOn": "2019-09-23T00:02:00.849"
+  },
+  "itemInfos": {
+    "AIR": {
+      "tripInfos": [
+        {
+          "sI": [
+            {
+              "fD": {
+                "aI": {
+                  "code": "6E",
+                  "name": "IndiGo",
+                  "isLcc": true
+                },
+                "fN": "1783",
+                "eT": "320"
+              },
+              "stops": 0,
+              "duration": 175,
+              "da": {
+                "code": "BOM",
+                "name": "Chhatrapati Shivaji",
+                "cityCode": "BOM",
+                "city": "Mumbai",
+                "country": "India",
+                "countryCode": "IN",
+                "terminal": "Terminal 2"
+              },
+              "aa": {
+                "code": "MLE",
+                "name": "Male Intl Arpt",
+                "cityCode": "MLE",
+                "city": "Male",
+                "country": "Maldives",
+                "countryCode": "MV"
+              },
+              "dt": "2020-02-20T10:40",
+              "at": "2020-02-20T13:05",
+              "sN": 0
+            }
+          ]
+        },
+        {
+          "sI": [
+            {
+              "fD": {
+                "aI": {
+                  "code": "6E",
+                  "name": "IndiGo",
+                  "isLcc": true
+                },
+                "fN": "1784",
+                "eT": "320"
+              },
+              "stops": 0,
+              "duration": 190,
+              "da": {
+                "code": "MLE",
+                "name": "Male Intl Arpt",
+                "cityCode": "MLE",
+                "city": "Male",
+                "country": "Maldives",
+                "countryCode": "MV"
+              },
+              "aa": {
+                "code": "BOM",
+                "name": "Chhatrapati Shivaji",
+                "cityCode": "BOM",
+                "city": "Mumbai",
+                "country": "India",
+                "countryCode": "IN",
+                "terminal": "Terminal 2"
+              },
+              "dt": "2020-02-23T14:10",
+              "at": "2020-02-23T17:50",
+              "sN": 0
+            }
+          ]
+        }
+      ],
+      "travellerInfos": [
+        {
+          "pnrDetails": {
+            "BOM-MLE": "XXXXXX",
+            "MLE-BOM": "XXXXXX"
+          },
+          "ti": "Mr",
+          "pt": "ADULT",
+          "fN": "KHALID YUSUF",
+          "lN": "KHERADA"
+        },
+        {
+          "pnrDetails": {
+            "BOM-MLE": "XXXXXX",
+            "MLE-BOM": "XXXXXX"
+          },
+          "ti": "Mrs",
+          "pt": "ADULT",
+          "fN": "KASHISH KHALID",
+          "lN": "KHERADA"
+        },
+        {
+          "pnrDetails": {
+            "BOM-MLE": "XXXXXX",
+            "MLE-BOM": "XXXXXX"
+          },
+          "ti": "Ms",
+          "pt": "ADULT",
+          "fN": "MYSHA KHALID",
+          "lN": "KHERADA"
+        },
+        {
+          "pnrDetails": {
+            "BOM-MLE": "XXXXXX",
+            "MLE-BOM": "XXXXXX"
+          },
+          "ti": "Ms",
+          "pt": "ADULT",
+          "fN": "NASHITA KHALID",
+          "lN": "KHERADA"
+        }
+      ],
+      "totalPriceInfo": {
+        "totalFareDetail": {
+          "fC": {
+            "SSRP": 5350,
+            "TF": 94051.6,
+            "TAF": 25761.6,
+            "BF": 62940,
+            "NCM": 2104.52,
+            "CGST": 10.8,
+            "SGST": 10.8
+          },
+          "afC": {
+            "TAF": {
+              "AT": 19828,
+              "MF": 120,
+              "MFT": 21.6,
+              "UDF": 1312,
+              "AGST": 2080,
+              "MU": 2400
+            },
+            "NCM": {
+              "OC": 2,004.32,
+              "TDS": 100.2
+            }
+          }
+        }
+      },
+      "timeLimit": "2019-09-23T06:02:03"
+    }
+  },
+  "gstInfo": {},
+  "status": {
+    "success": true,
+    "httpStatus": 200
+  }
+}

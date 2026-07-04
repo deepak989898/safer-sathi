@@ -1,0 +1,279 @@
+{
+    "order": {
+        "bookingId": "TJS109200003500",
+        "amount": 202360.80,
+        "markup": 0.00,
+        "orderType":"AIR",
+        "deliveryInfo": {
+            "emails": [
+                "xxxx@yyyyyy.com"
+            ],
+            "contacts": [
+                "+919122330324"
+            ]
+        },
+        "status": "SUCCESS",
+        "createdOn": "2020-02-13T21:20:24.017"
+    },
+    "itemInfos": {
+        "AIR": {
+            "tripInfos": [
+                {
+                    "sI": [
+                        {
+                            "id": "9656",
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "953",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 130,
+                            "cT": 490,
+                            "da": {
+                                "id": 5041,
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "aa": {
+                                "id": 6891,
+                                "code": "BOM",
+                                "name": "Chhatrapati Shivaji",
+                                "cityCode": "BOM",
+                                "city": "Mumbai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "dt": "2020-05-19T20:40",
+                            "at": "2020-05-19T22:50",
+                            "iand": false,
+                            "sN": 0
+                        },
+                        {
+                            "id": "9657",
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "851",
+                                "eT": "73H"
+                            },
+                            "stops": 0,
+                            "duration": 105,
+                            "da": {
+                                "id": 6891,
+                                "code": "BOM",
+                                "name": "Chhatrapati Shivaji",
+                                "cityCode": "BOM",
+                                "city": "Mumbai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "aa": {
+                                "id": 4342,
+                                "code": "BLR",
+                                "name": "Bengaluru Intl Arpt",
+                                "cityCode": "BLR",
+                                "city": "Bengaluru",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "dt": "2020-05-20T07:00",
+                            "at": "2020-05-20T08:45",
+                            "iand": false,
+                            "sN": 1
+                        }
+                    ]
+                },
+                {
+                    "sI": [
+                        {
+                            "id": "9658",
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "864",
+                                "eT": "73H"
+                            },
+                            "stops": 0,
+                            "duration": 105,
+                            "cT": 150,
+                            "da": {
+                                "id": 4342,
+                                "code": "BLR",
+                                "name": "Bengaluru Intl Arpt",
+                                "cityCode": "BLR",
+                                "city": "Bengaluru",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "aa": {
+                                "id": 6891,
+                                "code": "BOM",
+                                "name": "Chhatrapati Shivaji",
+                                "cityCode": "BOM",
+                                "city": "Mumbai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "dt": "2020-06-29T11:30",
+                            "at": "2020-06-29T13:15",
+                            "iand": false,
+                            "sN": 0
+                        },
+                        {
+                            "id": "9659",
+                            "fD": {
+                                "aI": {
+                                    "code": "UK",
+                                    "name": "Vistara",
+                                    "isLcc": false
+                                },
+                                "fN": "902",
+                                "eT": "320"
+                            },
+                            "stops": 0,
+                            "duration": 140,
+                            "da": {
+                                "id": 6891,
+                                "code": "BOM",
+                                "name": "Chhatrapati Shivaji",
+                                "cityCode": "BOM",
+                                "city": "Mumbai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 2",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "aa": {
+                                "id": 5041,
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3",
+                                "enabled": true,
+                                "priority": 10.00
+                            },
+                            "dt": "2020-06-29T15:45",
+                            "at": "2020-06-29T18:05",
+                            "iand": false,
+                            "sN": 1
+                        }
+                    ]
+                }
+            ],
+            "travellerInfos": [
+                {
+                    "pnrDetails": {
+                        "DEL-BOM": "TESTPNR",
+                        "BOM-BLR": "TESTPNR",
+                        "BLR-BOM": "TESTPNR",
+                        "BOM-DEL": "TESTPNR"
+                    },
+                    "ticketNumberDetails": {
+                        "DEL-BOM": "11111111111",
+                        "BOM-BLR": "11111111111",
+                        "BLR-BOM": "11111111111",
+                        "BOM-DEL": "11111111111"
+                    },
+                    "ti": "Mr",
+                    "pt": "ADULT",
+                    "fN": "Test",
+                    "lN": "Parent",
+                    "dob": "1995-11-12",
+                    "pNum": "987654TR",
+                    "eD": "2023-11-12",
+                    "pid": "2016-11-12",
+                    "id": 1
+                },
+                {
+                    "pnrDetails": {
+                        "DEL-BOM": "TESTPNR",
+                        "BOM-BLR": "TESTPNR",
+                        "BLR-BOM": "TESTPNR",
+                        "BOM-DEL": "TESTPNR"
+                    },
+                    "ticketNumberDetails": {
+                        "DEL-BOM": "11111111111",
+                        "BOM-BLR": "11111111111",
+                        "BLR-BOM": "11111111111",
+                        "BOM-DEL": "11111111111"
+                    },
+                    "ti": "Mr",
+                    "pt": "CHILD",
+                    "fN": "Test",
+                    "lN": "FightChild",
+                    "dob": "2010-11-12",
+                    "pNum": "983454TR",
+                    "eD": "2025-11-12",
+                    "pid": "2018-11-12",
+                    "id": 2
+                }
+            ],
+            "totalPriceInfo": {
+                "totalFareDetail": {
+                    "fC": {
+                        "NCM": 12100.52,
+                        "IGST": 10.80,
+                        "TAF": 24360.80,
+                        "TF": 202360.80,
+                        "NF": 190260.28,
+                        "BF": 178000.00
+                    },
+                    "afC": {
+                        "NCM": {
+                            "TDS": 636.88,
+                            "OC": 12,737.4
+                        },
+                        "TAF": {
+                            "MF": 60.00,
+                            "YR": 1440.00,
+                            "WO": 890.00,
+                            "AGST": 21536.00,
+                            "MFT": 10.80,
+                            "UDF": 424.00
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "gstInfo": {},
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    }
+}

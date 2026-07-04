@@ -169,6 +169,105 @@ export function useFlightBookingApi() {
     [run]
   );
 
+  const refreshBookingDetail = useCallback(
+    async (bookingId: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/flights/bookings/${bookingId}/refresh-detail`, {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Failed to refresh booking details");
+        return json.data.booking as FlightBookingRecord;
+      });
+    },
+    [run]
+  );
+
+  const fetchCancellationCharges = useCallback(
+    async (bookingId: string, remarks?: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(
+          `/api/flights/bookings/${bookingId}/cancellation-charges`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ remarks }),
+          }
+        );
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Failed to load cancellation charges");
+        return json.data as {
+          booking: FlightBookingRecord;
+          charges: NonNullable<FlightBookingRecord["cancellationChargesNormalized"]>;
+        };
+      });
+    },
+    [run]
+  );
+
+  const confirmCancellation = useCallback(
+    async (bookingId: string, remarks?: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/flights/bookings/${bookingId}/cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ remarks }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Failed to submit cancellation");
+        return json.data.booking as FlightBookingRecord;
+      });
+    },
+    [run]
+  );
+
+  const pollAmendment = useCallback(
+    async (bookingId: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/flights/bookings/${bookingId}/poll-amendment`, {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Failed to poll amendment");
+        return json.data.booking as FlightBookingRecord;
+      });
+    },
+    [run]
+  );
+
+  const releasePnr = useCallback(
+    async (bookingId: string) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/flights/bookings/${bookingId}/release-pnr`, {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Failed to release PNR");
+        return json.data.booking as FlightBookingRecord;
+      });
+    },
+    [run]
+  );
+
+  const adminRetry = useCallback(
+    async (
+      bookingId: string,
+      action: "retry_poll" | "retry_booking_detail" | "retry_release_pnr"
+    ) => {
+      return run(async () => {
+        const res = await customerApiFetch(`/api/flights/bookings/${bookingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Admin action failed");
+        return json.data.booking as FlightBookingRecord;
+      });
+    },
+    [run]
+  );
+
   return {
     loading,
     error,
@@ -177,5 +276,11 @@ export function useFlightBookingApi() {
     simulatePaymentSuccess,
     fetchMyBookings,
     fetchBooking,
+    refreshBookingDetail,
+    fetchCancellationCharges,
+    confirmCancellation,
+    pollAmendment,
+    releasePnr,
+    adminRetry,
   };
 }

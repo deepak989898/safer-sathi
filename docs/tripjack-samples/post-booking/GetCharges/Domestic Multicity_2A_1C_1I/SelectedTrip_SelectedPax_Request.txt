@@ -1,0 +1,52 @@
+{
+    "bookingId": "TJ106170019569",
+    "type": "CANCELLATION",
+    "remarks" : "This is test cancel",
+    "trips": [
+        {
+            "src": "DEL",
+            "dest": "BOM",
+            "departureDate": "2020-10-29",
+            "travellers": [
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA"
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD"
+                }
+            ]
+        },
+        {
+            "src": "BOM",
+            "dest": "MAA",
+            "departureDate": "2020-11-02",
+             "travellers": [
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA"
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD"
+                }
+            ]
+        },
+        {
+            "src": "MAA",
+            "dest": "GOI",
+            "departureDate": "2020-11-11",
+             "travellers": [
+                {
+                    "fn": "TESTA",
+                    "ln": "TESTA"
+                },
+                {
+                    "fn": "TESTD",
+                    "ln": "TESTD"
+                }
+            ]
+        }
+    ]
+}

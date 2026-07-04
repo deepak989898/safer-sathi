@@ -1,0 +1,138 @@
+{
+    "order": {
+        "bookingId": "TJS108500125746",
+        "amount": 5020.70,
+        "markup": 0.00,
+        "deliveryInfo": {
+            "emails": [
+                "xyz@xyz.com"
+            ],
+            "contacts": [
+                "9489275524"
+            ]
+        },
+        "status": "SUCCESS",
+        "createdOn": "2021-10-20T13:10:29.850"
+    },
+    "itemInfos": {
+        "AIR": {
+            "tripInfos": [
+                {
+                    "sI": [
+                        {
+                            "id": "42306",
+                            "fD": {
+                                "aI": {
+                                    "code": "SG",
+                                    "name": "SpiceJet",
+                                    "isLcc": true
+                                },
+                                "fN": "8105",
+                                "eT": "737"
+                            },
+                            "stops": 0,
+                            "duration": 175,
+                            "da": {
+                                "code": "DEL",
+                                "name": "Delhi Indira Gandhi Intl",
+                                "cityCode": "DEL",
+                                "city": "Delhi",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 3"
+                            },
+                            "aa": {
+                                "code": "MAA",
+                                "name": "Chennai Arpt",
+                                "cityCode": "MAA",
+                                "city": "Chennai",
+                                "country": "India",
+                                "countryCode": "IN",
+                                "terminal": "Terminal 1"
+                            },
+                            "dt": "2021-12-19T20:15",
+                            "at": "2021-12-19T23:10",
+                            "iand": false,
+                            "sN": 0,
+                            "bI": {
+                                "tI": [
+                                    {
+                                        "fd": {
+                                            "fC": {
+                                                "NF": 5020.70,
+                                                "IGST": 2.70,
+                                                "BF": 4385.00,
+                                                "TF": 5020.70,
+                                                "TAF": 635.70
+                                            },
+                                            "afC": {
+                                                "TAF": {
+                                                    "MFT": 2.70,
+                                                    "YQ": 0.00,
+                                                    "AGST": 223.00,
+                                                    "OT": 395.00,
+                                                    "MF": 15.00
+                                                }
+                                            },
+                                            "bI": {
+                                                "iB": "15 Kg",
+                                                "cB": "7 Kg"
+                                            },
+                                            "rT": 1,
+                                            "cc": "ECONOMY",
+                                            "cB": "RS",
+                                            "fB": "USAV",
+                                            "mI": false
+                                        },
+                                        "ti": "Mr",
+                                        "pt": "ADULT",
+                                        "fN": "TestA",
+                                        "lN": "AdultA",
+                                        "dob": "1996-08-09"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "travellerInfos": [
+                {
+                    "pnrDetails": {
+                        "DEL-MAA": "ODPPHN"
+                    },
+                    "ti": "Mr",
+                    "pt": "ADULT",
+                    "fN": "TestA",
+                    "lN": "AdultA",
+                    "dob": "1996-08-09"
+                }
+            ],
+            "totalPriceInfo": {
+                "totalFareDetail": {
+                    "fC": {
+                        "NF": 5020.70,
+                        "IGST": 2.70,
+                        "BF": 4385.00,
+                        "TF": 5020.70,
+                        "TAF": 635.70
+                    },
+                    "afC": {
+                        "TAF": {
+                            "MFT": 2.70,
+                            "YQ": 0.00,
+                            "AGST": 223.00,
+                            "OT": 395.00,
+                            "MF": 15.00
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "gstInfo": {},
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    }
+}

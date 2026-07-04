@@ -278,13 +278,75 @@ export async function bookTripJackFlight(
   return { bookingId, rawResponse: raw };
 }
 
-export async function fetchTripJackBookingDetails(bookingId: string): Promise<unknown> {
-  const { bookingDetailsUrl } = getTripJackProxyConfig();
-  console.log("[tripjack-client] Booking Details API →", bookingDetailsUrl, { bookingId });
-  return tripjackProxyPost(bookingDetailsUrl, { bookingId });
+export async function fetchTripJackBookingDetails(
+  bookingId: string,
+  options?: { requirePaxPricing?: boolean }
+): Promise<unknown> {
+  const { bookingDetailUrl, bookingDetailsUrl } = getTripJackProxyConfig();
+  const url = bookingDetailUrl || bookingDetailsUrl;
+  const body: Record<string, unknown> = { bookingId: bookingId.trim() };
+  if (options?.requirePaxPricing) body.requirePaxPricing = true;
+  console.log("[tripjack-client] Booking Detail API →", url, body);
+  return tripjackProxyPost(url, body);
 }
 
 export async function confirmTripJackFareBeforeTicket(bookingId: string): Promise<unknown> {
   const { confirmFareUrl } = getTripJackProxyConfig();
   return tripjackProxyPost(confirmFareUrl, { bookingId });
+}
+
+/** GetCharges sample: { bookingId, type: "CANCELLATION", remarks } */
+export async function fetchTripJackCancellationCharges(input: {
+  bookingId: string;
+  remarks?: string;
+  trips?: unknown[];
+}): Promise<unknown> {
+  const { getChargesUrl } = getTripJackProxyConfig();
+  const body: Record<string, unknown> = {
+    bookingId: input.bookingId.trim(),
+    type: "CANCELLATION",
+    remarks: input.remarks ?? "Customer cancellation request",
+  };
+  if (input.trips?.length) body.trips = input.trips;
+  console.log("[tripjack-client] Get Charges API →", getChargesUrl, body);
+  return tripjackProxyPost(getChargesUrl, body);
+}
+
+/** SubmitAmendment sample: { bookingId, type: "CANCELLATION", remarks } */
+export async function submitTripJackAmendment(input: {
+  bookingId: string;
+  remarks?: string;
+  trips?: unknown[];
+}): Promise<unknown> {
+  const { submitAmendmentUrl } = getTripJackProxyConfig();
+  const body: Record<string, unknown> = {
+    bookingId: input.bookingId.trim(),
+    type: "CANCELLATION",
+    remarks: input.remarks ?? "Customer cancellation",
+  };
+  if (input.trips?.length) body.trips = input.trips;
+  console.log("[tripjack-client] Submit Amendment API →", submitAmendmentUrl, body);
+  return tripjackProxyPost(submitAmendmentUrl, body);
+}
+
+/** Poll Amendment sample: { amendmentId } */
+export async function pollTripJackAmendment(amendmentId: string): Promise<unknown> {
+  const { pollAmendmentUrl } = getTripJackProxyConfig();
+  const body = { amendmentId: amendmentId.trim() };
+  console.log("[tripjack-client] Poll Amendment API →", pollAmendmentUrl, body);
+  return tripjackProxyPost(pollAmendmentUrl, body);
+}
+
+/** Release PNR sample: { bookingId, pnrs: string[] } */
+export async function releaseTripJackPnr(input: {
+  bookingId: string;
+  pnrs: string[];
+}): Promise<unknown> {
+  const { releasePnrUrl } = getTripJackProxyConfig();
+  const body = {
+    bookingId: input.bookingId.trim(),
+    pnrs: input.pnrs,
+  };
+  console.log("[tripjack-client] Release PNR API →", releasePnrUrl, body);
+  return tripjackProxyPost(releasePnrUrl, body);
 }

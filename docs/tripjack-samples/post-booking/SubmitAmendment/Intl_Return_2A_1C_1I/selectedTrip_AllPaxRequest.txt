@@ -1,0 +1,17 @@
+{
+    "bookingId": "TJ110120019597",
+    "type": "CANCELLATION",
+    "remarks":"test CANCELLATION",
+    "trips":[
+        {
+            "src":"BOM",
+            "dest":"DXB",
+            "departureDate":"2020-10-19"
+        },
+        {
+            "src":"DXB",
+            "dest":"BOM",
+            "departureDate":"2020-10-23"
+        }
+    ]
+}

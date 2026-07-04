@@ -1,0 +1,179 @@
+{
+    "bookingId": "TJ101330019559",
+    "amendmentId": "5360019606",
+    "amendmentStatus": "SUCCESS",
+    "amendmentCharges": 0.00,
+    "refundableAmount": -107252.00,
+    "trips": [
+        {
+            "src": "BOM",
+            "dest": "DEL",
+            "departureDate": "2020-10-16T00:30",
+            "flightNumbers": [
+                "329"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "travellers": [
+                {
+                    "fn": "CBD",
+                    "ln": "CBD",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8515.00,
+                    "totalFare": 11515.00
+                },
+                {
+                    "fn": "ABC",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8515.00,
+                    "totalFare": 11515.00
+                },
+                {
+                    "fn": "QWE",
+                    "ln": "QWE",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8515.00,
+                    "totalFare": 11515.00
+                },
+                {
+                    "fn": "CVBN",
+                    "ln": "CVB",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                },
+                {
+                    "fn": "KSHITIJ",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8515.00,
+                    "totalFare": 11515.00
+                },
+                {
+                    "fn": "ASD",
+                    "ln": "ASD",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            ]
+        },
+        {
+            "src": "DEL",
+            "dest": "MAA",
+            "departureDate": "2020-10-18T01:30",
+            "flightNumbers": [
+                "520"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "travellers": [
+                {
+                    "fn": "KSHITIJ",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "QWE",
+                    "ln": "QWE",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "ABC",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "CVBN",
+                    "ln": "CVB",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                },
+                {
+                    "fn": "CBD",
+                    "ln": "CBD",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "ASD",
+                    "ln": "ASD",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            ]
+        },
+        {
+            "src": "MAA",
+            "dest": "HYD",
+            "departureDate": "2020-10-20T01:30",
+            "flightNumbers": [
+                "530"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "travellers": [
+                {
+                    "fn": "KSHITIJ",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "QWE",
+                    "ln": "QWE",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "ABC",
+                    "ln": "BISHT",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "CVBN",
+                    "ln": "CVB",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                },
+                {
+                    "fn": "CBD",
+                    "ln": "CBD",
+                    "amendmentCharges": 3000.00,
+                    "refundableamount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                {
+                    "fn": "ASD",
+                    "ln": "ASD",
+                    "amendmentCharges": 0.00,
+                    "refundableamount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            ]
+        }
+    ],
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}

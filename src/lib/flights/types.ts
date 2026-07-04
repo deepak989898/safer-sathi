@@ -1,9 +1,11 @@
 import type {
   FlightPassengerDeliveryForm,
   FlightPassengerFormRow,
+  NormalizedCancellationCharges,
   NormalizedFareValidate,
   NormalizedFlightBookingDetails,
   NormalizedFlightReview,
+  NormalizedPollAmendment,
 } from "@/lib/tripjack/types";
 
 export type FlightBookingStatus =
@@ -14,9 +16,24 @@ export type FlightBookingStatus =
   | "booking_pending"
   | "confirmed"
   | "booking_failed"
-  | "manual_review_required";
+  | "manual_review_required"
+  | "cancellation_requested"
+  | "cancelled"
+  | "refund_pending"
+  | "refund_completed"
+  | "hold"
+  | "released";
 
-export type FlightPaymentStatus = "pending" | "paid" | "failed";
+export type FlightPaymentStatus = "pending" | "paid" | "failed" | "refunded" | "refund_pending";
+
+export type FlightRefundStatus =
+  | "none"
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
+export type FlightPollStatus = "idle" | "polling" | "SUCCESS" | "FAILED" | "CANCELLED";
 
 export interface FlightBookingRecord {
   bookingId: string;
@@ -63,7 +80,25 @@ export interface FlightBookingRecord {
   bookRequest?: unknown;
   bookResponse?: unknown;
   bookingDetailsResponse?: unknown;
+  bookingDetailResponse?: unknown;
+  bookingDetailNormalized?: NormalizedFlightBookingDetails;
   normalizedBookingDetails?: NormalizedFlightBookingDetails;
+  amendmentId?: string;
+  cancellationCharges?: number;
+  refundAmount?: number;
+  refundStatus?: FlightRefundStatus;
+  pollStatus?: FlightPollStatus;
+  releasePNRStatus?: string;
+  cancellationChargesNormalized?: NormalizedCancellationCharges;
+  getChargesRequest?: unknown;
+  getChargesResponse?: unknown;
+  submitAmendmentRequest?: unknown;
+  submitAmendmentResponse?: unknown;
+  pollAmendmentResponse?: unknown;
+  pollAmendmentNormalized?: NormalizedPollAmendment;
+  releasePnrRequest?: unknown;
+  releasePnrResponse?: unknown;
+  isHoldBooking?: boolean;
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;

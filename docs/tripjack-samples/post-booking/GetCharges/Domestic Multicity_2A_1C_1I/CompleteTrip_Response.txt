@@ -1,0 +1,95 @@
+{
+    "bookingId": "TJ106170019569",
+    "trips": [
+        {
+            "src": "DEL",
+            "dest": "BOM",
+            "departureDate": "2020-10-29T01:30",
+            "flightNumbers": [
+                "530"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 8130.00,
+                    "totalFare": 11130.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 8130.00,
+                    "totalFare": 11130.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            }
+        },
+        {
+            "src": "BOM",
+            "dest": "MAA",
+            "departureDate": "2020-11-02T00:20",
+            "flightNumbers": [
+                "305"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 9063.00,
+                    "totalFare": 12063.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 9063.00,
+                    "totalFare": 12063.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            }
+        },
+        {
+            "src": "MAA",
+            "dest": "GOI",
+            "departureDate": "2020-11-11T01:10",
+            "flightNumbers": [
+                "911",
+                "913"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 15357.00,
+                    "totalFare": 18357.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 15357.00,
+                    "totalFare": 18357.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            }
+        }
+    ],
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}

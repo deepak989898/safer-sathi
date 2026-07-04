@@ -33,7 +33,7 @@ function statusTone(status: FlightBookingRecord["status"]) {
 }
 
 export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
-  const details = booking.normalizedBookingDetails;
+  const details = booking.bookingDetailNormalized ?? booking.normalizedBookingDetails;
   const segments =
     details?.flightSegments?.length
       ? details.flightSegments
@@ -42,6 +42,8 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
   const pnr = booking.pnr || details?.pnr || "";
   const airlinePnr = booking.airlinePnr || details?.airlinePnr || "";
   const ticketNumber = booking.ticketNumber || details?.ticketNumber || "";
+  const orderStatus = booking.orderStatus || details?.orderStatus || "";
+  const passengerFares = details?.passengerFares ?? [];
 
   const handlePrint = () => window.print();
   const handleDownload = () => {
@@ -173,28 +175,66 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
                   <tr>
                     <th className="px-3 py-2">Passenger</th>
                     <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2">Ticket No</th>
+                    <th className="px-3 py-2">PNR / Ticket</th>
+                    <th className="px-3 py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {booking.passengers.map((p, i) => {
-                    const detailPax = details?.passengers?.[i];
-                    return (
-                      <tr key={i} className="border-t border-slate-100">
-                        <td className="px-3 py-2 font-medium">
-                          {p.ti} {p.fN} {p.lN}
-                        </td>
-                        <td className="px-3 py-2">{p.pt}</td>
-                        <td className="px-3 py-2 font-mono text-xs">
-                          {detailPax?.ticketNumber || ticketNumber || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {(details?.passengers?.length
+                    ? details.passengers
+                    : booking.passengers.map((p) => ({
+                        name: `${p.ti} ${p.fN} ${p.lN}`,
+                        type: p.pt,
+                        ticketNumber: ticketNumber || undefined,
+                        pnr: pnr || undefined,
+                        status: undefined,
+                      }))
+                  ).map((p, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-medium">{p.name}</td>
+                      <td className="px-3 py-2">{p.type}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {p.ticketNumber || p.pnr || ticketNumber || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-xs capitalize">
+                        {p.status || orderStatus || booking.status.replace(/_/g, " ")}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
+
+          {passengerFares.length > 0 && (
+            <div>
+              <p className="mb-2 font-semibold text-slate-900">Passenger-wise fare</p>
+              <div className="space-y-2">
+                {passengerFares.map((fare, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium">
+                      {fare.name} · {fare.type}
+                    </span>
+                    <span className="font-semibold text-[#1a4fa3]">
+                      {formatCurrency(fare.totalFare, locale)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {details?.gstInfo && Object.keys(details.gstInfo).length > 0 && (
+            <div className="rounded-xl bg-slate-50 p-3 text-sm">
+              <p className="font-semibold text-slate-900">GST</p>
+              <pre className="mt-1 overflow-x-auto text-xs text-slate-600">
+                {JSON.stringify(details.gstInfo, null, 2)}
+              </pre>
+            </div>
+          )}
 
           {segments.length > 0 && (
             <div>
@@ -231,6 +271,38 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
               <br />
               <strong className="capitalize">{booking.paymentStatus}</strong>
             </p>
+            {orderStatus && (
+              <p>
+                <span className="text-slate-500">Trip / order status</span>
+                <br />
+                <strong>{orderStatus}</strong>
+              </p>
+            )}
+            {booking.refundStatus && booking.refundStatus !== "none" && (
+              <p>
+                <span className="text-slate-500">Refund status</span>
+                <br />
+                <strong className="capitalize">{booking.refundStatus.replace(/_/g, " ")}</strong>
+              </p>
+            )}
+            {(booking.status === "cancellation_requested" ||
+              booking.status === "cancelled" ||
+              booking.status === "refund_completed") && (
+              <p>
+                <span className="text-slate-500">Cancellation status</span>
+                <br />
+                <strong className="capitalize">{booking.status.replace(/_/g, " ")}</strong>
+              </p>
+            )}
+            {typeof booking.refundAmount === "number" && booking.refundAmount > 0 && (
+              <p>
+                <span className="text-slate-500">Refund amount</span>
+                <br />
+                <strong className="text-emerald-700">
+                  {formatCurrency(booking.refundAmount, locale)}
+                </strong>
+              </p>
+            )}
             {booking.razorpayPaymentId && (
               <p className="md:col-span-2">
                 <span className="text-slate-500">Razorpay payment ID</span>

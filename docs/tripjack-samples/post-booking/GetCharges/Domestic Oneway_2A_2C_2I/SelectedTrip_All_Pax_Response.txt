@@ -1,0 +1,38 @@
+{
+    "bookingId": "TJ101330019559",
+    "trips": [
+        {
+            "src": "DEL",
+            "dest": "BOM",
+            "departureDate": "2020-10-12T01:30",
+            "flightNumbers": [
+                "530"
+            ],
+            "airlines": [
+                "G8"
+            ],
+            "amendmentInfo": {
+                "ADULT": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                "CHILD": {
+                    "amendmentCharges": 3000.00,
+                    "refundAmount": 8024.00,
+                    "totalFare": 11024.00
+                },
+                "INFANT": {
+                    "amendmentCharges": 0.00,
+                    "refundAmount": 1500.00,
+                    "totalFare": 1500.00
+                }
+            }
+        }
+    ],
+    "status": {
+        "success": true,
+        "httpStatus": 200
+    },
+    "metaInfo": {}
+}
