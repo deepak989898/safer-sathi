@@ -133,7 +133,11 @@ export async function reviewTripJackFlight(input: {
   try {
     raw = JSON.parse(rawText);
   } catch {
-    throw new TripJackApiError("Invalid JSON from TripJack review proxy", response.status, rawText);
+    const hint =
+      response.status === 404
+        ? "Review proxy route missing on VPS. Add POST /api/tripjack/flights/review to server.js and run: pm2 restart tripjack-proxy"
+        : "Invalid JSON from TripJack review proxy";
+    throw new TripJackApiError(hint, response.status, rawText);
   }
 
   const record = raw as Record<string, unknown>;

@@ -95,9 +95,9 @@ export function FlightFlowClient() {
     });
 
     if (result.flights.length === 0) {
-      toast.info(result.message);
+      toast.info(result.message, { duration: 2500 });
     } else {
-      toast.success(result.message);
+      toast.success(result.message, { duration: 2500 });
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });

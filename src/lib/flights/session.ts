@@ -11,9 +11,39 @@ export interface FlightSearchSession {
   searchedAt: string;
 }
 
+/** Strip heavy raw TripJack payloads so sessionStorage does not freeze the tab. */
+function lightFlightsForSession(flights: NormalizedFlight[]): NormalizedFlight[] {
+  return flights.map((flight) => {
+    const { rawTrip: _rawTrip, rawPrice: _rawPrice, ...rest } = flight;
+    return { ...rest, rawTrip: null, rawPrice: null };
+  });
+}
+
 export function saveFlightSearchSession(session: FlightSearchSession): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  try {
+    const payload: FlightSearchSession = {
+      ...session,
+      flights: lightFlightsForSession(session.flights),
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  } catch {
+    // Quota exceeded — keep search params only so the tab stays responsive.
+    try {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          params: session.params,
+          flights: [],
+          onwardCount: session.onwardCount,
+          message: session.message,
+          searchedAt: session.searchedAt,
+        } satisfies FlightSearchSession)
+      );
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function loadFlightSearchSession(): FlightSearchSession | null {

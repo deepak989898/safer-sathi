@@ -60,13 +60,15 @@ export function saveFlightSelection(input: {
   params: FlightSearchParams;
 }): void {
   const { flight, params } = input;
+  // Review only needs priceId — do not store full rawTrip (can freeze the tab).
+  const { rawTrip: _rawTrip, rawPrice: _rawPrice, ...lightFlight } = flight;
   saveJsonSession(FLIGHT_SESSION_KEYS.selectedFlight, {
-    normalized: flight,
-    rawTrip: flight.rawTrip,
+    normalized: { ...lightFlight, rawTrip: null, rawPrice: null },
+    rawTrip: null,
   } satisfies FlightSelectedFlight);
   saveJsonSession(FLIGHT_SESSION_KEYS.selectedPrice, {
     priceId: flight.priceId,
-    rawPrice: flight.rawPrice,
+    rawPrice: null,
     fareIdentifier: flight.fareIdentifier,
     totalFare: flight.totalFare,
   } satisfies FlightSelectedPrice);
