@@ -121,6 +121,33 @@ export function useFlightBookingApi() {
     [run]
   );
 
+  /** Developer testing: skip Razorpay, run Book → Details (server-gated). */
+  const simulatePaymentSuccess = useCallback(
+    async (booking: FlightBookingRecord, options?: { isStaff?: boolean }) => {
+      return run(async () => {
+        const res = await fetch("/api/flights/payments/simulate-success", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: booking.bookingId }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error ?? "Test payment simulation failed");
+
+        if (options?.isStaff) {
+          console.log("[flight-payment] TEST MODE result:", json.data);
+        }
+
+        return json.data as {
+          booking: FlightBookingRecord;
+          manualReview?: boolean;
+          message?: string;
+          testMode?: boolean;
+        };
+      });
+    },
+    [run]
+  );
+
   const fetchMyBookings = useCallback(async () => {
     return run(async () => {
       const res = await customerApiFetch("/api/flights/bookings");
@@ -147,6 +174,7 @@ export function useFlightBookingApi() {
     error,
     prepareBooking,
     payForBooking,
+    simulatePaymentSuccess,
     fetchMyBookings,
     fetchBooking,
   };

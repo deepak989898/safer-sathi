@@ -33,7 +33,9 @@ interface FlightPaymentScreenProps {
   loading: boolean;
   error: string | null;
   locale: Locale;
+  testMode?: boolean;
   onPay: () => void;
+  onSimulatePaymentSuccess?: () => void;
 }
 
 export function FlightPaymentScreen({
@@ -47,7 +49,9 @@ export function FlightPaymentScreen({
   loading,
   error,
   locale,
+  testMode = false,
   onPay,
+  onSimulatePaymentSuccess,
 }: FlightPaymentScreenProps) {
   const totalFare = validated.totalFare;
   const fromCode = context?.params.fromCode ?? review.departureAirportCode;
@@ -122,49 +126,84 @@ export function FlightPaymentScreen({
             </div>
           </FlightSoftCard>
 
-          <FlightSoftCard className="border-blue-100 bg-gradient-to-br from-blue-50 to-white">
-            <div className="space-y-4 p-5 md:p-6">
-              <div className="flex items-center gap-2 text-[#1a4fa3]">
-                <ShieldCheck className="h-5 w-5" />
-                <p className="font-semibold">We use Razorpay Secure Gateway</p>
+          {testMode ? (
+            <FlightSoftCard className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+              <div className="space-y-4 p-5 md:p-6">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <ShieldCheck className="h-5 w-5" />
+                  <p className="font-semibold">Developer testing mode</p>
+                </div>
+                <p className="text-sm text-amber-900/80">
+                  Razorpay is skipped. Simulate payment success to call TripJack Book API, Booking
+                  Details, and open the ticket flow.
+                </p>
+                <p className="rounded-xl bg-white px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+                  NEXT_PUBLIC_TEST_BOOKING=true · disabled automatically in production
+                </p>
+                <Button
+                  className={cn(flightPrimaryButtonClass(), "bg-amber-600 hover:bg-amber-700")}
+                  disabled={loading || !booking || !onSimulatePaymentSuccess}
+                  onClick={onSimulatePaymentSuccess}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Simulating payment & booking...
+                    </>
+                  ) : (
+                    "Simulate Payment Success"
+                  )}
+                </Button>
+                <p className="text-center text-xs text-amber-700">
+                  Amount: {formatCurrency(totalFare, locale)} (not charged)
+                </p>
               </div>
-              <p className="text-sm text-slate-600">
-                Pay with UPI, cards, netbanking, and wallets. Your ticket is issued only after
-                successful payment verification.
-              </p>
-              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                {["UPI", "Visa", "Mastercard", "RuPay", "Netbanking"].map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-full bg-white px-3 py-1 ring-1 ring-slate-200"
-                  >
-                    {label}
-                  </span>
-                ))}
+            </FlightSoftCard>
+          ) : (
+            <FlightSoftCard className="border-blue-100 bg-gradient-to-br from-blue-50 to-white">
+              <div className="space-y-4 p-5 md:p-6">
+                <div className="flex items-center gap-2 text-[#1a4fa3]">
+                  <ShieldCheck className="h-5 w-5" />
+                  <p className="font-semibold">We use Razorpay Secure Gateway</p>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Pay with UPI, cards, netbanking, and wallets. Your ticket is issued only after
+                  successful payment verification.
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                  {["UPI", "Visa", "Mastercard", "RuPay", "Netbanking"].map((label) => (
+                    <span
+                      key={label}
+                      className="rounded-full bg-white px-3 py-1 ring-1 ring-slate-200"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <Button
+                  className={cn(flightPrimaryButtonClass())}
+                  disabled={loading || !booking}
+                  onClick={onPay}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing payment...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Pay Now · {formatCurrency(totalFare, locale)}
+                    </>
+                  )}
+                </Button>
+                <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-500">
+                  <Lock className="h-3.5 w-3.5" />
+                  Secured by Razorpay
+                </p>
               </div>
-              <Button
-                className={cn(flightPrimaryButtonClass())}
-                disabled={loading || !booking}
-                onClick={onPay}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing payment...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Pay Now · {formatCurrency(totalFare, locale)}
-                  </>
-                )}
-              </Button>
-              <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-500">
-                <Lock className="h-3.5 w-3.5" />
-                Secured by Razorpay
-              </p>
-            </div>
-          </FlightSoftCard>
+            </FlightSoftCard>
+          )}
         </div>
 
         <aside>

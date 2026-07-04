@@ -17,6 +17,7 @@ import {
 } from "@/lib/flights/flight-session";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type { FlightBookingRecord } from "@/lib/flights/types";
+import { isFlightTestBookingEnabled } from "@/lib/flights/test-booking";
 import { useAppStore } from "@/store/app-store";
 
 type PaymentUiPhase = "pay" | "payment_success" | "booking_status";
@@ -34,6 +35,7 @@ export function FlightPaymentClient() {
   const [confirmedBooking, setConfirmedBooking] = useState<FlightBookingRecord | null>(null);
 
   const isStaff = user ? canShowAdminNav(user.role) : false;
+  const testMode = isFlightTestBookingEnabled();
 
   const session = useMemo(() => {
     const fareSession = loadFareValidateSession();
@@ -97,6 +99,33 @@ export function FlightPaymentClient() {
     })();
   }, []);
 
+  const continueAfterPayment = (
+    result: {
+      booking: FlightBookingRecord;
+      manualReview?: boolean;
+      message?: string;
+      testMode?: boolean;
+    }
+  ) => {
+    setConfirmedBooking(result.booking);
+    setPhase("payment_success");
+
+    if (result.manualReview) {
+      toast.info(
+        result.message ??
+          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly.",
+        { duration: 3500 }
+      );
+    } else if (result.booking.status === "confirmed") {
+      toast.success(
+        result.testMode ? "Flight booking confirmed (test mode)!" : "Flight booking confirmed!",
+        { duration: 2500 }
+      );
+    } else if (result.testMode) {
+      toast.success("Test payment simulated. Continuing booking flow.", { duration: 2500 });
+    }
+  };
+
   const handlePay = async () => {
     if (!booking || !session) return;
 
@@ -114,19 +143,14 @@ export function FlightPaymentClient() {
     );
 
     if (!result?.booking) return;
+    continueAfterPayment(result);
+  };
 
-    setConfirmedBooking(result.booking);
-    setPhase("payment_success");
-
-    if (result.manualReview) {
-      toast.info(
-        result.message ??
-          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly.",
-        { duration: 3500 }
-      );
-    } else if (result.booking.status === "confirmed") {
-      toast.success("Flight booking confirmed!", { duration: 2500 });
-    }
+  const handleSimulatePaymentSuccess = async () => {
+    if (!booking) return;
+    const result = await api.simulatePaymentSuccess(booking, { isStaff });
+    if (!result?.booking) return;
+    continueAfterPayment({ ...result, testMode: true });
   };
 
   if (!ready) {
@@ -203,7 +227,9 @@ export function FlightPaymentClient() {
       loading={api.loading}
       error={api.error}
       locale={locale}
+      testMode={testMode}
       onPay={() => void handlePay()}
+      onSimulatePaymentSuccess={() => void handleSimulatePaymentSuccess()}
     />
   );
 }
