@@ -8,10 +8,7 @@ import { HotelCard } from "@/components/hotels-tripjack/hotel-card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
-import {
-  loadHotelListingSession,
-  saveSelectedHotelOption,
-} from "@/lib/tripjack-hotels/session";
+import { loadHotelListingSession } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
 
@@ -48,16 +45,10 @@ export function HotelResultsClient() {
   }, [isStaff]);
 
   const onViewDetails = (hotel: NormalizedHotel) => {
-    const option = hotel.cheapestOption;
-    if (!option) {
-      router.push("/hotels/detail");
-      return;
-    }
-    saveSelectedHotelOption({ hotel, option });
     if (isStaff) {
-      console.log("[hotel-results] selected hotel option:", { hotel, option });
+      console.log("[hotel-results] open detail for hotel:", hotel.tjHotelId);
     }
-    router.push("/hotels/detail");
+    router.push(`/hotels/detail?hotelId=${encodeURIComponent(String(hotel.tjHotelId))}`);
   };
 
   if (!ready) {

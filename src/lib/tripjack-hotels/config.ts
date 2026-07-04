@@ -9,8 +9,18 @@ export function getTripJackHotelProxyConfig() {
     baseUrl,
     listingPath: "/api/tripjack/hotels/listing",
     listingUrl: `${baseUrl}/api/tripjack/hotels/listing`,
+    detailPath: "/api/tripjack/hotels/detail",
+    detailUrl: `${baseUrl}/api/tripjack/hotels/detail`,
   };
 }
 
 export const DEFAULT_HOTEL_NATIONALITY = "106";
 export const DEFAULT_HOTEL_CURRENCY = "INR";
+
+/** Provider flag — Super Admin can toggle via env later. */
+export function isTripJackHotelProviderEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false";
+}
+
+/** Temporary session TTL (ms) — auto-expire after 45 minutes. */
+export const HOTEL_SESSION_TTL_MS = 45 * 60 * 1000;

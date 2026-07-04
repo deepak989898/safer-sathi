@@ -38,20 +38,39 @@ export interface NormalizedHotelPricing {
   currency: string;
 }
 
+export interface CancellationPenalty {
+  from?: string;
+  to?: string;
+  amount: number;
+  currency: string;
+  label: string;
+}
+
 export interface NormalizedHotelOption {
   optionId: string;
   optionType: string;
+  roomName: string;
+  roomType: string;
+  ratePlan: string;
   roomInfo: string[];
+  roomImages: string[];
+  roomCapacity: string;
+  roomFeatures: string[];
   inclusions: string[];
   mealBasis: string;
+  mealBasisLabel: string;
+  bookingNotes: string[];
   pricing: NormalizedHotelPricing;
   commercialType: string;
   commission: number;
+  /** Internal only — never show commission to customer UI. */
+  commercial: Record<string, unknown>;
   gstType: string;
   panRequired: boolean;
   passportRequired: boolean;
   isRefundable: boolean;
-  penalties: unknown[];
+  freeCancellationUntil: string;
+  penalties: CancellationPenalty[];
   rawOption: unknown;
 }
 
@@ -80,4 +99,70 @@ export interface HotelListingResult {
   totalResults: number;
   hotels: NormalizedHotel[];
   rawResponse: unknown;
+}
+
+export interface HotelDetailRequestBody {
+  correlationId: string;
+  hotelId: number | string;
+  checkIn: string;
+  checkOut: string;
+  rooms: HotelRoomRequest[];
+  currency: string;
+  nationality: string;
+  timeoutMs?: number;
+}
+
+export interface NormalizedHotelDetail {
+  correlationId: string;
+  hotelId: string | number;
+  name: string;
+  reviewHash: string;
+  location: string;
+  starRating: number | null;
+  amenities: string[];
+  description: string;
+  images: string[];
+  checkIn: string;
+  checkOut: string;
+  guestSummary: string;
+  bookingNotes: string[];
+  options: NormalizedHotelOption[];
+  currency: string;
+  nationality: string;
+  fetchedAt: string;
+  expiresAt: string;
+}
+
+/** Session payload prepared for Review API (Phase 3). */
+export interface HotelReviewPrepSession {
+  correlationId: string;
+  hotelId: string | number;
+  reviewHash: string;
+  selectedOptionId: string;
+  selectedOption: NormalizedHotelOption;
+  hotelName: string;
+  pricing: NormalizedHotelPricing;
+  cancellation: {
+    isRefundable: boolean;
+    freeCancellationUntil: string;
+    penalties: CancellationPenalty[];
+  };
+  roomInfo: string[];
+  mealBasis: string;
+  bookingNotes: string[];
+  commercial: Record<string, unknown>;
+  compliance: {
+    gstType: string;
+    panRequired: boolean;
+    passportRequired: boolean;
+  };
+  searchContext: {
+    checkIn: string;
+    checkOut: string;
+    rooms: HotelRoomRequest[];
+    currency: string;
+    nationality: string;
+  };
+  savedAt: string;
+  expiresAt: string;
 }
