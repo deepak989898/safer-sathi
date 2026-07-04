@@ -163,5 +163,6 @@ export {
   saveFlightSearchSession,
   loadFlightSearchSession,
   defaultFlightSearchParams,
+  lightFlights,
   type FlightSearchSession,
 } from "@/lib/flights/session";

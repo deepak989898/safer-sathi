@@ -1,12 +1,16 @@
 /**
  * Developer-only flight booking payment bypass.
- * Enabled only when NEXT_PUBLIC_TEST_BOOKING=true and never in production.
+ *
+ * Enable with:
+ *   NEXT_PUBLIC_TEST_BOOKING=true
+ *
+ * Set to false (or remove) before real customer payments go live.
+ * Works on Vercel production builds when the env var is set (needed for UAT on live domain).
  */
 
 export function isFlightTestBookingEnabled(): boolean {
-  if (process.env.NODE_ENV === "production") return false;
-  if (process.env.VERCEL_ENV === "production") return false;
-  return process.env.NEXT_PUBLIC_TEST_BOOKING === "true";
+  const flag = (process.env.NEXT_PUBLIC_TEST_BOOKING ?? "").trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
 }
 
 export function buildTestRazorpayIds(bookingId: string) {

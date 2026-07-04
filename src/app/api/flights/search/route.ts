@@ -50,7 +50,17 @@ export async function POST(request: Request) {
         ? `${process.env.TRIPJACK_PROXY_BASE_URL.replace(/\/$/, "")}/api/tripjack/flights/search`
         : "http://178.128.151.233:4000/api/tripjack/flights/search",
       payloadShape: result.payloadShape,
-      ...(includeDebug ? { debug: { rawResponse: result.rawResponse } } : {}),
+      // Never send full TripJack search payload to the browser — freezes the tab (200+ flights).
+      ...(includeDebug
+        ? {
+            debug: {
+              omittedRawResponse: true,
+              flightCount: result.flights.length,
+              onwardCount: result.onwardCount,
+              payloadShape: result.payloadShape,
+            },
+          }
+        : {}),
     });
   } catch (error) {
     if (error instanceof TripJackApiError) {

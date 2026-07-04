@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useFlightSearch, type FlightSearchDebug } from "@/hooks/use-flight-search";
 import {
   defaultFlightSearchParams,
+  lightFlights,
   loadFlightSearchSession,
   saveFlightSearchSession,
   saveFlightSelection,
@@ -77,23 +78,34 @@ export function FlightFlowClient() {
     const result = await searchFlights(params);
     if (!result) return;
 
-    setFlights(result.flights);
+    // Strip heavy fields before React state — prevents "Page Unresponsive".
+    const flightsLight = lightFlights(result.flights);
+    setFlights(flightsLight);
     setOnwardCount(result.onwardCount);
     setMessage(result.message);
-    setDebug({
-      rawResponse: result.debug?.rawResponse ?? result,
-      requestBody: result.requestBody,
-      proxyEndpoint: result.proxyEndpoint,
-      payloadShape: result.payloadShape,
-    });
 
-    saveFlightSearchSession({
-      params,
-      flights: result.flights,
-      onwardCount: result.onwardCount,
-      message: result.message,
-      searchedAt: new Date().toISOString(),
-    });
+    if (showDebug) {
+      setDebug({
+        requestBody: result.requestBody,
+        proxyEndpoint: result.proxyEndpoint,
+        payloadShape: result.payloadShape,
+        // Never store full TripJack search JSON in React state.
+        rawResponse: result.debug ?? { omittedRawResponse: true },
+      });
+    } else {
+      setDebug({});
+    }
+
+    // Defer session write so paint is not blocked.
+    window.setTimeout(() => {
+      saveFlightSearchSession({
+        params,
+        flights: [],
+        onwardCount: result.onwardCount,
+        message: result.message,
+        searchedAt: new Date().toISOString(),
+      });
+    }, 0);
 
     if (result.flights.length === 0) {
       toast.info(result.message, { duration: 2500 });
@@ -102,7 +114,7 @@ export function FlightFlowClient() {
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [params, searchFlights, setError]);
+  }, [params, searchFlights, setError, showDebug]);
 
   const handleReviewFlight = useCallback(
     (flight: NormalizedFlight) => {
@@ -127,16 +139,18 @@ export function FlightFlowClient() {
         setHasSearched(true);
         const result = await searchFlights(next);
         if (!result) return;
-        setFlights(result.flights);
+        setFlights(lightFlights(result.flights));
         setOnwardCount(result.onwardCount);
         setMessage(result.message);
-        saveFlightSearchSession({
-          params: next,
-          flights: result.flights,
-          onwardCount: result.onwardCount,
-          message: result.message,
-          searchedAt: new Date().toISOString(),
-        });
+        window.setTimeout(() => {
+          saveFlightSearchSession({
+            params: next,
+            flights: [],
+            onwardCount: result.onwardCount,
+            message: result.message,
+            searchedAt: new Date().toISOString(),
+          });
+        }, 0);
       })();
     },
     [params, searchFlights, setError]

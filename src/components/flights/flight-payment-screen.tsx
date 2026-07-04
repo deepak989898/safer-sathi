@@ -138,7 +138,7 @@ export function FlightPaymentScreen({
                   Details, and open the ticket flow.
                 </p>
                 <p className="rounded-xl bg-white px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
-                  NEXT_PUBLIC_TEST_BOOKING=true · disabled automatically in production
+                  NEXT_PUBLIC_TEST_BOOKING=true · Razorpay skipped (set false before real payments)
                 </p>
                 <Button
                   className={cn(flightPrimaryButtonClass(), "bg-amber-600 hover:bg-amber-700")}

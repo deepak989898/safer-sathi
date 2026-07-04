@@ -222,8 +222,9 @@ function parsePriceOption(
       return Number.isFinite(n) ? n : null;
     })(),
     cabinClass: pickString(adult, ["cc", "cabinClass"], "ECONOMY"),
-    rawTrip: trip,
-    rawPrice: price,
+    // Never keep full TripJack trip/price objects in memory — freezes the browser with 200+ results.
+    rawTrip: null,
+    rawPrice: null,
   };
 }
 
