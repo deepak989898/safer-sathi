@@ -144,7 +144,7 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
               </strong>
             </p>
             <p>
-              <span className="text-slate-500">Payment</span>
+              <span className="text-slate-500">Payment status</span>
               <br />
               <strong className="capitalize">{booking.paymentStatus}</strong>
             </p>
@@ -153,6 +153,20 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
               <br />
               <strong>{formatCurrency(booking.totalFare, locale)}</strong>
             </p>
+            {booking.razorpayPaymentId && (
+              <p>
+                <span className="text-slate-500">Razorpay payment ID</span>
+                <br />
+                <strong className="font-mono text-xs">{booking.razorpayPaymentId}</strong>
+              </p>
+            )}
+            {booking.razorpayOrderId && (
+              <p>
+                <span className="text-slate-500">Razorpay order ID</span>
+                <br />
+                <strong className="font-mono text-xs">{booking.razorpayOrderId}</strong>
+              </p>
+            )}
           </div>
 
           <div>

@@ -1,9 +1,11 @@
 import {
   bookTripJackFlight,
-  confirmTripJackFareBeforeTicket,
   fetchTripJackBookingDetails,
 } from "@/lib/tripjack/client";
-import { buildTripJackBookRequest } from "@/lib/tripjack/build-book";
+import {
+  buildTripJackBookRequest,
+  type TripJackBookRequest,
+} from "@/lib/tripjack/build-book";
 import { normalizeTripJackBookingDetails } from "@/lib/tripjack/parse-booking-details";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 import {
@@ -19,6 +21,7 @@ import type {
   FlightPassengerFormRow,
   NormalizedFareValidate,
   NormalizedFlightReview,
+  TripJackTravellerPayload,
 } from "@/lib/tripjack/types";
 
 export interface PrepareFlightBookingInput {
@@ -42,6 +45,33 @@ export function resolveTripjackBookingId(booking: FlightBookingRecord): string {
     extractTripJackBookingId(booking.reviewResponse) ||
     ""
   );
+}
+
+function resolveValidatedTotalFare(booking: FlightBookingRecord): number {
+  const fromValidated = booking.fareValidateNormalized?.totalFare;
+  if (typeof fromValidated === "number" && Number.isFinite(fromValidated) && fromValidated > 0) {
+    return fromValidated;
+  }
+  return booking.totalFare;
+}
+
+function resolveTravellerInfo(booking: FlightBookingRecord): TripJackTravellerPayload[] | undefined {
+  const request = booking.fareValidateRequest as FareValidateRequest | undefined;
+  if (request?.travellerInfo?.length) return request.travellerInfo;
+  return undefined;
+}
+
+function resolveDeliveryInfo(
+  booking: FlightBookingRecord
+): TripJackBookRequest["deliveryInfo"] | undefined {
+  const request = booking.fareValidateRequest as FareValidateRequest | undefined;
+  if (request?.deliveryInfo?.emails?.length && request.deliveryInfo.contacts?.length) {
+    return {
+      emails: request.deliveryInfo.emails,
+      contacts: request.deliveryInfo.contacts,
+    };
+  }
+  return undefined;
 }
 
 export async function prepareFlightBookingFromSession(
@@ -100,6 +130,11 @@ export async function prepareFlightBookingFromSession(
   return createFlightBooking(record);
 }
 
+/**
+ * After Razorpay signature verification:
+ * payment_success → TripJack Book → Booking Details → Firebase update.
+ * Book failure after paid payment → manual_review_required (never lose payment).
+ */
 export async function confirmFlightAfterPayment(input: {
   bookingId: string;
   razorpayOrderId: string;
@@ -108,41 +143,48 @@ export async function confirmFlightAfterPayment(input: {
   const booking = await getFlightBookingById(input.bookingId);
   if (!booking) throw new Error("Booking not found");
 
+  const paymentFields = {
+    paymentStatus: "paid" as const,
+    razorpayOrderId: input.razorpayOrderId,
+    razorpayPaymentId: input.razorpayPaymentId,
+    razorpaySignatureVerified: true,
+  };
+
   const tripjackBookingId = resolveTripjackBookingId(booking);
   if (!tripjackBookingId) {
     const failed = await updateFlightBooking(input.bookingId, {
+      ...paymentFields,
       status: "manual_review_required",
-      paymentStatus: "paid",
-      razorpayOrderId: input.razorpayOrderId,
-      razorpayPaymentId: input.razorpayPaymentId,
-      razorpaySignatureVerified: true,
+      tripjackStatus: "missing_booking_id",
+      adminNotes: "TripJack bookingId missing after payment. Manual ticket issuance required.",
     });
     if (!failed) throw new Error("Booking update failed");
     return failed;
   }
 
-  await updateFlightBooking(input.bookingId, {
+  const paid = await updateFlightBooking(input.bookingId, {
+    ...paymentFields,
     status: "payment_success",
-    paymentStatus: "paid",
-    razorpayOrderId: input.razorpayOrderId,
-    razorpayPaymentId: input.razorpayPaymentId,
-    razorpaySignatureVerified: true,
   });
+  if (!paid) throw new Error("Failed to save payment success");
 
-  try {
-    await confirmTripJackFareBeforeTicket(tripjackBookingId);
-  } catch (confirmFareError) {
-    console.warn("[flight-booking] confirm fare before ticket skipped:", confirmFareError);
-  }
-
+  const totalFare = resolveValidatedTotalFare(paid);
   const bookRequest = buildTripJackBookRequest({
     tripjackBookingId,
-    totalFare: booking.totalFare,
-    passengers: booking.passengers,
-    delivery: booking.delivery,
+    totalFare,
+    passengers: paid.passengers,
+    delivery: paid.delivery,
+    travellerInfo: resolveTravellerInfo(paid),
+    deliveryInfo: resolveDeliveryInfo(paid),
+    gstInfo: {},
   });
 
   console.log("[flight-booking] TripJack book request:", JSON.stringify(bookRequest));
+
+  await updateFlightBooking(input.bookingId, {
+    status: "booking_pending",
+    bookRequest,
+  });
 
   let bookResponse: unknown;
   try {
@@ -151,9 +193,12 @@ export async function confirmFlightAfterPayment(input: {
     console.log("[flight-booking] TripJack book response:", JSON.stringify(bookResponse));
   } catch (bookError) {
     const message = bookError instanceof Error ? bookError.message : "Book failed";
+    console.error("[flight-booking] TripJack book failed:", message);
     const updated = await updateFlightBooking(input.bookingId, {
+      ...paymentFields,
       status: "manual_review_required",
       bookRequest,
+      bookResponse: bookError instanceof Error ? { message: bookError.message } : undefined,
       tripjackStatus: "book_failed",
       adminNotes: message,
     });
@@ -176,9 +221,17 @@ export async function confirmFlightAfterPayment(input: {
     console.warn("[flight-booking] booking details failed:", detailsError);
   }
 
+  const hasTicketMeta = Boolean(
+    normalizedDetails?.pnr ||
+      normalizedDetails?.airlinePnr ||
+      normalizedDetails?.ticketNumber ||
+      (normalizedDetails?.flightSegments?.length ?? 0) > 0
+  );
+
   const updated = await updateFlightBooking(input.bookingId, {
+    ...paymentFields,
     tripjackBookingId: confirmedBookingId,
-    status: normalizedDetails ? "confirmed" : "booking_pending",
+    status: hasTicketMeta || normalizedDetails ? "confirmed" : "booking_pending",
     bookRequest,
     bookResponse,
     bookingDetailsResponse: detailsResponse,
@@ -189,7 +242,10 @@ export async function confirmFlightAfterPayment(input: {
     ticketStatus: normalizedDetails?.ticketStatus || undefined,
     orderStatus: normalizedDetails?.orderStatus || undefined,
     tripjackStatus: "booked",
-    totalFare: normalizedDetails?.fareDetails.totalFare || booking.totalFare,
+    totalFare:
+      normalizedDetails?.fareDetails.totalFare && normalizedDetails.fareDetails.totalFare > 0
+        ? normalizedDetails.fareDetails.totalFare
+        : totalFare,
   });
 
   if (!updated) throw new Error("Booking update failed");

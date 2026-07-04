@@ -40,6 +40,8 @@ export function buildTripJackBookRequest(input: {
   totalFare: number;
   passengers: FlightPassengerFormRow[];
   delivery: FlightPassengerDeliveryForm;
+  travellerInfo?: TripJackTravellerPayload[];
+  deliveryInfo?: TripJackBookRequest["deliveryInfo"];
   gstInfo?: Record<string, unknown>;
 }): TripJackBookRequest {
   const contact = input.delivery.contact.replace(/\D/g, "").slice(-10);
@@ -47,9 +49,12 @@ export function buildTripJackBookRequest(input: {
   return {
     bookingId: input.tripjackBookingId,
     paymentInfos: [{ amount: input.totalFare }],
-    travellerInfo: input.passengers.map(toTravellerPayload),
+    travellerInfo:
+      input.travellerInfo?.length
+        ? input.travellerInfo
+        : input.passengers.map(toTravellerPayload),
     gstInfo: input.gstInfo ?? {},
-    deliveryInfo: {
+    deliveryInfo: input.deliveryInfo ?? {
       emails: [input.delivery.email.trim()],
       contacts: [contact],
     },

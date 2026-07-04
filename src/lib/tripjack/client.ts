@@ -259,9 +259,18 @@ export async function bookTripJackFlight(
   request: import("@/lib/tripjack/build-book").TripJackBookRequest
 ): Promise<import("@/lib/tripjack/types").FlightBookResult> {
   const { bookUrl } = getTripJackProxyConfig();
+  console.log("[tripjack-client] Book API →", bookUrl);
   const raw = await tripjackProxyPost(bookUrl, request);
   const payload = raw as Record<string, unknown>;
   const data = (payload.data ?? payload) as Record<string, unknown>;
+  const status = data.status as Record<string, unknown> | undefined;
+  if (status && status.success === false) {
+    throw new TripJackApiError(
+      String(status.message ?? data.message ?? "TripJack book failed"),
+      Number(status.httpStatus) || undefined,
+      raw
+    );
+  }
   const bookingId =
     extractTripJackBookingId(raw) ||
     String(data.bookingId ?? request.bookingId ?? "");
@@ -271,6 +280,7 @@ export async function bookTripJackFlight(
 
 export async function fetchTripJackBookingDetails(bookingId: string): Promise<unknown> {
   const { bookingDetailsUrl } = getTripJackProxyConfig();
+  console.log("[tripjack-client] Booking Details API →", bookingDetailsUrl, { bookingId });
   return tripjackProxyPost(bookingDetailsUrl, { bookingId });
 }
 

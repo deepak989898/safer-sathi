@@ -25,6 +25,17 @@ async function canAccessFlightBooking(
     return { booking };
   }
 
+  // Paid tickets are reachable by opaque bookingId (post-payment ticket page).
+  const paidStatuses = new Set([
+    "payment_success",
+    "booking_pending",
+    "confirmed",
+    "manual_review_required",
+  ]);
+  if (booking.paymentStatus === "paid" || paidStatuses.has(booking.status)) {
+    return { booking };
+  }
+
   return { error: apiError("Unauthorized", 401) };
 }
 

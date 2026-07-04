@@ -12,14 +12,32 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   const api = useFlightBookingApi();
   const [booking, setBooking] = useState<FlightBookingRecord | null>(null);
   const [bookingId, setBookingId] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     void params.then(async ({ bookingId: id }) => {
       setBookingId(id);
       const data = await api.fetchBooking(id);
-      if (data) setBooking(data);
+      if (data) {
+        setBooking(data);
+        setLoadError(null);
+      } else {
+        setLoadError("Booking not found or ticket is not available yet.");
+      }
     });
   }, [params]);
+
+  if (loadError && !booking) {
+    return (
+      <section className="container mx-auto max-w-lg px-4 py-16 text-center">
+        <p className="font-semibold text-slate-900">Unable to load ticket</p>
+        <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+        <Link href="/flights" className="mt-6 inline-block text-sm text-[#1a4fa3] hover:underline">
+          Back to flights
+        </Link>
+      </section>
+    );
+  }
 
   if (!booking) {
     return (

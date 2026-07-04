@@ -97,7 +97,8 @@ export function normalizeTripJackBookingDetails(
     return {
       name: `${fN} ${lN}`.trim() || "Passenger",
       type: pickString(row, ["pt", "type"], "ADULT"),
-      ticketNumber: pickString(row, ["ticketNumber", "pnr"], "") || undefined,
+      ticketNumber:
+        pickString(row, ["ticketNumber", "ticketNo", "tN", "pnr"], "") || undefined,
     };
   });
 
@@ -110,13 +111,23 @@ export function normalizeTripJackBookingDetails(
     pickString(order, ["bookingId"], "") ||
     extractTripJackBookingId(bookRaw);
 
+  const pnrFromTravellers = passengers.map((p) => p.ticketNumber).find(Boolean) || "";
+
   return {
     bookingId,
     orderStatus: pickString(order, ["status", "orderStatus"], "unknown"),
     amount: pickNumber(order, ["amount", "totalAmount"], pickNumber(fc, ["TF", "tf"], 0)),
-    pnr: pickString(air, ["pnr", "PNR"], pickString(order, ["pnr"], "")),
-    airlinePnr: pickString(air, ["airlinePnr", "gdsPnr"], ""),
-    ticketNumber: pickString(air, ["ticketNumber"], pickString(order, ["ticketNumber"], "")),
+    pnr:
+      pickString(air, ["pnr", "PNR"], "") ||
+      pickString(order, ["pnr", "PNR"], "") ||
+      pnrFromTravellers,
+    airlinePnr:
+      pickString(air, ["airlinePnr", "gdsPnr", "airlinePNR"], "") ||
+      pickString(order, ["airlinePnr", "gdsPnr"], ""),
+    ticketNumber:
+      pickString(air, ["ticketNumber", "ticketNo"], "") ||
+      pickString(order, ["ticketNumber", "ticketNo"], "") ||
+      pnrFromTravellers,
     passengers,
     tripInfos,
     flightSegments: segments,

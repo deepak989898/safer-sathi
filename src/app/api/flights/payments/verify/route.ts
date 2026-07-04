@@ -53,7 +53,18 @@ export async function POST(request: Request) {
     } catch (confirmError) {
       const message =
         confirmError instanceof Error ? confirmError.message : "Confirmation failed";
-      booking = await getFlightBookingById(parsed.data.bookingId);
+      console.error("[flight-payment] post-payment booking confirm failed:", message);
+      booking = await updateFlightBooking(parsed.data.bookingId, {
+        status: "manual_review_required",
+        paymentStatus: "paid",
+        razorpayOrderId: parsed.data.razorpayOrderId,
+        razorpayPaymentId: parsed.data.razorpayPaymentId,
+        razorpaySignatureVerified: true,
+        adminNotes: message,
+      });
+      if (!booking) {
+        booking = await getFlightBookingById(parsed.data.bookingId);
+      }
       return apiSuccess({
         verified: true,
         booking,
