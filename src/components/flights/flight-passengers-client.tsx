@@ -143,25 +143,16 @@ export function FlightPassengersClient() {
       passengers: passengersSession,
     });
 
-    toast.success("Fare validated successfully.");
+    toast.success("Fare validated successfully.", { duration: 2500 });
 
     if (result.validated.fareChanged) {
       toast.info(
         result.validated.fareAlertMessage ??
-          "Fare updated. Please review the latest fare before payment."
+          "Fare updated. Please review the latest fare before payment.",
+        { duration: 3500 }
       );
     }
-
-    router.push("/flights/payment");
-  }, [
-    review,
-    bookingId,
-    passengers,
-    delivery,
-    validateFare,
-    isStaff,
-    router,
-  ]);
+  }, [review, bookingId, passengers, delivery, validateFare, isStaff]);
 
   const handleRetry = () => {
     setError(null);
@@ -192,6 +183,7 @@ export function FlightPassengersClient() {
       onDeliveryChange={handleDeliveryChange}
       onValidate={runValidate}
       onRetry={handleRetry}
+      onProceedToPayment={() => router.push("/flights/payment")}
     />
   );
 }

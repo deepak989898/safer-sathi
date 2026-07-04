@@ -11,6 +11,7 @@ import {
   FlightFiltersSidebar,
 } from "@/components/flights/flight-filters-sidebar";
 import { FlightPagination } from "@/components/flights/flight-pagination";
+import { FlightSoftCard } from "@/components/flights/flight-ui";
 import {
   applyFlightFilters,
   buildFlightFilterMeta,
@@ -19,6 +20,7 @@ import {
   paginateFlights,
   type FlightFilters,
 } from "@/lib/flights/filters";
+import { formatCurrency } from "@/lib/i18n";
 import type { FlightSearchParams, NormalizedFlight } from "@/lib/tripjack/types";
 import type { Locale } from "@/types";
 
@@ -35,17 +37,17 @@ interface FlightResultsScreenProps {
 
 function FlightCardSkeleton() {
   return (
-    <Card className="rounded-2xl border-slate-200">
-      <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center">
-        <Skeleton className="h-11 w-11 rounded-xl" />
+    <FlightSoftCard>
+      <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center">
+        <Skeleton className="h-12 w-12 rounded-2xl" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-24" />
         </div>
         <Skeleton className="h-10 w-32" />
         <Skeleton className="h-12 w-28" />
-      </CardContent>
-    </Card>
+      </div>
+    </FlightSoftCard>
   );
 }
 
@@ -81,6 +83,7 @@ export function FlightResultsScreen({
   );
 
   const activeFilterCount = countActiveFilters(filters, meta);
+  const cheapest = filteredFlights[0]?.totalFare;
 
   const handleFilterChange = (patch: Partial<FlightFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -102,24 +105,35 @@ export function FlightResultsScreen({
   }
 
   return (
-    <section className="border-t bg-slate-100 py-8">
-      <div className="container mx-auto px-4">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{routeLabel}</h2>
-            <p className="text-sm text-slate-600">
-              {params.departureDate} · {params.cabinClass.replace(/_/g, " ")} · {paxLabel}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {loading
-                ? "Searching..."
-                : error
-                  ? "Search failed"
-                  : `${onwardCount} flight(s) from API · ${filteredFlights.length} matching filters`}
-            </p>
+    <section className="border-t border-blue-50 bg-[#f4f7fb] py-0">
+      <div className="border-b bg-white">
+        <div className="container mx-auto px-4 py-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{routeLabel}</h2>
+              <p className="text-sm text-slate-600">
+                {params.departureDate} · {params.cabinClass.replace(/_/g, " ")} · {paxLabel}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-blue-50 px-4 py-2 text-right">
+              <p className="text-xs font-medium text-slate-500">
+                {loading
+                  ? "Searching..."
+                  : error
+                    ? "Search failed"
+                    : `${filteredFlights.length} of ${onwardCount} flights`}
+              </p>
+              {!loading && !error && cheapest != null && (
+                <p className="text-sm font-bold text-[#1a4fa3]">
+                  From {formatCurrency(cheapest, locale)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
+      </div>
 
+      <div className="container mx-auto px-4 py-8">
         {loading && (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -141,16 +155,16 @@ export function FlightResultsScreen({
         )}
 
         {!loading && !error && flights.length === 0 && (
-          <Card className="rounded-2xl border-slate-200">
-            <CardContent className="flex flex-col items-center py-12 text-center">
+          <FlightSoftCard>
+            <div className="flex flex-col items-center py-14 text-center">
               <Plane className="mb-3 h-12 w-12 text-slate-300" />
               <p className="font-semibold text-slate-900">No flights found</p>
               <p className="mt-2 max-w-md text-sm text-slate-600">
                 {message ||
                   "Try a different date, route, or enable connecting flights in your search."}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </FlightSoftCard>
         )}
 
         {!loading && !error && flights.length > 0 && (
@@ -175,14 +189,14 @@ export function FlightResultsScreen({
               />
 
               {filteredFlights.length === 0 ? (
-                <Card className="rounded-2xl border-slate-200">
-                  <CardContent className="py-10 text-center">
+                <FlightSoftCard>
+                  <div className="py-10 text-center">
                     <p className="font-semibold text-slate-900">No flights match your filters</p>
                     <p className="mt-2 text-sm text-slate-600">
                       Try clearing filters or widening your price range.
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </FlightSoftCard>
               ) : (
                 <>
                   {pagination.items.map((flight) => (

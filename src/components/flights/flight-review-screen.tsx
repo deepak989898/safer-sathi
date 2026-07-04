@@ -2,14 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Plane } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Briefcase,
+  Info,
+  Loader2,
+  Luggage,
+  Plane,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AirlineAvatar,
+  FlightPageHeader,
+  FlightRouteStrip,
+  FlightSoftCard,
+  FlightStepBar,
+  flightPrimaryButtonClass,
+} from "@/components/flights/flight-ui";
 import { formatCurrency } from "@/lib/i18n";
 import type { FlightSearchContext } from "@/lib/flights/flight-session";
 import type { NormalizedFlightReview } from "@/lib/tripjack/types";
 import type { Locale } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface FlightReviewScreenProps {
   review: NormalizedFlightReview | null;
@@ -34,7 +51,7 @@ export function FlightReviewScreen({
 
   if (!context && !loading) {
     return (
-      <div className="min-h-screen bg-slate-50 py-16">
+      <div className="min-h-screen bg-[#f4f7fb] py-16">
         <div className="container mx-auto max-w-lg px-4 text-center">
           <Plane className="mx-auto mb-4 h-12 w-12 text-slate-300" />
           <h1 className="text-xl font-bold text-slate-900">Flight selection missing</h1>
@@ -52,37 +69,28 @@ export function FlightReviewScreen({
     : "Flight review";
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="border-b bg-[#1a4fa3] text-white">
-        <div className="container mx-auto px-4 py-5">
-          <Link
-            href="/flights"
-            className="mb-2 inline-flex items-center text-sm text-blue-100 hover:text-white"
-          >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to results
-          </Link>
-          <h1 className="text-2xl font-bold">Review your flight</h1>
-          <p className="text-sm text-blue-100">
-            {routeLabel}
-            {context?.params.departureDate ? ` · ${context.params.departureDate}` : ""}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#f4f7fb]">
+      <FlightStepBar current="review" />
+      <FlightPageHeader
+        title="Review Fare"
+        subtitle={`${routeLabel}${context?.params.departureDate ? ` · ${context.params.departureDate}` : ""}`}
+        backHref="/flights"
+        backLabel="Back to results"
+      />
 
       <div className="container mx-auto px-4 py-8">
         {loading && (
-          <Card className="rounded-2xl">
-            <CardContent className="flex items-center justify-center gap-3 py-16">
+          <FlightSoftCard>
+            <div className="flex items-center justify-center gap-3 py-16">
               <Loader2 className="h-6 w-6 animate-spin text-[#1a4fa3]" />
               <p className="text-slate-700">Fetching latest fare from airline...</p>
-            </CardContent>
-          </Card>
+            </div>
+          </FlightSoftCard>
         )}
 
         {error && !loading && (
-          <Card className="rounded-2xl border-red-200 bg-red-50">
-            <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+          <FlightSoftCard className="border-red-200 bg-red-50">
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
               <AlertCircle className="h-10 w-10 text-red-600" />
               <div>
                 <p className="font-semibold text-red-900">Review failed</p>
@@ -91,29 +99,27 @@ export function FlightReviewScreen({
               <Button variant="outline" onClick={onRetry}>
                 Retry
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </FlightSoftCard>
         )}
 
         {review && !loading && !error && (
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <div className="space-y-4">
               {review.fareUpdated && (
-                <Card className="rounded-2xl border-amber-200 bg-amber-50">
-                  <CardContent className="pt-5 text-sm text-amber-900">
+                <FlightSoftCard className="border-amber-200 bg-amber-50">
+                  <div className="p-4 text-sm text-amber-900">
                     {review.fareAlertMessage ??
                       "Fare updated by airline. Please review the latest fare."}
-                  </CardContent>
-                </Card>
+                  </div>
+                </FlightSoftCard>
               )}
 
-              <Card className="rounded-2xl border-slate-200 shadow-sm">
-                <CardContent className="space-y-5 pt-6">
+              <FlightSoftCard>
+                <div className="space-y-5 p-5 md:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-lg font-bold text-[#1a4fa3]">
-                        {review.airlineCode || "—"}
-                      </div>
+                      <AirlineAvatar code={review.airlineCode} />
                       <div>
                         <p className="font-semibold text-slate-900">{review.airlineName}</p>
                         <p className="text-sm text-slate-500">
@@ -122,88 +128,69 @@ export function FlightReviewScreen({
                         </p>
                       </div>
                     </div>
-                    <Badge variant="secondary">{review.fareIdentifier}</Badge>
+                    <Badge className="rounded-full bg-blue-50 text-[#1a4fa3] hover:bg-blue-50">
+                      {review.fareIdentifier}
+                    </Badge>
                   </div>
 
-                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl bg-slate-50 p-4">
-                    <div>
-                      <p className="text-2xl font-bold text-slate-900">{review.departureTime}</p>
-                      <p className="font-medium text-slate-800">{review.departureAirportCode}</p>
-                      <p className="text-xs text-slate-500">{review.departureCity}</p>
-                      {review.departureTerminal && (
-                        <p className="text-xs text-slate-400">{review.departureTerminal}</p>
-                      )}
-                    </div>
-                    <div className="text-center text-xs text-slate-500">
-                      <p>{review.durationFormatted}</p>
-                      <p className="mt-1 font-medium">
-                        {review.stops === 0
-                          ? "Non-stop"
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <FlightRouteStrip
+                      departureTime={review.departureTime}
+                      arrivalTime={review.arrivalTime}
+                      fromCode={review.departureAirportCode}
+                      toCode={review.arrivalAirportCode}
+                      fromCity={review.departureCity}
+                      toCity={review.arrivalCity}
+                      duration={review.durationFormatted}
+                      stopsLabel={
+                        review.stops === 0
+                          ? "Non Stop"
                           : review.stops === 1
                             ? "1 Stop"
-                            : `${review.stops} Stops`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-slate-900">{review.arrivalTime}</p>
-                      <p className="font-medium text-slate-800">{review.arrivalAirportCode}</p>
-                      <p className="text-xs text-slate-500">{review.arrivalCity}</p>
-                      {review.arrivalTerminal && (
-                        <p className="text-xs text-slate-400">{review.arrivalTerminal}</p>
-                      )}
-                    </div>
+                            : `${review.stops} Stops`
+                      }
+                    />
                   </div>
 
-                  {review.segments.length > 1 && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-slate-900">Segments</p>
-                      {review.segments.map((seg, i) => (
-                        <p key={i} className="text-xs text-slate-600">
-                          {seg.airlineCode} {seg.flightNumber}: {seg.departureAirportCode} →{" "}
-                          {seg.arrivalAirportCode} ({seg.departureTime}–{seg.arrivalTime})
-                        </p>
-                      ))}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-100 p-3">
+                      <Briefcase className="mt-0.5 h-4 w-4 text-[#1a4fa3]" />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900">Cabin</p>
+                        <p className="text-xs text-slate-500">{review.cabinBaggage}</p>
+                      </div>
                     </div>
-                  )}
-
-                  <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                    <p>
-                      <span className="font-medium text-slate-800">Passengers:</span>{" "}
-                      {context?.params.adults ?? 1} Adult
-                      {(context?.params.children ?? 0) > 0
-                        ? `, ${context?.params.children} Child`
-                        : ""}
-                      {(context?.params.infants ?? 0) > 0
-                        ? `, ${context?.params.infants} Infant`
-                        : ""}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-800">Cabin:</span>{" "}
-                      {review.cabinClass.replace(/_/g, " ")}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-800">Baggage:</span> Cabin{" "}
-                      {review.cabinBaggage}, Check-in {review.checkinBaggage}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-800">Refund:</span>{" "}
-                      {review.refundableType}
-                    </p>
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-100 p-3">
+                      <Luggage className="mt-0.5 h-4 w-4 text-[#1a4fa3]" />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900">Check-in</p>
+                        <p className="text-xs text-slate-500">{review.checkinBaggage}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-100 p-3">
+                      <RefreshCw className="mt-0.5 h-4 w-4 text-[#1a4fa3]" />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900">Refund</p>
+                        <p className="text-xs text-slate-500">{review.refundableType}</p>
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </FlightSoftCard>
 
-              <Card className="rounded-2xl border-blue-100 bg-blue-50/50">
-                <CardContent className="pt-5 text-sm text-blue-900">
-                  Fare is subject to validation before payment.
-                </CardContent>
-              </Card>
+              <FlightSoftCard className="border-blue-100 bg-blue-50/60">
+                <div className="flex items-start gap-2 p-4 text-sm text-blue-900">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                  Fare is valid for a limited time only. Final amount is confirmed after fare
+                  validation.
+                </div>
+              </FlightSoftCard>
             </div>
 
             <div className="space-y-4">
-              <Card className="sticky top-24 rounded-2xl border-slate-200 shadow-sm">
-                <CardContent className="space-y-4 pt-6">
-                  <p className="font-semibold text-slate-900">Fare breakdown</p>
+              <FlightSoftCard className="sticky top-24">
+                <div className="space-y-4 p-5 md:p-6">
+                  <p className="text-lg font-bold text-slate-900">Fare Summary</p>
 
                   {review.paxFares.map((line) => (
                     <div key={line.type} className="flex justify-between text-sm">
@@ -225,38 +212,23 @@ export function FlightReviewScreen({
                       <span className="text-slate-600">Taxes & fees</span>
                       <span>{formatCurrency(review.taxesAndFees, locale)}</span>
                     </div>
-                    {review.netFare > 0 && review.netFare !== review.totalFare && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Net fare</span>
-                        <span>{formatCurrency(review.netFare, locale)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-[#1a4fa3]">
+                    <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-bold text-[#1a4fa3]">
                       <span>Total</span>
                       <span>{formatCurrency(review.totalFare, locale)}</span>
                     </div>
                   </div>
 
-                  {review.seatsRemaining != null && (
-                    <p className="text-xs text-amber-700">
-                      {review.seatsRemaining} seat(s) remaining
-                    </p>
-                  )}
-
-                  <Button
-                    className="w-full bg-[#1a4fa3] hover:bg-[#16408a]"
-                    onClick={onContinue}
-                  >
-                    Continue to passenger details
+                  <Button className={cn(flightPrimaryButtonClass())} onClick={onContinue}>
+                    Continue to Passenger Details
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                   <Link href="/flights" className="block w-full">
-                    <Button variant="outline" className="w-full" type="button">
+                    <Button variant="outline" className="h-11 w-full rounded-xl" type="button">
                       Back to results
                     </Button>
                   </Link>
-                </CardContent>
-              </Card>
+                </div>
+              </FlightSoftCard>
             </div>
           </div>
         )}

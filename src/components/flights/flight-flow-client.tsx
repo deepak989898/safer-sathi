@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FlightDebugPanel } from "@/components/flights/flight-debug-panel";
 import { FlightResultsScreen } from "@/components/flights/flight-results-screen";
 import { FlightSearchScreen } from "@/components/flights/flight-search-screen";
+import { FlightStepBar } from "@/components/flights/flight-ui";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightSearch, type FlightSearchDebug } from "@/hooks/use-flight-search";
 import {
@@ -116,7 +117,9 @@ export function FlightFlowClient() {
   );
 
   return (
-    <>
+    <div className="min-h-screen bg-[#f4f7fb]">
+      <FlightStepBar current={hasSearched ? "results" : "search"} />
+
       <FlightSearchScreen
         params={params}
         loading={loading}
@@ -143,6 +146,6 @@ export function FlightFlowClient() {
           <FlightDebugPanel debug={debug} />
         </div>
       )}
-    </>
+    </div>
   );
 }
