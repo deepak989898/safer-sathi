@@ -78,6 +78,12 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
         roles: ["super_admin", "manager", "sales_agent", "support_agent"],
       },
       {
+        href: "/admin/flight-bookings",
+        label: "Flight Bookings",
+        icon: Plane,
+        roles: ["super_admin", "manager", "sales_agent", "support_agent"],
+      },
+      {
         href: "/admin/bookings",
         label: "Bookings",
         icon: CalendarCheck,

@@ -80,3 +80,9 @@ export async function listFlightBookings(filters?: {
 
   return bookings;
 }
+
+export async function listAllFlightBookingsForAdmin(
+  limit = 500
+): Promise<FlightBookingRecord[]> {
+  return listFlightBookings({ limit });
+}

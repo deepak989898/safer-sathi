@@ -35,6 +35,13 @@ export type FlightRefundStatus =
 
 export type FlightPollStatus = "idle" | "polling" | "SUCCESS" | "FAILED" | "CANCELLED";
 
+export interface FlightAdminNote {
+  note: string;
+  adminId: string;
+  adminName: string;
+  createdAt: string;
+}
+
 export interface FlightBookingRecord {
   bookingId: string;
   tripjackBookingId: string;
@@ -99,7 +106,14 @@ export interface FlightBookingRecord {
   releasePnrRequest?: unknown;
   releasePnrResponse?: unknown;
   isHoldBooking?: boolean;
-  adminNotes?: string;
+  /** @deprecated use adminNotesHistory — kept for older records */
+  adminNotes?: string | FlightAdminNote[];
+  adminNotesHistory?: FlightAdminNote[];
+  manualReviewResolved?: boolean;
+  manualReviewResolvedBy?: string;
+  manualReviewResolvedAt?: string;
+  lastAdminAction?: string;
+  lastAdminActionAt?: string;
   createdAt: string;
   updatedAt: string;
 }
