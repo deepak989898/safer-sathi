@@ -1,0 +1,24 @@
+{
+	"travellerInfo": [
+		{
+	
+			"ti": "Mr",
+			"pt": "ADULT",
+			"fN": "AMIT",
+			"lN": "MEHRA"
+		}
+	],
+
+	"bookingId": "TJ1052177009463",
+	"deliveryInfo": {
+		"emails": [
+			"shivamsrawat@gmail.com"
+		],
+		"contacts": [
+			"9876543212"
+		],
+		"code": [
+			"91"
+		]
+	}
+}

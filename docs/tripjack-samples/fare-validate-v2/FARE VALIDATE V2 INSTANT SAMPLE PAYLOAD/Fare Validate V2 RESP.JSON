@@ -1,0 +1,3933 @@
+{
+	"tripInfos": [
+		{
+			"sI": [
+				{
+					"id": "302",
+					"fD": {
+						"aI": {
+							"code": "6E",
+							"name": "IndiGo",
+							"isLcc": true,
+							"accountingCode": "404"
+						},
+						"fN": "5073",
+						"eT": "321"
+					},
+					"stops": 0,
+					"so": [],
+					"duration": 90,
+					"cT": 70,
+					"da": {
+						"id": 5035,
+						"code": "DEL",
+						"name": "Delhi indira gandhi intl",
+						"cityCode": "DEL",
+						"city": "Delhi",
+						"country": "India",
+						"countryCode": "IN",
+						"terminal": "Terminal 3",
+						"enabled": true,
+						"priority": 1425.0,
+						"timezoneId": "Asia/Kolkata",
+						"cityAliases": "delhi,ncr,dilli",
+						"latitudeAirport": "28,556555",
+						"longitudeAirport": "77,10079"
+					},
+					"aa": {
+						"id": 3937,
+						"code": "AMD",
+						"name": "Sardar Vallabh Bhai Patel Intl Arpt",
+						"cityCode": "AMD",
+						"city": "Ahmedabad",
+						"country": "India",
+						"countryCode": "IN",
+						"terminal": "Terminal 1",
+						"enabled": true,
+						"priority": 1419.0,
+						"timezoneId": "Asia/Kolkata",
+						"cityAliases": "amdavad",
+						"latitudeAirport": "23,06639",
+						"longitudeAirport": "72,62417"
+					},
+					"dt": "2026-07-10T17:05",
+					"at": "2026-07-10T18:35",
+					"iand": false,
+					"isRs": false,
+					"sN": 0,
+					"priceInfoList": [
+						{
+							"fd": {
+								"ADULT": {
+									"fC": {
+										"YQ": 1000.0,
+										"MFT": 3.81,
+										"PLB": 22.27,
+										"MF": 21.19,
+										"AT": 386.0,
+										"TDS": 0.45,
+										"MU": 244.1,
+										"BF": 2969.0,
+										"UDF": 152.0,
+										"TF": 4882.0,
+										"AGST": 350.0
+									},
+									"sR": 9,
+									"bI": {
+										"iB": "15 Kg (01 Piece only)",
+										"cB": "7 Kg"
+									},
+									"rT": 1,
+									"cc": "ECONOMY",
+									"cB": "R",
+									"fB": "RCIP",
+									"mI": false
+								}
+							},
+							"sb": {
+								"sN": "Holiday Hub Indigo - IGE/027",
+								"sI": "Holiday Hub Indigo - IGE/027",
+								"soI": 5,
+								"ruleId": 1278,
+								"description": "Cleartrip - Regular Intl",
+								"showAccountCode": false
+							},
+							"fareIdentifier": "PUBLISHED",
+							"id": "R9929096433_0DELAMD6E5073AMDBLR6E481~19713076243934",
+							"messages": [],
+							"miscInfo": {
+								"fareKey": "1~R~~6E~RCIP~1070~~0~776~~",
+								"cRId": 3539,
+								"iata": 0.0,
+								"journeyKey": "6E~5073~ ~~DEL~07/10/2026 17:05~AMD~07/10/2026 18:35~~^6E~ 481~ ~~AMD~07/10/2026 19:45~BLR~07/10/2026 22:05~~",
+								"cs": "R",
+								"fs": "776",
+								"frid": 1965,
+								"fareRuleInfo": {
+									"mi": {},
+									"fr": {},
+									"tfr": {}
+								},
+								"rim": {
+									"TFXID": 1186.0,
+									"HCRID": "646",
+									"CRID": "3539",
+									"FRID": "1965",
+									"DOB": "66",
+									"IATA": "638"
+								},
+								"inventoryPaxFare": {},
+								"paxFlexChargesMap": {
+									"ADULT": 1649.67
+								},
+								"paxFlexGstChargesMap": {
+									"ADULT": 296.94
+								},
+								"paxFlexChargesMarkupMap": {
+									"ADULT": 70.67
+								},
+								"paxFlexMarkupGstMap": {
+									"ADULT": 12.72
+								},
+								"paxFlexAirlineCanFee": {
+									"ADULT": 4999.0
+								},
+								"isSabrePaxType": false,
+								"iffns": false,
+								"isCutAndPayCodeApplied": false
+							},
+							"originalFareType": "PUBLISHED",
+							"flexBaseFareType": "PUBLISHED",
+							"sft": "DEFAULT",
+							"iaca": false
+						}
+					],
+					"miscInfo": {
+						"paxWiseNationalityMap": {}
+					},
+					"ssrInfo": {
+						"FASTFORWARD": [
+							{
+								"code": "FFWD",
+								"amount": 494.0,
+								"desc": "Fast Forward",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"BAGGAGE": [
+							{
+								"code": "ABHF",
+								"amount": 900.0,
+								"desc": "Additional baggage piece",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPE",
+								"amount": 1515.0,
+								"desc": "3Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPA",
+								"amount": 2525.0,
+								"desc": "5Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPB",
+								"amount": 4950.0,
+								"desc": "10Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBA",
+								"amount": 5000.0,
+								"desc": "8 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPC",
+								"amount": 7200.0,
+								"desc": "15Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBB",
+								"amount": 7500.0,
+								"desc": "15 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPJ",
+								"amount": 9600.0,
+								"desc": "20Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPN",
+								"amount": 12000.0,
+								"desc": "25Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPD",
+								"amount": 14400.0,
+								"desc": "30Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBC",
+								"amount": 15000.0,
+								"desc": "30 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPO",
+								"amount": 18400.0,
+								"desc": "40Kg",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"SEAT": [
+							{
+								"code": "1A",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1C",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1D",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1F",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2A",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2C",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2D",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2F",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30B",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30E",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31B",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31E",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32B",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32E",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33B",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33E",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39C",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39D",
+								"amount": 385.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39A",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39F",
+								"amount": 435.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27B",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27C",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27D",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27E",
+								"amount": 446.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16B",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16C",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16D",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16E",
+								"amount": 473.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27A",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27F",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16A",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16F",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3B",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3C",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3D",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3E",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4B",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4C",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4D",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4E",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5B",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5C",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5D",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5E",
+								"amount": 604.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3A",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3F",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4A",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4F",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5A",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5F",
+								"amount": 656.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19B",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19C",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19D",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19E",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28B",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28C",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28D",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28E",
+								"amount": 919.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19A",
+								"amount": 971.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19F",
+								"amount": 971.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29A",
+								"amount": 971.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29F",
+								"amount": 971.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18A",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18B",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18C",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18D",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18E",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18F",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"MEAL": [
+							{
+								"code": "VGAN",
+								"amount": 400.0,
+								"desc": "Vegan meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Special Meal- Veg.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "VCSW",
+								"amount": 400.0,
+								"desc": "6E Eats choice of the day (veg) + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Image 2.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "VBIR",
+								"amount": 400.0,
+								"desc": "VEG BIRYANI Combo",
+								"indicator": "Veg",
+								"imageUrl": "Image 1.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "PTSW",
+								"amount": 400.0,
+								"desc": "Paneer Tikka Sandwich Combo",
+								"indicator": "Veg",
+								"imageUrl": "Image 1.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "JNML",
+								"amount": 400.0,
+								"desc": "Jain meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Image 2.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "DBVG",
+								"amount": 400.0,
+								"desc": "Diabetic veg meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Special Meal- Veg.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "AGSW",
+								"amount": 400.0,
+								"desc": "IndiaByIndiGo regional favourite (veg) + beverage",
+								"indicator": "Veg",
+								"imageUrl": "India-by-IndiGo.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "NUSW",
+								"amount": 500.0,
+								"desc": "6E Eats choice of the day (non-veg) + beverage",
+								"indicator": "NonVeg",
+								"imageUrl": "Image 3.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "CJSW",
+								"amount": 500.0,
+								"desc": "Chicken Junglee Sandwich Combo",
+								"indicator": "NonVeg",
+								"imageUrl": "Chicken_Junglee_Sandwich.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "CPML",
+								"amount": 650.0,
+								"desc": "Standard Meal",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						]
+					},
+					"ac": [],
+					"ispma": true,
+					"isaif": false,
+					"isFareOptionFlow": false,
+					"tI": [
+						{
+							"ssrInfo": {},
+							"hci": false,
+							"hnc": false,
+							"isNoShow": false,
+							"isNoShowApplicable": false,
+							"idip": false,
+							"idcp": false,
+							"idcs": false,
+							"irc": false,
+							"ti": "Mr",
+							"pt": "ADULT",
+							"fN": "AMIT",
+							"lN": "MEHRA"
+						}
+					]
+				},
+				{
+					"id": "303",
+					"fD": {
+						"aI": {
+							"code": "6E",
+							"name": "IndiGo",
+							"isLcc": true,
+							"accountingCode": "404"
+						},
+						"fN": "481",
+						"eT": "321"
+					},
+					"stops": 0,
+					"so": [],
+					"duration": 140,
+					"da": {
+						"id": 3937,
+						"code": "AMD",
+						"name": "Sardar Vallabh Bhai Patel Intl Arpt",
+						"cityCode": "AMD",
+						"city": "Ahmedabad",
+						"country": "India",
+						"countryCode": "IN",
+						"terminal": "Terminal 1",
+						"enabled": true,
+						"priority": 1419.0,
+						"timezoneId": "Asia/Kolkata",
+						"cityAliases": "amdavad",
+						"latitudeAirport": "23,06639",
+						"longitudeAirport": "72,62417"
+					},
+					"aa": {
+						"id": 4336,
+						"code": "BLR",
+						"name": "Bengaluru intl arpt",
+						"cityCode": "BLR",
+						"city": "Bengaluru",
+						"country": "India",
+						"countryCode": "IN",
+						"terminal": "Terminal 1",
+						"enabled": true,
+						"priority": 1423.0,
+						"timezoneId": "Asia/Kolkata",
+						"cityAliases": "bangalore",
+						"latitudeAirport": "13,198889",
+						"longitudeAirport": "77,70556"
+					},
+					"dt": "2026-07-10T19:45",
+					"at": "2026-07-10T22:05",
+					"iand": false,
+					"isRs": false,
+					"sN": 1,
+					"priceInfoList": [
+						{
+							"fd": {
+								"ADULT": {
+									"fC": {
+										"YQ": 0.0,
+										"PLB": 21.58,
+										"TDS": 0.43,
+										"MU": 143.85,
+										"BF": 2877.0,
+										"TF": 2877.0,
+										"AGST": 0.0
+									},
+									"sR": 9,
+									"bI": {
+										"iB": "15 Kg (01 Piece only)",
+										"cB": "7 Kg"
+									},
+									"rT": 1,
+									"cc": "ECONOMY",
+									"cB": "R",
+									"fB": "R0IP",
+									"mI": false
+								}
+							},
+							"sb": {
+								"sN": "Holiday Hub Indigo - IGE/027",
+								"sI": "Holiday Hub Indigo - IGE/027",
+								"soI": 5,
+								"ruleId": 1278,
+								"description": "Cleartrip - Regular Intl",
+								"showAccountCode": false
+							},
+							"fareIdentifier": "PUBLISHED",
+							"id": "R9929096433_0DELAMD6E5073AMDBLR6E481~19713076243934",
+							"messages": [],
+							"miscInfo": {
+								"fareKey": "2~R~~6E~R0IP~1079~~0~9~~X",
+								"cRId": 3539,
+								"iata": 0.0,
+								"journeyKey": "6E~5073~ ~~DEL~07/10/2026 17:05~AMD~07/10/2026 18:35~~^6E~ 481~ ~~AMD~07/10/2026 19:45~BLR~07/10/2026 22:05~~",
+								"cs": "R",
+								"fs": "9",
+								"frid": 1965,
+								"rim": {
+									"TFXID": 1186.0,
+									"CRID": "3539",
+									"FRID": "1965",
+									"IATA": "638"
+								},
+								"paxFlexChargesMap": {
+									"ADULT": 1649.67
+								},
+								"paxFlexGstChargesMap": {
+									"ADULT": 296.94
+								},
+								"paxFlexChargesMarkupMap": {
+									"ADULT": 70.67
+								},
+								"paxFlexMarkupGstMap": {
+									"ADULT": 12.72
+								},
+								"paxFlexAirlineCanFee": {
+									"ADULT": 4999.0
+								},
+								"isSabrePaxType": false,
+								"iffns": false,
+								"isCutAndPayCodeApplied": false
+							},
+							"originalFareType": "PUBLISHED",
+							"flexBaseFareType": "PUBLISHED",
+							"iaca": false
+						}
+					],
+					"miscInfo": {
+						"paxWiseNationalityMap": {}
+					},
+					"ssrInfo": {
+						"FASTFORWARD": [
+							{
+								"code": "FFWD",
+								"amount": 0.0,
+								"desc": "Fast Forward",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"BAGGAGE": [
+							{
+								"code": "XBPO",
+								"desc": "40Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPN",
+								"desc": "25Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPJ",
+								"desc": "20Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPE",
+								"desc": "3Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPD",
+								"desc": "30Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPC",
+								"desc": "15Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPB",
+								"desc": "10Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "XBPA",
+								"desc": "5Kg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBC",
+								"desc": "30 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBB",
+								"desc": "15 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "IXBA",
+								"desc": "8 Kg International Excess Baggage for Connecting Flights",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "ABHF",
+								"desc": "Additional baggage piece",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"SEAT": [
+							{
+								"code": "1A",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1C",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1D",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "1F",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2A",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2C",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2D",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "2F",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39B",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39E",
+								"amount": 0.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30B",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30E",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31B",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31E",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32B",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32E",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33B",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33E",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39C",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39D",
+								"amount": 430.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "30F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "31F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "32F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "33F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "34F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "35F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "36F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "37F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "38F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39A",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "39F",
+								"amount": 480.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27B",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27C",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27D",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27E",
+								"amount": 501.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16B",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16C",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16D",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16E",
+								"amount": 528.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "17F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "20F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "21F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "22F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "23F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "24F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "25F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "26F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27A",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "27F",
+								"amount": 556.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "6F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "7F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "8F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "9F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "10F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "11F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "12F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "13F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "14F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "15F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16A",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "16F",
+								"amount": 583.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3B",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3C",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3D",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3E",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4B",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4C",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4D",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4E",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5B",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5C",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5D",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5E",
+								"amount": 683.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3A",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "3F",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4A",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "4F",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5A",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "5F",
+								"amount": 735.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19B",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19C",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19D",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19E",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28B",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28C",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28D",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "28E",
+								"amount": 1008.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19A",
+								"amount": 1061.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "19F",
+								"amount": 1061.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29A",
+								"amount": 1061.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "29F",
+								"amount": 1061.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18A",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18B",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18C",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18D",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18E",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "18F",
+								"amount": 1500.0,
+								"ctds": 0.0,
+								"iswca": false
+							}
+						],
+						"MEAL": [
+							{
+								"code": "VGAN",
+								"amount": 400.0,
+								"desc": "Vegan meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Special Meal- Veg.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "VCSW",
+								"amount": 400.0,
+								"desc": "6E Eats choice of the day (veg) + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Image 2.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "VBIR",
+								"amount": 400.0,
+								"desc": "VEG BIRYANI Combo",
+								"indicator": "Veg",
+								"imageUrl": "Image 1.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "PTSW",
+								"amount": 400.0,
+								"desc": "Paneer Tikka Sandwich Combo",
+								"indicator": "Veg",
+								"imageUrl": "Image 1.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "JNML",
+								"amount": 400.0,
+								"desc": "Jain meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Image 2.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "DBVG",
+								"amount": 400.0,
+								"desc": "Diabetic veg meal + beverage",
+								"indicator": "Veg",
+								"imageUrl": "Special Meal- Veg.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "AGSW",
+								"amount": 400.0,
+								"desc": "IndiaByIndiGo regional favourite (veg) + beverage",
+								"indicator": "Veg",
+								"imageUrl": "India-by-IndiGo.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "NUSW",
+								"amount": 500.0,
+								"desc": "6E Eats choice of the day (non-veg) + beverage",
+								"indicator": "NonVeg",
+								"imageUrl": "Image 3.png",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "CJSW",
+								"amount": 500.0,
+								"desc": "Chicken Junglee Sandwich Combo",
+								"indicator": "NonVeg",
+								"imageUrl": "Chicken_Junglee_Sandwich.jpg",
+								"ctds": 0.0,
+								"iswca": false
+							},
+							{
+								"code": "CPML",
+								"amount": 650.0,
+								"desc": "Standard Meal",
+								"ctds": 0.0,
+								"iswca": false
+							}
+						]
+					},
+					"ac": [],
+					"ispma": true,
+					"isaif": false,
+					"isFareOptionFlow": false,
+					"tI": [
+						{
+							"ssrInfo": {},
+							"hci": false,
+							"hnc": false,
+							"isNoShow": false,
+							"isNoShowApplicable": false,
+							"idip": false,
+							"idcp": false,
+							"idcs": false,
+							"irc": false,
+							"ti": "Mr",
+							"pt": "ADULT",
+							"fN": "AMIT",
+							"lN": "MEHRA"
+						}
+					]
+				}
+			],
+			"processedTripInfo": {
+				"dt": "2026-07-10T17:05",
+				"at": "2026-07-10T22:05",
+				"aI": {
+					"code": "6E",
+					"name": "IndiGo",
+					"isLcc": true,
+					"accountingCode": "404"
+				},
+				"fN": [
+					"6E-5073",
+					"6E-481"
+				],
+				"sids": [
+					5,
+					5
+				],
+				"sups": [
+					"Holiday Hub Indigo - IGE/027"
+				],
+				"du": 300,
+				"st": 1,
+				"da": "DEL",
+				"aa": "BLR",
+				"dat": "Terminal 3",
+				"aat": "Terminal 1"
+			},
+			"totalPriceList": [
+				{
+					"fd": {
+						"ADULT": {
+							"fC": {
+								"NCM": 42.97,
+								"NF": 7716.03,
+								"BF": 5846.0,
+								"TF": 8146.95,
+								"TAF": 2300.95
+							},
+							"afC": {
+								"NCM": {
+									"PLB": 43.85,
+									"TDS": -0.88
+								},
+								"TAF": {
+									"YQ": 1000.0,
+									"MFT": 3.81,
+									"MF": 21.19,
+									"AT": 386.0,
+									"MU": 387.95,
+									"UDF": 152.0,
+									"AGST": 350.0
+								}
+							},
+							"sR": 9,
+							"bI": {
+								"iB": "15 Kg (01 Piece only)",
+								"cB": "7 Kg"
+							},
+							"rT": 1,
+							"cc": "ECONOMY",
+							"cB": "R",
+							"fB": "RCIP",
+							"mI": false
+						}
+					},
+					"sb": {
+						"sN": "Holiday Hub Indigo - IGE/027",
+						"sI": "Holiday Hub Indigo - IGE/027",
+						"soI": 5,
+						"ruleId": 1278,
+						"description": "Cleartrip - Regular Intl",
+						"showAccountCode": false
+					},
+					"fareIdentifier": "PUBLISHED",
+					"id": "R9929096433_0DELAMD6E5073AMDBLR6E481~19713076243934",
+					"messages": [],
+					"miscInfo": {
+						"fareKey": "1~R~~6E~RCIP~1070~~0~776~~",
+						"cRId": 3539,
+						"iata": 0.0,
+						"journeyKey": "6E~5073~ ~~DEL~07/10/2026 17:05~AMD~07/10/2026 18:35~~^6E~ 481~ ~~AMD~07/10/2026 19:45~BLR~07/10/2026 22:05~~",
+						"cs": "R",
+						"fs": "776",
+						"frid": 1965,
+						"fareRuleInfo": {
+							"mi": {},
+							"fr": {},
+							"tfr": {}
+						},
+						"rim": {
+							"TFXID": 1186.0,
+							"HCRID": "646",
+							"CRID": "3539",
+							"FRID": "1965",
+							"DOB": "66",
+							"IATA": "638"
+						},
+						"inventoryPaxFare": {},
+						"paxFlexChargesMap": {
+							"ADULT": 1649.67
+						},
+						"paxFlexGstChargesMap": {
+							"ADULT": 296.94
+						},
+						"paxFlexChargesMarkupMap": {
+							"ADULT": 70.67
+						},
+						"paxFlexMarkupGstMap": {
+							"ADULT": 12.72
+						},
+						"paxFlexAirlineCanFee": {
+							"ADULT": 4999.0
+						},
+						"isSabrePaxType": false,
+						"iffns": false,
+						"isCutAndPayCodeApplied": false
+					},
+					"originalFareType": "PUBLISHED",
+					"flexBaseFareType": "PUBLISHED",
+					"sft": "DEFAULT",
+					"iaca": false
+				}
+			],
+			"totalpriceinfo": {
+				"totalFareDetail": {
+					"fC": {
+						"NCM": 42.97,
+						"NF": 7716.03,
+						"BF": 5846.0,
+						"TF": 8146.95,
+						"TAF": 2300.95
+					},
+					"afC": {
+						"NCM": {
+							"PLB": 43.85,
+							"TDS": -0.88
+						},
+						"TAF": {
+							"YQ": 1000.0,
+							"MFT": 3.81,
+							"MF": 21.19,
+							"AT": 386.0,
+							"MU": 387.95,
+							"UDF": 152.0,
+							"AGST": 350.0
+						}
+					}
+				}
+			},
+			"ipm": "",
+			"issf": false,
+			"icafdgca": false,
+			"isWarCrisisFlow": false,
+			"isFullRefundViaCancellation": false,
+			"isofe": true
+		}
+	],
+	"searchQuery": {
+		"routeInfos": [
+			{
+				"fromCityOrAirport": {
+					"id": 5035,
+					"code": "DEL",
+					"name": "Delhi indira gandhi intl",
+					"cityCode": "DEL",
+					"city": "Delhi",
+					"country": "India",
+					"countryCode": "IN",
+					"enabled": true,
+					"priority": 1425.0,
+					"timezoneId": "Asia/Kolkata",
+					"cityAliases": "delhi,ncr,dilli",
+					"latitudeAirport": "28,556555",
+					"longitudeAirport": "77,10079"
+				},
+				"toCityOrAirport": {
+					"id": 4336,
+					"code": "BLR",
+					"name": "Bengaluru intl arpt",
+					"cityCode": "BLR",
+					"city": "Bengaluru",
+					"country": "India",
+					"countryCode": "IN",
+					"enabled": true,
+					"priority": 1423.0,
+					"timezoneId": "Asia/Kolkata",
+					"cityAliases": "bangalore",
+					"latitudeAirport": "13,198889",
+					"longitudeAirport": "77,70556"
+				},
+				"travelDate": "2026-07-10"
+			}
+		],
+		"origRouteInfoSize": 1,
+		"preferredAirline": [
+			{
+				"code": "6E",
+				"name": "IndiGo",
+				"accountingCode": "404"
+			}
+		],
+		"cabinClass": "ECONOMY",
+		"paxInfo": {
+			"ADULT": 1,
+			"CHILD": 0,
+			"INFANT": 0
+		},
+		"searchId": "9929096433",
+		"requestId": "9929096433",
+		"searchType": "ONEWAY",
+		"searchModifiers": {
+			"isDirectFlight": false,
+			"isConnectingFlight": false,
+			"storeSearchLog": true,
+			"pnrCreditInfo": {
+				"pnr": "",
+				"creditBalance": 0.0
+			},
+			"includeMessages": true,
+			"iiss": false,
+			"pft": "REGULAR",
+			"pfts": [
+				"REGULAR"
+			]
+		},
+		"isDomestic": true,
+		"isCustomCombination": false,
+		"isOneWay": true,
+		"isDomesticMultiCity": false,
+		"isDomesticReturn": false,
+		"isMultiCity": false,
+		"isLiveSearch": true
+	},
+	"bookingId": "TJ1052177009463",
+	"tripId": "",
+	"user": {
+		"id": 1120017,
+		"name": "SHIVAM TEST AGENT",
+		"email": "shivamsrawat@gmail.com",
+		"mobile": "9654154705",
+		"role": "AGENT",
+		"userId": "61120016",
+		"partnerId": "0",
+		"status": "ENABLED",
+		"createdOn": "2024-03-08T12:36:42.149",
+		"processedOn": "2026-06-08T11:10:27.217",
+		"gstInfo": {
+			"gstEmail": "ewrt@gmail.com",
+			"gstPhone": "8796576543",
+			"gstAddress": "cp"
+		},
+		"panInfo": {},
+		"addressInfo": {
+			"address": "cp",
+			"pincode": "110001",
+			"cityInfo": {
+				"name": "Ponneri",
+				"state": "Tamil Nadu",
+				"country": "India"
+			}
+		},
+		"contactPersonInfo": {},
+		"additionalInfo": {
+			"lurl": "//static.tripjack.com/logo/75994768-4c84-40ca-a382-55cf6ca7612d.jpg",
+			"tr": 2.0,
+			"ac": "TEST",
+			"ll": "2026-06-08T11:09:27.964",
+			"deptInfo": {
+				"SALES": {
+					"emails": [
+						"shivamsrawat97@gmail.com"
+					]
+				}
+			},
+			"isez": false,
+			"dm": false,
+			"dbas": [
+				{
+					"bankName": "HDFC Bank Ltd, Mumbai",
+					"accountNumber": "1TRPJK146161120016",
+					"ifscCode": "HDFC0000013",
+					"accountHolderName": "TRIP JACK PRIVATE LIMITED"
+				}
+			],
+			"eids": "",
+			"vn": "",
+			"lb": "",
+			"ccc": "",
+			"lg": "2026-06-08T11:10:27.217",
+			"isPushedToErp": true,
+			"tgc": 0.0,
+			"iswl": false,
+			"aluids": {
+				"SUPPLIER": {
+					"userId": "71159412",
+					"name": "Shivam_Test_Supplier",
+					"linkedOn": "2025-06-19T12:04:14.435",
+					"processedOn": "2025-06-19T12:04:14.435"
+				}
+			},
+			"flbt": 10000,
+			"urri": {
+				"state": "DELHI",
+				"region": "NORTH"
+			},
+			"sasm": {
+				"id": ""
+			}
+		},
+		"railAdditionalInfo": {
+			"obsd": "2026-01-14T11:47:05.002",
+			"aps": "NEW",
+			"kycs": "PENDING",
+			"mrs": "PENDING"
+		},
+		"railOnboardingStartDate": "2026-01-14T11:47:05.002",
+		"userConf": {
+			"apf": false,
+			"isDI": false,
+			"isPD": false,
+			"isHPD": false,
+			"commPlanMap": {
+				"AIR_D": 1531,
+				"AIR_I": 2697
+			},
+			"apiconf": {
+				"apikey": "6112001680f9cd8b-db1f-4096-a957-db1476e84784",
+				"isnkr": false,
+				"av": 1,
+				"hv": 1,
+				"alips": [
+					"122.161.77.73",
+					"160.22.60.16",
+					"122.161.75.2",
+					"122.161.67.78",
+					"122.161.64.210",
+					"122.161.66.180",
+					"122.161.79.246",
+					"172.66.166.139",
+					"27.59.69.13",
+					"122.161.72.205",
+					"122.161.66.146",
+					"122.161.79.14",
+					"122.161.65.23",
+					"122.161.76.86",
+					"122.161.74.27",
+					"106.215.82.125",
+					"65.2.62.247",
+					"13.204.135.18",
+					"3.108.106.208"
+				],
+				"pwips": [],
+				"eids": []
+			},
+			"passwordResetConfig": {
+				"expiryDays": 365,
+				"graceDays": 365,
+				"historyCheckCount": 0,
+				"coolingOffDays": 365
+			}
+		},
+		"userProfile": {
+			"data": {}
+		},
+		"registrationStep": 0,
+		"entityCode": "IN",
+		"dialCode": "+91",
+		"country": "India",
+		"baseCurr": "INR",
+		"txnCurr": "INR"
+	},
+	"totalPriceInfo": {
+		"totalFareDetail": {
+			"fC": {
+				"NCM": 42.97,
+				"NF": 7716.03,
+				"BF": 5846.0,
+				"TF": 8146.95,
+				"TAF": 2300.95
+			},
+			"afC": {
+				"NCM": {
+					"PLB": 43.85,
+					"TDS": -0.88
+				},
+				"TAF": {
+					"YQ": 1000.0,
+					"MFT": 3.81,
+					"MF": 21.19,
+					"AT": 386.0,
+					"MU": 387.95,
+					"UDF": 152.0,
+					"AGST": 350.0
+				}
+			}
+		}
+	},
+	"addOnsIds": {
+		"bp": 875
+	},
+	"sc": "9d55c176-76a8-3415-bd52-8375c2bd986d",
+	"iovr": false,
+	"visaOpted": false,
+	"imoqpe": false,
+	"iobfe": true,
+	"status": {
+		"success": true,
+		"httpStatus": 200
+	},
+	"conditions": {
+		"ffas": [
+			"6E"
+		],
+		"isa": true,
+		"dob": {
+			"adobr": false,
+			"cdobr": false,
+			"idobr": true
+		},
+		"iar": false,
+		"ipr": false,
+		"iecr": false,
+		"dc": {
+			"ida": false,
+			"idm": false,
+			"iqpe": true,
+			"ihcqpe": true
+		},
+		"anlm": {
+			"fN": 32,
+			"finml": 1,
+			"lN": 32,
+			"lnml": 1
+		},
+		"ipa": false,
+		"addOns": {
+			"isbpa": true
+		},
+		"iss": false,
+		"fsc": {
+			"ismi": true,
+			"issi": true,
+			"isbi": true
+		},
+		"isra": false,
+		"isbv": true,
+		"ipua": true,
+		"isfla": true,
+		"ifma": true,
+		"isBA": true,
+		"st": 1800,
+		"sct": "2026-06-08T18:08:09.875",
+		"gst": {
+			"gstappl": true,
+			"igm": false,
+			"igcm": false,
+			"igpcm": false,
+			"igsnm": false
+		}
+	},
+	"metaInfo": {}
+}

@@ -22,8 +22,6 @@ const TRIPJACK_SEARCH_URL =
   process.env.TRIPJACK_SEARCH_URL || "https://apitest.tripjack.com/fms/v1/air-search-all";
 const TRIPJACK_REVIEW_URL =
   process.env.TRIPJACK_REVIEW_URL || "https://apitest.tripjack.com/fms/v1/review";
-const TRIPJACK_FARE_VALIDATE_URL =
-  process.env.TRIPJACK_FARE_VALIDATE_URL || "https://apitest.tripjack.com/fms/v1/fare-validate";
 const TRIPJACK_BOOK_URL =
   process.env.TRIPJACK_BOOK_URL || "https://apitest.tripjack.com/oms/v1/air/book";
 const TRIPJACK_BOOKING_DETAILS_URL =
@@ -101,15 +99,120 @@ app.post("/api/tripjack/flights/review", async (req, res) => {
   return forwardTripJack(res, TRIPJACK_REVIEW_URL, { priceIds: req.body.priceIds }, "review");
 });
 
-// ========== 3. FARE VALIDATE (Phase 3) ==========
+// ========== 3. FARE VALIDATE V2 INSTANT (Phase 3) ==========
+// Sample ZIP has request/response only (no URL). Phase 3 listed /fms/v1/fare-validate
+// but UAT returns 404. Try documented candidates only; log which endpoint is used.
+// Full block also in docs/tripjack-vps-fare-validate-route.js
+const TRIPJACK_BASE = (process.env.TRIPJACK_BASE_URL || "https://apitest.tripjack.com").replace(
+  /\/$/,
+  ""
+);
+const FARE_VALIDATE_PATH_CANDIDATES = [
+  "/fms/v1/air/fare-validate",
+  "/oms/v1/air/fare-validate",
+  "/fms/v1/fare-validate-v2",
+  "/fms/v1/air/fare-validate-v2",
+  "/fms/v1/air/fare-validate-instant",
+  "/fms/v1/fare-validate",
+];
+
 app.post("/api/tripjack/flights/fare-validate", async (req, res) => {
-  if (!req.body?.bookingId) {
+  const requestBody = req.body;
+  const candidates = process.env.TRIPJACK_FARE_VALIDATE_URL
+    ? [process.env.TRIPJACK_FARE_VALIDATE_URL]
+    : FARE_VALIDATE_PATH_CANDIDATES.map((path) => `${TRIPJACK_BASE}${path}`);
+
+  console.log("[tripjack-proxy] POST /api/tripjack/flights/fare-validate");
+  console.log("[tripjack-proxy] Fare-validate candidates:", candidates);
+  console.log("[tripjack-proxy] Body:", JSON.stringify(requestBody));
+
+  if (!process.env.TRIPJACK_API_KEY) {
+    return res.status(500).json({ success: false, error: "TRIPJACK_API_KEY is not set on VPS" });
+  }
+  if (!requestBody?.bookingId) {
     return res.status(400).json({ success: false, error: "bookingId is required" });
   }
-  if (!req.body?.travellerInfo || !Array.isArray(req.body.travellerInfo)) {
+  if (!requestBody?.travellerInfo || !Array.isArray(requestBody.travellerInfo)) {
     return res.status(400).json({ success: false, error: "travellerInfo array is required" });
   }
-  return forwardTripJack(res, TRIPJACK_FARE_VALIDATE_URL, req.body, "fare-validate");
+
+  const attempts = [];
+  try {
+    for (const targetUrl of candidates) {
+      console.log("[tripjack-proxy] Fare-validate trying endpoint:", targetUrl);
+      const upstream = await fetch(targetUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.TRIPJACK_API_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      const text = await upstream.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+      console.log(
+        "[tripjack-proxy] Fare-validate upstream status:",
+        upstream.status,
+        "url:",
+        targetUrl
+      );
+      attempts.push({ upstreamUrl: targetUrl, upstreamStatus: upstream.status });
+
+      if (upstream.status === 404) {
+        console.log("[tripjack-proxy] Fare-validate 404, trying next candidate");
+        continue;
+      }
+
+      console.log("[tripjack-proxy] Fare-validate USING endpoint:", targetUrl);
+      if (!upstream.ok) {
+        return res.status(upstream.status).json({
+          success: false,
+          error:
+            data?.message || data?.errors?.[0]?.message || "TripJack fare validate failed",
+          upstreamUrl: targetUrl,
+          upstreamStatus: upstream.status,
+          upstreamData: data,
+          attempts,
+          status: { success: false, httpStatus: upstream.status },
+        });
+      }
+      return res.json({
+        success: true,
+        data,
+        upstreamUrl: targetUrl,
+        upstreamStatus: upstream.status,
+        attempts,
+        status: { success: true, httpStatus: upstream.status },
+      });
+    }
+
+    const last = attempts[attempts.length - 1];
+    return res.status(404).json({
+      success: false,
+      error:
+        "TripJack Fare Validate V2 Instant path not found (all documented candidates returned 404). Set TRIPJACK_FARE_VALIDATE_URL to the exact docs URL.",
+      upstreamUrl: last?.upstreamUrl || candidates[candidates.length - 1],
+      upstreamStatus: 404,
+      upstreamData: { message: "All candidate endpoints returned HTTP 404", candidates },
+      attempts,
+      status: { success: false, httpStatus: 404 },
+    });
+  } catch (err) {
+    console.error("[tripjack-proxy] Fare validate error:", err);
+    return res.status(502).json({
+      success: false,
+      error: err instanceof Error ? err.message : "Proxy fare validate request failed",
+      upstreamUrl: attempts[attempts.length - 1]?.upstreamUrl || candidates[0],
+      upstreamStatus: attempts[attempts.length - 1]?.upstreamStatus ?? null,
+      upstreamData: null,
+      attempts,
+    });
+  }
 });
 
 // ========== 4. BOOK (Phase 4) ==========

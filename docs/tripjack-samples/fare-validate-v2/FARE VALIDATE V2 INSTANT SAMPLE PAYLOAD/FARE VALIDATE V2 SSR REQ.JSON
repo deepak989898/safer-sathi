@@ -1,0 +1,54 @@
+{
+	"travellerInfo": [
+		{
+			"ssrBaggageInfos": [
+				{
+					"key": "962",
+					"code": "IXBA"
+				}
+			],
+			"ssrMealInfos": [
+				{
+					"key": "962",
+					"code": "CJSW"
+				},
+				{
+					"key": "963",
+					"code": "NUSW"
+				}
+			],
+			"ssrSeatInfos": [
+				{
+					"key": "962",
+					"code": "4D"
+				}
+			],
+			"ssrFastForwardInfos": [
+				{
+					"key": "962",
+					"code": "FFWD"
+				},
+				{
+					"key": "963",
+					"code": "FFWD"
+				}
+			],
+			"ti": "Mr",
+			"pt": "ADULT",
+			"fN": "AMIT",
+			"lN": "MEHRA"
+		}
+	],
+	"bookingId": "TJ1066177065062",
+	"deliveryInfo": {
+		"emails": [
+			"shivamsrawat@gmail.com"
+		],
+		"contacts": [
+			"9876543212"
+		],
+		"code": [
+			"91"
+		]
+	}
+}
