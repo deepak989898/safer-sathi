@@ -31,8 +31,13 @@ async function postStatic<T = unknown>(
     try {
       parsed = JSON.parse(rawText);
     } catch {
+      const isMissingRoute =
+        response.status === 404 &&
+        (rawText.includes("Cannot POST") || rawText.includes("<!DOCTYPE html>"));
       throw new TripJackHotelStaticApiError(
-        "Invalid JSON from TripJack hotel static API",
+        isMissingRoute
+          ? `TripJack hotel proxy route missing on VPS (${url}). Add hotel routes to server.js and run pm2 restart tripjack-proxy.`
+          : "Invalid JSON from TripJack hotel static API",
         response.status || 502,
         { raw: rawText.slice(0, 500) },
         url

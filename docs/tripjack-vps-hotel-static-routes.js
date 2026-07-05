@@ -10,6 +10,10 @@
  *
  * Uses same TRIPJACK_API_KEY as flights/listing.
  *
+ * If admin sync shows "Invalid JSON from TripJack hotel static API", the VPS is
+ * returning HTML 404 — these routes are missing from server.js. Prefer pasting
+ * docs/tripjack-vps-hotel-all-routes.js (complete hotel block).
+ *
  * pm2 restart tripjack-proxy
  */
 
