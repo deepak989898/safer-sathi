@@ -1,10 +1,11 @@
-import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
+import { HOTEL_SEARCH_SESSION_MS, HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import type {
   HotelListingSearchParams,
   HotelReviewPrepSession,
   NormalizedHotel,
   NormalizedHotelDetail,
   NormalizedHotelOption,
+  NormalizedHotelReviewResult,
 } from "@/lib/tripjack-hotels/types";
 
 export const HOTEL_SESSION_KEYS = {
@@ -18,6 +19,10 @@ export const HOTEL_SESSION_KEYS = {
   selectedOptionId: "tripjack_selected_option_id",
   detailCachePrefix: "tripjack_hotel_detail_",
   reviewPrep: "tripjack_hotel_review_prep",
+  reviewResponse: "tripjack_hotel_review_response",
+  bookingId: "tripjack_hotel_booking_id",
+  finalPrice: "tripjack_hotel_final_price",
+  selectedOptionFinal: "tripjack_hotel_selected_option_final",
   sessionMeta: "tripjack_hotel_session_meta",
 } as const;
 
@@ -49,10 +54,30 @@ function touchSessionMeta(): void {
   });
 }
 
-export function isHotelSessionExpired(): boolean {
+export function getHotelSearchSessionExpiresAt(): string | null {
+  const ctx = loadJson<{ searchedAt?: string }>(HOTEL_SESSION_KEYS.searchContext);
+  if (!ctx?.searchedAt) return null;
+  return new Date(new Date(ctx.searchedAt).getTime() + HOTEL_SEARCH_SESSION_MS).toISOString();
+}
+
+export function getHotelSearchSessionRemainingMs(): number {
+  const expiresAt = getHotelSearchSessionExpiresAt();
+  if (!expiresAt) return 0;
+  return Math.max(0, new Date(expiresAt).getTime() - Date.now());
+}
+
+function isHotelStorageExpired(): boolean {
   const meta = loadJson<{ expiresAt?: string }>(HOTEL_SESSION_KEYS.sessionMeta);
   if (!meta?.expiresAt) return false;
   return new Date(meta.expiresAt).getTime() < Date.now();
+}
+
+export function isHotelSearchSessionExpired(): boolean {
+  const ctx = loadJson<{ searchedAt?: string; correlationId?: string }>(
+    HOTEL_SESSION_KEYS.searchContext
+  );
+  if (!ctx?.searchedAt || !ctx.correlationId) return true;
+  return getHotelSearchSessionRemainingMs() <= 0;
 }
 
 export function clearHotelBookingSession(): void {
@@ -110,7 +135,7 @@ export function loadHotelListingSession(): {
   nationality: string;
   searchContext: Record<string, unknown> | null;
 } {
-  if (isHotelSessionExpired()) {
+  if (isHotelStorageExpired()) {
     clearHotelBookingSession();
     return {
       request: null,
@@ -158,7 +183,7 @@ export function loadSelectedHotelOption(): {
   hotel: NormalizedHotel | null;
   option: NormalizedHotelOption | null;
 } {
-  if (isHotelSessionExpired()) {
+  if (isHotelStorageExpired()) {
     clearHotelBookingSession();
     return { hotel: null, option: null };
   }
@@ -180,7 +205,7 @@ export function saveHotelDetailCache(detail: NormalizedHotelDetail): void {
 export function loadHotelDetailCache(
   hotelId: string | number
 ): NormalizedHotelDetail | null {
-  if (isHotelSessionExpired()) {
+  if (isHotelStorageExpired()) {
     clearHotelBookingSession();
     return null;
   }
@@ -202,7 +227,7 @@ export function saveHotelReviewPrep(session: HotelReviewPrepSession): void {
 }
 
 export function loadHotelReviewPrep(): HotelReviewPrepSession | null {
-  if (isHotelSessionExpired()) {
+  if (isHotelStorageExpired()) {
     clearHotelBookingSession();
     return null;
   }
@@ -213,4 +238,27 @@ export function loadHotelReviewPrep(): HotelReviewPrepSession | null {
     return null;
   }
   return prep;
+}
+
+export function saveHotelReviewResult(review: NormalizedHotelReviewResult): void {
+  saveJson(HOTEL_SESSION_KEYS.reviewResponse, review);
+  saveJson(HOTEL_SESSION_KEYS.bookingId, review.bookingId);
+  saveJson(HOTEL_SESSION_KEYS.finalPrice, review.option.pricing);
+  saveJson(HOTEL_SESSION_KEYS.selectedOptionFinal, review.option);
+  saveJson(HOTEL_SESSION_KEYS.selectedHotelId, review.tjHotelId);
+  saveJson(HOTEL_SESSION_KEYS.selectedOptionId, review.option.optionId);
+  touchSessionMeta();
+}
+
+export function loadHotelReviewResult(): NormalizedHotelReviewResult | null {
+  if (isHotelStorageExpired()) {
+    clearHotelBookingSession();
+    return null;
+  }
+  return loadJson<NormalizedHotelReviewResult>(HOTEL_SESSION_KEYS.reviewResponse);
+}
+
+export function loadHotelReviewBookingId(): string | null {
+  if (isHotelStorageExpired()) return null;
+  return loadJson<string>(HOTEL_SESSION_KEYS.bookingId);
 }

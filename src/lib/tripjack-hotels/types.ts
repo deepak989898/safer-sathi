@@ -12,9 +12,13 @@ export interface HotelListingSearchParams {
   nationality: string;
   correlationId?: string;
   timeoutMs?: number;
-  /** Comma-separated or array of TripJack hotel IDs (hids). Required for Phase 1 listing. */
-  hids: number[];
+  /** Resolved server-side from destination — never required from customer UI. */
+  hids?: number[];
+  /** Customer-facing destination query (city / hotel name). */
+  destination?: string;
   destinationLabel?: string;
+  /** Super-admin manual override for TripJack test hids. */
+  adminOverrideHids?: number[];
 }
 
 export interface HotelListingRequestBody {
@@ -36,6 +40,8 @@ export interface NormalizedHotelPricing {
   mf: number;
   mft: number;
   currency: string;
+  /** Original/list price when API provides it — show strikethrough in UI. */
+  strikethroughPrice?: number;
 }
 
 export interface CancellationPenalty {
@@ -112,6 +118,18 @@ export interface HotelDetailRequestBody {
   timeoutMs?: number;
 }
 
+/** TripJack v3 Hotel Pricing API request body. */
+export interface HotelPricingRequestBody {
+  correlationId: string;
+  hid: number;
+  checkIn: string;
+  checkOut: string;
+  rooms: HotelRoomRequest[];
+  currency: string;
+  nationality: string;
+  timeoutMs: number;
+}
+
 export interface NormalizedHotelDetail {
   correlationId: string;
   hotelId: string | number;
@@ -165,4 +183,27 @@ export interface HotelReviewPrepSession {
   };
   savedAt: string;
   expiresAt: string;
+}
+
+/** TripJack v3 Hotel Review API request body. */
+export interface HotelReviewRequestBody {
+  correlationId: string;
+  optionId: string;
+  reviewHash: string;
+  hid: number | string;
+}
+
+/** Normalized Review API result — source of truth before guest/payment. */
+export interface NormalizedHotelReviewResult {
+  correlationId: string;
+  tjHotelId: string | number;
+  hotelName: string;
+  bookingId: string;
+  option: NormalizedHotelOption;
+  deadlineDateTime: string;
+  onHoldAllowed: boolean;
+  statusSuccess: boolean;
+  searchContext: HotelReviewPrepSession["searchContext"];
+  reviewedAt: string;
+  rawResponse: unknown;
 }

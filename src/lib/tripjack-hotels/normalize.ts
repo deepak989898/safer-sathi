@@ -4,6 +4,7 @@ import type {
   NormalizedHotelDetail,
   NormalizedHotelOption,
   NormalizedHotelPricing,
+  NormalizedHotelReviewResult,
 } from "@/lib/tripjack-hotels/types";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 
@@ -77,7 +78,12 @@ function parsePricing(pricingRaw: unknown, currencyFallback: string): Normalized
   const currency = pickString(pricing, ["currency"], currencyFallback) || "INR";
   const totalFromApi = pickNumber(pricing, ["totalPrice", "total", "TF"], 0);
   const computed = basePrice + taxes + mf + mft;
-  return {
+  const strikethroughRaw = pickNumber(
+    pricing,
+    ["strikethroughPrice", "listPrice", "rackRate", "publishedPrice", "originalPrice"],
+    0
+  );
+  const result: NormalizedHotelPricing = {
     totalPrice: totalFromApi > 0 ? totalFromApi : computed,
     basePrice,
     discount,
@@ -86,6 +92,10 @@ function parsePricing(pricingRaw: unknown, currencyFallback: string): Normalized
     mft,
     currency,
   };
+  if (strikethroughRaw > result.totalPrice) {
+    result.strikethroughPrice = strikethroughRaw;
+  }
+  return result;
 }
 
 function mealBasisLabel(code: string): string {
@@ -367,5 +377,72 @@ export function normalizeTripJackHotelDetail(
     nationality: pickString(payload, ["nationality"], context.nationality),
     fetchedAt: new Date(now).toISOString(),
     expiresAt: new Date(now + HOTEL_SESSION_TTL_MS).toISOString(),
+  };
+}
+
+/** Normalize TripJack Hotel Review API response. */
+export function normalizeTripJackHotelReview(
+  raw: unknown,
+  context: {
+    correlationId: string;
+    hid: string | number;
+    hotelName?: string;
+    searchContext: NormalizedHotelReviewResult["searchContext"];
+  }
+): NormalizedHotelReviewResult | null {
+  const payload = unwrapPayload(raw) ?? asRecord(raw);
+  if (!payload) return null;
+
+  const hotel = asRecord(payload.hotel) ?? asRecord(payload.hotelInfo) ?? {};
+  const statusRec = asRecord(payload.status) ?? {};
+  const currency =
+    pickString(payload, ["currency"], "") ||
+    pickString(hotel, ["currency"], context.searchContext.currency) ||
+    "INR";
+
+  const optionRaw = payload.option ?? payload.selectedOption ?? payload.roomOption;
+  const option = parseOption(optionRaw, currency);
+  if (!option) return null;
+
+  const tjHotelId =
+    payload.tjHotelId ??
+    payload.hid ??
+    payload.hotelId ??
+    hotel.tjHotelId ??
+    hotel.hotelId ??
+    hotel.hid ??
+    context.hid;
+
+  const order = asRecord(payload.order);
+  const bookingId =
+    pickString(payload, ["bookingId", "orderId", "id"], "") ||
+    pickString(order, ["bookingId", "id"], "");
+  if (!bookingId) return null;
+
+  const statusSuccess =
+    statusRec.success === true ||
+    payload.success === true ||
+    pickString(statusRec, ["httpStatus"], "") === "200";
+
+  return {
+    correlationId: pickString(payload, ["correlationId"], context.correlationId),
+    tjHotelId: typeof tjHotelId === "number" ? tjHotelId : String(tjHotelId),
+    hotelName:
+      pickString(hotel, ["name", "hotelName"], "") ||
+      pickString(payload, ["hotelName"], "") ||
+      context.hotelName ||
+      "Hotel",
+    bookingId,
+    option,
+    deadlineDateTime: pickString(
+      payload,
+      ["deadlineDateTime", "deadline", "timeLimit", "holdDeadline"],
+      ""
+    ),
+    onHoldAllowed: pickBool(payload, ["onHoldAllowed", "holdAllowed"], false),
+    statusSuccess,
+    searchContext: context.searchContext,
+    reviewedAt: new Date().toISOString(),
+    rawResponse: raw,
   };
 }

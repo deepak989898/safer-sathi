@@ -29,14 +29,14 @@ export function HotelResultsClient() {
     setTotalResults(session.totalResults);
     const ctx = session.searchContext;
     if (ctx) {
-      const label = [
-        ctx.destinationLabel,
+      const parts = [
+        ctx.destinationLabel || ctx.destination,
         `${ctx.checkIn} → ${ctx.checkOut}`,
-        `IDs: ${Array.isArray(ctx.hids) ? (ctx.hids as number[]).join(", ") : ""}`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      setContextLabel(label);
+      ].filter(Boolean);
+      if (isStaff && Array.isArray(ctx.hids) && ctx.hids.length) {
+        parts.push(`HIDs: ${(ctx.hids as number[]).slice(0, 5).join(", ")}${ctx.hids.length > 5 ? "…" : ""}`);
+      }
+      setContextLabel(parts.join(" · "));
     }
     if (isStaff) {
       console.log("[hotel-results] loaded hotels:", session.hotels);
@@ -48,7 +48,7 @@ export function HotelResultsClient() {
     if (isStaff) {
       console.log("[hotel-results] open detail for hotel:", hotel.tjHotelId);
     }
-    router.push(`/hotels/detail?hotelId=${encodeURIComponent(String(hotel.tjHotelId))}`);
+    router.push(`/hotels/detail/${encodeURIComponent(String(hotel.tjHotelId))}`);
   };
 
   if (!ready) {

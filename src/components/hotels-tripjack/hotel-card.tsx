@@ -75,7 +75,7 @@ export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
             size="sm"
             onClick={() => onViewDetails(hotel)}
           >
-            View Rooms / Details
+            View Rooms / Select Hotel
           </Button>
         </div>
       </div>

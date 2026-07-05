@@ -4,16 +4,34 @@ import { Building2, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  HotelAdminAdvancedPanel,
+  HotelDestinationAutocomplete,
+} from "@/components/hotels-tripjack/hotel-destination-autocomplete";
+import type { DestinationSuggestion } from "@/lib/tripjack-hotels/catalog-types";
+import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import type { HotelListingSearchParams, HotelRoomRequest } from "@/lib/tripjack-hotels/types";
 import { cn } from "@/lib/utils";
 
 interface HotelSearchScreenProps {
   params: HotelListingSearchParams;
-  hotelIdsInput: string;
+  destinationQuery: string;
+  destinationError: string | null;
+  destinationSuggestions: DestinationSuggestion[];
+  destinationLoading: boolean;
+  showDestinationDropdown: boolean;
+  adminHidsInput: string;
+  showAdminAdvanced: boolean;
+  isSuperAdmin: boolean;
   loading: boolean;
   error: string | null;
   onChange: (patch: Partial<HotelListingSearchParams>) => void;
-  onHotelIdsChange: (value: string) => void;
+  onDestinationQueryChange: (value: string) => void;
+  onDestinationFocus: () => void;
+  onDestinationBlur: () => void;
+  onDestinationSelect: (suggestion: DestinationSuggestion) => void;
+  onAdminHidsChange: (value: string) => void;
+  onToggleAdminAdvanced: () => void;
   onRoomChange: (index: number, patch: Partial<HotelRoomRequest>) => void;
   onAddRoom: () => void;
   onRemoveRoom: (index: number) => void;
@@ -23,17 +41,31 @@ interface HotelSearchScreenProps {
 
 export function HotelSearchScreen({
   params,
-  hotelIdsInput,
+  destinationQuery,
+  destinationError,
+  destinationSuggestions,
+  destinationLoading,
+  showDestinationDropdown,
+  adminHidsInput,
+  showAdminAdvanced,
+  isSuperAdmin,
   loading,
   error,
   onChange,
-  onHotelIdsChange,
+  onDestinationQueryChange,
+  onDestinationFocus,
+  onDestinationBlur,
+  onDestinationSelect,
+  onAdminHidsChange,
+  onToggleAdminAdvanced,
   onRoomChange,
   onAddRoom,
   onRemoveRoom,
   onChildAgeChange,
   onSearch,
 }: HotelSearchScreenProps) {
+  const today = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
       <section className="border-b bg-gradient-to-r from-[#1a4fa3] to-[#2563c9] text-white">
@@ -44,8 +76,7 @@ export function HotelSearchScreen({
           </div>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Search Hotels</h1>
           <p className="mt-2 max-w-2xl text-sm text-blue-100">
-            Live hotel listing via TripJack. Phase 1 uses hotel IDs (hids). City search comes in a
-            later phase.
+            Search by city, destination, or hotel name. Live rates powered by TripJack.
           </p>
         </div>
       </section>
@@ -53,33 +84,17 @@ export function HotelSearchScreen({
       <section className="container mx-auto max-w-3xl px-4 py-8">
         <div className="rounded-3xl border border-white bg-white p-5 shadow-xl shadow-blue-900/5 md:p-8">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Destination / label (optional)
-              </Label>
-              <Input
-                className="mt-2 h-12 rounded-xl bg-slate-50"
-                placeholder="e.g. Goa hotels"
-                value={params.destinationLabel ?? ""}
-                onChange={(e) => onChange({ destinationLabel: e.target.value })}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Hotel IDs (hids) — required for Phase 1
-              </Label>
-              <Input
-                className="mt-2 h-12 rounded-xl bg-slate-50 font-mono text-sm"
-                placeholder="1234,5464"
-                value={hotelIdsInput}
-                onChange={(e) => onHotelIdsChange(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Comma-separated TripJack hotel IDs. Developer/admin input until city mapping is
-                available.
-              </p>
-            </div>
+            <HotelDestinationAutocomplete
+              value={destinationQuery}
+              onChange={onDestinationQueryChange}
+              onSelect={onDestinationSelect}
+              suggestions={destinationSuggestions}
+              loading={destinationLoading}
+              showDropdown={showDestinationDropdown}
+              onFocus={onDestinationFocus}
+              onBlur={onDestinationBlur}
+              error={destinationError}
+            />
 
             <div>
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -89,7 +104,7 @@ export function HotelSearchScreen({
                 type="date"
                 className="mt-2 h-12 rounded-xl bg-slate-50"
                 value={params.checkIn}
-                min={new Date().toISOString().slice(0, 10)}
+                min={today}
                 onChange={(e) => onChange({ checkIn: e.target.value })}
               />
             </div>
@@ -101,14 +116,14 @@ export function HotelSearchScreen({
                 type="date"
                 className="mt-2 h-12 rounded-xl bg-slate-50"
                 value={params.checkOut}
-                min={params.checkIn || new Date().toISOString().slice(0, 10)}
+                min={params.checkIn || today}
                 onChange={(e) => onChange({ checkOut: e.target.value })}
               />
             </div>
 
             <div>
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Nationality code
+                Nationality
               </Label>
               <Input
                 className="mt-2 h-12 rounded-xl bg-slate-50"
@@ -132,7 +147,13 @@ export function HotelSearchScreen({
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-slate-900">Rooms</p>
-              <Button type="button" variant="outline" size="sm" onClick={onAddRoom}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onAddRoom}
+                disabled={params.rooms.length >= MAX_HOTEL_ROOMS}
+              >
                 <Plus className="mr-1 h-4 w-4" />
                 Add room
               </Button>
@@ -183,7 +204,7 @@ export function HotelSearchScreen({
                         className="mt-2 h-11 rounded-xl bg-white"
                         value={children}
                         onChange={(e) => {
-                          const nextChildren = Math.max(0, Number(e.target.value) || 0);
+                          const nextChildren = Math.max(0, Math.min(6, Number(e.target.value) || 0));
                           const ages = [...(room.childAge ?? [])];
                           while (ages.length < nextChildren) ages.push(5);
                           onRoomChange(roomIndex, {
@@ -221,6 +242,14 @@ export function HotelSearchScreen({
               );
             })}
           </div>
+
+          <HotelAdminAdvancedPanel
+            open={showAdminAdvanced}
+            onToggle={onToggleAdminAdvanced}
+            adminHidsInput={adminHidsInput}
+            onAdminHidsChange={onAdminHidsChange}
+            isSuperAdmin={isSuperAdmin}
+          />
 
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

@@ -13,13 +13,20 @@ interface HotelCancellationTimelineProps {
   locale: Locale;
 }
 
+function formatPenaltyDate(value?: string): string {
+  if (!value) return "—";
+  return value;
+}
+
 export function HotelCancellationTimeline({
   isRefundable,
   freeCancellationUntil,
   penalties,
   locale,
 }: HotelCancellationTimelineProps) {
-  const chargePenalty = penalties.find((p) => p.amount > 0);
+  const freePenalty = penalties.find((p) => p.amount === 0);
+  const chargePenalties = penalties.filter((p) => p.amount > 0);
+  const freeUntil = freeCancellationUntil || freePenalty?.to || freePenalty?.from || "";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5">
@@ -36,33 +43,49 @@ export function HotelCancellationTimeline({
         </Badge>
       </div>
 
-      {isRefundable && freeCancellationUntil ? (
+      <p className="mb-3 text-xs text-slate-500">
+        All cancellation dates/times are in GMT+5:30 (Asia/Kolkata).
+      </p>
+
+      {isRefundable && freeUntil ? (
         <div className="space-y-0">
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
                 <Check className="h-3.5 w-3.5" />
               </div>
-              <div className="my-1 w-px flex-1 min-h-[24px] bg-slate-200" />
+              {(chargePenalties.length > 0 || penalties.length > 1) && (
+                <div className="my-1 min-h-[24px] w-px flex-1 bg-slate-200" />
+              )}
             </div>
             <div className="pb-4">
               <p className="text-sm font-medium text-emerald-700">Free cancellation until</p>
-              <p className="text-sm text-slate-700">{freeCancellationUntil}</p>
+              <p className="text-sm text-slate-700">{formatPenaltyDate(freeUntil)}</p>
             </div>
           </div>
-          {chargePenalty && (
-            <div className="flex gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-800">
-                ₹
+
+          {chargePenalties.map((penalty, index) => (
+            <div key={`${penalty.from}-${penalty.to}-${index}`} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-800">
+                  ₹
+                </div>
+                {index < chargePenalties.length - 1 && (
+                  <div className="my-1 min-h-[24px] w-px flex-1 bg-slate-200" />
+                )}
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">After that</p>
+              <div className={index < chargePenalties.length - 1 ? "pb-4" : ""}>
+                <p className="text-sm font-medium text-slate-800">
+                  {penalty.from || penalty.to
+                    ? `${formatPenaltyDate(penalty.from)} → ${formatPenaltyDate(penalty.to)}`
+                    : "Penalty slab"}
+                </p>
                 <p className="text-sm text-slate-700">
-                  {formatCurrency(chargePenalty.amount, locale)} cancellation charge
+                  {formatCurrency(penalty.amount, locale)} cancellation charge
                 </p>
               </div>
             </div>
-          )}
+          ))}
         </div>
       ) : penalties.length > 0 ? (
         <ul className="space-y-2 text-sm text-slate-700">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -11,13 +11,17 @@ import {
   Star,
 } from "lucide-react";
 import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
+import { HotelPricingDebugPanel } from "@/components/hotels-tripjack/hotel-pricing-debug-panel";
 import { HotelRoomOptionCard } from "@/components/hotels-tripjack/hotel-room-option-card";
+import { HotelSessionCountdown } from "@/components/hotels-tripjack/hotel-session-countdown";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/auth-context";
+import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import {
+  isHotelSearchSessionExpired,
   loadHotelDetailCache,
   loadHotelListingSession,
   saveHotelDetailCache,
@@ -45,26 +49,35 @@ function DetailSkeleton() {
   );
 }
 
-export function HotelDetailClient() {
+interface PricingErrorState {
+  message: string;
+  code?: string;
+  backToSearch?: boolean;
+  retryable?: boolean;
+  adminMessage?: string;
+}
+
+export function HotelDetailClient({ hid }: { hid: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const hotelIdParam = searchParams.get("hotelId") || "";
   const { locale } = useAppStore();
   const { user } = useAuth();
   const isStaff = user ? canShowAdminNav(user.role) : false;
+  const isSuperAdmin = user ? canAccessAICenter(user.role) : false;
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PricingErrorState | null>(null);
   const [detail, setDetail] = useState<NormalizedHotelDetail | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>("");
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [adminDebug, setAdminDebug] = useState<{
+    requestBody: unknown;
+    rawResponse: unknown;
+  } | null>(null);
 
   const listingSession = useMemo(() => loadHotelListingSession(), []);
   const listingHotel = useMemo(
-    () =>
-      listingSession.hotels.find(
-        (h) => String(h.tjHotelId) === String(hotelIdParam)
-      ) ?? null,
-    [listingSession.hotels, hotelIdParam]
+    () => listingSession.hotels.find((h) => String(h.tjHotelId) === String(hid)) ?? null,
+    [listingSession.hotels, hid]
   );
 
   const selectedOption: NormalizedHotelOption | null = useMemo(() => {
@@ -72,10 +85,17 @@ export function HotelDetailClient() {
     return detail.options.find((o) => o.optionId === selectedOptionId) ?? null;
   }, [detail, selectedOptionId]);
 
-  const loadDetail = useCallback(
+  const loadPricing = useCallback(
     async (force = false) => {
-      if (!hotelIdParam) {
-        setError("Hotel ID missing. Go back to results and select a hotel.");
+      if (!hid) {
+        setError({ message: "Hotel ID missing. Go back to results and select a hotel." });
+        setLoading(false);
+        return;
+      }
+
+      if (isHotelSearchSessionExpired()) {
+        setSessionExpired(true);
+        setError({ message: "Session expired. Please search hotels again.", backToSearch: true });
         setLoading(false);
         return;
       }
@@ -83,29 +103,30 @@ export function HotelDetailClient() {
       const request = listingSession.request;
       const correlationId = listingSession.correlationId;
       if (!request || !correlationId) {
-        setError("Search session expired. Please search hotels again.");
+        setError({ message: "Search session expired. Please search hotels again.", backToSearch: true });
         setLoading(false);
         return;
       }
 
       if (!force) {
-        const cached = loadHotelDetailCache(hotelIdParam);
+        const cached = loadHotelDetailCache(hid);
         if (cached) {
           setDetail(cached);
           setSelectedOptionId(cached.options[0]?.optionId ?? "");
           setLoading(false);
-          if (isStaff) console.log("[hotel-detail] cache hit", cached.hotelId);
+          if (isStaff) console.log("[hotel-pricing] cache hit", cached.hotelId);
           return;
         }
       }
 
       setLoading(true);
       setError(null);
+      setAdminDebug(null);
 
       try {
         const body = {
           correlationId,
-          hotelId: hotelIdParam,
+          hid,
           checkIn: request.checkIn,
           checkOut: request.checkOut,
           rooms: request.rooms as HotelRoomRequest[],
@@ -114,16 +135,24 @@ export function HotelDetailClient() {
           listingHotelName: listingHotel?.name,
         };
 
-        if (isStaff) console.log("[hotel-detail] request", body);
+        if (isStaff) console.log("[hotel-pricing] request", body);
 
-        const res = await fetch("/api/hotels/detail", {
+        const res = await fetch("/api/hotels/pricing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const json = await res.json();
+
         if (!json.success) {
-          throw new Error(json.error ?? "Failed to load hotel details");
+          setError({
+            message: json.error ?? "Failed to load hotel pricing",
+            code: json.details?.code,
+            backToSearch: Boolean(json.details?.backToSearch),
+            retryable: Boolean(json.details?.retryable),
+            adminMessage: isSuperAdmin ? json.details?.adminMessage : undefined,
+          });
+          return;
         }
 
         const next = json.data.detail as NormalizedHotelDetail;
@@ -131,8 +160,12 @@ export function HotelDetailClient() {
         setDetail(next);
         setSelectedOptionId(next.options[0]?.optionId ?? "");
 
+        if (isSuperAdmin && json.data.adminDebug) {
+          setAdminDebug(json.data.adminDebug);
+        }
+
         if (isStaff) {
-          console.log("[hotel-detail] response", {
+          console.log("[hotel-pricing] response", {
             hotelId: next.hotelId,
             options: next.options.length,
             reviewHash: next.reviewHash,
@@ -140,25 +173,37 @@ export function HotelDetailClient() {
           });
         }
       } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to load hotel details";
-        setError(message);
-        if (isStaff) console.error("[hotel-detail] error", message);
+        const message = e instanceof Error ? e.message : "Failed to load hotel pricing";
+        setError({ message, retryable: true });
+        if (isStaff) console.error("[hotel-pricing] error", message);
       } finally {
         setLoading(false);
       }
     },
-    [hotelIdParam, listingSession, listingHotel?.name, isStaff]
+    [hid, listingSession, listingHotel?.name, isStaff, isSuperAdmin]
   );
 
   useEffect(() => {
-    void loadDetail(false);
-  }, [loadDetail]);
+    void loadPricing(false);
+  }, [loadPricing]);
+
+  const onSelectRoom = (optionId: string) => {
+    setSelectedOptionId(optionId);
+    toast.success("Room selected", { duration: 1500 });
+  };
 
   const onContinue = () => {
+    if (sessionExpired || isHotelSearchSessionExpired()) {
+      toast.error("Session expired. Please search again.");
+      router.push("/hotels/search");
+      return;
+    }
+
     if (!detail || !selectedOption) {
       toast.error("Please select a room option");
       return;
     }
+
     const request = listingSession.request;
     if (!request) {
       toast.error("Search session expired. Please search again.");
@@ -182,10 +227,7 @@ export function HotelDetailClient() {
       },
       roomInfo: selectedOption.roomInfo,
       mealBasis: selectedOption.mealBasis,
-      bookingNotes: [
-        ...detail.bookingNotes,
-        ...selectedOption.bookingNotes,
-      ],
+      bookingNotes: [...detail.bookingNotes, ...selectedOption.bookingNotes],
       commercial: selectedOption.commercial,
       compliance: {
         gstType: selectedOption.gstType,
@@ -204,7 +246,7 @@ export function HotelDetailClient() {
     });
 
     if (isStaff) {
-      console.log("[hotel-detail] review prep saved", {
+      console.log("[hotel-pricing] review prep saved", {
         correlationId: detail.correlationId,
         hotelId: detail.hotelId,
         reviewHash: detail.reviewHash,
@@ -223,7 +265,7 @@ export function HotelDetailClient() {
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
       <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/hotels/results"
             className="inline-flex items-center text-sm text-[#1a4fa3] hover:underline"
@@ -231,6 +273,7 @@ export function HotelDetailClient() {
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to results
           </Link>
+          <HotelSessionCountdown onExpired={() => setSessionExpired(true)} />
         </div>
       </div>
 
@@ -240,27 +283,47 @@ export function HotelDetailClient() {
         {error && !loading && (
           <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
             <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
-            <p className="font-semibold text-slate-900">Unable to load hotel details</p>
-            <p className="mt-2 text-sm text-red-700">{error}</p>
+            <p className="font-semibold text-slate-900">Unable to load hotel pricing</p>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            {isSuperAdmin && error.adminMessage && (
+              <p className="mt-2 text-xs font-medium text-violet-800">{error.adminMessage}</p>
+            )}
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <Button
-                className="rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]"
-                onClick={() => void loadDetail(true)}
-              >
-                <Loader2 className="mr-2 h-4 w-4" />
-                Retry
-              </Button>
-              <Link href="/hotels/results">
-                <Button variant="outline" className="rounded-xl">
-                  Back to results
+              {error.retryable && (
+                <Button
+                  className="rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]"
+                  onClick={() => void loadPricing(true)}
+                >
+                  <Loader2 className="mr-2 h-4 w-4" />
+                  Retry
                 </Button>
-              </Link>
+              )}
+              {error.backToSearch ? (
+                <Link href="/hotels/search">
+                  <Button variant="outline" className="rounded-xl">
+                    Search again
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/hotels/results">
+                  <Button variant="outline" className="rounded-xl">
+                    Back to results
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}
 
         {detail && !loading && !error && (
           <div className="space-y-6">
+            {isSuperAdmin && adminDebug && (
+              <HotelPricingDebugPanel
+                requestBody={adminDebug.requestBody}
+                rawResponse={adminDebug.rawResponse}
+              />
+            )}
+
             <div className="overflow-hidden rounded-3xl border bg-white shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -272,12 +335,7 @@ export function HotelDetailClient() {
               <div className="space-y-3 p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
-                      {detail.name}
-                    </h1>
-                    <p className="mt-1 font-mono text-xs text-slate-500">
-                      Hotel ID: {detail.hotelId}
-                    </p>
+                    <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{detail.name}</h1>
                     {detail.location && (
                       <p className="mt-2 inline-flex items-center gap-1 text-sm text-slate-600">
                         <MapPin className="h-4 w-4 text-[#1a4fa3]" />
@@ -294,15 +352,9 @@ export function HotelDetailClient() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-sm text-slate-700">
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
-                    Check-in {detail.checkIn}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
-                    Check-out {detail.checkOut}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
-                    {detail.guestSummary}
-                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1">Check-in {detail.checkIn}</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1">Check-out {detail.checkOut}</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1">{detail.guestSummary}</span>
                 </div>
 
                 {detail.description && (
@@ -351,7 +403,7 @@ export function HotelDetailClient() {
                     option={option}
                     selected={option.optionId === selectedOptionId}
                     locale={locale}
-                    onSelect={setSelectedOptionId}
+                    onSelect={onSelectRoom}
                   />
                 ))}
               </div>
@@ -369,7 +421,7 @@ export function HotelDetailClient() {
                 </div>
                 <Button
                   className="h-12 rounded-xl bg-[#1a4fa3] px-8 text-base font-semibold hover:bg-[#16408a]"
-                  disabled={!selectedOption}
+                  disabled={!selectedOption || sessionExpired}
                   onClick={onContinue}
                 >
                   Continue

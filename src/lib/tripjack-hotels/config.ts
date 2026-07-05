@@ -11,6 +11,20 @@ export function getTripJackHotelProxyConfig() {
     listingUrl: `${baseUrl}/api/tripjack/hotels/listing`,
     detailPath: "/api/tripjack/hotels/detail",
     detailUrl: `${baseUrl}/api/tripjack/hotels/detail`,
+    pricingPath: "/api/tripjack/hotels/pricing",
+    pricingUrl: `${baseUrl}/api/tripjack/hotels/pricing`,
+    reviewPath: "/api/tripjack/hotels/review",
+    reviewUrl: `${baseUrl}/api/tripjack/hotels/review`,
+    fetchStaticHotelsPath: "/api/tripjack/hotels/fetch-static-hotels",
+    fetchStaticHotelsUrl: `${baseUrl}/api/tripjack/hotels/fetch-static-hotels`,
+    fetchStaticHotelsDeletedPath: "/api/tripjack/hotels/fetch-static-hotels/deleted",
+    fetchStaticHotelsDeletedUrl: `${baseUrl}/api/tripjack/hotels/fetch-static-hotels/deleted`,
+    fetchHotelMappingPath: "/api/tripjack/hotels/fetch-hotel-mapping",
+    fetchHotelMappingUrl: `${baseUrl}/api/tripjack/hotels/fetch-hotel-mapping`,
+    staticDetailPath: "/api/tripjack/hotels/static-detail",
+    staticDetailUrl: `${baseUrl}/api/tripjack/hotels/static-detail`,
+    nationalitiesPath: "/api/tripjack/hotels/nationalities",
+    nationalitiesUrl: `${baseUrl}/api/tripjack/hotels/nationalities`,
   };
 }
 
@@ -24,3 +38,6 @@ export function isTripJackHotelProviderEnabled(): boolean {
 
 /** Temporary session TTL (ms) — auto-expire after 45 minutes. */
 export const HOTEL_SESSION_TTL_MS = 45 * 60 * 1000;
+
+/** Listing/pricing countdown shown to users (~15 minutes from search). */
+export const HOTEL_SEARCH_SESSION_MS = 15 * 60 * 1000;
