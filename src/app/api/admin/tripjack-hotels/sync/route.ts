@@ -7,6 +7,10 @@ import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-fires
 import { syncTripJackHotelNationalities } from "@/lib/tripjack-hotels/nationalities-sync";
 import { listTripJackHotelSyncLogs } from "@/lib/tripjack-hotels/ops-firestore";
 import { TripJackHotelStaticApiError } from "@/lib/tripjack-hotels/static-client";
+import {
+  isTripJackStaticCatalogue403,
+  TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE,
+} from "@/lib/tripjack-hotels/messages";
 
 export const maxDuration = 300;
 
@@ -54,12 +58,28 @@ export async function POST(request: Request) {
     return apiSuccess({ ...result, meta, recentLogs, mode, actor: auth.user.id });
   } catch (error) {
     if (error instanceof TripJackHotelStaticApiError) {
-      return apiError(error.message, error.statusCode ?? 502, {
-        upstreamUrl: error.upstreamUrl,
+      const staticCatalogue403 = isTripJackStaticCatalogue403({
         upstreamStatus: error.upstreamStatus,
-        rawPreview: error.rawPreview,
-        raw: error.raw,
+        proxyRouteOk:
+          error.raw && typeof error.raw === "object"
+            ? (error.raw as Record<string, unknown>).proxyRouteOk === true
+            : error.upstreamStatus === 403,
       });
+      return apiError(
+        staticCatalogue403 ? TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE : error.message,
+        error.statusCode ?? 502,
+        {
+          upstreamUrl: error.upstreamUrl,
+          upstreamStatus: error.upstreamStatus,
+          rawPreview: error.rawPreview,
+          raw: error.raw,
+          proxyRouteOk: staticCatalogue403,
+          adminMessage: staticCatalogue403
+            ? TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE
+            : undefined,
+          bookingFlowUnblocked: staticCatalogue403,
+        }
+      );
     }
     const message = error instanceof Error ? error.message : "Sync failed";
     return apiError(message, 500);

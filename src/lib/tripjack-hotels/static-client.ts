@@ -6,6 +6,7 @@ import {
   parseTripJackProxyJson,
   unwrapTripJackProxyEnvelope,
 } from "@/lib/tripjack-hotels/proxy-envelope";
+import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 
 export class TripJackHotelStaticApiError extends Error {
   constructor(
@@ -90,11 +91,16 @@ async function callStaticProxy<T = unknown>(input: {
   });
 
   if (!envelope.success) {
+    const parsedEnvelope =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+    const proxyRouteOk = parsedEnvelope.proxyRouteOk === true;
     const msg =
       envelope.error ??
-      (envelope.upstreamStatus === 403
-        ? `TripJack upstream returned 403 — HMS API key may lack hotel static access or IP not whitelisted (${envelope.upstreamUrl})`
-        : "TripJack hotel static API failed");
+      (envelope.upstreamStatus === 403 && proxyRouteOk
+        ? TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE
+        : envelope.upstreamStatus === 403
+          ? `TripJack upstream returned 403 (${envelope.upstreamUrl})`
+          : "TripJack hotel static API failed");
     throw new TripJackHotelStaticApiError(
       msg,
       envelope.upstreamStatus || httpResponse.status,

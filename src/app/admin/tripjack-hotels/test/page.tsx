@@ -26,7 +26,11 @@ export default function TripJackHotelsTestPage() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setResult(json.data);
-      toast.success(`${test} OK`);
+      if (json.data?.warning) {
+        toast.warning(String(json.data.warning));
+      } else {
+        toast.success(`${test} OK`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test failed");
     } finally {
@@ -48,6 +52,14 @@ export default function TripJackHotelsTestPage() {
           </Button>
           <Button size="sm" variant="outline" disabled={!!loading} onClick={() => void run("listing")}>
             Test listing
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!!loading}
+            onClick={() => void run("static-hotels")}
+          >
+            Test static catalogue
           </Button>
         </div>
         <div className="flex max-w-md gap-2">

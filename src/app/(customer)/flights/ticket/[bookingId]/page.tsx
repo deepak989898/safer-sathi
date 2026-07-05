@@ -161,13 +161,15 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb]">
+    <div className="min-h-screen bg-[#f4f7fb] flight-ticket-page">
       <section className="container mx-auto max-w-3xl space-y-4 px-4 py-8 md:py-10">
         {refreshing && (
-          <p className="text-center text-xs text-slate-500">Refreshing latest booking details…</p>
+          <p className="text-center text-xs text-slate-500 print:hidden">Refreshing latest booking details…</p>
         )}
 
-        <FlightBookingTimeline booking={booking} />
+        <div className="print:hidden">
+          <FlightBookingTimeline booking={booking} />
+        </div>
 
         <FlightTicketView booking={booking} locale={locale} />
 
@@ -239,8 +241,8 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           </div>
         )}
 
-        <p className="text-center text-sm text-slate-500">Booking reference: {bookingId}</p>
-        <p className="text-center">
+        <p className="text-center text-sm text-slate-500 print:hidden">Booking reference: {bookingId}</p>
+        <p className="text-center print:hidden">
           <Link href="/account/flight-bookings" className="text-sm font-medium text-[#1a4fa3] hover:underline">
             My flight bookings
           </Link>

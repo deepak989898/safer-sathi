@@ -316,3 +316,25 @@
     --desktop-search-height: 12.5rem;
   }
 }
+
+/* Flight ticket — in-page print fallback (Print button uses dedicated window) */
+@media print {
+  .flight-ticket-page {
+    background: #fff !important;
+  }
+
+  .flight-ticket-page .print\:hidden {
+    display: none !important;
+  }
+
+  #flight-ticket-print {
+    box-shadow: none !important;
+    border: 1px solid #dbeafe !important;
+    break-inside: avoid;
+  }
+
+  #flight-ticket-print .bg-gradient-to-r {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -12,6 +12,7 @@ import {
 } from "@/components/flights/flight-ui";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
+import { openFlightTicketPrintWindow } from "@/lib/flights/flight-ticket-print";
 import type { Locale } from "@/types";
 
 interface FlightTicketViewProps {
@@ -45,21 +46,8 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
   const orderStatus = booking.orderStatus || details?.orderStatus || "";
   const passengerFares = details?.passengerFares ?? [];
 
-  const handlePrint = () => window.print();
-  const handleDownload = () => {
-    const html = document.getElementById("flight-ticket-print");
-    if (!html) return handlePrint();
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>Flight Ticket ${booking.bookingId}</title>
-      <style>body{font-family:system-ui,sans-serif;padding:24px;max-width:720px;margin:0 auto}
-      h1{font-size:20px} table{width:100%;border-collapse:collapse;margin-top:16px}
-      td,th{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}</style></head><body>`);
-    w.document.write(html.innerHTML);
-    w.document.write("</body></html>");
-    w.document.close();
-    w.print();
-  };
+  const handlePrint = () => openFlightTicketPrintWindow(booking, locale);
+  const handleDownload = () => openFlightTicketPrintWindow(booking, locale);
 
   const handleShare = async () => {
     const text = `Safar Sathi Flight Booking ${booking.bookingId}${pnr ? ` · PNR ${pnr}` : ""}`;
@@ -76,10 +64,12 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
 
   return (
     <div className="space-y-6">
-      <FlightStepBar current="ticket" />
+      <div className="print:hidden">
+        <FlightStepBar current="ticket" />
+      </div>
 
       {booking.paymentStatus === "paid" && booking.status === "manual_review_required" && (
-        <FlightSoftCard className="border-amber-200 bg-amber-50">
+        <FlightSoftCard className="border-amber-200 bg-amber-50 print:hidden">
           <p className="p-4 text-sm text-amber-900">
             Payment received. Ticket confirmation is pending. Our team will verify and update
             shortly.
@@ -98,7 +88,9 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
               <h1 className="text-xl font-bold md:text-2xl">E-Ticket / Itinerary</h1>
             </div>
             <Badge className={`border-0 ${statusTone(booking.status)}`}>
-              {statusLabel(booking.status)}
+              {booking.status === "manual_review_required"
+                ? "Pending confirmation"
+                : statusLabel(booking.status)}
             </Badge>
           </div>
         </div>
@@ -197,7 +189,12 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
                         {p.ticketNumber || p.pnr || ticketNumber || "—"}
                       </td>
                       <td className="px-3 py-2 text-xs capitalize">
-                        {p.status || orderStatus || booking.status.replace(/_/g, " ")}
+                        {p.status ||
+                          (booking.status === "confirmed"
+                            ? "Confirmed"
+                            : booking.status === "manual_review_required"
+                              ? "Pending"
+                              : orderStatus || statusLabel(booking.status))}
                       </td>
                     </tr>
                   ))}
@@ -304,7 +301,7 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
               </p>
             )}
             {booking.razorpayPaymentId && (
-              <p className="md:col-span-2">
+              <p className="md:col-span-2 print:hidden">
                 <span className="text-slate-500">Razorpay payment ID</span>
                 <br />
                 <strong className="font-mono text-xs">{booking.razorpayPaymentId}</strong>
@@ -329,7 +326,7 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
         </Button>
         <Button variant="outline" className="rounded-xl" onClick={handleDownload}>
           <Download className="mr-2 h-4 w-4" />
-          Download
+          Download PDF
         </Button>
         <Button variant="outline" className="rounded-xl" onClick={() => void handleShare()}>
           <Share2 className="mr-2 h-4 w-4" />

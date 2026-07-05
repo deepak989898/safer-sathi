@@ -11,14 +11,19 @@ export async function POST(request: Request) {
     if ("error" in auth) return auth.error;
 
     const result = await runTripJackHotelProxyRouteTests();
-    const allOk = result.results.every((row) => row.ok);
+    const blockingFailures = result.results.filter((row) => !row.ok && !row.warning);
+    const allOk = blockingFailures.length === 0;
 
     return apiSuccess({
       ...result,
       allOk,
       message: allOk
-        ? "All proxy route tests passed"
-        : "Some proxy route tests failed — check VPS server.js routes and .env",
+        ? result.staticCatalogueBlocked
+          ? "VPS proxy routes OK — static catalogue blocked by TripJack account permissions"
+          : "All proxy route tests passed"
+        : result.bookingRoutesOk === false
+          ? "Booking routes (listing/pricing/review) missing on VPS — paste docs/tripjack-vps-hotel-all-routes.js into server.js"
+          : "Some proxy route tests failed — check VPS server.js routes and .env",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Proxy test failed";

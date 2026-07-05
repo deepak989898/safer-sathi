@@ -7,6 +7,7 @@ import {
 } from "@/lib/tripjack-hotels/config";
 import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
 import { getTripJackHotelOpsMeta, listTripJackHotelNationalities } from "@/lib/tripjack-hotels/ops-firestore";
+import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 
 export interface ProductionChecklistItem {
   id: string;
@@ -68,9 +69,21 @@ export async function buildTripJackHotelProductionChecklist(): Promise<Productio
     },
     {
       id: "static_sync",
-      label: "Static hotels synced",
+      label: "Static hotels catalogue synced",
       passed: (meta.activeHotels ?? 0) > 0,
-      detail: `${meta.activeHotels ?? 0} active hotels`,
+      detail:
+        (meta.activeHotels ?? 0) > 0
+          ? `${meta.activeHotels} active hotels`
+          : "Empty — ask TripJack to enable HMS Static Content API, or use HID override for booking tests",
+    },
+    {
+      id: "static_api_permission",
+      label: "TripJack HMS Static Content API (account permission)",
+      passed: (meta.activeHotels ?? 0) > 0,
+      detail:
+        (meta.activeHotels ?? 0) > 0
+          ? "Catalogue populated"
+          : TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE,
     },
     {
       id: "nationalities",

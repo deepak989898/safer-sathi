@@ -2,7 +2,8 @@ import { requireSuperAdminAuth } from "@/lib/admin/api-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { fetchTripJackHotelBookingDetails } from "@/lib/tripjack-hotels/client";
 import { listTripJackHotels } from "@/lib/tripjack-hotels/client";
-import { fetchTripJackHotelNationalities, fetchTripJackStaticHotels } from "@/lib/tripjack-hotels/static-client";
+import { fetchTripJackHotelNationalities, fetchTripJackStaticHotels, TripJackHotelStaticApiError } from "@/lib/tripjack-hotels/static-client";
+import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 import { logTripJackHotelApiCall, sanitizeLogPayload } from "@/lib/tripjack-hotels/ops-firestore";
 
 export async function POST(request: Request) {
@@ -48,8 +49,18 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       success = false;
-      errorMessage = e instanceof Error ? e.message : "Test failed";
-      result = { error: errorMessage };
+      if (test === "static-hotels" && e instanceof TripJackHotelStaticApiError && e.upstreamStatus === 403) {
+        errorMessage = TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE;
+        result = {
+          proxyRouteOk: true,
+          upstreamStatus: e.upstreamStatus,
+          upstreamUrl: e.upstreamUrl,
+          bookingFlowUnblocked: true,
+        };
+      } else {
+        errorMessage = e instanceof Error ? e.message : "Test failed";
+        result = { error: errorMessage };
+      }
     }
 
     await logTripJackHotelApiCall({
@@ -64,7 +75,20 @@ export async function POST(request: Request) {
       durationMs: Date.now() - started,
     });
 
-    if (!success) return apiError(errorMessage ?? "Test failed", 502, { result });
+    if (!success) {
+      if (
+        test === "static-hotels" &&
+        errorMessage === TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE
+      ) {
+        return apiSuccess({
+          test,
+          result,
+          warning: errorMessage,
+          durationMs: Date.now() - started,
+        });
+      }
+      return apiError(errorMessage ?? "Test failed", 502, { result });
+    }
 
     return apiSuccess({ test, result, durationMs: Date.now() - started });
   } catch (error) {

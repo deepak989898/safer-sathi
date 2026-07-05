@@ -21,6 +21,7 @@ import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashbo
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
 import type { ProxyRouteTestResult } from "@/lib/tripjack-hotels/proxy-types";
+import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -45,6 +46,8 @@ export default function TripJackHotelsAdminClient() {
   const [proxyTesting, setProxyTesting] = useState(false);
   const [proxyTests, setProxyTests] = useState<ProxyRouteTestResult[] | null>(null);
   const [proxyBaseUrl, setProxyBaseUrl] = useState<string | null>(null);
+  const [proxyMessage, setProxyMessage] = useState<string | null>(null);
+  const [staticCatalogueBlocked, setStaticCatalogueBlocked] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,9 +86,19 @@ export default function TripJackHotelsAdminClient() {
       const json = await res.json();
       if (!json.success) {
         const details = json.details as
-          | { upstreamUrl?: string; upstreamStatus?: number; rawPreview?: string }
+          | {
+              upstreamUrl?: string;
+              upstreamStatus?: number;
+              rawPreview?: string;
+              adminMessage?: string;
+              proxyRouteOk?: boolean;
+              bookingFlowUnblocked?: boolean;
+            }
           | undefined;
-        const parts = [json.error ?? "Sync failed"];
+        const parts = [details?.adminMessage ?? json.error ?? "Sync failed"];
+        if (details?.bookingFlowUnblocked) {
+          parts.push("VPS proxy is OK — hotel search/booking can still work with manual HID override");
+        }
         if (details?.upstreamUrl) {
           parts.push(`upstream ${details.upstreamStatus ?? "?"} @ ${details.upstreamUrl}`);
         }
@@ -111,10 +124,12 @@ export default function TripJackHotelsAdminClient() {
       if (!json.success) throw new Error(json.error ?? "Proxy test failed");
       setProxyTests(json.data.results ?? []);
       setProxyBaseUrl(json.data.proxyBaseUrl ?? null);
+      setProxyMessage(json.data.message ?? null);
+      setStaticCatalogueBlocked(Boolean(json.data.staticCatalogueBlocked));
       if (json.data.allOk) {
-        toast.success("All VPS proxy route tests passed");
+        toast.success(json.data.message ?? "VPS proxy route tests passed");
       } else {
-        toast.error("Some VPS proxy routes failed — see results below");
+        toast.error(json.data.message ?? "Some VPS proxy routes failed — see results below");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Proxy test failed");
@@ -204,6 +219,13 @@ export default function TripJackHotelsAdminClient() {
               {dashboard?.catalogMeta.deletedHotels ?? 0} · Last booking sync:{" "}
               {dashboard?.catalogMeta.lastBookingStatusSyncAt ?? "Never"}
             </p>
+            {staticCatalogueBlocked && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE} Nationalities and booking APIs are
+                separate — use manual HID override on search or the test panel while catalogue sync is
+                blocked.
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {[
                 ["full", "Sync all hotels"],
@@ -240,9 +262,13 @@ export default function TripJackHotelsAdminClient() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Tests health, nationalities (GET), and fetch-static-hotels (POST) via server → VPS proxy.
+              Tests health, nationalities, static catalogue, and listing/pricing/review separately via
+              server → VPS proxy.
               {proxyBaseUrl ? ` Proxy: ${proxyBaseUrl}` : null}
             </p>
+            {proxyMessage ? (
+              <p className="text-sm text-muted-foreground">{proxyMessage}</p>
+            ) : null}
             {proxyTests && (
               <div className="space-y-2">
                 {proxyTests.map((row) => (
@@ -252,19 +278,29 @@ export default function TripJackHotelsAdminClient() {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{row.name}</span>
-                      <Badge variant={row.ok ? "secondary" : "destructive"}>
-                        {row.ok ? "OK" : "FAIL"}
+                      <Badge
+                        variant={
+                          row.warning ? "outline" : row.ok ? "secondary" : "destructive"
+                        }
+                      >
+                        {row.warning ? "TRIPJACK BLOCKED" : row.ok ? "OK" : "FAIL"}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {row.method} HTTP {row.httpStatus}
                         {row.upstreamStatus != null ? ` · upstream ${row.upstreamStatus}` : ""}
+                        {row.proxyRouteOk ? " · proxy route OK" : ""}
                       </span>
                     </div>
                     <p className="mt-1 break-all text-xs text-muted-foreground">{row.proxyUrl}</p>
                     {row.upstreamUrl && row.upstreamUrl !== row.proxyUrl ? (
                       <p className="break-all text-xs text-muted-foreground">→ {row.upstreamUrl}</p>
                     ) : null}
-                    {row.error ? <p className="mt-1 text-xs text-red-600">{row.error}</p> : null}
+                    {row.warning ? (
+                      <p className="mt-1 text-xs text-amber-700">{row.warning}</p>
+                    ) : null}
+                    {row.error && !row.warning ? (
+                      <p className="mt-1 text-xs text-red-600">{row.error}</p>
+                    ) : null}
                     <pre className="mt-2 max-h-24 overflow-auto rounded bg-muted/50 p-2 text-xs">
                       {row.preview || "(empty response)"}
                     </pre>
