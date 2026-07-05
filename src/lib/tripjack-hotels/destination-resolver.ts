@@ -12,6 +12,8 @@ import {
   type DestinationResolveResult,
   type DestinationSuggestion,
 } from "@/lib/tripjack-hotels/catalog-types";
+import { suggestFallbackDestinations } from "@/lib/tripjack-hotels/destination-fallback";
+import { resolveDestinationFromLiveCatalog } from "@/lib/tripjack-hotels/destination-live-lookup";
 
 function normalizeQuery(query: string): string {
   return query.toLowerCase().trim().replace(/\s+/g, " ");
@@ -90,6 +92,37 @@ export async function suggestHotelDestinations(
     .sort((a, b) => a.rank - b.rank || b.item.hotelCount - a.item.hotelCount)
     .map((row) => row.item)
     .slice(0, limit);
+}
+
+function mergeSuggestions(
+  primary: DestinationSuggestion[],
+  fallback: DestinationSuggestion[],
+  limit: number
+): DestinationSuggestion[] {
+  const merged = [...primary];
+  for (const item of fallback) {
+    if (merged.some((existing) => existing.label.toLowerCase() === item.label.toLowerCase())) {
+      continue;
+    }
+    merged.push(item);
+  }
+  return merged.slice(0, limit);
+}
+
+export async function suggestHotelDestinationsWithFallback(
+  query: string,
+  limit = 12
+): Promise<DestinationSuggestion[]> {
+  const q = normalizeQuery(query);
+  if (!q) {
+    return suggestFallbackDestinations("", limit);
+  }
+
+  const catalogSuggestions = await suggestHotelDestinations(q, limit);
+  if (catalogSuggestions.length >= limit) return catalogSuggestions;
+
+  const fallback = suggestFallbackDestinations(q, limit);
+  return mergeSuggestions(catalogSuggestions, fallback, limit);
 }
 
 export async function resolveDestinationToHids(
@@ -205,6 +238,11 @@ export async function resolveDestinationToHids(
       totalMatched: nameMatches.length,
       truncated: capped.truncated,
     };
+  }
+
+  const liveResult = await resolveDestinationFromLiveCatalog(query);
+  if (liveResult.hids.length) {
+    return liveResult;
   }
 
   return {

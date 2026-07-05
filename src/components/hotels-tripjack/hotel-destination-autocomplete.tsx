@@ -55,10 +55,15 @@ export function HotelDestinationAutocomplete({
         onBlur={onBlur}
         autoComplete="off"
       />
-      {showDropdown && (suggestions.length > 0 || loading) && (
+      {showDropdown && (suggestions.length > 0 || loading || value.trim().length >= 2) && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-auto rounded-xl border bg-white shadow-lg">
           {loading && (
             <div className="px-4 py-3 text-sm text-slate-500">Searching destinations...</div>
+          )}
+          {!loading && suggestions.length === 0 && value.trim().length >= 2 && (
+            <div className="px-4 py-3 text-sm text-slate-500">
+              No matches yet. Try Goa, Delhi, or Mumbai.
+            </div>
           )}
           {!loading &&
             suggestions.map((item) => {

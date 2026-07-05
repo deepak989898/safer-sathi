@@ -14,6 +14,8 @@ import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY } from "@/lib/tripjack-hotels/config";
 import { resolveDestinationToHids } from "@/lib/tripjack-hotels/destination-resolver";
 
+export const maxDuration = 60;
+
 const roomSchema = z.object({
   adults: z.number().int().min(1).max(8),
   children: z.number().int().min(0).max(6).optional(),

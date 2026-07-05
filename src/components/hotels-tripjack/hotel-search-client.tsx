@@ -112,8 +112,10 @@ export function HotelSearchClient() {
   );
 
   useEffect(() => {
-    if (!showDestinationDropdown) return;
     const q = destinationQuery.trim();
+    const shouldFetch = showDestinationDropdown || q.length >= 2;
+    if (!shouldFetch) return;
+
     const timer = window.setTimeout(async () => {
       setDestinationLoading(true);
       try {
@@ -122,6 +124,9 @@ export function HotelSearchClient() {
         const json = await res.json();
         if (json.success) {
           setDestinationSuggestions(json.data.suggestions ?? []);
+          if ((json.data.suggestions ?? []).length > 0) {
+            setShowDestinationDropdown(true);
+          }
         }
       } catch {
         setDestinationSuggestions([]);
