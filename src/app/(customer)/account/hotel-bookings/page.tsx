@@ -2,18 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Download, ExternalLink, Printer } from "lucide-react";
+import { Building2, Download, ExternalLink } from "lucide-react";
 import { RequireAuth } from "@/components/auth/require-auth";
+import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
+import { HotelCard, HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
 import { customerApiFetch } from "@/lib/admin/api-client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { canCancelHotelBooking } from "@/lib/hotels/booking-guards";
-import type { HotelBookingRecord, HotelBookingStatus } from "@/lib/hotels/types";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import type { HotelBookingRecord, HotelBookingStatus } from "@/lib/hotels/types";
 
 const TABS: Array<{ id: string; label: string; statuses: HotelBookingStatus[] | "all"; refund?: boolean }> = [
   { id: "all", label: "All", statuses: "all" },
@@ -37,15 +36,15 @@ const TABS: Array<{ id: string; label: string; statuses: HotelBookingStatus[] | 
   },
 ];
 
-function statusTone(status: HotelBookingStatus) {
-  if (status === "confirmed") return "bg-emerald-100 text-emerald-800";
-  if (status === "manual_review_required" || status === "booking_pending") {
-    return "bg-amber-100 text-amber-800";
+import { toast } from "sonner";
+
+function statusKind(status: HotelBookingStatus): "confirmed" | "pending" | "cancelled" | "default" {
+  if (status === "confirmed") return "confirmed";
+  if (status === "cancelled" || status === "refunded") return "cancelled";
+  if (status === "booking_pending" || status === "manual_review_required" || status === "refund_pending") {
+    return "pending";
   }
-  if (status === "payment_failed" || status === "booking_failed" || status === "cancelled") {
-    return "bg-red-100 text-red-800";
-  }
-  return "bg-blue-100 text-[#1a4fa3]";
+  return "default";
 }
 
 function HotelBookingsContent() {
@@ -94,109 +93,101 @@ function HotelBookingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb]">
-      <div className="border-b bg-gradient-to-r from-[#1a4fa3] to-[#2563c9] text-white">
-        <div className="container mx-auto px-4 py-8">
-          <h1 className="text-2xl font-bold md:text-3xl">My Hotel Bookings</h1>
-          <p className="mt-1 text-sm text-blue-100">TripJack hotel reservations</p>
-        </div>
+    <HotelBookingLayout
+      hero
+      title="My Hotel Bookings"
+      subtitle="TripJack hotel reservations"
+      maxWidth="xl"
+    >
+      <div className="mb-6">
+        <Link href="/hotels/search">
+          <HotelPrimaryButton className="!w-auto px-6">
+            <Building2 className="mr-2 inline h-4 w-4" />
+            Book a new hotel
+          </HotelPrimaryButton>
+        </Link>
       </div>
 
-      <section className="container mx-auto space-y-5 px-4 py-8">
-        <Link
-          href="/hotels/search"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#1a4fa3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#16408a]"
-        >
-          <Building2 className="h-4 w-4" />
-          Book a new hotel
-        </Link>
+      <div className="mb-6 flex flex-wrap gap-2 border-b pb-4" style={{ borderColor: HOTEL_UI.border }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className="px-4 py-2 text-sm font-semibold transition"
+            style={{
+              color: tab === t.id ? HOTEL_UI.action : HOTEL_UI.textMuted,
+              borderBottom: tab === t.id ? `2px solid ${HOTEL_UI.action}` : "2px solid transparent",
+            }}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <Button
-              key={t.id}
-              size="sm"
-              variant={tab === t.id ? "default" : "outline"}
-              className={cn("rounded-full", tab === t.id && "bg-[#1a4fa3] hover:bg-[#16408a]")}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </Button>
-          ))}
-        </div>
+      {filtered.length === 0 && (
+        <HotelCard className="py-12 text-center">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
+            No bookings in this category
+          </p>
+        </HotelCard>
+      )}
 
-        {filtered.length === 0 && (
-          <div className="rounded-2xl border bg-white py-12 text-center shadow-sm">
-            <Building2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-            <p className="font-semibold text-slate-900">No bookings in this category</p>
-          </div>
-        )}
-
+      <div className="space-y-4">
         {filtered.map((b) => (
-          <div key={b.bookingId} className="rounded-2xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <HotelCard key={b.bookingId}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-lg font-bold text-slate-900">{b.hotelName}</p>
-                <p className="text-sm text-slate-600">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-lg font-bold" style={{ color: HOTEL_UI.primary }}>
+                    {b.hotelName}
+                  </p>
+                  <HotelStatusBadge status={statusKind(b.status)} />
+                </div>
+                <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
                   {b.checkIn} → {b.checkOut} · {b.roomName}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
                   {b.confirmationNumber ? `Voucher ${b.confirmationNumber}` : b.bookingId}
                 </p>
               </div>
               <div className="text-right">
-                <Badge className={`border-0 ${statusTone(b.status)}`}>
-                  {b.status.replace(/_/g, " ")}
-                </Badge>
-                <p className="mt-2 text-lg font-bold text-[#1a4fa3]">
+                <p className="text-xl font-bold" style={{ color: HOTEL_UI.primary }}>
                   {formatCurrency(b.totalFare, locale)}
                 </p>
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   <Link href={`/hotels/booking/${b.bookingId}`}>
-                    <Button size="sm" variant="outline" className="rounded-xl">
+                    <HotelPrimaryButton className="!h-9 !w-auto px-4 text-xs" variant="outline">
                       View Details
-                    </Button>
-                  </Link>
-                  <Link href={`/hotels/voucher/${b.bookingId}`}>
-                    <Button size="sm" variant="outline" className="rounded-xl">
-                      <Printer className="mr-1 h-3.5 w-3.5" />
-                      Print
-                    </Button>
+                    </HotelPrimaryButton>
                   </Link>
                   {b.paymentStatus === "paid" && (
-                    <Button
-                      size="sm"
+                    <HotelPrimaryButton
+                      className="!h-9 !w-auto px-4 text-xs"
                       variant="outline"
-                      className="rounded-xl"
                       disabled={downloadingId === b.bookingId}
                       onClick={() => void downloadInvoice(b)}
                     >
-                      <Download className="mr-1 h-3.5 w-3.5" />
+                      <Download className="mr-1 inline h-3.5 w-3.5" />
                       Invoice
-                    </Button>
-                  )}
-                  {canCancelHotelBooking(b) && (
-                    <Link href={`/hotels/booking/${b.bookingId}`}>
-                      <Button size="sm" variant="outline" className="rounded-xl text-red-700">
-                        Cancel
-                      </Button>
-                    </Link>
+                    </HotelPrimaryButton>
                   )}
                   {b.voucherUrl && (
                     <a href={b.voucherUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="rounded-xl">
-                        <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                      <HotelPrimaryButton className="!h-9 !w-auto px-4 text-xs" variant="outline">
+                        <ExternalLink className="mr-1 inline h-3.5 w-3.5" />
                         Voucher
-                      </Button>
+                      </HotelPrimaryButton>
                     </a>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          </HotelCard>
         ))}
-      </section>
-    </div>
+      </div>
+    </HotelBookingLayout>
   );
 }
 

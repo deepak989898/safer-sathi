@@ -1,14 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
-import { HotelSessionCountdown } from "@/components/hotels-tripjack/hotel-session-countdown";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
+import {
+  HotelCard,
+  HotelFieldLabel,
+  HotelInfoBanner,
+  HotelPrimaryButton,
+  HotelPriceSummary,
+  HotelStepBar,
+} from "@/components/hotels-tripjack/hotel-ui-primitives";
+import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/i18n";
 import type { HotelGuestDetailsForm, HotelPrimaryGuestForm, HotelRoomGuestForm } from "@/lib/hotels/types";
@@ -170,7 +173,7 @@ export function HotelGuestsClient() {
 
   if (!review) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb] text-slate-600">
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: HOTEL_UI.bg }}>
         Loading…
       </div>
     );
@@ -179,125 +182,109 @@ export function HotelGuestsClient() {
   const option = review.option;
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb]">
-      <div className="border-b bg-white">
-        <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            href="/hotels/review"
-            className="inline-flex items-center text-sm text-[#1a4fa3] hover:underline"
-          >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to review
-          </Link>
-          <HotelSessionCountdown />
-        </div>
-      </div>
+    <HotelBookingLayout
+      title="Guest Details"
+      subtitle={review.hotelName}
+      backHref="/hotels/review"
+      backLabel="Back to review"
+      showCountdown
+      maxWidth="xl"
+    >
+      <HotelStepBar steps={["Search", "Select Room", "Review", "Guests", "Payment"]} current={3} />
 
-      <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <div className="rounded-3xl border bg-white p-5 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900">Guest details</h1>
-          <p className="mt-1 text-sm text-slate-600">{review.hotelName}</p>
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            <span className="rounded-full bg-slate-100 px-3 py-1">
-              {review.searchContext.checkIn} → {review.searchContext.checkOut}
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">{nights} nights</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">
-              {review.searchContext.rooms.length} room(s)
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">
-              {option.mealBasisLabel || option.mealBasis}
-            </span>
-            <span className="rounded-full bg-[#1a4fa3]/10 px-3 py-1 font-semibold text-[#1a4fa3]">
-              {formatCurrency(option.pricing.totalPrice, locale)}
-            </span>
-          </div>
-          {option.bookingNotes?.length > 0 && (
-            <div className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
-              <p className="font-semibold">Booking notes</p>
-              <ul className="mt-1 list-inside list-disc">
-                {option.bookingNotes.map((note, i) => (
-                  <li key={i}>{note}</li>
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-5">
+          <HotelCard>
+            <h2 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+              Primary Guest &amp; Contact
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="First name *" value={primaryGuest.firstName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, firstName: v }))} />
+              <Field label="Last name *" value={primaryGuest.lastName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, lastName: v }))} />
+              <Field label="Email *" type="email" value={primaryGuest.email} onChange={(v) => setPrimaryGuest((p) => ({ ...p, email: v }))} />
+              <Field label="Phone *" value={primaryGuest.mobile} onChange={(v) => setPrimaryGuest((p) => ({ ...p, mobile: v.replace(/\D/g, "").slice(0, 10) }))} />
+              <Field label="Address *" className="sm:col-span-2" value={primaryGuest.address} onChange={(v) => setPrimaryGuest((p) => ({ ...p, address: v }))} />
+              <Field label="City *" value={primaryGuest.city} onChange={(v) => setPrimaryGuest((p) => ({ ...p, city: v }))} />
+              <Field label="State *" value={primaryGuest.state} onChange={(v) => setPrimaryGuest((p) => ({ ...p, state: v }))} />
+              <Field label="Country *" value={primaryGuest.country} onChange={(v) => setPrimaryGuest((p) => ({ ...p, country: v }))} />
+              <Field label="Zip code *" value={primaryGuest.zipCode} onChange={(v) => setPrimaryGuest((p) => ({ ...p, zipCode: v }))} />
+              {review.option.panRequired && (
+                <Field label="PAN number *" value={primaryGuest.pan ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, pan: v.toUpperCase() }))} />
+              )}
+              {review.option.passportRequired && (
+                <>
+                  <Field label="Passport number *" value={primaryGuest.passportNumber ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportNumber: v }))} />
+                  <Field label="Passport expiry *" type="date" value={primaryGuest.passportExpiry ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportExpiry: v }))} />
+                </>
+              )}
+            </div>
+          </HotelCard>
+
+          {roomGuests.map((room, roomIndex) => (
+            <HotelCard key={roomIndex}>
+              <h2 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+                Room {roomIndex + 1} — Guest names
+              </h2>
+              <div className="mt-4 space-y-4">
+                {room.map((guest, guestIndex) => (
+                  <div key={guestIndex} className="grid gap-3 sm:grid-cols-4">
+                    <Field label="Title" value={guest.title} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { title: v as HotelRoomGuestForm["title"] })} />
+                    <Field label="First name *" value={guest.firstName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { firstName: v })} />
+                    <Field label="Last name *" value={guest.lastName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { lastName: v })} />
+                    {guest.type === "CHILD" ? (
+                      <Field label="Age *" type="number" value={String(guest.age ?? "")} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { age: Number(v) || 0 })} />
+                    ) : (
+                      <div className="flex items-end pb-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+                        Adult
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </ul>
-            </div>
-          )}
+              </div>
+            </HotelCard>
+          ))}
+
+          <HotelCard>
+            <HotelFieldLabel>Special requests (optional)</HotelFieldLabel>
+            <textarea
+              className="mt-2 min-h-[80px] w-full rounded border bg-white p-3 text-sm"
+              style={{ borderColor: HOTEL_UI.border }}
+              value={specialRequests}
+              onChange={(e) => setSpecialRequests(e.target.value)}
+            />
+          </HotelCard>
         </div>
 
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Primary guest & contact</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="First name" value={primaryGuest.firstName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, firstName: v }))} />
-            <Field label="Last name" value={primaryGuest.lastName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, lastName: v }))} />
-            <Field label="Email" type="email" value={primaryGuest.email} onChange={(v) => setPrimaryGuest((p) => ({ ...p, email: v }))} />
-            <Field label="Mobile" value={primaryGuest.mobile} onChange={(v) => setPrimaryGuest((p) => ({ ...p, mobile: v.replace(/\D/g, "").slice(0, 10) }))} />
-            <Field label="Address" className="sm:col-span-2" value={primaryGuest.address} onChange={(v) => setPrimaryGuest((p) => ({ ...p, address: v }))} />
-            <Field label="City" value={primaryGuest.city} onChange={(v) => setPrimaryGuest((p) => ({ ...p, city: v }))} />
-            <Field label="State" value={primaryGuest.state} onChange={(v) => setPrimaryGuest((p) => ({ ...p, state: v }))} />
-            <Field label="Country" value={primaryGuest.country} onChange={(v) => setPrimaryGuest((p) => ({ ...p, country: v }))} />
-            <Field label="Zip code" value={primaryGuest.zipCode} onChange={(v) => setPrimaryGuest((p) => ({ ...p, zipCode: v }))} />
-            {review.option.panRequired && (
-              <Field label="PAN number *" value={primaryGuest.pan ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, pan: v.toUpperCase() }))} />
-            )}
-            {review.option.passportRequired && (
-              <>
-                <Field label="Passport number *" value={primaryGuest.passportNumber ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportNumber: v }))} />
-                <Field label="Passport expiry *" type="date" value={primaryGuest.passportExpiry ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportExpiry: v }))} />
-                <Field label="Passport nationality" value={primaryGuest.passportNationality ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportNationality: v }))} />
-                <Field label="Issue country" value={primaryGuest.passportIssueCountry ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportIssueCountry: v }))} />
-              </>
-            )}
-          </div>
+        <div className="space-y-4">
+          <HotelPriceSummary
+            lines={[
+              { label: "Room", value: option.roomInfo[0] || option.roomName },
+              { label: "Nights", value: String(nights) },
+              { label: "Meal plan", value: option.mealBasisLabel || option.mealBasis },
+              {
+                label: "Subtotal",
+                value: formatCurrency(option.pricing.basePrice, locale),
+              },
+              {
+                label: "Taxes & fees",
+                value: formatCurrency(option.pricing.taxes + option.pricing.mf + option.pricing.mft, locale),
+              },
+            ]}
+            total={formatCurrency(option.pricing.totalPrice, locale)}
+            footer={
+              <HotelPrimaryButton loading={submitting} onClick={() => void onSubmit()}>
+                Save &amp; Continue to Payment
+              </HotelPrimaryButton>
+            }
+          />
+          <HotelInfoBanner variant="success">
+            {option.isRefundable
+              ? "Free cancellation available on this rate."
+              : "This rate is non-refundable."}
+          </HotelInfoBanner>
         </div>
-
-        {roomGuests.map((room, roomIndex) => (
-          <div key={roomIndex} className="rounded-2xl border bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-900">Room {roomIndex + 1} guests</h2>
-            <div className="mt-4 space-y-4">
-              {room.map((guest, guestIndex) => (
-                <div key={guestIndex} className="grid gap-3 sm:grid-cols-4">
-                  <Field label="Title" value={guest.title} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { title: v as HotelRoomGuestForm["title"] })} />
-                  <Field label="First name" value={guest.firstName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { firstName: v })} />
-                  <Field label="Last name" value={guest.lastName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { lastName: v })} />
-                  {guest.type === "CHILD" ? (
-                    <Field label="Age" type="number" value={String(guest.age ?? "")} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { age: Number(v) || 0 })} />
-                  ) : (
-                    <div className="flex items-end pb-2 text-xs text-slate-500">Adult</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <Label>Special requests (optional)</Label>
-          <Input className="mt-2" value={specialRequests} onChange={(e) => setSpecialRequests(e.target.value)} />
-        </div>
-
-        <HotelCancellationTimeline
-          isRefundable={option.isRefundable}
-          freeCancellationUntil={option.freeCancellationUntil}
-          penalties={option.penalties}
-          locale={locale}
-        />
-
-        <Button
-          className="h-12 w-full rounded-xl bg-[#1a4fa3] text-base font-semibold hover:bg-[#16408a]"
-          disabled={submitting}
-          onClick={() => void onSubmit()}
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Processing…
-            </>
-          ) : (
-            "Continue to Payment"
-          )}
-        </Button>
       </div>
-    </div>
+    </HotelBookingLayout>
   );
 }
 
@@ -316,8 +303,14 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <Label className="text-xs text-slate-500">{label}</Label>
-      <Input className="mt-1 h-11 rounded-xl" type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+      <HotelFieldLabel>{label}</HotelFieldLabel>
+      <input
+        className="mt-1.5 h-11 w-full rounded border bg-white px-3 text-sm"
+        style={{ borderColor: HOTEL_UI.border }}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }

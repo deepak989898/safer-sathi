@@ -11,7 +11,13 @@ import {
   Loader2,
   Printer,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
+import {
+  HotelCard,
+  HotelPrimaryButton,
+  HotelStatusBadge,
+} from "@/components/hotels-tripjack/hotel-ui-primitives";
+import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
 import { customerApiFetch } from "@/lib/admin/api-client";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
@@ -79,20 +85,19 @@ export function HotelBookingSuccessClient() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1a4fa3]" />
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: HOTEL_UI.bg }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: HOTEL_UI.action }} />
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] py-16 text-center">
-        <p className="font-semibold text-slate-900">Booking not found</p>
-        <Link href="/hotels/search" className="mt-4 inline-block text-[#1a4fa3] hover:underline">
+      <HotelBookingLayout title="Booking not found" maxWidth="md">
+        <Link href="/hotels/search" style={{ color: HOTEL_UI.action }}>
           Search hotels
         </Link>
-      </div>
+      </HotelBookingLayout>
     );
   }
 
@@ -104,91 +109,72 @@ export function HotelBookingSuccessClient() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb]">
-      <div className="container mx-auto max-w-2xl px-4 py-10">
-        <div className="rounded-3xl border bg-white p-8 text-center shadow-sm">
-          <CheckCircle2
-            className={`mx-auto h-14 w-14 ${confirmed ? "text-emerald-500" : pending ? "text-amber-500" : "text-[#1a4fa3]"}`}
-          />
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">
-            {confirmed ? "Booking Confirmed!" : pending ? "Payment Received" : "Booking Status"}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {confirmed
-              ? "Your hotel reservation is confirmed. Confirmation email sent."
-              : pending
-                ? "Payment received. Hotel confirmation is being processed."
-                : booking.status.replace(/_/g, " ")}
-          </p>
+    <HotelBookingLayout maxWidth="md">
+      <HotelCard padding="lg" className="text-center">
+        <CheckCircle2
+          className="mx-auto h-16 w-16"
+          style={{ color: confirmed ? HOTEL_UI.success : pending ? HOTEL_UI.pending : HOTEL_UI.action }}
+        />
+        <h1 className="mt-4 text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
+          {confirmed ? "Booking Confirmed!" : pending ? "Payment Received" : "Booking Status"}
+        </h1>
+        <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+          {confirmed
+            ? "Your hotel reservation is confirmed. Confirmation email sent."
+            : pending
+              ? "Payment received. Booking confirmation is in progress."
+              : booking.status.replace(/_/g, " ")}
+        </p>
 
-          <div className="mt-8 space-y-3 rounded-2xl bg-slate-50 p-5 text-left text-sm">
-            <Row label="Hotel" value={booking.hotelName} />
-            <Row label="Booking ID" value={booking.bookingId} mono />
-            <Row label="TripJack Ref" value={booking.tripjackBookingId} mono />
-            {booking.confirmationNumber && (
-              <Row label="Voucher / Confirmation" value={booking.confirmationNumber} mono />
-            )}
-            <Row label="Check-in" value={booking.checkIn} />
-            <Row label="Check-out" value={booking.checkOut} />
-            <Row label="Rooms" value={String(booking.rooms.length)} />
-            <Row label="Guests" value={String(guestCount)} />
-            <Row label="Room type" value={booking.roomName} />
-            <Row label="Meal plan" value={booking.mealBasis} />
-            <Row
-              label="Amount paid"
-              value={formatCurrency(booking.totalFare, locale)}
-              highlight
-            />
-            {booking.razorpayPaymentId && (
-              <Row label="Payment ID" value={booking.razorpayPaymentId} mono />
-            )}
-          </div>
+        <div className="mt-2 flex justify-center">
+          <HotelStatusBadge status={confirmed ? "confirmed" : pending ? "pending" : "default"} />
+        </div>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button
-              variant="outline"
-              className="rounded-xl"
-              disabled={downloading}
-              onClick={() => void downloadInvoice()}
-            >
-              {downloading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Download Invoice
-            </Button>
-            {booking.voucherUrl && (
-              <a href={booking.voucherUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="rounded-xl">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Download Voucher
-                </Button>
-              </a>
-            )}
-            <Link href={`/hotels/voucher/${booking.bookingId}`}>
-              <Button variant="outline" className="rounded-xl">
-                <Printer className="mr-2 h-4 w-4" />
-                Print Booking
-              </Button>
-            </Link>
-            <Link href="/">
-              <Button className="rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]">
-                <Home className="mr-2 h-4 w-4" />
-                Back to Home
-              </Button>
-            </Link>
-          </div>
+        <div
+          className="mt-8 space-y-3 border p-5 text-left text-sm"
+          style={{ backgroundColor: "#FAFBFC", borderColor: HOTEL_UI.border, borderRadius: HOTEL_UI.cardRadius }}
+        >
+          <Row label="Hotel" value={booking.hotelName} />
+          <Row label="Booking ID" value={booking.bookingId} mono />
+          <Row label="TripJack Ref" value={booking.tripjackBookingId} mono />
+          {booking.confirmationNumber && (
+            <Row label="Confirmation" value={booking.confirmationNumber} mono />
+          )}
+          <Row label="Check-in" value={booking.checkIn} />
+          <Row label="Check-out" value={booking.checkOut} />
+          <Row label="Guests" value={String(guestCount)} />
+          <Row label="Room" value={booking.roomName} />
+          <Row label="Amount paid" value={formatCurrency(booking.totalFare, locale)} highlight />
+        </div>
 
-          <Link
-            href={`/hotels/booking/${booking.bookingId}`}
-            className="mt-4 inline-block text-sm text-[#1a4fa3] hover:underline"
-          >
-            View booking details →
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <HotelPrimaryButton variant="outline" onClick={() => void downloadInvoice()} disabled={downloading}>
+            <Download className="mr-2 inline h-4 w-4" />
+            Download Invoice
+          </HotelPrimaryButton>
+          <Link href={`/hotels/booking/${booking.bookingId}`}>
+            <HotelPrimaryButton>View Booking Details</HotelPrimaryButton>
+          </Link>
+          {booking.voucherUrl && (
+            <a href={booking.voucherUrl} target="_blank" rel="noopener noreferrer" className="sm:col-span-2">
+              <HotelPrimaryButton variant="outline">
+                <ExternalLink className="mr-2 inline h-4 w-4" />
+                Download Voucher
+              </HotelPrimaryButton>
+            </a>
+          )}
+          <Link href="/account/hotel-bookings" className="sm:col-span-2">
+            <HotelPrimaryButton variant="outline">Go to My Bookings</HotelPrimaryButton>
+          </Link>
+          <Link href="/" className="sm:col-span-2">
+            <HotelPrimaryButton variant="outline">
+              <Home className="mr-2 inline h-4 w-4" />
+              Back to Home
+            </HotelPrimaryButton>
           </Link>
         </div>
-      </div>
-    </div>
+      </HotelCard>
+    </HotelBookingLayout>
   );
 }
 
@@ -205,9 +191,10 @@ function Row({
 }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
+      <span style={{ color: HOTEL_UI.textMuted }}>{label}</span>
       <span
-        className={`text-right ${mono ? "font-mono text-xs" : ""} ${highlight ? "font-bold text-[#1a4fa3]" : "font-medium text-slate-900"}`}
+        className={`text-right ${mono ? "font-mono text-xs" : ""} ${highlight ? "font-bold" : "font-medium"}`}
+        style={{ color: highlight ? HOTEL_UI.primary : HOTEL_UI.text }}
       >
         {value}
       </span>

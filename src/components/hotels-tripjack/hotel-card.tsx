@@ -1,7 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Star, Wifi } from "lucide-react";
+import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
+import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { formatCurrency } from "@/lib/i18n";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
@@ -12,73 +13,76 @@ interface HotelCardProps {
   onViewDetails: (hotel: NormalizedHotel) => void;
 }
 
+const PLACEHOLDER_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80";
+
 export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
+  const stars = 4;
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between md:p-5">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-bold text-slate-900">{hotel.name}</h3>
-            <Badge variant="secondary" className="font-mono text-[10px]">
-              ID {hotel.tjHotelId}
-            </Badge>
-          </div>
+    <article
+      className="flex flex-col overflow-hidden border bg-white shadow-sm transition hover:shadow-md md:flex-row"
+      style={{ borderRadius: HOTEL_UI.cardRadius, borderColor: HOTEL_UI.border }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={PLACEHOLDER_IMAGE}
+        alt={hotel.name}
+        className="h-48 w-full shrink-0 object-cover md:h-auto md:w-56"
+        loading="lazy"
+      />
 
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <Badge
-              className={
-                hotel.isRefundable
-                  ? "border-0 bg-emerald-50 text-emerald-700"
-                  : "border-0 bg-slate-100 text-slate-600"
-              }
-            >
-              {hotel.isRefundable ? "Refundable" : "Non-refundable"}
-            </Badge>
-            {hotel.panRequired && (
-              <Badge className="border-0 bg-amber-50 text-amber-800">PAN required</Badge>
-            )}
-            {hotel.passportRequired && (
-              <Badge className="border-0 bg-amber-50 text-amber-800">Passport required</Badge>
-            )}
-          </div>
-
-          <p className="mt-3 text-sm text-slate-600">
-            <span className="font-medium text-slate-800">Meal:</span> {hotel.mealBasis}
-          </p>
-          {hotel.inclusions.length > 0 && (
-            <p className="mt-1 text-sm text-slate-600">
-              <span className="font-medium text-slate-800">Inclusions:</span>{" "}
-              {hotel.inclusions.slice(0, 4).join(", ")}
-              {hotel.inclusions.length > 4 ? "…" : ""}
+      <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-bold" style={{ color: HOTEL_UI.primary }}>
+              {hotel.name}
+            </h3>
+            <div className="mt-1 flex items-center gap-0.5">
+              {Array.from({ length: stars }).map((_, i) => (
+                <Star key={i} className="h-3.5 w-3.5 fill-[#FEBA02] text-[#FEBA02]" />
+              ))}
+            </div>
+            <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+              {hotel.mealBasis || "Hotel"}
             </p>
-          )}
-          <p className="mt-1 text-xs text-slate-500">
-            {hotel.options.length} room option{hotel.options.length === 1 ? "" : "s"}
-          </p>
-        </div>
-
-        <div className="shrink-0 border-t border-slate-100 pt-4 md:w-52 md:border-l md:border-t-0 md:pl-5 md:pt-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            From (total)
-          </p>
-          <p className="text-2xl font-bold text-[#1a4fa3]">
-            {formatCurrency(hotel.cheapestTotalPrice, locale)}
-          </p>
-          <div className="mt-2 space-y-0.5 text-xs text-slate-500">
-            <p>Base {formatCurrency(hotel.cheapestBasePrice, locale)}</p>
-            <p>Taxes {formatCurrency(hotel.cheapestTaxes, locale)}</p>
-            <p>MF {formatCurrency(hotel.cheapestMf, locale)}</p>
-            <p>MFT {formatCurrency(hotel.cheapestMft, locale)}</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+              <span className="inline-flex items-center gap-1">
+                <Wifi className="h-3 w-3" /> Free WiFi
+              </span>
+              {hotel.mealBasis && <span>· {hotel.mealBasis}</span>}
+              {hotel.isRefundable ? (
+                <HotelStatusBadge status="confirmed" className="!text-[9px]" />
+              ) : null}
+            </div>
+            {hotel.inclusions.length > 0 && (
+              <p className="mt-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+                {hotel.inclusions.slice(0, 3).join(" · ")}
+              </p>
+            )}
           </div>
-          <Button
-            className="mt-3 w-full rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]"
-            size="sm"
-            onClick={() => onViewDetails(hotel)}
-          >
-            View Rooms / Select Hotel
-          </Button>
+
+          <div className="shrink-0 text-right md:min-w-[140px]">
+            <p className="text-xs font-medium uppercase" style={{ color: HOTEL_UI.textMuted }}>
+              From
+            </p>
+            <p className="text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
+              {formatCurrency(hotel.cheapestTotalPrice, locale)}
+            </p>
+            <p className="text-[10px]" style={{ color: HOTEL_UI.textMuted }}>
+              incl. taxes · {hotel.options.length} room option{hotel.options.length === 1 ? "" : "s"}
+            </p>
+            <div className="mt-3 w-full min-w-[120px]">
+              <HotelPrimaryButton
+                className="!h-10 !w-full text-xs"
+                onClick={() => onViewDetails(hotel)}
+              >
+                View Rooms
+              </HotelPrimaryButton>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

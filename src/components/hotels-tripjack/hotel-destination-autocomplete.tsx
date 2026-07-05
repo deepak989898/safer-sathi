@@ -16,6 +16,8 @@ interface HotelDestinationAutocompleteProps {
   onFocus: () => void;
   onBlur: () => void;
   error?: string | null;
+  hideLabel?: boolean;
+  inputClassName?: string;
 }
 
 function suggestionIcon(type: DestinationSuggestion["type"]) {
@@ -34,15 +36,19 @@ export function HotelDestinationAutocomplete({
   onFocus,
   onBlur,
   error,
+  hideLabel,
+  inputClassName,
 }: HotelDestinationAutocompleteProps) {
   return (
     <div className="relative sm:col-span-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Destination / City / Hotel Name
-      </Label>
+      {!hideLabel && (
+        <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Destination / City / Hotel Name
+        </Label>
+      )}
       <Input
-        className="mt-2 h-12 rounded-xl bg-slate-50"
-        placeholder="Search Goa, Delhi, Mumbai, Jaipur, hotel name..."
+        className={cn("mt-2 h-12 rounded border bg-white", inputClassName, hideLabel && "mt-0")}
+        placeholder="Search Goa, Delhi, Mumbai, hotel name..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
@@ -65,7 +71,7 @@ export function HotelDestinationAutocomplete({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onSelect(item)}
                 >
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#1a4fa3]" />
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#006CE4]" />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-slate-900">
                       {item.label}

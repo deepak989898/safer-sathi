@@ -4,18 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Building2,
-  Loader2,
   MapPin,
   Star,
 } from "lucide-react";
 import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
 import { HotelPricingDebugPanel } from "@/components/hotels-tripjack/hotel-pricing-debug-panel";
 import { HotelRoomOptionCard } from "@/components/hotels-tripjack/hotel-room-option-card";
-import { HotelSessionCountdown } from "@/components/hotels-tripjack/hotel-session-countdown";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
+import { HotelCard, HotelPrimaryButton, HotelStepBar } from "@/components/hotels-tripjack/hotel-ui-primitives";
+import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
@@ -37,14 +35,10 @@ import { toast } from "sonner";
 
 function DetailSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-56 w-full rounded-3xl" />
-      <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-4 w-1/2" />
-      <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-40 rounded-2xl" />
-        <Skeleton className="h-40 rounded-2xl" />
-      </div>
+    <div className="space-y-4 animate-pulse">
+      <div className="h-56 rounded bg-slate-200" />
+      <div className="h-8 w-2/3 rounded bg-slate-200" />
+      <div className="h-40 rounded bg-slate-200" />
     </div>
   );
 }
@@ -261,58 +255,45 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   const heroImage =
     detail?.images[0] ||
     "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80";
+  const galleryExtra = detail?.images.slice(1, 3) ?? [];
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb]">
-      <div className="border-b bg-white">
-        <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            href="/hotels/results"
-            className="inline-flex items-center text-sm text-[#1a4fa3] hover:underline"
-          >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to results
-          </Link>
-          <HotelSessionCountdown onExpired={() => setSessionExpired(true)} />
-        </div>
-      </div>
+    <HotelBookingLayout
+      title={detail?.name ?? "Hotel details"}
+      subtitle={detail ? `${detail.checkIn} → ${detail.checkOut} · ${detail.guestSummary}` : undefined}
+      backHref="/hotels/results"
+      backLabel="Back to results"
+      showCountdown
+      onSessionExpired={() => setSessionExpired(true)}
+      maxWidth="lg"
+    >
+      <HotelStepBar
+        steps={["Search", "Select Room", "Review", "Guests", "Payment"]}
+        current={1}
+      />
 
-      <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
-        {loading && <DetailSkeleton />}
+      {loading && <DetailSkeleton />}
 
         {error && !loading && (
-          <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <HotelCard className="py-12 text-center">
             <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
-            <p className="font-semibold text-slate-900">Unable to load hotel pricing</p>
+            <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
+              Unable to load hotel pricing
+            </p>
             <p className="mt-2 text-sm text-red-700">{error.message}</p>
-            {isSuperAdmin && error.adminMessage && (
-              <p className="mt-2 text-xs font-medium text-violet-800">{error.adminMessage}</p>
-            )}
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {error.retryable && (
-                <Button
-                  className="rounded-xl bg-[#1a4fa3] hover:bg-[#16408a]"
-                  onClick={() => void loadPricing(true)}
-                >
-                  <Loader2 className="mr-2 h-4 w-4" />
+                <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
                   Retry
-                </Button>
+                </HotelPrimaryButton>
               )}
-              {error.backToSearch ? (
-                <Link href="/hotels/search">
-                  <Button variant="outline" className="rounded-xl">
-                    Search again
-                  </Button>
-                </Link>
-              ) : (
-                <Link href="/hotels/results">
-                  <Button variant="outline" className="rounded-xl">
-                    Back to results
-                  </Button>
-                </Link>
-              )}
+              <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
+                <HotelPrimaryButton variant="outline" className="!w-auto px-6">
+                  {error.backToSearch ? "Search again" : "Back to results"}
+                </HotelPrimaryButton>
+              </Link>
             </div>
-          </div>
+          </HotelCard>
         )}
 
         {detail && !loading && !error && (
@@ -324,37 +305,47 @@ export function HotelDetailClient({ hid }: { hid: string }) {
               />
             )}
 
-            <div className="overflow-hidden rounded-3xl border bg-white shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={heroImage}
-                alt={detail.name}
-                className="h-56 w-full object-cover md:h-72"
-                loading="lazy"
-              />
+            <HotelCard padding="sm" className="overflow-hidden !p-0">
+              <div className="grid gap-1 md:grid-cols-[2fr_1fr]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={heroImage} alt={detail.name} className="h-56 w-full object-cover md:h-72" />
+                <div className="hidden grid-rows-2 gap-1 md:grid">
+                  {(galleryExtra.length ? galleryExtra : [heroImage, heroImage]).map((src, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={i} src={src} alt="" className="h-full min-h-[8rem] w-full object-cover" />
+                  ))}
+                </div>
+              </div>
               <div className="space-y-3 p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{detail.name}</h1>
+                    <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
+                      {detail.name}
+                    </h1>
                     {detail.location && (
-                      <p className="mt-2 inline-flex items-center gap-1 text-sm text-slate-600">
-                        <MapPin className="h-4 w-4 text-[#1a4fa3]" />
+                      <p className="mt-2 inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+                        <MapPin className="h-4 w-4" style={{ color: HOTEL_UI.action }} />
                         {detail.location}
                       </p>
                     )}
                   </div>
                   {detail.starRating != null && (
-                    <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
-                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                    <div
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold"
+                      style={{ backgroundColor: "#FFF8E6", color: "#9A7200", borderRadius: HOTEL_UI.btnRadius }}
+                    >
+                      <Star className="h-4 w-4 fill-[#FEBA02] text-[#FEBA02]" />
                       {detail.starRating} Star
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-3 text-sm text-slate-700">
-                  <span className="rounded-full bg-slate-100 px-3 py-1">Check-in {detail.checkIn}</span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1">Check-out {detail.checkOut}</span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1">{detail.guestSummary}</span>
+                <div className="flex gap-4 border-b text-sm font-semibold" style={{ borderColor: HOTEL_UI.border, color: HOTEL_UI.primary }}>
+                  <span className="border-b-2 pb-2" style={{ borderColor: HOTEL_UI.action }}>
+                    Rooms
+                  </span>
+                  <span className="pb-2 opacity-50">Overview</span>
+                  <span className="pb-2 opacity-50">Amenities</span>
                 </div>
 
                 {detail.description && (
@@ -374,7 +365,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                   </div>
                 )}
               </div>
-            </div>
+            </HotelCard>
 
             {detail.bookingNotes.length > 0 && (
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
@@ -395,7 +386,9 @@ export function HotelDetailClient({ hid }: { hid: string }) {
             )}
 
             <div>
-              <h2 className="mb-3 text-xl font-bold text-slate-900">Available rooms</h2>
+              <h2 className="mb-3 text-lg font-bold" style={{ color: HOTEL_UI.primary }}>
+                Available rooms
+              </h2>
               <div className="space-y-4">
                 {detail.options.map((option) => (
                   <HotelRoomOptionCard
@@ -409,28 +402,29 @@ export function HotelDetailClient({ hid }: { hid: string }) {
               </div>
             </div>
 
-            <div className="sticky bottom-4 z-10 rounded-2xl border bg-white/95 p-4 shadow-lg backdrop-blur">
+            <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs text-slate-500">Selected total</p>
-                  <p className="text-xl font-bold text-[#1a4fa3]">
+                  <p className="text-xs" style={{ color: HOTEL_UI.textMuted }}>
+                    Selected total
+                  </p>
+                  <p className="text-xl font-bold" style={{ color: HOTEL_UI.primary }}>
                     {selectedOption
                       ? `${selectedOption.pricing.currency} ${selectedOption.pricing.totalPrice.toLocaleString("en-IN")}`
                       : "Select a room"}
                   </p>
                 </div>
-                <Button
-                  className="h-12 rounded-xl bg-[#1a4fa3] px-8 text-base font-semibold hover:bg-[#16408a]"
+                <HotelPrimaryButton
+                  className="!w-auto min-w-[200px]"
                   disabled={!selectedOption || sessionExpired}
                   onClick={onContinue}
                 >
-                  Continue
-                </Button>
+                  Continue to Review
+                </HotelPrimaryButton>
               </div>
-            </div>
+            </HotelCard>
           </div>
         )}
-      </div>
-    </div>
+    </HotelBookingLayout>
   );
 }

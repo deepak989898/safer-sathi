@@ -154,6 +154,17 @@ export function HotelSearchClient() {
     });
   }, [onChange]);
 
+  const onPopularDestination = useCallback(
+    (name: string) => {
+      setDestinationQuery(name);
+      setSelectedDestination(null);
+      setDestinationError(null);
+      onChange({ destination: name, destinationLabel: name });
+      setShowDestinationDropdown(true);
+    },
+    [onChange]
+  );
+
   const onSearch = useCallback(async () => {
     const adminHids = isSuperAdmin && adminHidsInput.trim() ? parseHids(adminHidsInput) : [];
     const destination = destinationQuery.trim();
@@ -316,6 +327,7 @@ export function HotelSearchClient() {
       onRemoveRoom={onRemoveRoom}
       onChildAgeChange={onChildAgeChange}
       onSearch={() => void onSearch()}
+      onPopularDestination={onPopularDestination}
     />
   );
 }
