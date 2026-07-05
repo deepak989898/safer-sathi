@@ -158,7 +158,7 @@ export function FlightFlowClient() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
-      <FlightStepBar current={hasSearched ? "results" : "search"} />
+      {hasSearched && <FlightStepBar current="results" />}
 
       <FlightSearchScreen
         params={params}
@@ -166,6 +166,7 @@ export function FlightFlowClient() {
         onChange={handleChange}
         onSwap={handleSwap}
         onSearch={handleSearch}
+        compact={hasSearched}
       />
 
       {hasSearched && (
