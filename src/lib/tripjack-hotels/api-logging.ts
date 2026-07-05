@@ -1,3 +1,5 @@
+import "server-only";
+
 import { logTripJackHotelApiCall } from "@/lib/tripjack-hotels/ops-firestore";
 
 export interface TripJackProxyLogInput {

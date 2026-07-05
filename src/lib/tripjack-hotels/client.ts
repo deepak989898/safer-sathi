@@ -1,5 +1,8 @@
+import "server-only";
+
 import { getTripJackHotelProxyConfig } from "@/lib/tripjack-hotels/config";
 import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
+import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
 import {
   normalizeTripJackHotelDetail,
   normalizeTripJackHotelListing,
@@ -27,6 +30,8 @@ import {
   mapHotelReviewError,
 } from "@/lib/tripjack-hotels/review-errors";
 
+export { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
+
 export class TripJackHotelApiError extends Error {
   constructor(
     message: string,
@@ -39,10 +44,6 @@ export class TripJackHotelApiError extends Error {
     super(message);
     this.name = "TripJackHotelApiError";
   }
-}
-
-export function generateHotelCorrelationId(): string {
-  return `htl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function buildHotelListingBody(

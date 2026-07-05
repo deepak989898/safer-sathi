@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import {
   TRIPJACK_HOTEL_API_LOGS_COLLECTION,

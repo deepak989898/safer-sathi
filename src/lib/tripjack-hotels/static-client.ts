@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getTripJackHotelProxyConfig } from "@/lib/tripjack-hotels/config";
 import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
 

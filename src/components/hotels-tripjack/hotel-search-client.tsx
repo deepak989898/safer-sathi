@@ -9,7 +9,7 @@ import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import type { DestinationSuggestion, TripJackHotelNationality } from "@/lib/tripjack-hotels/catalog-types";
-import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/client";
+import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
 import { saveHotelListingSession } from "@/lib/tripjack-hotels/session";
 import type { HotelListingSearchParams, HotelRoomRequest } from "@/lib/tripjack-hotels/types";
 
