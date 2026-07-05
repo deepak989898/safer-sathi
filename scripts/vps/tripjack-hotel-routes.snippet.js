@@ -1,19 +1,4 @@
-/**
- * ALL TripJack Hotel routes for /var/www/tripjack-proxy/server.js
- *
- * DIAGNOSIS: If sync shows "Invalid JSON from TripJack hotel static API" or
- * curl returns HTML "Cannot POST /api/tripjack/hotels/...", these routes are
- * NOT in server.js yet — .env alone does not add routes.
- *
- * STEPS:
- * 1. SSH: cd /var/www/tripjack-proxy
- * 2. Clean .env — use docs/tripjack-vps-hotel.env.example (no duplicate keys)
- * 3. Paste this ENTIRE block into server.js BEFORE app.listen(...)
- * 4. pm2 restart tripjack-proxy
- * 5. Test:
- *    curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:4000/api/tripjack/hotels/fetch-static-hotels -H "Content-Type: application/json" -d '{}'
- *    Expect: 200 or 502 JSON — NOT 404 HTML
- */
+// === TRIPJACK HOTEL V3 ROUTES (safar-sathi) ===
 
 const TRIPJACK_HOTEL_HMS_BASE =
   process.env.TRIPJACK_HOTEL_HMS_BASE ||
@@ -189,7 +174,6 @@ async function forwardTripJackHotel(res, upstreamUrl, requestBody, label) {
   }
 }
 
-// --- Search & book flow ---
 app.post("/api/tripjack/hotels/listing", async (req, res) => {
   const requestBody = req.body;
   console.log("[tripjack-proxy] POST /api/tripjack/hotels/listing");
@@ -232,7 +216,6 @@ app.post("/api/tripjack/hotels/cancel-booking", (req, res) =>
   forwardTripJackHotel(res, TRIPJACK_HOTEL_CANCEL_BOOKING_URL, req.body, "cancel-booking")
 );
 
-// --- Catalog sync (required for destination search) ---
 app.post("/api/tripjack/hotels/fetch-static-hotels", (req, res) =>
   forwardTripJackHotel(res, TRIPJACK_HOTEL_FETCH_STATIC_URL, req.body, "fetch-static-hotels")
 );
@@ -260,18 +243,4 @@ app.get("/api/tripjack/hotels/nationalities", (req, res) =>
   forwardTripJackHotelGet(res, TRIPJACK_HOTEL_NATIONALITIES_URL, "nationalities")
 );
 
-// Optional health check for admin proxy tests (skip if already defined)
-if (!global.__TRIPJACK_PROXY_HEALTH__) {
-  global.__TRIPJACK_PROXY_HEALTH__ = true;
-  app.get("/health", (req, res) => {
-    const base =
-      process.env.TRIPJACK_HOTEL_HMS_BASE ||
-      process.env.TRIPJACK_HOTEL_STATIC_BASE ||
-      "";
-    res.json({
-      ok: true,
-      service: "Safar Sathi TripJack Proxy",
-      env: base.includes("apitest") ? "staging" : "production",
-    });
-  });
-}
+// === END TRIPJACK HOTEL V3 ROUTES ===
