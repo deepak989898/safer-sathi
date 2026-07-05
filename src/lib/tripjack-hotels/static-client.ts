@@ -90,8 +90,13 @@ async function callStaticProxy<T = unknown>(input: {
   });
 
   if (!envelope.success) {
+    const msg =
+      envelope.error ??
+      (envelope.upstreamStatus === 403
+        ? `TripJack upstream returned 403 — HMS API key may lack hotel static access or IP not whitelisted (${envelope.upstreamUrl})`
+        : "TripJack hotel static API failed");
     throw new TripJackHotelStaticApiError(
-      envelope.error ?? "TripJack hotel static API failed",
+      msg,
       envelope.upstreamStatus || httpResponse.status,
       parsed,
       envelope.upstreamUrl,
