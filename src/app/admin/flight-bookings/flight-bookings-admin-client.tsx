@@ -33,6 +33,7 @@ function statusBadgeClass(status: string) {
     return "bg-emerald-100 text-emerald-800";
   if (
     status === "manual_review_required" ||
+    status === "payment_received_booking_failed" ||
     status === "booking_pending" ||
     status === "cancellation_requested" ||
     status === "refund_pending" ||
@@ -252,6 +253,7 @@ export default function FlightBookingsAdminClient() {
                 <SelectItem value="confirmed">Confirmed</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="payment_received_booking_failed">Paid — book failed</SelectItem>
                 <SelectItem value="manual_review_required">Manual review</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="refund_pending">Refund pending</SelectItem>

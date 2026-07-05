@@ -13,6 +13,7 @@ import {
   refreshFlightBookingDetails,
   releaseFlightPnr,
 } from "@/lib/flights/post-booking-service";
+import { retryTripJackFlightBook } from "@/lib/flights/booking-service";
 import { getAdminNotesHistory } from "@/lib/flights/admin-notes";
 import type {
   FlightAdminNote,
@@ -358,6 +359,7 @@ export async function runFlightAdminAction(
   action:
     | "refresh_detail"
     | "retry_booking_detail"
+    | "retry_book"
     | "retry_poll"
     | "retry_release_pnr"
     | "add_note"
@@ -368,6 +370,7 @@ export async function runFlightAdminAction(
   const manageActions = new Set([
     "refresh_detail",
     "retry_booking_detail",
+    "retry_book",
     "retry_poll",
     "retry_release_pnr",
   ]);
@@ -382,6 +385,9 @@ export async function runFlightAdminAction(
     case "refresh_detail":
     case "retry_booking_detail":
       booking = await refreshFlightBookingDetails(bookingId);
+      break;
+    case "retry_book":
+      booking = await retryTripJackFlightBook(bookingId);
       break;
     case "retry_poll":
       booking = await pollFlightAmendment(bookingId);

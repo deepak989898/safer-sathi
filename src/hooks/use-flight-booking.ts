@@ -68,13 +68,35 @@ export function useFlightBookingApi() {
       options?: { isStaff?: boolean }
     ) => {
       return run(async () => {
-        const orderRes = await fetch("/api/flights/payments/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId: booking.bookingId }),
-        });
-        const orderJson = await orderRes.json();
-        if (!orderJson.success) throw new Error(orderJson.error ?? "Order failed");
+        const createOrder = async (acceptFareChange?: boolean) => {
+          const orderRes = await fetch("/api/flights/payments/create-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bookingId: booking.bookingId,
+              acceptFareChange: acceptFareChange ?? false,
+            }),
+          });
+          return orderRes.json();
+        };
+
+        let orderJson = await createOrder(false);
+
+        if (!orderJson.success && orderJson.details?.code === "fare_changed") {
+          const previousFare = Number(orderJson.details?.previousFare ?? booking.totalFare);
+          const newFare = Number(orderJson.details?.newFare ?? booking.totalFare);
+          const accept = window.confirm(
+            `The fare has changed from ₹${previousFare.toLocaleString("en-IN")} to ₹${newFare.toLocaleString("en-IN")}. Continue with the updated fare?`
+          );
+          if (!accept) {
+            throw new Error("Payment cancelled — fare was updated by the airline.");
+          }
+          orderJson = await createOrder(true);
+        }
+
+        if (!orderJson.success) {
+          throw new Error(orderJson.error ?? "Order failed");
+        }
 
         const order = orderJson.data;
         if (options?.isStaff) {
@@ -114,6 +136,7 @@ export function useFlightBookingApi() {
         return verifyJson.data as {
           booking: FlightBookingRecord;
           manualReview?: boolean;
+          bookingFailed?: boolean;
           message?: string;
         };
       });
@@ -252,7 +275,7 @@ export function useFlightBookingApi() {
   const adminRetry = useCallback(
     async (
       bookingId: string,
-      action: "retry_poll" | "retry_booking_detail" | "retry_release_pnr"
+      action: "retry_poll" | "retry_booking_detail" | "retry_release_pnr" | "retry_book"
     ) => {
       return run(async () => {
         const res = await customerApiFetch(`/api/flights/bookings/${bookingId}`, {

@@ -57,6 +57,20 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
     });
   }, [params]);
 
+  // Poll booking details while ticket is being issued.
+  useEffect(() => {
+    if (!booking) return;
+    if (booking.status !== "booking_pending" && booking.status !== "payment_success") return;
+
+    const timer = window.setInterval(() => {
+      void api.refreshBookingDetail(booking.bookingId).then((b) => {
+        if (b) applyBooking(b);
+      });
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [booking?.bookingId, booking?.status]);
+
   // Poll amendment every 20s while cancellation is in progress.
   useEffect(() => {
     if (!booking?.amendmentId) return;
@@ -121,7 +135,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   };
 
   const handleAdmin = async (
-    action: "retry_poll" | "retry_booking_detail" | "retry_release_pnr"
+    action: "retry_poll" | "retry_booking_detail" | "retry_release_pnr" | "retry_book"
   ) => {
     if (!booking) return;
     const updated = await api.adminRetry(booking.bookingId, action);
@@ -212,6 +226,9 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => void handleAdmin("retry_booking_detail")}>
                 Retry Booking Detail
+              </Button>
+              <Button size="sm" variant="default" onClick={() => void handleAdmin("retry_book")}>
+                Retry TripJack Book
               </Button>
               <Button size="sm" variant="outline" onClick={() => void handleAdmin("retry_poll")}>
                 Retry Poll

@@ -13,6 +13,7 @@ export type FlightBookingStatus =
   | "payment_pending"
   | "payment_success"
   | "payment_failed"
+  | "payment_received_booking_failed"
   | "booking_pending"
   | "confirmed"
   | "booking_failed"
@@ -79,6 +80,15 @@ export interface FlightBookingRecord {
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignatureVerified?: boolean;
+  idempotencyKey?: string;
+  bookingLock?: boolean;
+  bookInProgressAt?: string;
+  bookAttemptedAt?: string;
+  bookError?: string;
+  bookingDetailsPollAttempts?: number;
+  bookingDetailsPollStatus?: string;
+  emailSentAt?: string;
+  invoiceSentAt?: string;
   reviewNormalized?: NormalizedFlightReview;
   fareValidateNormalized?: NormalizedFareValidate;
   fareValidateRequest?: unknown;

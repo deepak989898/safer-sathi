@@ -79,13 +79,18 @@ export async function POST(request: Request) {
       verified: true,
       booking,
       manualReview:
-        booking.status === "manual_review_required" || booking.status === "booking_pending",
+        booking.status === "payment_received_booking_failed" ||
+        booking.status === "manual_review_required" ||
+        booking.status === "booking_pending",
+      bookingFailed: booking.status === "payment_received_booking_failed",
       message:
-        booking.status === "manual_review_required" || booking.status === "booking_pending"
-          ? "Payment received. Ticket confirmation is pending. Our team will verify and update shortly."
-          : booking.status === "confirmed"
-            ? "Flight booking confirmed"
-            : "Booking in progress",
+        booking.status === "payment_received_booking_failed"
+          ? "Payment received but TripJack booking failed. Our team has been notified and will retry."
+          : booking.status === "manual_review_required" || booking.status === "booking_pending"
+            ? "Payment received. Fetching your ticket from the airline…"
+            : booking.status === "confirmed"
+              ? "Flight booking confirmed"
+              : "Booking in progress",
     });
   } catch (err) {
     return flightApiError(err, "Payment verification failed");

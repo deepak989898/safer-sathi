@@ -80,6 +80,15 @@ export interface PaxFareLine {
   netFare: number;
 }
 
+/** TripJack review `conditions` flags (seat assignable, hold, etc.). */
+export interface TripJackReviewConditions {
+  isa?: boolean;
+  isHoldAllowed?: boolean;
+  sessionExpiry?: string;
+  fareChanged?: boolean;
+  raw?: Record<string, unknown>;
+}
+
 export interface NormalizedFlightReview {
   airlineName: string;
   airlineCode: string;
@@ -117,6 +126,7 @@ export interface NormalizedFlightReview {
   fareUpdated: boolean;
   fareAlertMessage: string | null;
   bookingId: string;
+  conditions?: TripJackReviewConditions;
   rawReviewResponse: unknown;
 }
 
@@ -209,6 +219,7 @@ export interface NormalizedFareValidate {
   travellerInfo: TripJackTravellerPayload[];
   deliveryInfo: TripJackDeliveryInfoPayload;
   fareChanged: boolean;
+  fareUnavailable?: boolean;
   fareAlertMessage: string | null;
   rawFareValidateResponse: unknown;
 }

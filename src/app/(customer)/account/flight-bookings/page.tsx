@@ -46,7 +46,12 @@ const TABS: Array<{ id: string; label: string; statuses: FlightBookingStatus[] |
   {
     id: "manual",
     label: "Manual Review",
-    statuses: ["manual_review_required", "booking_failed", "payment_failed"],
+    statuses: [
+      "manual_review_required",
+      "payment_received_booking_failed",
+      "booking_failed",
+      "payment_failed",
+    ],
   },
 ];
 
@@ -55,6 +60,7 @@ function statusTone(status: FlightBookingStatus) {
   if (status === "refund_completed") return "bg-emerald-100 text-emerald-800";
   if (
     status === "manual_review_required" ||
+    status === "payment_received_booking_failed" ||
     status === "booking_pending" ||
     status === "cancellation_requested" ||
     status === "refund_pending"
@@ -169,8 +175,18 @@ function FlightBookingsContent() {
                     href={`/flights/ticket/${b.bookingId}`}
                     className="inline-flex h-9 items-center rounded-xl bg-[#1a4fa3] px-4 text-sm font-semibold text-white hover:bg-[#16408a]"
                   >
-                    View Ticket
+                    {b.status === "confirmed" ? "Download Ticket" : "View Booking"}
                   </Link>
+                  {b.paymentStatus === "paid" && (
+                    <a
+                      href={`/api/flights/bookings/${b.bookingId}/invoice`}
+                      className="inline-flex h-9 items-center rounded-xl border border-slate-200 px-4 text-sm font-medium hover:bg-slate-50"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Invoice
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

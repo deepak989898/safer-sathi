@@ -160,6 +160,28 @@ function detectFareChanged(payload: Record<string, unknown>, previousTotal?: num
   return { fareChanged: false, message: null };
 }
 
+function detectFareUnavailable(payload: Record<string, unknown>): {
+  unavailable: boolean;
+  message: string | null;
+} {
+  const status = asRecord(payload.status);
+  if (status?.success === false) {
+    return {
+      unavailable: true,
+      message: pickString(status, ["message", "errMsg"], "Fare is no longer available"),
+    };
+  }
+
+  const errors = asArray(payload.errors);
+  for (const item of errors) {
+    const row = asRecord(item);
+    const msg = pickString(row, ["message", "errMsg"], "");
+    if (msg) return { unavailable: true, message: msg };
+  }
+
+  return { unavailable: false, message: null };
+}
+
 export function normalizeTripJackFareValidate(
   rawResponse: unknown,
   request: FareValidateRequest,
@@ -195,6 +217,7 @@ export function normalizeTripJackFareValidate(
 
   const totalDuration = segments.reduce((sum, s) => sum + s.durationMinutes, 0);
   const { fareChanged, message } = detectFareChanged(payload, options?.previousTotalFare);
+  const { unavailable, message: unavailableMessage } = detectFareUnavailable(payload);
   const validatedTotal = fares.totalFare || pickNumber(asRecord(adult?.fC), ["TF", "tf"], 0);
   const amountChanged =
     options?.previousTotalFare &&
@@ -232,7 +255,9 @@ export function normalizeTripJackFareValidate(
     travellerInfo: request.travellerInfo,
     deliveryInfo: request.deliveryInfo,
     fareChanged: fareChanged || Boolean(amountChanged),
+    fareUnavailable: unavailable,
     fareAlertMessage:
+      unavailableMessage ||
       message ||
       (amountChanged ? "Fare updated. Please review the latest fare before payment." : null),
     rawFareValidateResponse: rawResponse,

@@ -103,6 +103,7 @@ export function FlightPaymentClient() {
     result: {
       booking: FlightBookingRecord;
       manualReview?: boolean;
+      bookingFailed?: boolean;
       message?: string;
       testMode?: boolean;
     }
@@ -110,10 +111,15 @@ export function FlightPaymentClient() {
     setConfirmedBooking(result.booking);
     setPhase("payment_success");
 
-    if (result.manualReview) {
-      toast.info(
+    if (result.manualReview && result.bookingFailed) {
+      toast.error(
         result.message ??
-          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly.",
+          "Payment received but airline booking failed. Our team has been notified.",
+        { duration: 5000 }
+      );
+    } else if (result.manualReview) {
+      toast.info(
+        result.message ?? "Payment received. Issuing your ticket…",
         { duration: 3500 }
       );
     } else if (result.booking.status === "confirmed") {

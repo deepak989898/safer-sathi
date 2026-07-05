@@ -332,6 +332,16 @@ export function FlightTicketView({ booking, locale }: FlightTicketViewProps) {
           <Share2 className="mr-2 h-4 w-4" />
           Share
         </Button>
+        {booking.paymentStatus === "paid" && (
+          <a
+            href={`/api/flights/bookings/${booking.bookingId}/invoice`}
+            className="inline-flex h-10 items-center rounded-xl border px-4 text-sm font-medium hover:bg-muted"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download Invoice
+          </a>
+        )}
         <Link
           href="/account/flight-bookings"
           className="inline-flex h-10 items-center rounded-xl border px-4 text-sm font-medium hover:bg-muted"

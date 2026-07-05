@@ -2,6 +2,7 @@ import type {
   FlightReviewSegment,
   NormalizedFlightReview,
   PaxFareLine,
+  TripJackReviewConditions,
 } from "@/lib/tripjack/types";
 import type { FlightSearchParams } from "@/lib/tripjack/types";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
@@ -265,6 +266,24 @@ export function normalizeTripJackReview(
   const lastSegRaw = segmentRaws[segmentRaws.length - 1] ?? firstSegRaw;
 
   const { fareUpdated: alertFlag, message: alertMessage } = detectFareAlert(payload);
+  const conditionsRaw = asRecord(payload.conditions);
+  const reviewConditions: TripJackReviewConditions | undefined =
+    conditionsRaw
+      ? {
+          isa:
+            conditionsRaw.isa === true ||
+            String(conditionsRaw.isa).toLowerCase() === "true",
+          isHoldAllowed:
+            conditionsRaw.isHoldAllowed === true ||
+            conditionsRaw.ih === true ||
+            String(conditionsRaw.isHoldAllowed ?? conditionsRaw.ih).toLowerCase() === "true",
+          sessionExpiry: pickString(conditionsRaw, ["sessionExpiry", "expiry", "exp"], ""),
+          fareChanged:
+            conditionsRaw.fareChanged === true ||
+            String(conditionsRaw.fareChanged).toLowerCase() === "true",
+          raw: conditionsRaw,
+        }
+      : undefined;
   const reviewedPriceId = pickString(priceRow, ["id", "priceId"], options?.priceId ?? "");
   const searchTotal = options?.searchTotalFare ?? 0;
   const fareChangedByAmount =
@@ -316,6 +335,7 @@ export function normalizeTripJackReview(
         ? "Fare updated by airline. Please review the latest fare."
         : null),
     bookingId: extractTripJackBookingId(rawResponse),
+    conditions: reviewConditions,
     rawReviewResponse: rawResponse,
   };
 }

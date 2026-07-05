@@ -435,13 +435,22 @@ export default function FlightBookingDetailAdminClient({
               </Button>
               <Button
                 size="sm"
+                variant="default"
+                disabled={acting}
+                onClick={() => void runAction("retry_book")}
+              >
+                Retry TripJack Book
+              </Button>
+              <Button
+                size="sm"
                 variant="outline"
                 disabled={acting}
                 onClick={() => void runAction("retry_release_pnr")}
               >
                 Retry release PNR
               </Button>
-              {booking.status === "manual_review_required" && (
+              {(booking.status === "manual_review_required" ||
+                booking.status === "payment_received_booking_failed") && (
                 <Button
                   size="sm"
                   disabled={acting}

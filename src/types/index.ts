@@ -39,6 +39,7 @@ export type ServiceType =
   | "vehicle"
   | "hotel"
   | "bus"
+  | "flight"
   | "car_rental"
   | "tempo_traveller"
   | "airport_pickup"

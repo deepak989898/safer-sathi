@@ -224,6 +224,7 @@ export function serviceTypeLabel(serviceType: ServiceType): string {
     vehicle: "Vehicle Rental",
     hotel: "Hotel Stay",
     bus: "Bus Booking",
+    flight: "Flight Booking",
     car_rental: "Car Rental",
     tempo_traveller: "Tempo Traveller",
     airport_pickup: "Airport Pickup",
