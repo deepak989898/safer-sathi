@@ -8,7 +8,7 @@ import {
   HotelAdminAdvancedPanel,
   HotelDestinationAutocomplete,
 } from "@/components/hotels-tripjack/hotel-destination-autocomplete";
-import type { DestinationSuggestion } from "@/lib/tripjack-hotels/catalog-types";
+import type { DestinationSuggestion, TripJackHotelNationality } from "@/lib/tripjack-hotels/catalog-types";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import type { HotelListingSearchParams, HotelRoomRequest } from "@/lib/tripjack-hotels/types";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ interface HotelSearchScreenProps {
   isSuperAdmin: boolean;
   loading: boolean;
   error: string | null;
+  nationalities: TripJackHotelNationality[];
   onChange: (patch: Partial<HotelListingSearchParams>) => void;
   onDestinationQueryChange: (value: string) => void;
   onDestinationFocus: () => void;
@@ -51,6 +52,7 @@ export function HotelSearchScreen({
   isSuperAdmin,
   loading,
   error,
+  nationalities,
   onChange,
   onDestinationQueryChange,
   onDestinationFocus,
@@ -125,12 +127,28 @@ export function HotelSearchScreen({
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Nationality
               </Label>
-              <Input
-                className="mt-2 h-12 rounded-xl bg-slate-50"
-                value={params.nationality}
-                onChange={(e) => onChange({ nationality: e.target.value })}
-              />
-              <p className="mt-1 text-xs text-slate-500">Default 106 = India</p>
+              {nationalities.length > 0 ? (
+                <select
+                  className="mt-2 flex h-12 w-full rounded-xl border border-input bg-slate-50 px-3 text-sm"
+                  value={params.nationality}
+                  onChange={(e) => onChange({ nationality: e.target.value })}
+                >
+                  {nationalities.map((nat) => (
+                    <option key={nat.id} value={nat.code}>
+                      {nat.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  className="mt-2 h-12 rounded-xl bg-slate-50"
+                  value={params.nationality}
+                  onChange={(e) => onChange({ nationality: e.target.value })}
+                />
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                {nationalities.length > 0 ? "Synced from TripJack" : "Default 106 = India"}
+              </p>
             </div>
             <div>
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">

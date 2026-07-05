@@ -84,6 +84,18 @@ export const ADMIN_NAV_GROUPS: NavMenuGroup[] = [
         roles: ["super_admin", "manager", "sales_agent", "support_agent"],
       },
       {
+        href: "/admin/hotel-bookings",
+        label: "Hotel Bookings",
+        icon: Building2,
+        roles: ["super_admin", "manager", "sales_agent", "support_agent"],
+      },
+      {
+        href: "/admin/tripjack-hotels",
+        label: "TripJack Hotels Ops",
+        icon: Building2,
+        roles: ["super_admin", "manager"],
+      },
+      {
         href: "/admin/bookings",
         label: "Bookings",
         icon: CalendarCheck,

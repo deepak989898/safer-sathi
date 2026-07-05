@@ -29,6 +29,7 @@ import { customerApiFetch } from "@/lib/admin/api-client";
 import { formatVehicleRoute } from "@/lib/bookings/admin-display";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
+import type { HotelBookingRecord } from "@/lib/hotels/types";
 import type { Booking, BookingStatus, PaymentStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -75,20 +76,24 @@ export default function MyBookingsClient() {
   const { user } = useAuth();
   const locale = "en" as const;
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [hotelBookings, setHotelBookings] = useState<HotelBookingRecord[]>([]);
   const [rewardPoints, setRewardPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingHotelId, setDownloadingHotelId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [bookingsRes, rewardsRes] = await Promise.all([
+      const [bookingsRes, rewardsRes, hotelRes] = await Promise.all([
         customerApiFetch("/api/bookings"),
         customerApiFetch("/api/customer/rewards"),
+        customerApiFetch("/api/hotels/bookings"),
       ]);
       const bookingsJson = await bookingsRes.json();
       const rewardsJson = await rewardsRes.json();
+      const hotelJson = await hotelRes.json();
 
       if (bookingsJson.success) {
         const items = (bookingsJson.data ?? []) as Booking[];
@@ -96,6 +101,10 @@ export default function MyBookingsClient() {
       }
       if (rewardsJson.success) {
         setRewardPoints(Number(rewardsJson.data?.rewardPoints ?? 0));
+      }
+      if (hotelJson.success) {
+        const items = (hotelJson.data?.bookings ?? []) as HotelBookingRecord[];
+        setHotelBookings(items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       }
     } finally {
       setLoading(false);
@@ -139,6 +148,26 @@ export default function MyBookingsClient() {
       toast.error(error instanceof Error ? error.message : "Invoice download failed");
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const downloadHotelInvoice = async (booking: HotelBookingRecord) => {
+    setDownloadingHotelId(booking.bookingId);
+    try {
+      const res = await customerApiFetch(`/api/hotels/bookings/${booking.bookingId}/invoice`);
+      if (!res.ok) throw new Error("Could not download invoice");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SafarSathi-Hotel-Invoice-${booking.confirmationNumber ?? booking.bookingId.slice(-8)}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Invoice downloaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invoice download failed");
+    } finally {
+      setDownloadingHotelId(null);
     }
   };
 
@@ -335,6 +364,78 @@ export default function MyBookingsClient() {
                 </div>
               </CardContent>
             </Card>
+
+            {hotelBookings.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-[#0c2444]">TripJack Hotel Bookings</h2>
+                  <Link href="/account/hotel-bookings" className="text-sm text-primary hover:underline">
+                    View all
+                  </Link>
+                </div>
+                {hotelBookings.slice(0, 5).map((hb) => (
+                  <Card key={hb.bookingId} className="overflow-hidden border-l-4 border-l-[#1a4fa3] shadow-sm">
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-start gap-2">
+                            <p className="text-base font-semibold text-[#0c2444]">{hb.hotelName}</p>
+                            <Badge variant="secondary" className="capitalize">
+                              {hb.status.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {hb.checkIn} → {hb.checkOut} · {hb.roomName}
+                          </p>
+                          <p className="font-mono text-xs text-muted-foreground">{hb.bookingId}</p>
+                        </div>
+                        <div className="flex flex-row items-end justify-between gap-3 lg:flex-col lg:items-end">
+                          <p className="text-lg font-bold text-primary">
+                            {formatCurrency(hb.totalFare, locale)}
+                          </p>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Link href={`/hotels/booking/${hb.bookingId}`}>
+                              <Button variant="outline" size="sm" className="h-8">
+                                View
+                              </Button>
+                            </Link>
+                            <Link href={`/hotels/voucher/${hb.bookingId}`}>
+                              <Button variant="outline" size="sm" className="h-8">
+                                Print
+                              </Button>
+                            </Link>
+                            {hb.paymentStatus === "paid" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                disabled={downloadingHotelId === hb.bookingId}
+                                onClick={() => void downloadHotelInvoice(hb)}
+                              >
+                                {downloadingHotelId === hb.bookingId ? (
+                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                                )}
+                                Invoice
+                              </Button>
+                            )}
+                            {hb.voucherUrl && (
+                              <a href={hb.voucherUrl} target="_blank" rel="noopener noreferrer">
+                                <Button variant="outline" size="sm" className="h-8">
+                                  Voucher
+                                </Button>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             {loading ? (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">

@@ -1,4 +1,5 @@
 import { getTripJackHotelProxyConfig } from "@/lib/tripjack-hotels/config";
+import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
 import {
   normalizeTripJackHotelDetail,
   normalizeTripJackHotelListing,
@@ -81,14 +82,13 @@ export async function listTripJackHotels(
     throw new TripJackHotelApiError("At least one hotel ID (hid) is required for listing", 400);
   }
 
-  const response = await fetch(listingUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  const { response, rawText } = await tripJackHotelProxyFetch({
+    endpoint: "hotels/listing",
+    url: listingUrl,
+    requestBody: body,
+    correlationId: body.correlationId,
   });
 
-  const rawText = await response.text();
   let raw: unknown;
   try {
     raw = JSON.parse(rawText);
@@ -165,14 +165,13 @@ async function callHotelPricingProxy(
   pricingUrl: string
 ): Promise<{ raw: unknown; elapsedMs: number; retryAfter?: string | null }> {
   const started = Date.now();
-  const response = await fetch(pricingUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  const { response, rawText } = await tripJackHotelProxyFetch({
+    endpoint: "hotels/pricing",
+    url: pricingUrl,
+    requestBody: body,
+    correlationId: body.correlationId,
   });
 
-  const rawText = await response.text();
   const elapsedMs = Date.now() - started;
   let raw: unknown;
   try {
@@ -374,14 +373,13 @@ export async function fetchTripJackHotelDetail(input: {
     hotelId: body.hotelId,
   });
 
-  const response = await fetch(detailUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  const { response, rawText } = await tripJackHotelProxyFetch({
+    endpoint: "hotels/detail",
+    url: detailUrl,
+    requestBody: body,
+    correlationId: body.correlationId,
   });
 
-  const rawText = await response.text();
   const elapsedMs = Date.now() - started;
   console.log("[tripjack-hotels] detail response time ms:", elapsedMs, "status:", response.status);
 
@@ -470,14 +468,13 @@ async function callHotelReviewProxy(
   reviewUrl: string
 ): Promise<{ raw: unknown; elapsedMs: number }> {
   const started = Date.now();
-  const response = await fetch(reviewUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  const { response, rawText } = await tripJackHotelProxyFetch({
+    endpoint: "hotels/review",
+    url: reviewUrl,
+    requestBody: body,
+    correlationId: body.correlationId,
   });
 
-  const rawText = await response.text();
   const elapsedMs = Date.now() - started;
   let raw: unknown;
   try {
@@ -587,4 +584,160 @@ export async function fetchTripJackHotelReview(input: {
   }
 
   return { review, elapsedMs, requestBody: body, rawResponse: raw! };
+}
+
+export async function bookTripJackHotel(
+  body: import("@/lib/tripjack-hotels/build-book").TripJackHotelBookRequest
+): Promise<{ rawResponse: unknown; upstreamUrl: string }> {
+  const { bookUrl } = getTripJackHotelProxyConfig();
+  const retryDelays = [1000, 2000, 4000];
+
+  console.log("[tripjack-hotels] book request:", { url: bookUrl, bookingId: body.bookingId });
+
+  let lastError: TripJackHotelApiError | null = null;
+  let raw: unknown;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const { response, rawText } = await tripJackHotelProxyFetch({
+        endpoint: "hotels/book",
+        url: bookUrl,
+        requestBody: body,
+        bookingId: body.bookingId,
+      });
+
+      try {
+        raw = JSON.parse(rawText);
+      } catch {
+        throw new TripJackHotelApiError(
+          "Invalid JSON from TripJack hotel book proxy",
+          response.status,
+          rawText,
+          bookUrl
+        );
+      }
+
+      const record = raw as Record<string, unknown>;
+      if (!response.ok || record.success === false) {
+        const mapped = mapHotelReviewError({
+          raw,
+          httpStatus: response.status,
+          fallbackMessage: String(record.error ?? record.message ?? `Hotel book error ${response.status}`),
+        });
+        throw new TripJackHotelApiError(
+          mapped.message,
+          response.status,
+          raw,
+          String(record.upstreamUrl ?? bookUrl),
+          mapped.code
+        );
+      }
+
+      console.log("[tripjack-hotels] book response status:", response.status);
+      return { rawResponse: raw, upstreamUrl: String(record.upstreamUrl ?? bookUrl) };
+    } catch (error) {
+      if (!(error instanceof TripJackHotelApiError)) throw error;
+      lastError = error;
+      const code = error.errorCode ?? extractReviewErrorCode(error.raw, error.statusCode);
+      if (code !== "SUPPLIER_UNAVAILABLE" || attempt >= retryDelays.length) throw error;
+      await sleep(retryDelays[attempt]);
+    }
+  }
+
+  if (lastError) throw lastError;
+  throw new TripJackHotelApiError("Hotel book failed", 502, raw, bookUrl);
+}
+
+async function callHotelPostBookingProxy(
+  url: string,
+  body: Record<string, unknown>,
+  label: string
+): Promise<{ rawResponse: unknown; upstreamUrl: string; httpStatus?: number }> {
+  const retryDelays = [1000, 2000, 4000];
+  let lastError: TripJackHotelApiError | null = null;
+  let raw: unknown;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const { response, rawText } = await tripJackHotelProxyFetch({
+        endpoint: `hotels/${label}`,
+        url,
+        requestBody: body,
+        bookingId: typeof body.bookingId === "string" ? body.bookingId : undefined,
+      });
+
+      try {
+        raw = JSON.parse(rawText);
+      } catch {
+        throw new TripJackHotelApiError(
+          `Invalid JSON from TripJack hotel ${label} proxy`,
+          response.status,
+          rawText,
+          url
+        );
+      }
+
+      const record = raw as Record<string, unknown>;
+      if (!response.ok || record.success === false) {
+        const mapped = mapHotelReviewError({
+          raw,
+          httpStatus: response.status,
+          fallbackMessage: String(
+            record.error ?? record.message ?? `Hotel ${label} proxy error ${response.status}`
+          ),
+        });
+        throw new TripJackHotelApiError(
+          mapped.message,
+          response.status,
+          raw,
+          String(record.upstreamUrl ?? url),
+          mapped.code
+        );
+      }
+
+      return {
+        rawResponse: raw,
+        upstreamUrl: String(record.upstreamUrl ?? url),
+        httpStatus: response.status,
+      };
+    } catch (error) {
+      if (!(error instanceof TripJackHotelApiError)) throw error;
+      lastError = error;
+      const code = error.errorCode ?? extractReviewErrorCode(error.raw, error.statusCode);
+      if (code !== "SUPPLIER_UNAVAILABLE" || attempt >= retryDelays.length) throw error;
+      await sleep(retryDelays[attempt]);
+    }
+  }
+
+  if (lastError) throw lastError;
+  throw new TripJackHotelApiError(`Hotel ${label} failed`, 502, raw, url);
+}
+
+export async function fetchTripJackHotelBookingDetails(tripjackBookingId: string) {
+  const { bookingDetailsUrl } = getTripJackHotelProxyConfig();
+  console.log("[tripjack-hotels] booking-details request:", {
+    url: bookingDetailsUrl,
+    bookingId: tripjackBookingId,
+  });
+  return callHotelPostBookingProxy(
+    bookingDetailsUrl,
+    { bookingId: tripjackBookingId },
+    "booking-details"
+  );
+}
+
+export async function cancelTripJackHotelBooking(input: {
+  bookingId: string;
+  remarks?: string;
+}) {
+  const { cancelBookingUrl } = getTripJackHotelProxyConfig();
+  console.log("[tripjack-hotels] cancel-booking request:", {
+    url: cancelBookingUrl,
+    bookingId: input.bookingId,
+  });
+  return callHotelPostBookingProxy(
+    cancelBookingUrl,
+    { bookingId: input.bookingId, remarks: input.remarks ?? "Customer requested cancellation" },
+    "cancel-booking"
+  );
 }

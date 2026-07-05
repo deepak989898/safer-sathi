@@ -1,4 +1,5 @@
 import { getTripJackHotelProxyConfig } from "@/lib/tripjack-hotels/config";
+import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
 
 export class TripJackHotelStaticApiError extends Error {
   constructor(
@@ -19,36 +20,40 @@ async function postStatic<T = unknown>(
   const config = getTripJackHotelProxyConfig();
   const url = config[pathKey] as string;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  const { response: httpResponse, raw } = await tripJackHotelProxyFetch({
+    endpoint: `static/${pathKey}`,
+    url,
+    requestBody: body,
+  }).then(({ response, rawText }) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      throw new TripJackHotelStaticApiError(
+        "Invalid JSON from TripJack hotel static API",
+        response.status || 502,
+        { raw: rawText.slice(0, 500) },
+        url
+      );
+    }
+    return { response, raw: parsed };
   });
-
-  const text = await response.text();
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw new TripJackHotelStaticApiError(
-      "Invalid JSON from TripJack hotel static API",
-      response.status || 502,
-      { raw: text.slice(0, 500) },
-      url
-    );
-  }
 
   const envelope = raw as Record<string, unknown>;
   const upstreamUrl = asString(envelope.upstreamUrl) || url;
-  const upstreamStatus = Number(envelope.upstreamStatus ?? response.status);
+  const upstreamStatus = Number(envelope.upstreamStatus ?? httpResponse.status);
 
-  if (!response.ok || envelope.success === false) {
+  if (!httpResponse.ok || envelope.success === false) {
     const errMsg =
       asString(envelope.error) ||
       asString((envelope.data as Record<string, unknown> | undefined)?.message) ||
       "TripJack hotel static API failed";
-    throw new TripJackHotelStaticApiError(errMsg, upstreamStatus || response.status, raw, upstreamUrl);
+    throw new TripJackHotelStaticApiError(
+      errMsg,
+      upstreamStatus || httpResponse.status,
+      raw,
+      upstreamUrl
+    );
   }
 
   const data = (envelope.data ?? envelope) as T;

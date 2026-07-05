@@ -2,5 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/tripjack-hotels?task=booking_status",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/tripjack-hotels?task=catalog_incremental",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

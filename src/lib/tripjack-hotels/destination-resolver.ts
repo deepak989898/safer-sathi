@@ -69,11 +69,13 @@ export async function suggestHotelDestinations(
   }
 
   for (const hotel of hotelCandidates.slice(0, 8)) {
+    const ratingPart = hotel.rating ? ` · ${hotel.rating}★` : "";
+    const typePart = hotel.propertyType ? ` · ${hotel.propertyType}` : "";
     suggestions.push({
       id: hotel.id,
       type: "hotel",
       label: hotel.name,
-      subtitle: [hotel.cityName, hotel.countryName].filter(Boolean).join(", ") || "Hotel",
+      subtitle: `${[hotel.cityName, hotel.countryName].filter(Boolean).join(", ") || "Hotel"} — Hotel${ratingPart}${typePart}`,
       hotelCount: 1,
       hids: [hotel.tjHotelId],
     });

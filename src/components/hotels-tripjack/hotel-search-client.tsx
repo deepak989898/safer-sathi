@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
-import type { DestinationSuggestion } from "@/lib/tripjack-hotels/catalog-types";
+import type { DestinationSuggestion, TripJackHotelNationality } from "@/lib/tripjack-hotels/catalog-types";
 import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/client";
 import { saveHotelListingSession } from "@/lib/tripjack-hotels/session";
 import type { HotelListingSearchParams, HotelRoomRequest } from "@/lib/tripjack-hotels/types";
@@ -54,6 +54,7 @@ export function HotelSearchClient() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nationalities, setNationalities] = useState<TripJackHotelNationality[]>([]);
   const [params, setParams] = useState<HotelListingSearchParams>({
     checkIn: dates.checkIn,
     checkOut: dates.checkOut,
@@ -130,6 +131,17 @@ export function HotelSearchClient() {
     }, q.length >= 2 ? 250 : 0);
     return () => window.clearTimeout(timer);
   }, [destinationQuery, showDestinationDropdown]);
+
+  useEffect(() => {
+    void fetch("/api/hotels/nationalities", { cache: "force-cache" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data.nationalities)) {
+          setNationalities(json.data.nationalities);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const onDestinationSelect = useCallback((suggestion: DestinationSuggestion) => {
     setDestinationQuery(suggestion.label);
@@ -286,6 +298,7 @@ export function HotelSearchClient() {
       isSuperAdmin={isSuperAdmin}
       loading={loading}
       error={error}
+      nationalities={nationalities}
       onChange={onChange}
       onDestinationQueryChange={(value) => {
         setDestinationQuery(value);

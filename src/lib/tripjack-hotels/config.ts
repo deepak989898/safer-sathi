@@ -15,6 +15,12 @@ export function getTripJackHotelProxyConfig() {
     pricingUrl: `${baseUrl}/api/tripjack/hotels/pricing`,
     reviewPath: "/api/tripjack/hotels/review",
     reviewUrl: `${baseUrl}/api/tripjack/hotels/review`,
+    bookPath: "/api/tripjack/hotels/book",
+    bookUrl: `${baseUrl}/api/tripjack/hotels/book`,
+    bookingDetailsPath: "/api/tripjack/hotels/booking-details",
+    bookingDetailsUrl: `${baseUrl}/api/tripjack/hotels/booking-details`,
+    cancelBookingPath: "/api/tripjack/hotels/cancel-booking",
+    cancelBookingUrl: `${baseUrl}/api/tripjack/hotels/cancel-booking`,
     fetchStaticHotelsPath: "/api/tripjack/hotels/fetch-static-hotels",
     fetchStaticHotelsUrl: `${baseUrl}/api/tripjack/hotels/fetch-static-hotels`,
     fetchStaticHotelsDeletedPath: "/api/tripjack/hotels/fetch-static-hotels/deleted",
@@ -31,9 +37,87 @@ export function getTripJackHotelProxyConfig() {
 export const DEFAULT_HOTEL_NATIONALITY = "106";
 export const DEFAULT_HOTEL_CURRENCY = "INR";
 
-/** Provider flag — Super Admin can toggle via env later. */
+/** Provider flag — customer-facing hotel search/booking. */
 export function isTripJackHotelProviderEnabled(): boolean {
   return process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false";
+}
+
+export type TripJackHotelEnvironment = "staging" | "production";
+
+/** HMS environment label (VPS upstream base is configured on server). */
+export function getTripJackHotelEnvironment(): TripJackHotelEnvironment {
+  return process.env.TRIPJACK_HOTEL_ENV === "production" ? "production" : "staging";
+}
+
+export function getTripJackHotelBaseUrlLabel(): string {
+  return (
+    process.env.TRIPJACK_HOTEL_BASE_URL ??
+    (getTripJackHotelEnvironment() === "production"
+      ? "https://hms.tripjack.com"
+      : "https://apitest-hms.tripjack.com")
+  );
+}
+
+export function isTripJackHotelVpsConfigured(): boolean {
+  return Boolean((process.env.TRIPJACK_PROXY_BASE_URL ?? "").trim());
+}
+
+/** Production customer domain — blocks preview deploys unless explicitly allowed. */
+export function isTripJackHotelProductionDomain(): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  const site = (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.VERCEL_URL ??
+    ""
+  ).toLowerCase();
+  if (!site) return true;
+  if (site.includes("localhost") || site.includes("127.0.0.1")) return false;
+  if (
+    site.includes(".vercel.app") &&
+    process.env.TRIPJACK_HOTEL_ALLOW_VERCEL_PREVIEW !== "true"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Live customer bookings allowed only when production env + live Razorpay + admin toggle. */
+export function isTripJackHotelLiveBookingAllowed(liveBookingEnabled = false): boolean {
+  if (!isTripJackHotelProviderEnabled()) return false;
+
+  if (getTripJackHotelEnvironment() === "staging") {
+    return process.env.TRIPJACK_HOTEL_ALLOW_STAGING_BOOKING === "true";
+  }
+
+  const liveToggle =
+    liveBookingEnabled || process.env.TRIPJACK_HOTEL_LIVE_BOOKING === "true";
+
+  return (
+    liveToggle &&
+    isRazorpayLiveConfigured() &&
+    isTripJackHotelProductionDomain() &&
+    isTripJackHotelVpsConfigured()
+  );
+}
+
+export function isRazorpayLiveConfigured(): boolean {
+  const key = process.env.RAZORPAY_KEY_ID ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
+  return key.startsWith("rzp_live_");
+}
+
+export function getTripJackHotelEnvironmentSummary(liveBookingEnabled = false) {
+  return {
+    environment: getTripJackHotelEnvironment(),
+    baseUrl: getTripJackHotelBaseUrlLabel(),
+    proxyBaseUrl: getTripJackHotelProxyConfig().baseUrl,
+    providerEnabled: isTripJackHotelProviderEnabled(),
+    razorpayLive: isRazorpayLiveConfigured(),
+    productionDomain: isTripJackHotelProductionDomain(),
+    vpsConfigured: isTripJackHotelVpsConfigured(),
+    liveBookingAllowed: isTripJackHotelLiveBookingAllowed(liveBookingEnabled),
+    liveBookingEnabled,
+  };
 }
 
 /** Temporary session TTL (ms) — auto-expire after 45 minutes. */
