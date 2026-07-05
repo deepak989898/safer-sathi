@@ -11,7 +11,7 @@ import {
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
-import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY } from "@/lib/tripjack-hotels/config";
+import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY, getTripJackHotelProxyBaseUrl } from "@/lib/tripjack-hotels/config";
 import { resolveDestinationToHids } from "@/lib/tripjack-hotels/destination-resolver";
 
 export const maxDuration = 60;
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
           ? `${result.totalResults} hotel(s) found${destinationLabel ? ` in ${destinationLabel}` : ""}`
           : `No hotels found${destinationLabel ? ` for ${destinationLabel}` : ""}. Try different dates.`,
       requestBody,
-      proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/listing`,
+      proxyEndpoint: `${getTripJackHotelProxyBaseUrl()}/api/tripjack/hotels/listing`,
       ...(includeDebug
         ? {
             debug: {

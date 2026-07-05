@@ -10,6 +10,7 @@ import {
   Loader2,
   RefreshCw,
   Shield,
+  Wifi,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import { adminApiFetch } from "@/lib/admin/api-client";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
+import type { ProxyRouteTestResult } from "@/lib/tripjack-hotels/proxy-types";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -40,6 +42,9 @@ export default function TripJackHotelsAdminClient() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [liveEnabled, setLiveEnabled] = useState(false);
+  const [proxyTesting, setProxyTesting] = useState(false);
+  const [proxyTests, setProxyTests] = useState<ProxyRouteTestResult[] | null>(null);
+  const [proxyBaseUrl, setProxyBaseUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,13 +81,45 @@ export default function TripJackHotelsAdminClient() {
         method: "POST",
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) {
+        const details = json.details as
+          | { upstreamUrl?: string; upstreamStatus?: number; rawPreview?: string }
+          | undefined;
+        const parts = [json.error ?? "Sync failed"];
+        if (details?.upstreamUrl) {
+          parts.push(`upstream ${details.upstreamStatus ?? "?"} @ ${details.upstreamUrl}`);
+        }
+        if (details?.rawPreview) {
+          parts.push(details.rawPreview.slice(0, 200));
+        }
+        throw new Error(parts.join(" — "));
+      }
       toast.success(json.data.message ?? "Sync completed");
       void load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Sync failed");
     } finally {
       setSyncing(null);
+    }
+  };
+
+  const runProxyTests = async () => {
+    setProxyTesting(true);
+    try {
+      const res = await adminApiFetch("/api/admin/tripjack-hotels/proxy-test", { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Proxy test failed");
+      setProxyTests(json.data.results ?? []);
+      setProxyBaseUrl(json.data.proxyBaseUrl ?? null);
+      if (json.data.allOk) {
+        toast.success("All VPS proxy route tests passed");
+      } else {
+        toast.error("Some VPS proxy routes failed — see results below");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Proxy test failed");
+    } finally {
+      setProxyTesting(false);
     }
   };
 
@@ -187,6 +224,54 @@ export default function TripJackHotelsAdminClient() {
                 </Button>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Wifi className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold">Test VPS proxy routes</h2>
+              </div>
+              <Button size="sm" variant="outline" disabled={proxyTesting} onClick={() => void runProxyTests()}>
+                {proxyTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Run proxy tests
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Tests health, nationalities (GET), and fetch-static-hotels (POST) via server → VPS proxy.
+              {proxyBaseUrl ? ` Proxy: ${proxyBaseUrl}` : null}
+            </p>
+            {proxyTests && (
+              <div className="space-y-2">
+                {proxyTests.map((row) => (
+                  <div
+                    key={row.name}
+                    className="rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{row.name}</span>
+                      <Badge variant={row.ok ? "secondary" : "destructive"}>
+                        {row.ok ? "OK" : "FAIL"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {row.method} HTTP {row.httpStatus}
+                        {row.upstreamStatus != null ? ` · upstream ${row.upstreamStatus}` : ""}
+                      </span>
+                    </div>
+                    <p className="mt-1 break-all text-xs text-muted-foreground">{row.proxyUrl}</p>
+                    {row.upstreamUrl && row.upstreamUrl !== row.proxyUrl ? (
+                      <p className="break-all text-xs text-muted-foreground">→ {row.upstreamUrl}</p>
+                    ) : null}
+                    {row.error ? <p className="mt-1 text-xs text-red-600">{row.error}</p> : null}
+                    <pre className="mt-2 max-h-24 overflow-auto rounded bg-muted/50 p-2 text-xs">
+                      {row.preview || "(empty response)"}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

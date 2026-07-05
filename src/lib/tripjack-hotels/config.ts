@@ -1,9 +1,18 @@
 /** TripJack Hotel API calls go through VPS proxy only — API key stays on VPS. */
 
-export function getTripJackHotelProxyConfig() {
-  const baseUrl = (
-    process.env.TRIPJACK_PROXY_BASE_URL ?? "http://178.128.151.233:4000"
+const DEFAULT_TRIPJACK_PROXY_BASE = "http://178.128.151.233:4000";
+
+/** Server + client-safe proxy base (no API key). */
+export function getTripJackHotelProxyBaseUrl(): string {
+  return (
+    process.env.TRIPJACK_PROXY_BASE_URL ??
+    process.env.NEXT_PUBLIC_TRIPJACK_PROXY_BASE_URL ??
+    DEFAULT_TRIPJACK_PROXY_BASE
   ).replace(/\/$/, "");
+}
+
+export function getTripJackHotelProxyConfig() {
+  const baseUrl = getTripJackHotelProxyBaseUrl();
 
   return {
     baseUrl,
@@ -59,7 +68,9 @@ export function getTripJackHotelBaseUrlLabel(): string {
 }
 
 export function isTripJackHotelVpsConfigured(): boolean {
-  return Boolean((process.env.TRIPJACK_PROXY_BASE_URL ?? "").trim());
+  return Boolean(
+    (process.env.TRIPJACK_PROXY_BASE_URL ?? process.env.NEXT_PUBLIC_TRIPJACK_PROXY_BASE_URL ?? "").trim()
+  );
 }
 
 /** Production customer domain — blocks preview deploys unless explicitly allowed. */

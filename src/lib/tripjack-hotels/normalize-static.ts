@@ -138,6 +138,7 @@ export function extractStaticHotelsPayload(raw: unknown): {
     asString(data.next) ||
     asString(data.nextToken) ||
     asString(root.syncNext) ||
+    asString(root.next) ||
     null;
 
   return { hotels, syncNext: syncNext || null };

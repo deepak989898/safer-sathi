@@ -52,6 +52,72 @@ const TRIPJACK_HOTEL_NATIONALITIES_URL =
   process.env.TRIPJACK_HOTEL_NATIONALITIES_URL ||
   `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/nationality-info`;
 
+async function forwardTripJackHotelGet(res, upstreamUrl, label) {
+  if (!process.env.TRIPJACK_API_KEY) {
+    return res.status(500).json({ success: false, error: "TRIPJACK_API_KEY is not set on VPS" });
+  }
+
+  const started = Date.now();
+  try {
+    const upstream = await fetch(upstreamUrl, {
+      method: "GET",
+      headers: { Accept: "application/json", apikey: process.env.TRIPJACK_API_KEY },
+    });
+
+    const text = await upstream.text();
+    const elapsedMs = Date.now() - started;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error(`[tripjack-proxy] Hotel ${label} GET non-JSON:`, text.slice(0, 300));
+      return res.status(upstream.status || 502).json({
+        success: false,
+        error: `Invalid JSON from TripJack Hotel ${label} API`,
+        upstreamUrl,
+        upstreamStatus: upstream.status,
+        elapsedMs,
+        upstreamData: { raw: text.slice(0, 500) },
+      });
+    }
+
+    console.log(`[tripjack-proxy] Hotel ${label} GET upstream:`, upstream.status, "ms:", elapsedMs);
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({
+        success: false,
+        error:
+          data?.message ||
+          data?.errors?.[0]?.message ||
+          `TripJack hotel ${label} failed`,
+        upstreamUrl,
+        upstreamStatus: upstream.status,
+        elapsedMs,
+        upstreamData: data,
+        data,
+        status: { success: false, httpStatus: upstream.status },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data,
+      upstreamUrl,
+      upstreamStatus: upstream.status,
+      elapsedMs,
+      status: { success: true, httpStatus: upstream.status },
+    });
+  } catch (err) {
+    console.error(`[tripjack-proxy] Hotel ${label} GET error:`, err);
+    return res.status(502).json({
+      success: false,
+      error: err instanceof Error ? err.message : `Hotel ${label} proxy failed`,
+      upstreamUrl,
+      elapsedMs: Date.now() - started,
+    });
+  }
+}
+
 async function forwardTripJackHotel(res, upstreamUrl, requestBody, label) {
   if (!process.env.TRIPJACK_API_KEY) {
     return res.status(500).json({ success: false, error: "TRIPJACK_API_KEY is not set on VPS" });
@@ -191,5 +257,14 @@ app.post("/api/tripjack/hotels/nationalities", (req, res) =>
 );
 
 app.get("/api/tripjack/hotels/nationalities", (req, res) =>
-  forwardTripJackHotel(res, TRIPJACK_HOTEL_NATIONALITIES_URL, {}, "nationalities")
+  forwardTripJackHotelGet(res, TRIPJACK_HOTEL_NATIONALITIES_URL, "nationalities")
 );
+
+// Optional health check for admin proxy tests
+app.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "Safar Sathi TripJack Proxy",
+    env: process.env.TRIPJACK_HOTEL_HMS_BASE?.includes("apitest") ? "staging" : "production",
+  });
+});

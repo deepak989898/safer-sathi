@@ -7,6 +7,7 @@ import {
   upsertTripJackHotelNationalities,
 } from "@/lib/tripjack-hotels/ops-firestore";
 import { fetchTripJackHotelNationalities, TripJackHotelStaticApiError } from "@/lib/tripjack-hotels/static-client";
+import { extractTripJackUpstreamData } from "@/lib/tripjack-hotels/proxy-envelope";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -33,7 +34,8 @@ export async function syncTripJackHotelNationalities(input: {
   });
 
   try {
-    const { data } = await fetchTripJackHotelNationalities();
+    const { data: rawData } = await fetchTripJackHotelNationalities();
+    const data = extractTripJackUpstreamData(rawData);
     const root = asRecord(data) ?? {};
     const list =
       (Array.isArray(root.nationalities) ? root.nationalities : null) ??

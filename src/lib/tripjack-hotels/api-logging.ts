@@ -23,10 +23,20 @@ export async function tripJackHotelProxyFetch(
   let rawText = "";
 
   try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (method !== "GET" || input.requestBody != null) {
+      headers["Content-Type"] = "application/json";
+    }
+
     response = await fetch(input.url, {
       method,
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: input.requestBody != null ? JSON.stringify(input.requestBody) : undefined,
+      headers,
+      body:
+        method === "GET"
+          ? undefined
+          : input.requestBody != null
+            ? JSON.stringify(input.requestBody)
+            : "{}",
       cache: "no-store",
     });
     rawText = await response.text();

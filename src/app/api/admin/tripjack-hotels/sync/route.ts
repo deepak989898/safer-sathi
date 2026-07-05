@@ -56,6 +56,9 @@ export async function POST(request: Request) {
     if (error instanceof TripJackHotelStaticApiError) {
       return apiError(error.message, error.statusCode ?? 502, {
         upstreamUrl: error.upstreamUrl,
+        upstreamStatus: error.upstreamStatus,
+        rawPreview: error.rawPreview,
+        raw: error.raw,
       });
     }
     const message = error instanceof Error ? error.message : "Sync failed";

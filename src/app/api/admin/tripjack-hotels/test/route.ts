@@ -2,7 +2,7 @@ import { requireSuperAdminAuth } from "@/lib/admin/api-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { fetchTripJackHotelBookingDetails } from "@/lib/tripjack-hotels/client";
 import { listTripJackHotels } from "@/lib/tripjack-hotels/client";
-import { fetchTripJackHotelNationalities } from "@/lib/tripjack-hotels/static-client";
+import { fetchTripJackHotelNationalities, fetchTripJackStaticHotels } from "@/lib/tripjack-hotels/static-client";
 import { logTripJackHotelApiCall, sanitizeLogPayload } from "@/lib/tripjack-hotels/ops-firestore";
 
 export async function POST(request: Request) {
@@ -24,6 +24,9 @@ export async function POST(request: Request) {
       switch (test) {
         case "nationalities":
           result = await fetchTripJackHotelNationalities();
+          break;
+        case "static-hotels":
+          result = await fetchTripJackStaticHotels();
           break;
         case "listing":
           result = await listTripJackHotels({
