@@ -88,10 +88,6 @@ export function FlightTicketView({
 
   return (
     <div className="space-y-5">
-      <div className="print:hidden">
-        <FlightStepBar current="ticket" />
-      </div>
-
       <FlightSoftCard className={cn("border print:hidden", banner.className)}>
         <div className="flex flex-wrap items-start justify-between gap-3 p-4 md:p-5">
           <div>
@@ -357,6 +353,10 @@ export function FlightTicketView({
         >
           My bookings
         </Link>
+      </div>
+
+      <div className="print:hidden">
+        <FlightStepBar current="ticket" />
       </div>
 
       {showDebug && details?.gstInfo && Object.keys(details.gstInfo).length > 0 && (

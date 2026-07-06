@@ -209,10 +209,6 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           <p className="text-center text-xs text-slate-500 print:hidden">Refreshing latest booking details…</p>
         )}
 
-        <div className="print:hidden">
-          <FlightBookingTimeline booking={booking} />
-        </div>
-
         <FlightTicketView
           booking={booking}
           locale={locale}
@@ -220,6 +216,10 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           refreshing={refreshing}
           onRefresh={() => void handleRefresh()}
         />
+
+        <div className="space-y-4 print:hidden">
+          <FlightBookingTimeline booking={booking} />
+        </div>
 
         <div className="flex flex-wrap justify-center gap-2 print:hidden">
           {canCancelBooking(booking) && (

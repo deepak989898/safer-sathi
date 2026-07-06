@@ -20,33 +20,43 @@ function customerStatusLabel(status: FlightBookingRecord["status"]): string {
 }
 
 const PRINT_STYLES = `
-  @page { size: A4 portrait; margin: 12mm; }
+  @page { size: A4 portrait; margin: 8mm; }
   * { box-sizing: border-box; }
-  body {
+  html, body {
     margin: 0;
+    padding: 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     color: #0f172a;
     background: #fff;
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 12px;
+    line-height: 1.4;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .ticket {
+    width: 100%;
     max-width: 720px;
     margin: 0 auto;
     border: 1px solid #dbeafe;
-    border-radius: 16px;
+    border-radius: 12px;
     overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
   }
   .header {
     background: linear-gradient(135deg, #1a4fa3 0%, #2563c9 100%);
     color: #fff;
-    padding: 20px 24px;
+    padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
   }
   .brand { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9; }
   .title { margin: 4px 0 0; font-size: 22px; font-weight: 700; }
@@ -61,7 +71,7 @@ const PRINT_STYLES = `
   }
   .badge.pending { background: #fef3c7; color: #92400e; }
   .badge.confirmed { background: #d1fae5; color: #065f46; }
-  .body { padding: 20px 24px 24px; }
+  .body { padding: 16px 20px 18px; }
   .notice {
     background: #fffbeb;
     border: 1px solid #fde68a;
@@ -322,16 +332,99 @@ export function openFlightTicketPrintWindow(
   locale: Locale
 ): void {
   const html = buildFlightTicketPrintHtml(booking, locale);
-  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1100");
-  if (!w) {
-    window.print();
+  printHtmlDocument(html, `Flight Ticket ${booking.bookingId}`);
+}
+
+function printHtmlDocument(html: string, title: string): void {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const popup = window.open(url, "_blank", "noopener,noreferrer,width=900,height=1100");
+  if (popup) {
+    const revoke = () => URL.revokeObjectURL(url);
+
+    const runPrint = () => {
+      try {
+        popup.document.title = title;
+        popup.focus();
+        popup.print();
+      } catch {
+        printViaHiddenIframe(html);
+        revoke();
+      }
+    };
+
+    popup.addEventListener(
+      "load",
+      () => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.setTimeout(runPrint, 150);
+          });
+        });
+      },
+      { once: true }
+    );
+
+    popup.addEventListener(
+      "afterprint",
+      () => {
+        revoke();
+        try {
+          popup.close();
+        } catch {
+          /* ignore */
+        }
+      },
+      { once: true }
+    );
     return;
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  w.onload = () => {
-    window.setTimeout(() => w.print(), 250);
+
+  URL.revokeObjectURL(url);
+  printViaHiddenIframe(html);
+}
+
+function printViaHiddenIframe(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Flight ticket print");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const win = iframe.contentWindow;
+  if (!win) {
+    iframe.remove();
+    return;
+  }
+
+  const cleanup = () => {
+    window.setTimeout(() => iframe.remove(), 500);
   };
+
+  win.addEventListener(
+    "load",
+    () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.setTimeout(() => {
+            win.focus();
+            win.print();
+            cleanup();
+          }, 150);
+        });
+      });
+    },
+    { once: true }
+  );
 }
