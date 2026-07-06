@@ -50,6 +50,7 @@ const schema = z.object({
     gstNumber: z.string().optional(),
     gstCompanyName: z.string().optional(),
   }),
+  reviewHash: z.string().min(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
       userId,
       review,
       guestDetails,
+      reviewHash: parsed.data.reviewHash,
     });
 
     if (!booking.tripjackBookingId) {

@@ -21,6 +21,7 @@ import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
 import {
   isHotelSearchSessionExpired,
+  loadHotelReviewPrep,
   loadHotelReviewResult,
 } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
@@ -48,6 +49,12 @@ export function HotelPaymentClient() {
   const [review, setReview] = useState<NormalizedHotelReviewResult | null>(null);
   const [guestDetails, setGuestDetails] = useState<HotelGuestDetailsForm | null>(null);
   const [booking, setBooking] = useState<HotelBookingRecord | null>(null);
+  const [priceChange, setPriceChange] = useState<{
+    previousPrice: number;
+    currentPrice: number;
+    currency: string;
+    booking: HotelBookingRecord;
+  } | null>(null);
 
   const isStaff = user ? canShowAdminNav(user.role) : false;
   const testMode = isHotelTestBookingEnabled();
@@ -81,9 +88,11 @@ export function HotelPaymentClient() {
     setGuestDetails(loadedGuests);
 
     void (async () => {
+      const reviewPrep = loadHotelReviewPrep();
       const prepared = await api.prepareBooking({
         review: loadedReview,
         guestDetails: loadedGuests,
+        reviewHash: reviewPrep?.reviewHash,
       });
       if (prepared) setBooking(prepared);
       setReady(true);
@@ -95,11 +104,18 @@ export function HotelPaymentClient() {
     manualReview?: boolean;
     message?: string;
     testMode?: boolean;
+    loginCredentials?: { loginEmail: string; loginPassword: string } | null;
   }) => {
     sessionStorage.setItem("tripjack_hotel_confirmed_booking", JSON.stringify(result.booking));
+    if (result.loginCredentials) {
+      sessionStorage.setItem(
+        "tripjack_hotel_login_credentials",
+        JSON.stringify(result.loginCredentials)
+      );
+    }
     if (result.manualReview) {
       toast.info(
-        result.message ?? "Payment received. Booking confirmation is in progress.",
+        result.message ?? "Payment received. Booking is pending with supplier — we will notify you shortly.",
         { duration: 3500 }
       );
     } else if (result.booking.status === "confirmed") {
@@ -111,7 +127,7 @@ export function HotelPaymentClient() {
     router.push(`/hotels/booking-success?bookingId=${result.booking.bookingId}`);
   };
 
-  const handlePay = async () => {
+  const handlePay = async (priceConfirmed = false) => {
     if (!booking || !guestDetails) return;
     const pg = guestDetails.primaryGuest;
     const result = await api.payForBooking(
@@ -121,10 +137,28 @@ export function HotelPaymentClient() {
         email: pg.email,
         phone: pg.mobile,
       },
-      { isStaff }
+      { isStaff, priceConfirmed }
     );
-    if (!result?.booking) return;
+    if (!result) return;
+
+    if ("priceChangeRequired" in result && result.priceChangeRequired) {
+      setPriceChange({
+        previousPrice: result.previousPrice,
+        currentPrice: result.currentPrice,
+        currency: result.currency,
+        booking: result.booking,
+      });
+      setBooking(result.booking);
+      return;
+    }
+
+    if (!("booking" in result) || !result.booking) return;
     finish(result);
+  };
+
+  const confirmPriceChange = () => {
+    setPriceChange(null);
+    void handlePay(true);
   };
 
   const handleSimulate = async () => {
@@ -157,7 +191,7 @@ export function HotelPaymentClient() {
     );
   }
 
-  const totalPrice = review.option.pricing.totalPrice;
+  const totalPrice = booking?.totalFare ?? review.option.pricing.totalPrice;
 
   return (
     <HotelBookingLayout
@@ -176,6 +210,29 @@ export function HotelPaymentClient() {
             <div className="flex items-start gap-3 rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
               {api.error}
+            </div>
+          )}
+
+          {priceChange && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Hotel price has changed</p>
+              <p className="mt-2">
+                Previous: {formatCurrency(priceChange.previousPrice, locale)} → Updated:{" "}
+                <strong>{formatCurrency(priceChange.currentPrice, locale)}</strong>
+              </p>
+              <p className="mt-2 text-xs">Please confirm the updated amount to continue payment.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <HotelPrimaryButton className="!w-auto px-4" onClick={confirmPriceChange}>
+                  Confirm &amp; pay {formatCurrency(priceChange.currentPrice, locale)}
+                </HotelPrimaryButton>
+                <HotelPrimaryButton
+                  variant="outline"
+                  className="!w-auto px-4"
+                  onClick={() => router.push("/hotels/review")}
+                >
+                  Back to review
+                </HotelPrimaryButton>
+              </div>
             </div>
           )}
 
@@ -228,7 +285,11 @@ export function HotelPaymentClient() {
           totalLabel="Amount to pay"
           footer={
             <>
-              <HotelPrimaryButton loading={api.loading} disabled={!booking} onClick={() => void handlePay()}>
+              <HotelPrimaryButton
+                loading={api.loading}
+                disabled={!booking || Boolean(priceChange)}
+                onClick={() => void handlePay()}
+              >
                 Pay with Razorpay
               </HotelPrimaryButton>
               {testMode && (

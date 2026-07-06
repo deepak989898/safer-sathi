@@ -83,6 +83,10 @@ export interface NormalizedHotelOption {
 export interface NormalizedHotel {
   tjHotelId: string | number;
   name: string;
+  starRating?: number | null;
+  imageUrl?: string;
+  location?: string;
+  hasBreakfast?: boolean;
   cheapestTotalPrice: number;
   cheapestBasePrice: number;
   cheapestTaxes: number;

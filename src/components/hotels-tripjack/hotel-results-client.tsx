@@ -15,6 +15,8 @@ import { useAppStore } from "@/store/app-store";
 
 type SortKey = "price_asc" | "price_desc" | "name";
 
+const PAGE_SIZE = 10;
+
 export function HotelResultsClient() {
   const router = useRouter();
   const { locale } = useAppStore();
@@ -28,9 +30,17 @@ export function HotelResultsClient() {
   const [nameFilter, setNameFilter] = useState("");
   const [sort, setSort] = useState<SortKey>("price_asc");
   const [refundableOnly, setRefundableOnly] = useState(false);
+  const [breakfastOnly, setBreakfastOnly] = useState(false);
+  const [minStars, setMinStars] = useState(0);
+  const [maxPrice, setMaxPrice] = useState<number | "">("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     const session = loadHotelListingSession();
+    if (!session.hotels.length || !session.correlationId) {
+      router.replace("/hotels/search");
+      return;
+    }
     setHotels(session.hotels);
     setTotalResults(session.totalResults);
     const ctx = session.searchContext;
@@ -42,7 +52,7 @@ export function HotelResultsClient() {
       setContextLabel(parts.join(" · "));
     }
     setReady(true);
-  }, []);
+  }, [router]);
 
   const filtered = useMemo(() => {
     let list = [...hotels];
@@ -51,13 +61,23 @@ export function HotelResultsClient() {
       list = list.filter((h) => h.name.toLowerCase().includes(q));
     }
     if (refundableOnly) list = list.filter((h) => h.isRefundable);
+    if (breakfastOnly) list = list.filter((h) => h.hasBreakfast);
+    if (minStars > 0) {
+      list = list.filter((h) => (h.starRating ?? 0) >= minStars);
+    }
+    if (maxPrice !== "" && maxPrice > 0) {
+      list = list.filter((h) => h.cheapestTotalPrice <= maxPrice);
+    }
     list.sort((a, b) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "price_desc") return b.cheapestTotalPrice - a.cheapestTotalPrice;
       return a.cheapestTotalPrice - b.cheapestTotalPrice;
     });
     return list;
-  }, [hotels, nameFilter, sort, refundableOnly]);
+  }, [hotels, nameFilter, sort, refundableOnly, breakfastOnly, minStars, maxPrice]);
+
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   const onViewDetails = (hotel: NormalizedHotel) => {
     router.push(`/hotels/detail/${encodeURIComponent(String(hotel.tjHotelId))}`);
@@ -116,10 +136,57 @@ export function HotelResultsClient() {
               <input
                 type="checkbox"
                 checked={refundableOnly}
-                onChange={(e) => setRefundableOnly(e.target.checked)}
+                onChange={(e) => {
+                  setRefundableOnly(e.target.checked);
+                  setVisibleCount(PAGE_SIZE);
+                }}
               />
               Refundable only
             </label>
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={breakfastOnly}
+                onChange={(e) => {
+                  setBreakfastOnly(e.target.checked);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              />
+              Free breakfast
+            </label>
+            <div className="mt-4">
+              <HotelFieldLabel>Minimum star rating</HotelFieldLabel>
+              <select
+                className="mt-1.5 h-10 w-full rounded border bg-white px-3 text-sm"
+                style={{ borderColor: HOTEL_UI.border }}
+                value={minStars}
+                onChange={(e) => {
+                  setMinStars(Number(e.target.value));
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              >
+                <option value={0}>Any</option>
+                <option value={3}>3+ stars</option>
+                <option value={4}>4+ stars</option>
+                <option value={5}>5 stars</option>
+              </select>
+            </div>
+            <div className="mt-4">
+              <HotelFieldLabel>Max price (INR)</HotelFieldLabel>
+              <input
+                type="number"
+                min={0}
+                className="mt-1.5 h-10 w-full rounded border bg-white px-3 text-sm"
+                style={{ borderColor: HOTEL_UI.border }}
+                placeholder="No limit"
+                value={maxPrice}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setMaxPrice(value === "" ? "" : Number(value));
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              />
+            </div>
           </HotelUiCard>
         </aside>
 
@@ -141,7 +208,7 @@ export function HotelResultsClient() {
             </HotelUiCard>
           )}
 
-          {filtered.map((hotel) => (
+          {visible.map((hotel) => (
             <HotelCard
               key={String(hotel.tjHotelId)}
               hotel={hotel}
@@ -149,6 +216,18 @@ export function HotelResultsClient() {
               onViewDetails={onViewDetails}
             />
           ))}
+
+          {hasMore && (
+            <div className="pt-2 text-center">
+              <HotelPrimaryButton
+                variant="outline"
+                className="!w-auto px-8"
+                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+              >
+                Load more ({filtered.length - visibleCount} remaining)
+              </HotelPrimaryButton>
+            </div>
+          )}
 
           {isStaff && hotels.length > 0 && (
             <p className="text-xs text-slate-400">Staff: {hotels.length} raw results loaded</p>

@@ -159,16 +159,6 @@ export default function HotelBookingDetailAdminClient({ bookingId }: { bookingId
                   <Button size="sm" variant="outline" onClick={() => void runAction("resend_voucher_email")}>
                     Resend voucher email
                   </Button>
-                  {booking.paymentStatus === "paid" && booking.status !== "confirmed" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={actionLoading === "retry_book"}
-                      onClick={() => void runAction("retry_book")}
-                    >
-                      Retry TripJack Book
-                    </Button>
-                  )}
                   <Button size="sm" variant="outline" onClick={() => void runAction("mark_voucher_sent")}>
                     Mark voucher sent
                   </Button>

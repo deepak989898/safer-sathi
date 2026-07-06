@@ -8,6 +8,10 @@ import {
 } from "@/lib/tripjack-hotels/parse-booking-details";
 import { estimateHotelCancellationCharge } from "@/lib/hotels/cancellation-estimate";
 import { canCancelHotelBooking } from "@/lib/hotels/booking-guards";
+import {
+  isHotelBookingTerminalFailure,
+} from "@/lib/hotels/booking-status-helpers";
+import { processHotelBookingFailure } from "@/lib/hotels/failed-booking-service";
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
 import {
   sendHotelCancellationConfirmedNotification,
@@ -68,6 +72,32 @@ export async function refreshHotelBookingDetails(
   );
 
   let status = booking.status;
+  const tripjackStatus = normalized.bookingStatus || normalized.orderStatus;
+
+  if (isHotelBookingTerminalFailure({
+    ...booking,
+    bookingDetailsNormalized: normalized,
+    tripjackStatus,
+  })) {
+    const failed = await updateHotelBooking(bookingId, {
+      bookingDetailsResponse: response,
+      bookingDetailsNormalized: normalized,
+      lastStatusCheckedAt: new Date().toISOString(),
+      tripjackStatus,
+      status: "booking_failed",
+      adminNotes: tripjackStatus || "Supplier rejected the booking",
+      actionLog: appendLog(booking, {
+        action: "refresh_booking_details",
+        by: actionBy,
+        httpStatus,
+        request,
+        response,
+      }),
+    });
+    if (!failed) throw new Error("Failed to save booking");
+    return processHotelBookingFailure(failed);
+  }
+
   if (
     (normalized.orderStatus === "SUCCESS" ||
       normalized.orderStatus === "COMPLETED" ||

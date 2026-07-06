@@ -206,6 +206,11 @@ function parseOption(optionRaw: unknown, currencyFallback: string): NormalizedHo
   };
 }
 
+function hasBreakfastMeal(code: string): boolean {
+  const key = code.trim().toUpperCase();
+  return ["BB", "CP", "HB", "MAP", "FB", "AP", "AI", "BREAKFAST"].includes(key);
+}
+
 function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHotel | null {
   const hotel = asRecord(hotelRaw);
   if (!hotel) return null;
@@ -221,16 +226,26 @@ function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHote
   options.sort((a, b) => a.pricing.totalPrice - b.pricing.totalPrice);
   const cheapest = options[0] ?? null;
 
+  const starRaw = pickNumber(hotel, ["starRating", "stars", "rating"], 0);
+  const images = stringList(hotel.images ?? hotel.photos ?? hotel.imageList);
+  const optionImage = cheapest?.roomImages[0];
+  const imageUrl = images[0] || optionImage || undefined;
+  const mealBasis = cheapest?.mealBasis ?? "—";
+
   return {
     tjHotelId: typeof tjHotelId === "number" ? tjHotelId : String(tjHotelId),
     name,
+    starRating: starRaw > 0 ? starRaw : null,
+    imageUrl,
+    location: pickString(hotel, ["location", "address", "city", "locality"], ""),
+    hasBreakfast: hasBreakfastMeal(mealBasis),
     cheapestTotalPrice: cheapest?.pricing.totalPrice ?? 0,
     cheapestBasePrice: cheapest?.pricing.basePrice ?? 0,
     cheapestTaxes: cheapest?.pricing.taxes ?? 0,
     cheapestMf: cheapest?.pricing.mf ?? 0,
     cheapestMft: cheapest?.pricing.mft ?? 0,
     currency: cheapest?.pricing.currency ?? currencyFallback,
-    mealBasis: cheapest?.mealBasis ?? "—",
+    mealBasis,
     inclusions: cheapest?.inclusions ?? [],
     isRefundable: cheapest?.isRefundable ?? false,
     panRequired: cheapest?.panRequired ?? false,

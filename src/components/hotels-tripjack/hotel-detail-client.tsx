@@ -252,9 +252,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     router.push("/hotels/review");
   };
 
-  const heroImage =
-    detail?.images[0] ||
-    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80";
+  const heroImage = detail?.images[0];
   const galleryExtra = detail?.images.slice(1, 3) ?? [];
 
   return (
@@ -306,16 +304,18 @@ export function HotelDetailClient({ hid }: { hid: string }) {
             )}
 
             <HotelCard padding="sm" className="overflow-hidden !p-0">
-              <div className="grid gap-1 md:grid-cols-[2fr_1fr]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroImage} alt={detail.name} className="h-56 w-full object-cover md:h-72" />
-                <div className="hidden grid-rows-2 gap-1 md:grid">
-                  {(galleryExtra.length ? galleryExtra : [heroImage, heroImage]).map((src, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={i} src={src} alt="" className="h-full min-h-[8rem] w-full object-cover" />
-                  ))}
+              {heroImage ? (
+                <div className="grid gap-1 md:grid-cols-[2fr_1fr]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={heroImage} alt={detail.name} className="h-56 w-full object-cover md:h-72" />
+                  <div className="hidden grid-rows-2 gap-1 md:grid">
+                    {(galleryExtra.length ? galleryExtra : [heroImage]).map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" className="h-full min-h-[8rem] w-full object-cover" />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
               <div className="space-y-3 p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>

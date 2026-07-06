@@ -88,6 +88,7 @@ export interface HotelBookingRecord {
   customerMobile: string;
 
   correlationId: string;
+  reviewHash?: string;
   tjHotelId: string | number;
   hotelName: string;
   checkIn: string;
@@ -131,6 +132,9 @@ export interface HotelBookingRecord {
   bookingDetailsResponse?: unknown;
   bookingDetailsNormalized?: import("@/lib/tripjack-hotels/parse-booking-details").NormalizedHotelBookingDetails;
   lastStatusCheckedAt?: string;
+  bookingDetailsPollAttempts?: number;
+  priceRevalidatedAt?: string;
+  failedEmailSentAt?: string;
   cancellationAllowed?: boolean;
 
   cancellationStatus?: HotelCancellationStatus;

@@ -10,30 +10,23 @@ import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
 import { customerApiFetch } from "@/lib/admin/api-client";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { canCancelHotelBooking } from "@/lib/hotels/booking-guards";
+import {
+  isHotelBookingCompleted,
+  isHotelBookingPendingStatus,
+  isHotelBookingUpcoming,
+} from "@/lib/hotels/booking-status-helpers";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import type { HotelBookingRecord, HotelBookingStatus } from "@/lib/hotels/types";
 
-const TABS: Array<{ id: string; label: string; statuses: HotelBookingStatus[] | "all"; refund?: boolean }> = [
-  { id: "all", label: "All", statuses: "all" },
-  {
-    id: "upcoming",
-    label: "Upcoming",
-    statuses: ["review_confirmed", "payment_pending", "payment_success", "booking_pending", "confirmed"],
-  },
-  { id: "completed", label: "Completed", statuses: ["confirmed"] },
-  { id: "cancelled", label: "Cancelled", statuses: ["cancelled", "cancellation_requested"] },
-  {
-    id: "refund_pending",
-    label: "Refund Pending",
-    statuses: ["refund_pending"],
-    refund: true,
-  },
-  {
-    id: "manual",
-    label: "Manual Review",
-    statuses: ["manual_review_required", "booking_failed", "payment_failed"],
-  },
+const TABS: Array<{ id: string; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
+  { id: "upcoming", label: "Upcoming" },
+  { id: "completed", label: "Completed" },
+  { id: "cancelled", label: "Cancelled" },
+  { id: "refund_pending", label: "Refund Pending" },
+  { id: "failed", label: "Failed" },
 ];
 
 import { toast } from "sonner";
@@ -59,9 +52,27 @@ function HotelBookingsContent() {
   }, []);
 
   const filtered = useMemo(() => {
-    const config = TABS.find((t) => t.id === tab);
-    if (!config || config.statuses === "all") return bookings;
-    if (config.refund) {
+    if (tab === "all") return bookings;
+    if (tab === "pending") {
+      return bookings.filter(
+        (b) =>
+          isHotelBookingPendingStatus(b) ||
+          b.status === "manual_review_required" ||
+          b.status === "payment_success"
+      );
+    }
+    if (tab === "upcoming") {
+      return bookings.filter((b) => isHotelBookingUpcoming(b));
+    }
+    if (tab === "completed") {
+      return bookings.filter((b) => isHotelBookingCompleted(b));
+    }
+    if (tab === "cancelled") {
+      return bookings.filter((b) =>
+        ["cancelled", "cancellation_requested", "refunded"].includes(b.status)
+      );
+    }
+    if (tab === "refund_pending") {
       return bookings.filter(
         (b) =>
           b.status === "refund_pending" ||
@@ -69,7 +80,12 @@ function HotelBookingsContent() {
           b.refundStatus === "PROCESSING"
       );
     }
-    return bookings.filter((b) => config.statuses.includes(b.status));
+    if (tab === "failed") {
+      return bookings.filter((b) =>
+        ["booking_failed", "payment_failed", "manual_review_required"].includes(b.status)
+      );
+    }
+    return bookings;
   }, [bookings, tab]);
 
   const downloadInvoice = async (booking: HotelBookingRecord) => {

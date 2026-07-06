@@ -7,6 +7,8 @@ import {
 } from "@/lib/hotels/firestore";
 import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
 import { sendHotelBookingProcessingNotification } from "@/lib/hotels/notifications";
+import { pollHotelBookingDetailsAfterBook } from "@/lib/hotels/booking-details-poll";
+import { processHotelBookingFailure } from "@/lib/hotels/failed-booking-service";
 import { refreshHotelBookingDetails } from "@/lib/hotels/post-booking-service";
 import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/types";
 import { buildTripJackHotelBookRequest } from "@/lib/tripjack-hotels/build-book";
@@ -19,6 +21,7 @@ export interface PrepareHotelBookingInput {
   userId: string;
   review: NormalizedHotelReviewResult;
   guestDetails: HotelGuestDetailsForm;
+  reviewHash?: string;
 }
 
 export async function prepareHotelBookingFromReview(
@@ -37,6 +40,7 @@ export async function prepareHotelBookingFromReview(
     customerEmail: pg.email,
     customerMobile: pg.mobile,
     correlationId: input.review.correlationId,
+    reviewHash: input.reviewHash?.trim() || undefined,
     tjHotelId: input.review.tjHotelId,
     hotelName: input.review.hotelName,
     checkIn: input.review.searchContext.checkIn,
@@ -219,6 +223,23 @@ async function executeTripJackHotelBook(
   }
 
   const normalized = normalizeHotelBookResponse(bookResponse);
+  const orderStatus = (normalized?.orderStatus ?? "").toUpperCase();
+  const bookRejected =
+    normalized?.statusSuccess === false &&
+    ["FAILED", "REJECTED", "BOOKING_FAILED", "DECLINED"].includes(orderStatus);
+
+  if (bookRejected) {
+    const failed = await updateHotelBooking(bookingId, {
+      ...paymentFields,
+      bookRequest,
+      bookResponse,
+      tripjackStatus: orderStatus || "FAILED",
+      adminNotes: "TripJack rejected the hotel booking after payment.",
+    });
+    if (!failed) throw new Error("Booking update failed");
+    return processHotelBookingFailure(failed);
+  }
+
   const confirmed =
     normalized?.statusSuccess !== false &&
     Boolean(normalized?.bookingId || booking.tripjackBookingId);
@@ -275,6 +296,13 @@ async function executeTripJackHotelBook(
       console.warn("[hotel-booking] processing email failed:", emailError);
     }
   }
+
+  if (withGuest.status === "booking_pending" || withGuest.status === "payment_success") {
+    void pollHotelBookingDetailsAfterBook(bookingId).catch((pollError) => {
+      console.warn("[hotel-booking] post-book poll failed:", pollError);
+    });
+  }
+
   return (await getHotelBookingById(bookingId)) ?? withGuest;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Wifi } from "lucide-react";
+import { Star } from "lucide-react";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { formatCurrency } from "@/lib/i18n";
@@ -13,24 +13,30 @@ interface HotelCardProps {
   onViewDetails: (hotel: NormalizedHotel) => void;
 }
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80";
-
 export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
-  const stars = 4;
+  const stars = hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
 
   return (
     <article
       className="flex flex-col overflow-hidden border bg-white shadow-sm transition hover:shadow-md md:flex-row"
       style={{ borderRadius: HOTEL_UI.cardRadius, borderColor: HOTEL_UI.border }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={PLACEHOLDER_IMAGE}
-        alt={hotel.name}
-        className="h-48 w-full shrink-0 object-cover md:h-auto md:w-56"
-        loading="lazy"
-      />
+      {hotel.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={hotel.imageUrl}
+          alt={hotel.name}
+          className="h-48 w-full shrink-0 object-cover md:h-auto md:w-56"
+          loading="lazy"
+        />
+      ) : (
+        <div
+          className="flex h-48 w-full shrink-0 items-center justify-center bg-slate-100 md:h-auto md:w-56"
+          style={{ color: HOTEL_UI.textMuted }}
+        >
+          <span className="text-xs font-medium uppercase tracking-wide">No image</span>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -38,19 +44,23 @@ export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
             <h3 className="text-lg font-bold" style={{ color: HOTEL_UI.primary }}>
               {hotel.name}
             </h3>
-            <div className="mt-1 flex items-center gap-0.5">
-              {Array.from({ length: stars }).map((_, i) => (
-                <Star key={i} className="h-3.5 w-3.5 fill-[#FEBA02] text-[#FEBA02]" />
-              ))}
-            </div>
+            {stars > 0 && (
+              <div className="mt-1 flex items-center gap-0.5">
+                {Array.from({ length: stars }).map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-[#FEBA02] text-[#FEBA02]" />
+                ))}
+              </div>
+            )}
+            {hotel.location && (
+              <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+                {hotel.location}
+              </p>
+            )}
             <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
               {hotel.mealBasis || "Hotel"}
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
-              <span className="inline-flex items-center gap-1">
-                <Wifi className="h-3 w-3" /> Free WiFi
-              </span>
-              {hotel.mealBasis && <span>· {hotel.mealBasis}</span>}
+              {hotel.hasBreakfast && <span>Breakfast included</span>}
               {hotel.isRefundable ? (
                 <HotelStatusBadge status="confirmed" className="!text-[9px]" />
               ) : null}

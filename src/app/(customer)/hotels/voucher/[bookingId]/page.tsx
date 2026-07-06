@@ -1,7 +1,6 @@
 "use client";
 
 import { use } from "react";
-import { RequireAuth } from "@/components/auth/require-auth";
 import { HotelVoucherView } from "@/components/hotels-tripjack/hotel-voucher-view";
 
 export default function HotelVoucherPage({
@@ -10,9 +9,5 @@ export default function HotelVoucherPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = use(params);
-  return (
-    <RequireAuth>
-      <HotelVoucherView bookingId={bookingId} />
-    </RequireAuth>
-  );
+  return <HotelVoucherView bookingId={bookingId} />;
 }

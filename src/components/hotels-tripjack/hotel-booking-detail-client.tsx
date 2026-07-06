@@ -18,8 +18,13 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
 import { customerApiFetch } from "@/lib/admin/api-client";
+import { getHotelInvoiceDownloadUrl } from "@/lib/hotels/invoice-access";
 import type { HotelCancellationEstimate } from "@/lib/hotels/cancellation-estimate";
 import { canCancelHotelBooking, isHotelVoucherReady } from "@/lib/hotels/booking-guards";
+import {
+  isHotelBookingConfirmedStatus,
+  isHotelBookingTerminalFailure,
+} from "@/lib/hotels/booking-status-helpers";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
@@ -54,7 +59,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
   const applyBooking = useCallback((b: HotelBookingRecord) => setBooking(b), []);
 
   const loadBooking = useCallback(async () => {
-    const b = await api.fetchBooking(bookingId);
+    const b = await api.fetchBooking(bookingId, { publicAccess: true });
     if (b) applyBooking(b);
     setLoading(false);
   }, [bookingId, api, applyBooking]);
@@ -62,6 +67,24 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
   useEffect(() => {
     void loadBooking();
   }, [loadBooking]);
+
+  useEffect(() => {
+    if (!booking) return;
+    const shouldPoll =
+      booking.paymentStatus === "paid" &&
+      !isHotelBookingConfirmedStatus(booking) &&
+      !isHotelBookingTerminalFailure(booking);
+    if (!shouldPoll) return;
+
+    let cancelled = false;
+    void api.pollBookingStatus(booking.bookingId, (updated) => {
+      if (!cancelled) applyBooking(updated);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [booking?.bookingId, booking?.status, booking?.paymentStatus, api, applyBooking]);
 
   const refreshStatus = async () => {
     setRefreshing(true);
@@ -85,7 +108,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
     if (!booking) return;
     setDownloading(true);
     try {
-      const res = await customerApiFetch(`/api/hotels/bookings/${booking.bookingId}/invoice`);
+      const res = await fetch(getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail));
       if (!res.ok) throw new Error("Could not download invoice");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
 import { assertTripJackHotelBookingAllowed, hotelApiError } from "@/lib/hotels/api-helpers";
+import { revalidateHotelPriceBeforePayment } from "@/lib/hotels/price-revalidation";
 import {
   createOrder,
   getPaymentGatewayError,
@@ -12,6 +13,7 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
   bookingId: z.string().min(1),
+  priceConfirmed: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -41,33 +43,52 @@ export async function POST(request: Request) {
       return apiError(getPaymentGatewayError(), 503);
     }
 
+    const revalidation = await revalidateHotelPriceBeforePayment(booking.bookingId);
+    if (!revalidation.ok) {
+      return apiError(revalidation.message ?? "Price verification failed", 400);
+    }
+
+    if (revalidation.priceChanged && !parsed.data.priceConfirmed) {
+      return apiSuccess({
+        requiresPriceConfirmation: true,
+        priceChanged: true,
+        previousPrice: revalidation.previousPrice,
+        currentPrice: revalidation.currentPrice,
+        currency: revalidation.currency,
+        booking: revalidation.booking,
+        message: revalidation.message,
+      });
+    }
+
+    const payableBooking = revalidation.booking ?? booking;
+
     const order = await createOrder({
-      amount: booking.totalFare,
-      receipt: booking.bookingId,
+      amount: payableBooking.totalFare,
+      receipt: payableBooking.bookingId,
       notes: {
         purpose: "hotel_booking",
-        bookingId: booking.bookingId,
-        tripjackBookingId: booking.tripjackBookingId,
+        bookingId: payableBooking.bookingId,
+        tripjackBookingId: payableBooking.tripjackBookingId,
       },
     });
 
-    await updateHotelBooking(booking.bookingId, {
+    await updateHotelBooking(payableBooking.bookingId, {
       status: "payment_pending",
       razorpayOrderId: order.orderId,
     });
 
     console.log("[hotel-payment] created Razorpay order:", {
-      bookingId: booking.bookingId,
+      bookingId: payableBooking.bookingId,
       orderId: order.orderId,
-      amount: booking.totalFare,
+      amount: payableBooking.totalFare,
     });
 
     return apiSuccess({
       ...order,
       id: order.orderId,
       keyId: getPublicRazorpayKeyId(),
-      amount: booking.totalFare,
-      bookingId: booking.bookingId,
+      amount: payableBooking.totalFare,
+      bookingId: payableBooking.bookingId,
     });
   } catch (err) {
     return hotelApiError(err, "Failed to create payment order");

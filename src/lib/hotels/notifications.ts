@@ -11,17 +11,36 @@ function formatInr(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-async function deliverSimpleEmail(input: {
+function buildHotelEmailShell(title: string, bodyHtml: string): string {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8fafc;padding:24px;">
+      <div style="background:#0c2444;border-radius:12px 12px 0 0;padding:20px 24px;">
+        <h1 style="margin:0;color:#fff;font-size:22px;">Safar Sathi</h1>
+        <p style="margin:6px 0 0;color:#fdba74;font-size:13px;">Travel | Comfort | Trust</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+        <h2 style="margin:0 0 8px;color:#0c2444;font-size:20px;">${title}</h2>
+        ${bodyHtml}
+        <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+          Questions? Email support@thesafarsathi.com or call ${SITE_CONTACT.phone}.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+async function deliverHotelEmail(input: {
   to: string;
   subject: string;
   text: string;
+  html: string;
 }): Promise<void> {
   if (isResendConfigured()) {
     await sendViaResend({
       to: input.to,
       subject: input.subject,
       text: input.text,
-      html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${input.text}</pre>`,
+      html: input.html,
     });
     return;
   }
@@ -31,7 +50,7 @@ async function deliverSimpleEmail(input: {
       to: input.to,
       subject: input.subject,
       text: input.text,
-      html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${input.text}</pre>`,
+      html: input.html,
     });
     return;
   }
@@ -99,10 +118,14 @@ export async function sendHotelVoucherReadyNotification(
     .filter(Boolean)
     .join("\n");
 
-  await deliverSimpleEmail({
+  await deliverHotelEmail({
     to: booking.customerEmail,
     subject: `Hotel voucher ready — ${booking.hotelName}`,
     text,
+    html: buildHotelEmailShell(
+      "Hotel Voucher Ready",
+      `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;color:#475569;line-height:1.6;">${text}</pre>`
+    ),
   });
 }
 
@@ -139,10 +162,87 @@ export async function sendHotelBookingProcessingNotification(
     SITE_CONTACT.phone,
   ].join("\n");
 
-  await deliverSimpleEmail({
+  await deliverHotelEmail({
     to: booking.customerEmail,
     subject: `Hotel booking pending — ${booking.hotelName}`,
     text,
+    html: buildHotelEmailShell(
+      "Payment Received — Confirmation Pending",
+      `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;color:#475569;line-height:1.6;">${text}</pre>`
+    ),
+  });
+}
+
+export async function sendHotelBookingFailedNotification(
+  booking: HotelBookingRecord,
+  loginCredentials?: { loginEmail: string; loginPassword: string } | null
+): Promise<void> {
+  if (!booking.customerEmail) return;
+
+  const refundLine =
+    booking.refundStatus === "REFUNDED" || booking.refundStatus === "PROCESSING"
+      ? booking.refundStatus === "REFUNDED"
+        ? `A refund of ${formatInr(booking.refundAmount ?? booking.totalFare)} has been initiated to your original payment method.`
+        : `A refund of ${formatInr(booking.refundAmount ?? booking.totalFare)} is being processed.`
+      : "Our team will process your refund according to our policy.";
+
+  const loginBlock = loginCredentials
+    ? [
+        "",
+        "Track status in My Bookings:",
+        `Email: ${loginCredentials.loginEmail}`,
+        `Password: ${loginCredentials.loginPassword}`,
+        appUrl("/login"),
+      ]
+    : [`View booking: ${appUrl(`/hotels/booking/${booking.bookingId}`)}`];
+
+  const text = [
+    `Hi ${booking.customerName},`,
+    "",
+    `We could not confirm your hotel booking at ${booking.hotelName}.`,
+    "Your payment will be refunded as per our policy.",
+    "",
+    `Booking ID: ${booking.bookingId}`,
+    `Hotel: ${booking.hotelName}`,
+    `Check-in: ${booking.checkIn}`,
+    `Amount: ${formatInr(booking.totalFare)}`,
+    refundLine,
+    ...loginBlock,
+    "",
+    "We apologise for the inconvenience.",
+    SITE_CONTACT.phone,
+  ].join("\n");
+
+  const html = buildHotelEmailShell(
+    "Hotel Booking Could Not Be Confirmed",
+    `
+      <p style="color:#475569;line-height:1.6;margin:0 0 16px;">
+        Hello <strong>${booking.customerName}</strong>, we could not confirm your reservation at
+        <strong>${booking.hotelName}</strong>. ${refundLine}
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155;">
+        <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">Booking ID</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${booking.bookingId}</td></tr>
+        <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">Hotel</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${booking.hotelName}</td></tr>
+        <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">Check-in</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${booking.checkIn}</td></tr>
+        <tr><td style="padding:8px 0;">Amount paid</td><td style="padding:8px 0;text-align:right;font-weight:600;">${formatInr(booking.totalFare)}</td></tr>
+      </table>
+      ${
+        loginCredentials
+          ? `<div style="margin-top:20px;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;">
+              <p style="margin:0 0 8px;color:#991b1b;font-weight:600;">My Bookings login</p>
+              <p style="margin:0;color:#64748b;font-size:13px;">Email: ${loginCredentials.loginEmail}<br/>Password: ${loginCredentials.loginPassword}</p>
+            </div>`
+          : ""
+      }
+      <a href="${appUrl(`/hotels/booking/${booking.bookingId}`)}" style="display:inline-block;margin-top:20px;background:#0c2444;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">View booking status</a>
+    `
+  );
+
+  await deliverHotelEmail({
+    to: booking.customerEmail,
+    subject: `Hotel booking unsuccessful — ${booking.hotelName}`,
+    text,
+    html,
   });
 }
 
@@ -166,10 +266,11 @@ export async function sendHotelCancellationRequestedNotification(
     SITE_CONTACT.phone,
   ].join("\n");
 
-  await deliverSimpleEmail({
+  await deliverHotelEmail({
     to: booking.customerEmail,
     subject: `Hotel cancellation requested — ${booking.bookingId.slice(-8).toUpperCase()}`,
     text,
+    html: buildHotelEmailShell("Cancellation Request Received", `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;color:#475569;line-height:1.6;">${text}</pre>`),
   });
 }
 
@@ -197,10 +298,11 @@ export async function sendHotelCancellationConfirmedNotification(
     .filter(Boolean)
     .join("\n");
 
-  await deliverSimpleEmail({
+  await deliverHotelEmail({
     to: booking.customerEmail,
     subject: `Hotel booking cancelled — ${booking.hotelName}`,
     text,
+    html: buildHotelEmailShell("Booking Cancelled", `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;color:#475569;line-height:1.6;">${text}</pre>`),
   });
 }
 
@@ -222,10 +324,11 @@ export async function sendHotelRefundProcessedNotification(
     .filter(Boolean)
     .join("\n");
 
-  await deliverSimpleEmail({
+  await deliverHotelEmail({
     to: booking.customerEmail,
     subject: `Refund processed — ${booking.hotelName}`,
     text,
+    html: buildHotelEmailShell("Refund Processed", `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;color:#475569;line-height:1.6;">${text}</pre>`),
   });
 }
 

@@ -131,6 +131,15 @@ export function HotelGuestsClient() {
       toast.error("Enter valid email and mobile");
       return;
     }
+    if (
+      !primaryGuest.address.trim() ||
+      !primaryGuest.city.trim() ||
+      !primaryGuest.state.trim() ||
+      !primaryGuest.zipCode.trim()
+    ) {
+      toast.error("Enter complete address, city, state and PIN code");
+      return;
+    }
     if (review.option.panRequired && !primaryGuest.pan?.trim()) {
       toast.error("PAN is required");
       return;

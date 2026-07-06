@@ -228,6 +228,58 @@ export async function fetchRazorpayOrderByReceipt(
   }
 }
 
+export interface CreateRefundInput {
+  paymentId: string;
+  amount: number;
+  notes?: Record<string, string>;
+}
+
+export interface CreateRefundResult {
+  id: string;
+  status: string;
+  amount: number;
+}
+
+export async function createRazorpayRefund(
+  input: CreateRefundInput
+): Promise<CreateRefundResult | null> {
+  if (!isRazorpayConfigured()) {
+    if (isDemoPaymentAllowed() && isDemoPaymentIdentifier(input.paymentId)) {
+      return {
+        id: `demo_refund_${Date.now()}`,
+        status: "processed",
+        amount: input.amount,
+      };
+    }
+    return null;
+  }
+
+  if (isDemoPaymentIdentifier(input.paymentId)) {
+    return {
+      id: `demo_refund_${Date.now()}`,
+      status: "processed",
+      amount: input.amount,
+    };
+  }
+
+  try {
+    const razorpay = getRazorpayClient();
+    const refund = (await razorpay.payments.refund(input.paymentId, {
+      amount: Math.round(input.amount * 100),
+      notes: input.notes,
+    })) as { id: string; status?: string; amount?: number };
+
+    return {
+      id: refund.id,
+      status: refund.status ?? "processed",
+      amount: Number(refund.amount ?? Math.round(input.amount * 100)) / 100,
+    };
+  } catch (error) {
+    console.warn("createRazorpayRefund failed:", error);
+    return null;
+  }
+}
+
 export async function fetchRazorpayOrder(
   orderId: string
 ): Promise<RazorpayOrderDetails | null> {

@@ -210,6 +210,13 @@ export function HotelReviewClient() {
                 </HotelPrimaryButton>
               </Link>
             )}
+            {error.backToSearch && (
+              <Link href="/hotels/search">
+                <HotelPrimaryButton variant="outline" className="!w-auto px-6">
+                  Search again
+                </HotelPrimaryButton>
+              </Link>
+            )}
           </div>
         </HotelCard>
       )}

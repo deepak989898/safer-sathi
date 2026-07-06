@@ -18,9 +18,16 @@ import {
   HotelStatusBadge,
 } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
+import { HotelGuestLoginDetailsCard } from "@/components/hotels-tripjack/hotel-guest-login-details-card";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
-import { customerApiFetch } from "@/lib/admin/api-client";
+import { getHotelInvoiceDownloadUrl } from "@/lib/hotels/invoice-access";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
+import {
+  isHotelBookingConfirmedStatus,
+  isHotelBookingFailedStatus,
+  isHotelBookingPendingStatus,
+  isHotelBookingTerminalFailure,
+} from "@/lib/hotels/booking-status-helpers";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
@@ -42,23 +49,53 @@ export function HotelBookingSuccessClient() {
   const { locale } = useAppStore();
   const api = useHotelBookingApi();
   const [booking, setBooking] = useState<HotelBookingRecord | null>(null);
+  const [loginCredentials, setLoginCredentials] = useState<{
+    loginEmail: string;
+    loginPassword: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const sessionBooking = loadSessionBooking();
-    if (sessionBooking && (!bookingId || sessionBooking.bookingId === bookingId)) {
-      setBooking(sessionBooking);
+    const storedLogin = sessionStorage.getItem("tripjack_hotel_login_credentials");
+    if (storedLogin) {
+      try {
+        setLoginCredentials(JSON.parse(storedLogin) as { loginEmail: string; loginPassword: string });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const applyBooking = (b: HotelBookingRecord) => {
+      setBooking(b);
       setLoading(false);
+    };
+
+    const startPolling = (b: HotelBookingRecord) => {
+      const shouldPoll =
+        b.paymentStatus === "paid" &&
+        !isHotelBookingConfirmedStatus(b) &&
+        !isHotelBookingTerminalFailure(b);
+      if (shouldPoll) void api.pollBookingStatus(b.bookingId, applyBooking);
+    };
+
+    if (sessionBooking && (!bookingId || sessionBooking.bookingId === bookingId)) {
+      applyBooking(sessionBooking);
+      startPolling(sessionBooking);
       return;
     }
     if (!bookingId) {
       setLoading(false);
       return;
     }
-    void api.fetchBooking(bookingId).then((b) => {
-      if (b) setBooking(b);
-      setLoading(false);
+    void api.fetchBooking(bookingId, { publicAccess: true }).then((b) => {
+      if (b) {
+        applyBooking(b);
+        startPolling(b);
+      } else {
+        setLoading(false);
+      }
     });
   }, [bookingId]);
 
@@ -66,15 +103,16 @@ export function HotelBookingSuccessClient() {
     if (!booking) return;
     setDownloading(true);
     try {
-      const res = await customerApiFetch(`/api/hotels/bookings/${booking.bookingId}/invoice`);
+      const invoiceUrl = getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail);
+      const res = await fetch(invoiceUrl);
       if (!res.ok) throw new Error("Could not download invoice");
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url;
+      link.href = objectUrl;
       link.download = `SafarSathi-Hotel-Invoice-${booking.confirmationNumber ?? booking.bookingId.slice(-8)}.pdf`;
       link.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
       toast.success("Invoice downloaded");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Invoice download failed");
@@ -102,7 +140,12 @@ export function HotelBookingSuccessClient() {
   }
 
   const confirmed = booking.status === "confirmed";
-  const pending = booking.status === "manual_review_required" || booking.status === "booking_pending";
+  const failed = isHotelBookingFailedStatus(booking) || isHotelBookingTerminalFailure(booking);
+  const pending =
+    !failed &&
+    (booking.status === "manual_review_required" ||
+      booking.status === "booking_pending" ||
+      isHotelBookingPendingStatus(booking));
   const guestCount = booking.rooms.reduce(
     (sum, r) => sum + (r.adults ?? 1) + (r.children ?? 0),
     0
@@ -113,22 +156,49 @@ export function HotelBookingSuccessClient() {
       <HotelCard padding="lg" className="text-center">
         <CheckCircle2
           className="mx-auto h-16 w-16"
-          style={{ color: confirmed ? HOTEL_UI.success : pending ? HOTEL_UI.pending : HOTEL_UI.action }}
+          style={{
+            color: failed
+              ? "#dc2626"
+              : confirmed
+                ? HOTEL_UI.success
+                : pending
+                  ? HOTEL_UI.pending
+                  : HOTEL_UI.action,
+          }}
         />
         <h1 className="mt-4 text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
-          {confirmed ? "Booking Confirmed!" : pending ? "Payment Received" : "Booking Status"}
+          {failed
+            ? "Booking Unsuccessful"
+            : confirmed
+              ? "Booking Confirmed!"
+              : pending
+                ? "Payment Received"
+                : "Booking Status"}
         </h1>
         <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-          {confirmed
-            ? "Your hotel reservation is confirmed. Confirmation email sent."
-            : pending
-              ? "Payment received. Booking confirmation is in progress."
-              : booking.status.replace(/_/g, " ")}
+          {failed
+            ? "We could not confirm your hotel with the supplier. A refund will be processed according to our policy."
+            : confirmed
+              ? booking.emailSentAt
+                ? "Your hotel reservation is confirmed. A confirmation email has been sent."
+                : "Your hotel reservation is confirmed."
+              : pending
+                ? "Payment received. Booking confirmation is in progress — we will notify you shortly."
+                : booking.status.replace(/_/g, " ")}
         </p>
 
         <div className="mt-2 flex justify-center">
-          <HotelStatusBadge status={confirmed ? "confirmed" : pending ? "pending" : "default"} />
+          <HotelStatusBadge
+            status={failed ? "cancelled" : confirmed ? "confirmed" : pending ? "pending" : "default"}
+          />
         </div>
+
+        {pending && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Checking confirmation with supplier…
+          </div>
+        )}
 
         <div
           className="mt-8 space-y-3 border p-5 text-left text-sm"
@@ -146,6 +216,8 @@ export function HotelBookingSuccessClient() {
           <Row label="Room" value={booking.roomName} />
           <Row label="Amount paid" value={formatCurrency(booking.totalFare, locale)} highlight />
         </div>
+
+        <HotelGuestLoginDetailsCard booking={booking} loginCredentials={loginCredentials} />
 
         <div className="mt-6 grid gap-2 sm:grid-cols-2">
           <HotelPrimaryButton variant="outline" onClick={() => void downloadInvoice()} disabled={downloading}>

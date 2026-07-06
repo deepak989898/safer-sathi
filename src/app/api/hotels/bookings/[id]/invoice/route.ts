@@ -1,7 +1,7 @@
 import { hotelBookingToLegacyBooking } from "@/lib/hotels/booking-service";
 import { getHotelBookingById } from "@/lib/hotels/firestore";
 import { generateInvoice } from "@/lib/documents/invoice";
-import { getInvoiceFilename } from "@/lib/bookings/invoice-access";
+import { getInvoiceFilename, verifyInvoiceAccessToken } from "@/lib/bookings/invoice-access";
 import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { apiError } from "@/lib/api-response";
@@ -24,8 +24,10 @@ export async function GET(
       (booking.userId === auth.id ||
         booking.customerEmail.toLowerCase() === auth.email.toLowerCase());
     const isStaff = auth ? canShowAdminNav(auth.role) : false;
+    const token = new URL(request.url).searchParams.get("token");
+    const tokenOk = verifyInvoiceAccessToken(id, booking.customerEmail, token ?? "");
 
-    if (!isOwner && !isStaff) return apiError("Forbidden", 403);
+    if (!isOwner && !isStaff && !tokenOk) return apiError("Forbidden", 403);
     if (booking.paymentStatus !== "paid" && !isStaff) {
       return apiError("Invoice available after payment", 400);
     }
