@@ -44,6 +44,7 @@ interface BusSeatScreenProps {
   maxSeats: number;
   loading: boolean;
   loadError: string | null;
+  bpdpWarning?: string | null;
   boardingId: string;
   droppingId: string;
   boardingPoints: Array<{ id: string; location: string; time: string }>;
@@ -63,6 +64,7 @@ export function BusSeatScreen({
   maxSeats,
   loading,
   loadError,
+  bpdpWarning,
   boardingId,
   droppingId,
   boardingPoints,
@@ -151,7 +153,7 @@ export function BusSeatScreen({
             )}
 
             {!loading && loadError && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-900">
                 {loadError}
                 <div className="mt-4">
                   <Button
@@ -162,6 +164,12 @@ export function BusSeatScreen({
                     Choose another bus
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {!loading && !loadError && bpdpWarning && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {bpdpWarning}
               </div>
             )}
 
@@ -214,8 +222,10 @@ export function BusSeatScreen({
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">
-                  {pointsLoading ? "Loading boarding points…" : "No boarding points available"}
+                <p className="mt-2 text-sm text-amber-700">
+                  {pointsLoading
+                    ? "Loading boarding points…"
+                    : (bpdpWarning ?? "No boarding points returned by SeatSeller for this service.")}
                 </p>
               )}
             </div>
@@ -250,8 +260,10 @@ export function BusSeatScreen({
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">
-                  {pointsLoading ? "Loading dropping points…" : "No dropping points available"}
+                <p className="mt-2 text-sm text-amber-700">
+                  {pointsLoading
+                    ? "Loading dropping points…"
+                    : (bpdpWarning ?? "No dropping points returned by SeatSeller for this service.")}
                 </p>
               )}
             </div>

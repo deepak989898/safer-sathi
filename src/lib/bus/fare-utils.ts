@@ -53,10 +53,10 @@ export function normalizeBusTrip(raw: unknown): NormalizedBusTrip {
     id: pickString(record, ["id", "tripId", "inventoryId", "availableTripId", "routeId"], ""),
     travels: pickString(
       record,
-      ["travels", "operatorName", "operator_name", "busRoutes", "operator", "travelsName"],
+      ["travels", "operatorName", "operator_name", "busRoutes", "travelsName"],
       "Bus Operator"
     ),
-    operator: pickString(record, ["operator", "operatorName", "travels", "travelsName"], "Bus Operator"),
+    operator: pickString(record, ["operator", "operatorId", "operator_id"], "") || undefined,
     busType: pickString(record, ["busType", "bus_type", "busTypeName", "vehicleType"], "Bus"),
     departureTime: formatSeatSellerTime(
       record.departureTime ?? record.departure_time ?? record.depTime

@@ -8,6 +8,10 @@ export interface BusFlowDebugState {
   destinationCityId?: string;
   boardingCount?: number;
   droppingCount?: number;
+  embeddedBoardingCount?: number;
+  embeddedDroppingCount?: number;
+  apiBoardingCount?: number;
+  apiDroppingCount?: number;
   seatCount?: number;
   totalFare?: number;
   callFareBreakupApi?: boolean;
@@ -37,6 +41,8 @@ export function BusDebugPanel({ debug }: BusDebugPanelProps) {
           <p>Destination ID: {debug.destinationCityId ?? "—"}</p>
           <p>Boarding points: {debug.boardingCount ?? 0}</p>
           <p>Dropping points: {debug.droppingCount ?? 0}</p>
+          <p>Embedded BP/DP: {debug.embeddedBoardingCount ?? 0}/{debug.embeddedDroppingCount ?? 0}</p>
+          <p>API BP/DP: {debug.apiBoardingCount ?? 0}/{debug.apiDroppingCount ?? 0}</p>
           <p>Seats loaded: {debug.seatCount ?? 0}</p>
           <p>Fare total: {debug.totalFare ?? 0}</p>
           <p>callFareBreakupApi: {String(debug.callFareBreakupApi ?? false)}</p>

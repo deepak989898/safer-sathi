@@ -331,7 +331,22 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           resolveBusBpDp({
             trip: session?.trip as Record<string, unknown> | undefined,
             tripId,
-            fetchBpDp: (id) => api.fetchBpDp(id),
+            fetchBpDp: async (id) => {
+              const res = await fetch("/api/bus/bpdp-details", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tripId: id }),
+              });
+              const json = await res.json();
+              if (!json.success) {
+                throw new Error(json.error ?? "Failed to load boarding/dropping points");
+              }
+              return json.data as {
+                boardingPoints: Array<{ id: string; location: string; time: string }>;
+                droppingPoints: Array<{ id: string; location: string; time: string }>;
+                message?: string | null;
+              };
+            },
           }),
         ]);
 
@@ -369,6 +384,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           destinationCityId: session?.search.destinationCityId,
           boardingCount: resolved.boardingPoints.length,
           droppingCount: resolved.droppingPoints.length,
+          embeddedBoardingCount: resolved.embeddedBoardingCount,
+          embeddedDroppingCount: resolved.embeddedDroppingCount,
+          apiBoardingCount: resolved.apiBoardingCount,
+          apiDroppingCount: resolved.apiDroppingCount,
           seatCount: tripDetailsResult?.seats?.length ?? 0,
           callFareBreakupApi: session?.trip?.callFareBreakupApi,
           bpDpSeatLayout: isBpDpSeatLayoutEnabled(session?.trip?.bpDpSeatLayout),
@@ -547,6 +566,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       passengers: normalized,
       callFareBreakupApi: session.trip.callFareBreakupApi,
       cancellationPolicy: session.trip.cancellationPolicy,
+      bpDpSeatLayout: isBpDpSeatLayoutEnabled(session.trip.bpDpSeatLayout),
+      operatorId: session.trip.operator,
     });
 
     if (!result) return;
@@ -708,7 +729,8 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
           selectedSeats={selectedSeats}
           maxSeats={tripDetails?.maxSeatsPerTicket ?? 6}
           loading={seatLayoutLoading || (api.loading && !tripDetails)}
-          loadError={seatLayoutError ?? bpdpMessage}
+          loadError={seatLayoutError}
+          bpdpWarning={bpdpMessage}
           boardingId={boardingId}
           droppingId={droppingId}
           boardingPoints={bpdp?.boardingPoints ?? []}

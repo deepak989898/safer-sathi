@@ -46,11 +46,18 @@ function mapBoardingPoints(items: unknown[]) {
       const row = asRecord(item);
       if (!row) return null;
 
-      const id = pickString(row, ["id", "bpId", "Id", "pointId", "bp_id"], String(index + 1));
+      const id = pickString(
+        row,
+        ["id", "bpId", "bpid", "BpId", "pointId", "bp_id", "dpId", "dpid"],
+        ""
+      );
+      if (!id) return null;
+
       const landmark = pickString(row, ["landmark", "Landmark", "bpLandmark"]);
       const address = pickString(row, ["address", "Address", "bpAddress", "bp_address"]);
       const contact = pickString(row, ["contactNumber", "contact", "phone", "mobile"]);
       const name = pickString(row, [
+        "locationName",
         "location",
         "bpName",
         "BpName",
@@ -70,11 +77,7 @@ function mapBoardingPoints(items: unknown[]) {
 
       return { id, location, time, landmark, address, contact: contact || undefined };
     })
-    .filter((point) => Boolean(point?.id)) as Array<{
-      id: string;
-      location: string;
-      time: string;
-    }>;
+    .filter((point): point is NonNullable<typeof point> => Boolean(point));
 }
 
 function mapDroppingPoints(items: unknown[]) {
@@ -83,11 +86,20 @@ function mapDroppingPoints(items: unknown[]) {
       const row = asRecord(item);
       if (!row) return null;
 
-      const id = pickString(row, ["id", "dpId", "Id", "pointId", "dp_id"], String(index + 1));
+      const id = pickString(
+        row,
+        ["id", "bpId", "bpid", "BpId", "dpId", "dpid", "DpId", "pointId", "dp_id", "bp_id"],
+        ""
+      );
+      if (!id) return null;
+
       const landmark = pickString(row, ["landmark", "Landmark", "dpLandmark"]);
       const address = pickString(row, ["address", "Address", "dpAddress", "dp_address"]);
       const name = pickString(row, [
+        "locationName",
         "location",
+        "bpName",
+        "BpName",
         "dpName",
         "DpName",
         "name",
@@ -106,11 +118,7 @@ function mapDroppingPoints(items: unknown[]) {
 
       return { id, location, time, landmark, address };
     })
-    .filter((point) => Boolean(point?.id)) as Array<{
-      id: string;
-      location: string;
-      time: string;
-    }>;
+    .filter((point): point is NonNullable<typeof point> => Boolean(point));
 }
 
 export function parseSeatSellerBpDp(raw: unknown): {

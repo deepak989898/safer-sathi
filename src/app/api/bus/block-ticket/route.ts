@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { blockBusTicket, validateSeatGenderRules } from "@/lib/bus/booking-service";
 import { busApiError, busPassengerSchema, getBusUserId } from "@/lib/bus/api-helpers";
-import { fetchTripDetails } from "@/lib/seatseller/client";
+import { fetchTripDetails, fetchTripDetailsV2 } from "@/lib/seatseller/client";
 import { parseSeatSellerTripDetails } from "@/lib/seatseller/parse-trip-details";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
@@ -27,6 +27,8 @@ const schema = z.object({
   passengers: z.array(busPassengerSchema).min(1),
   callFareBreakupApi: z.boolean().optional(),
   cancellationPolicy: z.string().optional(),
+  bpDpSeatLayout: z.boolean().optional(),
+  operatorId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -39,7 +41,15 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const tripDetails = parseSeatSellerTripDetails(await fetchTripDetails(parsed.data.tripId));
+    const tripDetailsRaw =
+      parsed.data.bpDpSeatLayout
+        ? await fetchTripDetailsV2({
+            inventoryId: parsed.data.tripId,
+            bpId: parsed.data.boardingPoint.id,
+            dpId: parsed.data.droppingPoint.id,
+          })
+        : await fetchTripDetails(parsed.data.tripId);
+    const tripDetails = parseSeatSellerTripDetails(tripDetailsRaw);
     const maxSeats = tripDetails.maxSeatsPerTicket ?? 6;
     if (parsed.data.passengers.length > maxSeats) {
       return apiError(`Maximum ${maxSeats} seats allowed per ticket`, 400);
@@ -69,6 +79,8 @@ export async function POST(request: Request) {
       ...parsed.data,
       callFareBreakupApi:
         parsed.data.callFareBreakupApi ?? tripDetails.callFareBreakupApi ?? false,
+      operatorId: parsed.data.operatorId,
+      bpDpSeatLayout: parsed.data.bpDpSeatLayout,
     });
 
     return apiSuccess({

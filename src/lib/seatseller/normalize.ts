@@ -107,6 +107,41 @@ export function pickArray(record: Record<string, unknown>, keys: string[]): unkn
   return [];
 }
 
+/** SeatSeller returns boarding/dropping as an array OR a single point object. */
+export function extractPointList(
+  record: Record<string, unknown>,
+  explicitKeys: string[],
+  keyPatterns: string[]
+): unknown[] {
+  for (const key of explicitKeys) {
+    const value = record[key];
+    if (Array.isArray(value) && value.length) return value;
+    const point = asRecord(value);
+    if (point && Object.keys(point).length) return [point];
+  }
+
+  const entries = Object.entries(record);
+  for (const key of explicitKeys) {
+    const match = entries.find(([k]) => k.toLowerCase() === key.toLowerCase());
+    if (!match) continue;
+    if (Array.isArray(match[1]) && match[1].length) return match[1];
+    const point = asRecord(match[1]);
+    if (point && Object.keys(point).length) return [point];
+  }
+
+  const collected: unknown[] = [];
+  for (const key of keysMatching(record, keyPatterns)) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      collected.push(...value);
+    } else {
+      const point = asRecord(value);
+      if (point) collected.push(point);
+    }
+  }
+  return collected;
+}
+
 export function keysMatching(record: Record<string, unknown>, patterns: string[]): string[] {
   return Object.keys(record).filter((key) => {
     const lower = key.toLowerCase();
@@ -238,16 +273,21 @@ export function extractBoardingPoints(raw: unknown): unknown[] {
   const record = unwrapSeatSellerPayload(raw);
   if (!record) return [];
 
-  const direct = pickArray(record, [
-    "boardingPoints",
-    "boardingpoints",
-    "BoardingPoints",
-    "boardingTimes",
-    "boardingtimes",
-    "bpList",
-    "BPLt",
-    "BPInformationList",
-  ]);
+  const direct = extractPointList(
+    record,
+    [
+      "boardingPoints",
+      "boardingpoints",
+      "BoardingPoints",
+      "boardingTimes",
+      "boardingtimes",
+      "boardingTime",
+      "bpList",
+      "BPLt",
+      "BPInformationList",
+    ],
+    ["boarding", "bp"]
+  );
   if (direct.length) return direct;
 
   return collectArraysByKeyPattern(record, ["boarding", "bp"]);
@@ -257,16 +297,22 @@ export function extractDroppingPoints(raw: unknown): unknown[] {
   const record = unwrapSeatSellerPayload(raw);
   if (!record) return [];
 
-  const direct = pickArray(record, [
-    "droppingPoints",
-    "droppingpoints",
-    "DroppingPoints",
-    "droppingTimes",
-    "droppingtimes",
-    "dpList",
-    "DPLt",
-    "DPInformationList",
-  ]);
+  const direct = extractPointList(
+    record,
+    [
+      "droppingPoints",
+      "droppingpoints",
+      "DroppingPoints",
+      "droppingTimes",
+      "droppingtimes",
+      "droppingTime",
+      "dropPoint",
+      "dpList",
+      "DPLt",
+      "DPInformationList",
+    ],
+    ["dropping", "dp"]
+  );
   if (direct.length) return direct;
 
   return collectArraysByKeyPattern(record, ["dropping", "dp"]);

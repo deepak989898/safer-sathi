@@ -34,6 +34,8 @@ export interface BlockBusTicketInput {
   passengers: BusPassengerDetail[];
   callFareBreakupApi?: boolean;
   cancellationPolicy?: string;
+  bpDpSeatLayout?: boolean;
+  operatorId?: string;
 }
 
 export function validateSeatGenderRules(
@@ -78,7 +80,7 @@ export async function blockBusTicket(
     },
   }));
 
-  const blockPayload = {
+  const blockPayload: Record<string, unknown> = {
     availableTripID: input.tripId,
     inventoryItems,
     boardingPointId: input.boardingPoint.id,
@@ -88,6 +90,10 @@ export async function blockBusTicket(
     doj: input.doj,
     totalFare,
   };
+
+  if (input.operatorId) {
+    blockPayload.operator = input.operatorId;
+  }
 
   const blockResponse = await blockTicket(blockPayload, bookingId);
   const expiresAt = new Date(Date.now() + BLOCK_MINUTES * 60 * 1000).toISOString();
