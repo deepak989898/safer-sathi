@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeftRight,
   Calendar,
@@ -25,32 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FlightAirportAutocomplete } from "@/components/flights/flight-airport-autocomplete";
 import { flightPrimaryButtonClass } from "@/components/flights/flight-ui";
+import {
+  formatAirportLabel,
+  resolveAirportDisplayLabel,
+  validateFlightRoute,
+  type FlightAirport,
+} from "@/lib/flights/airports";
 import { CABIN_CLASSES } from "@/lib/tripjack/config";
 import type { FlightSearchParams } from "@/lib/tripjack/types";
 import { cn } from "@/lib/utils";
-
-/** Side-view commercial jet — full aircraft visible (object-contain). */
-const FLIGHT_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1583608205776-bfd35f0d9a83?auto=format&fit=crop&w=1200&q=85";
-
-const POPULAR_AIRPORTS: Record<string, string> = {
-  DEL: "Delhi",
-  BOM: "Mumbai",
-  BLR: "Bengaluru",
-  MAA: "Chennai",
-  HYD: "Hyderabad",
-  CCU: "Kolkata",
-  GOI: "Goa",
-  PNQ: "Pune",
-  AMD: "Ahmedabad",
-  COK: "Kochi",
-};
-
-function airportHint(code: string): string {
-  const city = POPULAR_AIRPORTS[code.toUpperCase()];
-  return city ? `${city} (${code.toUpperCase()})` : code.toUpperCase() || "IATA code";
-}
 
 function travelersSummary(params: FlightSearchParams): string {
   const n = params.adults + params.children + params.infants;
@@ -60,13 +45,24 @@ function travelersSummary(params: FlightSearchParams): string {
 
 interface FlightSearchScreenProps {
   params: FlightSearchParams;
+  fromQuery: string;
+  toQuery: string;
+  fromError?: string | null;
+  toError?: string | null;
   loading: boolean;
   onChange: (patch: Partial<FlightSearchParams>) => void;
+  onFromQueryChange: (query: string) => void;
+  onToQueryChange: (query: string) => void;
+  onRouteErrors: (errors: { fromError?: string | null; toError?: string | null }) => void;
   onSwap: () => void;
-  onSearch: () => void;
+  onSearch: (route?: { fromCode: string; toCode: string }) => void;
   /** After first search — compact bar only (no hero image). */
   compact?: boolean;
 }
+
+/** Side-view commercial jet — full aircraft visible (object-contain). */
+const FLIGHT_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1583608205776-bfd35f0d9a83?auto=format&fit=crop&w=1200&q=85";
 
 function TravelerStepper({
   label,
@@ -113,13 +109,63 @@ function TravelerStepper({
 
 export function FlightSearchScreen({
   params,
+  fromQuery,
+  toQuery,
+  fromError,
+  toError,
   loading,
   onChange,
+  onFromQueryChange,
+  onToQueryChange,
+  onRouteErrors,
   onSwap,
   onSearch,
   compact = false,
 }: FlightSearchScreenProps) {
   const [travelersOpen, setTravelersOpen] = useState(false);
+
+  useEffect(() => {
+    if (!fromQuery && params.fromCode) {
+      onFromQueryChange(resolveAirportDisplayLabel(params.fromCode));
+    }
+    if (!toQuery && params.toCode) {
+      onToQueryChange(resolveAirportDisplayLabel(params.toCode));
+    }
+  }, [params.fromCode, params.toCode, fromQuery, toQuery, onFromQueryChange, onToQueryChange]);
+
+  const handleSearchClick = () => {
+    const result = validateFlightRoute({
+      fromCode: params.fromCode,
+      toCode: params.toCode,
+      fromQuery,
+      toQuery,
+    });
+
+    if (!result.ok) {
+      onRouteErrors({
+        fromError: result.fromError ?? null,
+        toError: result.toError ?? null,
+      });
+      return;
+    }
+
+    onRouteErrors({ fromError: null, toError: null });
+    onFromQueryChange(resolveAirportDisplayLabel(result.fromCode));
+    onToQueryChange(resolveAirportDisplayLabel(result.toCode));
+    onSearch({ fromCode: result.fromCode, toCode: result.toCode });
+  };
+
+  const handleFromSelect = (airport: FlightAirport) => {
+    onChange({ fromCode: airport.iata });
+    onFromQueryChange(formatAirportLabel(airport));
+    onRouteErrors({ fromError: null });
+  };
+
+  const handleToSelect = (airport: FlightAirport) => {
+    onChange({ toCode: airport.iata });
+    onToQueryChange(formatAirportLabel(airport));
+    onRouteErrors({ toError: null });
+  };
 
   const formCard = (
     <div
@@ -141,23 +187,17 @@ export function FlightSearchScreen({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
-              <div>
-                <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  From
-                </Label>
-                <Input
-                  className="mt-1 h-11 rounded-xl border-slate-200 bg-slate-50 text-base font-bold uppercase"
-                  placeholder="DEL"
-                  maxLength={3}
-                  value={params.fromCode}
-                  onChange={(e) =>
-                    onChange({ fromCode: e.target.value.toUpperCase().slice(0, 3) })
-                  }
-                />
-                <p className="mt-0.5 truncate text-[11px] text-slate-400">
-                  {airportHint(params.fromCode)}
-                </p>
-              </div>
+              <FlightAirportAutocomplete
+                id="flight-from"
+                label="From"
+                value={params.fromCode}
+                query={fromQuery}
+                error={fromError}
+                placeholder="Delhi, Mumbai, DEL..."
+                onQueryChange={onFromQueryChange}
+                onCodeChange={(code) => onChange({ fromCode: code })}
+                onSelect={handleFromSelect}
+              />
 
               <Button
                 type="button"
@@ -170,23 +210,17 @@ export function FlightSearchScreen({
                 <ArrowLeftRight className="h-4 w-4" />
               </Button>
 
-              <div>
-                <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  To
-                </Label>
-                <Input
-                  className="mt-1 h-11 rounded-xl border-slate-200 bg-slate-50 text-base font-bold uppercase"
-                  placeholder="BOM"
-                  maxLength={3}
-                  value={params.toCode}
-                  onChange={(e) =>
-                    onChange({ toCode: e.target.value.toUpperCase().slice(0, 3) })
-                  }
-                />
-                <p className="mt-0.5 truncate text-[11px] text-slate-400">
-                  {airportHint(params.toCode)}
-                </p>
-              </div>
+              <FlightAirportAutocomplete
+                id="flight-to"
+                label="To"
+                value={params.toCode}
+                query={toQuery}
+                error={toError}
+                placeholder="Mumbai, Goa, BOM..."
+                onQueryChange={onToQueryChange}
+                onCodeChange={(code) => onChange({ toCode: code })}
+                onSelect={handleToSelect}
+              />
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -283,7 +317,7 @@ export function FlightSearchScreen({
 
             <Button
               className={cn(flightPrimaryButtonClass(), "mt-4 h-12")}
-              onClick={onSearch}
+              onClick={handleSearchClick}
               disabled={loading}
             >
               {loading ? (
