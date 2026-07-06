@@ -138,6 +138,7 @@ export function useFlightBookingApi() {
           manualReview?: boolean;
           bookingFailed?: boolean;
           message?: string;
+          loginCredentials?: { loginEmail: string; loginPassword: string };
         };
       });
     },

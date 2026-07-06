@@ -154,7 +154,11 @@ export function normalizeTripJackBookingDetails(
     const pnrDetails = asRecord(row?.pnrDetails);
     const pnr = firstPnrFromDetails(pnrDetails);
     const ticketNumber =
-      pickString(row, ["ticketNumber", "ticketNo", "tN"], "") || pnr || undefined;
+      pickString(row, ["ticketNumber", "ticketNo", "tN"], "") ||
+      pickString(pnrDetails, ["ticketNumber", "ticketNo"], "") ||
+      pnr ||
+      undefined;
+    const rawStatus = pickString(row, ["status", "bookingStatus", "ticketStatus"], "");
     return {
       title: pickString(row, ["ti"], ""),
       firstName: fN,
@@ -163,7 +167,10 @@ export function normalizeTripJackBookingDetails(
       type: pickString(row, ["pt", "type"], "ADULT"),
       pnr: pnr || undefined,
       ticketNumber,
-      status: pickString(row, ["status"], "") || undefined,
+      status:
+        rawStatus ||
+        (pnr || ticketNumber ? "CONFIRMED" : "") ||
+        undefined,
     };
   });
 
@@ -178,7 +185,11 @@ export function normalizeTripJackBookingDetails(
     extractTripJackBookingId(bookRaw);
 
   const pnrFromTravellers = passengers.map((p) => p.pnr || p.ticketNumber).find(Boolean) || "";
-  const orderStatus = pickString(order, ["status", "orderStatus"], "unknown");
+  const orderStatus =
+    pickString(order, ["status", "orderStatus", "bookingStatus"], "") ||
+    pickString(asRecord(order.status), ["status", "code"], "") ||
+    pickString(air, ["status", "bookingStatus", "orderStatus"], "") ||
+    pickString(detailsPayload, ["status", "orderStatus"], "unknown");
   const passengerFares = collectPassengerFares(tripInfos);
 
   return {

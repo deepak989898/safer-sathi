@@ -8,6 +8,7 @@ import {
   FlightSuccessPanel,
   flightPrimaryButtonClass,
 } from "@/components/flights/flight-ui";
+import { GuestLoginDetailsCard } from "@/components/flights/guest-login-details-card";
 import { formatCurrency } from "@/lib/i18n";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import type { Locale } from "@/types";
@@ -132,6 +133,12 @@ export function FlightBookingConfirmationScreen({
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </FlightSuccessPanel>
+
+        {booking.guestAccountProvisioned && (
+          <div className="mx-auto mt-6 max-w-lg">
+            <GuestLoginDetailsCard booking={booking} />
+          </div>
+        )}
 
         <FlightSoftCard className="mx-auto mt-6 max-w-lg">
           <div className="p-4 text-center text-xs text-slate-500">

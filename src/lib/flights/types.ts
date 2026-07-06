@@ -115,8 +115,18 @@ export interface FlightBookingRecord {
   bookErrorDetail?: FlightBookErrorDetail;
   bookingDetailsPollAttempts?: number;
   bookingDetailsPollStatus?: string;
+  bookingStatus?: FlightBookingStatus;
+  ticketNo?: string;
+  passengerTicketStatus?: "CONFIRMED" | "PENDING" | "FAILED";
+  lastStatusSyncedAt?: string;
   emailSentAt?: string;
   invoiceSentAt?: string;
+  processingEmailSentAt?: string;
+  confirmedEmailSentAt?: string;
+  lastEmailStatus?: "processing" | "confirmed" | "failed";
+  guestAccountProvisioned?: boolean;
+  guestAccountCreated?: boolean;
+  loginCredentialsShownAt?: string;
   reviewNormalized?: NormalizedFlightReview;
   fareValidateNormalized?: NormalizedFareValidate;
   fareValidateRequest?: unknown;

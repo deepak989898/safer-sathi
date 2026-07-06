@@ -3,6 +3,18 @@ import "server-only";
 import { fetchTripJackBookingDetails } from "@/lib/tripjack/client";
 import { normalizeTripJackBookingDetails } from "@/lib/tripjack/parse-booking-details";
 import type { NormalizedFlightBookingDetails } from "@/lib/tripjack/types";
+import {
+  hasFlightTicketMetadata,
+  isBookingDetailsPending,
+  isBookingDetailsSuccess,
+  isFailedOrderStatus,
+} from "@/lib/flights/booking-status-helpers";
+
+export {
+  hasFlightTicketMetadata,
+  isBookingDetailsPending,
+  isBookingDetailsSuccess,
+} from "@/lib/flights/booking-status-helpers";
 
 export const BOOKING_DETAILS_INITIAL_DELAY_MS = 5000;
 export const BOOKING_DETAILS_POLL_INTERVAL_MS = 5000;
@@ -12,26 +24,6 @@ const TERMINAL_FAILURE = new Set(["FAILED", "ABORTED", "CANCELLED"]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export function isBookingDetailsSuccess(orderStatus: string): boolean {
-  const s = orderStatus.toUpperCase();
-  return s === "SUCCESS" || s === "COMPLETED";
-}
-
-export function isBookingDetailsPending(orderStatus: string): boolean {
-  const s = orderStatus.toUpperCase();
-  return s === "PENDING" || s === "IN_PROGRESS" || s === "PROCESSING";
-}
-
-export function hasFlightTicketMetadata(details: NormalizedFlightBookingDetails | null): boolean {
-  if (!details) return false;
-  return Boolean(
-    details.pnr ||
-      details.airlinePnr ||
-      details.ticketNumber ||
-      details.passengers.some((p) => p.pnr || p.ticketNumber)
-  );
 }
 
 /** Poll TripJack OMS booking-details after book (5s initial delay, 5s interval, max 12 tries). */
@@ -60,7 +52,7 @@ export async function pollTripJackFlightBookingDetails(input: {
     orderStatus = normalized?.orderStatus ?? "UNKNOWN";
     await input.onAttempt?.(attempt, orderStatus);
 
-    const terminalFailure = TERMINAL_FAILURE.has(orderStatus.toUpperCase());
+    const terminalFailure = isFailedOrderStatus(orderStatus) || TERMINAL_FAILURE.has(orderStatus.toUpperCase());
     const success = isBookingDetailsSuccess(orderStatus);
     const hasTicket = hasFlightTicketMetadata(normalized);
 

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Briefcase, ChevronDown, ChevronUp, Luggage, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AirlineLogo } from "@/components/flights/airline-logo";
 import {
-  AirlineAvatar,
   FlightRouteStrip,
   FlightSoftCard,
   flightPrimaryButtonClass,
@@ -35,15 +35,13 @@ export function FlightCard({ flight, locale, onReview }: FlightCardProps) {
     <FlightSoftCard className="overflow-hidden transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <AirlineAvatar code={flight.airlineCode} />
+          <AirlineLogo code={flight.airlineCode} name={flight.airlineName} size={48} />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-slate-900">{flight.airlineName}</p>
-              <span className="text-sm text-slate-500">
-                {flight.airlineCode} {flight.flightNumber}
-              </span>
-            </div>
-            <div className="mt-1 flex flex-wrap gap-1.5">
+            <p className="font-semibold text-slate-900">{flight.airlineName}</p>
+            <p className="text-sm text-slate-500">
+              {flight.airlineCode} {flight.flightNumber}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               <Badge
                 variant="secondary"
                 className="rounded-full bg-emerald-50 text-[10px] font-medium text-emerald-700"

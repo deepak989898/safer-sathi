@@ -27,7 +27,15 @@ export type BookingLoginProvisionResult =
   | ({ ok: true } & BookingLoginProvision)
   | BookingLoginProvisionFailure;
 
-function normalizeLoginPassword(bookingNumber: string): string {
+export interface GuestCustomerProfileInput {
+  email: string;
+  name: string;
+  phone: string;
+  loginPassword: string;
+  totalSpent?: number;
+}
+
+function normalizePackageLoginPassword(bookingNumber: string): string {
   return bookingNumber.trim().toUpperCase();
 }
 
@@ -81,7 +89,7 @@ async function findOrCreateAuthUserId(
       }
     }
 
-    console.error("provisionCustomerBookingLogin createAuthUser:", created.error);
+    console.error("provisionGuestCustomerLogin createAuthUser:", created.error);
     return {
       ok: false,
       reason: "Could not create your sign-in account. Please contact support@thesafarsathi.com.",
@@ -96,36 +104,35 @@ async function findOrCreateAuthUserId(
   };
 }
 
-async function tryWriteCustomerProfile(
+async function tryWriteGuestCustomerProfile(
   userId: string,
-  booking: Booking,
-  loginPassword: string,
+  input: GuestCustomerProfileInput,
   created: boolean
 ): Promise<void> {
   const db = await getSafeAdminDb();
   if (!db) return;
 
-  const email = booking.customerEmail.toLowerCase().trim();
+  const email = input.email.toLowerCase().trim();
   const now = new Date().toISOString();
 
   try {
     await db.collection("users").doc(userId).set(
       {
         email,
-        name: booking.customerName,
-        phone: booking.customerPhone,
+        name: input.name,
+        phone: input.phone,
         role: "customer",
         status: "active",
         approved: true,
         locale: "en",
         segment: "new",
-        lastBookingNumber: loginPassword,
+        lastBookingNumber: input.loginPassword,
         passwordIsBookingId: true,
         updatedAt: now,
         ...(created
           ? {
               totalBookings: 1,
-              totalSpent: booking.paidAmount ?? 0,
+              totalSpent: input.totalSpent ?? 0,
               createdAt: now,
             }
           : {}),
@@ -133,16 +140,16 @@ async function tryWriteCustomerProfile(
       { merge: true }
     );
   } catch (error) {
-    console.warn("provisionCustomerBookingLogin users profile write:", error);
+    console.warn("provisionGuestCustomerLogin users profile write:", error);
   }
 }
 
-/** Create or update customer Firebase Auth for booking-ID login. Vercel-safe REST path. */
-export async function provisionCustomerBookingLogin(
-  booking: Booking
+/** Shared guest account provisioning (packages, flights, etc.). */
+export async function provisionGuestCustomerLogin(
+  input: GuestCustomerProfileInput
 ): Promise<BookingLoginProvisionResult> {
   if (!isFirebaseAuthRestAvailable()) {
-    console.error("provisionCustomerBookingLogin: Firebase Auth REST unavailable");
+    console.error("provisionGuestCustomerLogin: Firebase Auth REST unavailable");
     return {
       ok: false,
       reason:
@@ -151,35 +158,16 @@ export async function provisionCustomerBookingLogin(
     };
   }
 
-  const email = booking.customerEmail.toLowerCase().trim();
-  const loginPassword = normalizeLoginPassword(booking.bookingNumber);
-  const now = new Date().toISOString();
+  const email = input.email.toLowerCase().trim();
+  const loginPassword = input.loginPassword.trim();
 
-  const authUser = await findOrCreateAuthUserId(
-    email,
-    loginPassword,
-    booking.customerName
-  );
+  const authUser = await findOrCreateAuthUserId(email, loginPassword, input.name);
   if ("ok" in authUser) {
     return authUser;
   }
 
   const { userId, created, passwordUpdated } = authUser;
-
-  await tryWriteCustomerProfile(userId, booking, loginPassword, created);
-
-  if (booking.userId !== userId) {
-    try {
-      await upsertBooking({
-        ...booking,
-        userId,
-        bookingNumber: loginPassword,
-        updatedAt: now,
-      });
-    } catch (error) {
-      console.warn("provisionCustomerBookingLogin booking link:", error);
-    }
-  }
+  await tryWriteGuestCustomerProfile(userId, { ...input, email, loginPassword }, created);
 
   return {
     ok: true,
@@ -189,6 +177,42 @@ export async function provisionCustomerBookingLogin(
     created,
     passwordUpdated,
   };
+}
+
+/** Create or update customer Firebase Auth for package booking-ID login. */
+export async function provisionCustomerBookingLogin(
+  booking: Booking
+): Promise<BookingLoginProvisionResult> {
+  const email = booking.customerEmail.toLowerCase().trim();
+  const loginPassword = normalizePackageLoginPassword(booking.bookingNumber);
+  const now = new Date().toISOString();
+
+  const provision = await provisionGuestCustomerLogin({
+    email,
+    name: booking.customerName,
+    phone: booking.customerPhone,
+    loginPassword,
+    totalSpent: booking.paidAmount ?? 0,
+  });
+
+  if (!provision.ok) {
+    return provision;
+  }
+
+  if (booking.userId !== provision.userId) {
+    try {
+      await upsertBooking({
+        ...booking,
+        userId: provision.userId,
+        bookingNumber: loginPassword,
+        updatedAt: now,
+      });
+    } catch (error) {
+      console.warn("provisionCustomerBookingLogin booking link:", error);
+    }
+  }
+
+  return provision;
 }
 
 export async function createBookingLoginCustomToken(userId: string): Promise<string | null> {

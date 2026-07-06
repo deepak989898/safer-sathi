@@ -14,6 +14,7 @@ import {
   isBookingDetailsSuccess,
   pollTripJackFlightBookingDetails,
 } from "@/lib/flights/booking-details-poll";
+import { buildBookingDetailSyncPatch } from "@/lib/flights/booking-status-sync";
 import {
   createFlightBooking,
   generateFlightBookingId,
@@ -21,9 +22,10 @@ import {
   updateFlightBooking,
 } from "@/lib/flights/firestore";
 import {
+  handleFlightBookingEmailTransition,
   sendFlightBookingFailedAdminAlert,
-  sendFlightConfirmationNotifications,
 } from "@/lib/flights/notifications";
+import { ensureFlightGuestCustomerAccess } from "@/lib/flights/flight-guest-access";
 import type {
   FlightBookingRecord,
   FlightTripjackBookingStatus,
@@ -219,32 +221,41 @@ async function applyBookingDetailsToRecord(
     totalFare: number;
   }
 ): Promise<FlightBookingRecord | null> {
-  const normalized = input.normalized;
-  const success =
-    isBookingDetailsSuccess(input.pollStatus) && hasFlightTicketMetadata(normalized);
+  const booking = await getFlightBookingById(bookingId);
+  if (!booking) return null;
 
+  const normalized = input.normalized;
+  if (!normalized) {
+    return updateFlightBooking(bookingId, {
+      ...paymentFields,
+      tripjackBookingId: input.tripjackBookingId,
+      status: "booking_pending",
+      pipelineStatus: "BOOKING_DETAILS_POLLING",
+      tripjackBookingStatus: input.pollStatus === "FAILED" ? "FAILED" : "PENDING",
+      bookRequest: input.bookRequest,
+      bookResponse: input.bookResponse,
+      bookingDetailsResponse: input.detailsResponse,
+      bookingDetailResponse: input.detailsResponse,
+      bookingDetailsPollAttempts: input.pollAttempts,
+      bookingDetailsPollStatus: input.pollStatus,
+      orderStatus: input.pollStatus,
+      tripjackStatus: "details_pending",
+      lastStatusSyncedAt: new Date().toISOString(),
+    });
+  }
+
+  const patch = buildBookingDetailSyncPatch(booking, normalized, input.detailsResponse);
   return updateFlightBooking(bookingId, {
     ...paymentFields,
+    ...patch,
     tripjackBookingId: input.tripjackBookingId,
-    status: success ? "confirmed" : "booking_pending",
-    pipelineStatus: success ? "CONFIRMED" : "BOOKING_DETAILS_POLLING",
-    tripjackBookingStatus: success ? "SUCCESS" : input.pollStatus === "FAILED" ? "FAILED" : "PENDING",
     bookRequest: input.bookRequest,
     bookResponse: input.bookResponse,
-    bookingDetailsResponse: input.detailsResponse,
-    bookingDetailResponse: input.detailsResponse,
-    normalizedBookingDetails: normalized ?? undefined,
-    bookingDetailNormalized: normalized ?? undefined,
-    pnr: normalized?.pnr || undefined,
-    airlinePnr: normalized?.airlinePnr || undefined,
-    ticketNumber: normalized?.ticketNumber || undefined,
-    ticketStatus: normalized?.ticketStatus || undefined,
-    orderStatus: normalized?.orderStatus || input.pollStatus,
-    tripjackStatus: success ? "booked" : "details_pending",
     bookingDetailsPollAttempts: input.pollAttempts,
     bookingDetailsPollStatus: input.pollStatus,
+    tripjackBookAttempted: true,
     totalFare:
-      normalized?.fareDetails.totalFare && normalized.fareDetails.totalFare > 0
+      normalized.fareDetails.totalFare && normalized.fareDetails.totalFare > 0
         ? normalized.fareDetails.totalFare
         : input.totalFare,
   });
@@ -403,7 +414,9 @@ async function executeTripJackFlightBook(
       tripjackStatus: "details_pending",
     });
     if (!pending) throw new Error("Booking update failed");
-    return pending;
+    const { booking: withGuest } = await ensureFlightGuestCustomerAccess(pending);
+    await handleFlightBookingEmailTransition(booking, withGuest);
+    return withGuest;
   }
 
   await logFlightApiCall({
@@ -417,6 +430,7 @@ async function executeTripJackFlightBook(
     userId: booking.userId,
   });
 
+  const previousBooking = booking;
   const updated = await applyBookingDetailsToRecord(bookingId, paymentFields, {
     tripjackBookingId: confirmedBookingId,
     bookRequest,
@@ -430,15 +444,10 @@ async function executeTripJackFlightBook(
 
   if (!updated) throw new Error("Booking update failed");
 
-  if (updated.status === "confirmed") {
-    try {
-      await sendFlightConfirmationNotifications(updated);
-    } catch (emailError) {
-      console.warn("[flight-booking] confirmation notifications failed:", emailError);
-    }
-  }
+  const { booking: withGuest } = await ensureFlightGuestCustomerAccess(updated);
+  await handleFlightBookingEmailTransition(previousBooking, withGuest);
 
-  return (await getFlightBookingById(bookingId)) ?? updated;
+  return (await getFlightBookingById(bookingId)) ?? withGuest;
 }
 
 /**
@@ -519,7 +528,9 @@ export async function confirmFlightAfterPayment(input: {
   });
 
   try {
-    return await executeTripJackFlightBook(input.bookingId, paymentFields);
+    const result = await executeTripJackFlightBook(input.bookingId, paymentFields);
+    const { booking: withGuest } = await ensureFlightGuestCustomerAccess(result);
+    return (await getFlightBookingById(input.bookingId)) ?? withGuest;
   } finally {
     await updateFlightBooking(input.bookingId, { bookingLock: false });
   }
@@ -568,14 +579,10 @@ export async function retryTripJackFlightBook(bookingId: string): Promise<Flight
         totalFare: resolveBookTotalFare(booking),
       });
       if (!updated) throw new Error("Booking update failed");
-      if (updated.status === "confirmed") {
-        try {
-          await sendFlightConfirmationNotifications(updated);
-        } catch {
-          /* non-blocking */
-        }
-      }
-      return (await getFlightBookingById(bookingId)) ?? updated;
+      const previous = booking;
+      const { booking: withGuest } = await ensureFlightGuestCustomerAccess(updated);
+      await handleFlightBookingEmailTransition(previous, withGuest);
+      return (await getFlightBookingById(bookingId)) ?? withGuest;
     }
 
     return await executeTripJackFlightBook(bookingId, paymentFields);

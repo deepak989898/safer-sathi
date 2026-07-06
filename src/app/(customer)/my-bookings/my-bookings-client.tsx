@@ -30,6 +30,7 @@ import { formatVehicleRoute } from "@/lib/bookings/admin-display";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
+import type { FlightBookingRecord } from "@/lib/flights/types";
 import type { Booking, BookingStatus, PaymentStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ function formatBookingDates(booking: Booking): string {
 
 const QUICK_LINKS = [
   { href: "/packages", label: "Packages", icon: Package },
+  { href: "/flights", label: "Flights", icon: Luggage },
   { href: "/hotels", label: "Hotels", icon: Hotel },
   { href: "/vehicles", label: "Vehicles", icon: Car },
 ] as const;
@@ -77,6 +79,7 @@ export default function MyBookingsClient() {
   const locale = "en" as const;
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [hotelBookings, setHotelBookings] = useState<HotelBookingRecord[]>([]);
+  const [flightBookings, setFlightBookings] = useState<FlightBookingRecord[]>([]);
   const [rewardPoints, setRewardPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -86,14 +89,16 @@ export default function MyBookingsClient() {
     if (!user) return;
     setLoading(true);
     try {
-      const [bookingsRes, rewardsRes, hotelRes] = await Promise.all([
+      const [bookingsRes, rewardsRes, hotelRes, flightRes] = await Promise.all([
         customerApiFetch("/api/bookings"),
         customerApiFetch("/api/customer/rewards"),
         customerApiFetch("/api/hotels/bookings"),
+        customerApiFetch("/api/flights/bookings"),
       ]);
       const bookingsJson = await bookingsRes.json();
       const rewardsJson = await rewardsRes.json();
       const hotelJson = await hotelRes.json();
+      const flightJson = await flightRes.json();
 
       if (bookingsJson.success) {
         const items = (bookingsJson.data ?? []) as Booking[];
@@ -105,6 +110,10 @@ export default function MyBookingsClient() {
       if (hotelJson.success) {
         const items = (hotelJson.data?.bookings ?? []) as HotelBookingRecord[];
         setHotelBookings(items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      }
+      if (flightJson.success) {
+        const items = (flightJson.data?.bookings ?? []) as FlightBookingRecord[];
+        setFlightBookings(items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       }
     } finally {
       setLoading(false);
@@ -364,6 +373,50 @@ export default function MyBookingsClient() {
                 </div>
               </CardContent>
             </Card>
+
+            {flightBookings.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-[#0c2444]">Flight Bookings</h2>
+                  <Link href="/account/flight-bookings" className="text-sm text-primary hover:underline">
+                    View all
+                  </Link>
+                </div>
+                {flightBookings.slice(0, 5).map((fb) => (
+                  <Card key={fb.bookingId} className="overflow-hidden border-l-4 border-l-sky-500 shadow-sm">
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-start gap-2">
+                            <p className="text-base font-semibold text-[#0c2444]">
+                              {fb.sourceCode} → {fb.destinationCode}
+                            </p>
+                            <Badge variant="secondary" className="capitalize">
+                              {fb.status.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {fb.travelDate} · {fb.airlineName} {fb.airlineCode} {fb.flightNumber}
+                            {fb.pnr ? ` · PNR ${fb.pnr}` : ""}
+                          </p>
+                          <p className="font-mono text-xs text-muted-foreground">{fb.bookingId}</p>
+                        </div>
+                        <div className="flex flex-row items-end justify-between gap-3 lg:flex-col lg:items-end">
+                          <p className="text-lg font-bold text-primary">
+                            {formatCurrency(fb.totalFare, locale)}
+                          </p>
+                          <Link href={`/flights/ticket/${fb.bookingId}`}>
+                            <Button variant="outline" size="sm" className="h-8">
+                              {fb.status === "confirmed" ? "Ticket" : "View"}
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             {hotelBookings.length > 0 && (
               <div className="space-y-3">

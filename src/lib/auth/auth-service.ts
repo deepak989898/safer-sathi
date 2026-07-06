@@ -17,7 +17,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { isBookingIdPassword } from "@/lib/auth/booking-login-credentials";
+import { isBookingIdPassword, normalizeBookingLoginPassword } from "@/lib/auth/booking-login-credentials";
 import { COLLECTIONS, getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase/client";
 import { appUrl } from "@/lib/site-config";
 import type { User, UserRole } from "@/types";
@@ -231,7 +231,7 @@ export async function loginUser(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: normalizedEmail,
-          bookingNumber: trimmedPassword.toUpperCase(),
+          bookingNumber: normalizeBookingLoginPassword(trimmedPassword),
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -272,7 +272,7 @@ export async function loginUser(
     auth,
     normalizedEmail,
     isBookingIdPassword(trimmedPassword)
-      ? trimmedPassword.toUpperCase()
+      ? normalizeBookingLoginPassword(trimmedPassword)
       : trimmedPassword
   );
 

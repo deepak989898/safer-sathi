@@ -9,6 +9,7 @@ import {
   FlightBookingConfirmationScreen,
   FlightPaymentSuccessScreen,
 } from "@/components/flights/flight-status-screens";
+import { postFlightPaymentSuccessMessage } from "@/lib/bookings/post-payment-navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightBookingApi } from "@/hooks/use-flight-booking";
 import {
@@ -106,6 +107,7 @@ export function FlightPaymentClient() {
       bookingFailed?: boolean;
       message?: string;
       testMode?: boolean;
+      loginCredentials?: { loginEmail: string; loginPassword: string };
     }
   ) => {
     setConfirmedBooking(result.booking);
@@ -129,6 +131,10 @@ export function FlightPaymentClient() {
       );
     } else if (result.testMode) {
       toast.success("Test payment simulated. Continuing booking flow.", { duration: 2500 });
+    }
+
+    if (!user && result.loginCredentials) {
+      toast.info(postFlightPaymentSuccessMessage(result.booking.bookingId), { duration: 8000 });
     }
   };
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { confirmFlightAfterPayment } from "@/lib/flights/booking-service";
+import { ensureFlightGuestCustomerAccess } from "@/lib/flights/flight-guest-access";
+import { resolveFlightLoginCredentials } from "@/lib/flights/flight-login-credentials";
 import { getFlightBookingById, updateFlightBooking } from "@/lib/flights/firestore";
 import { flightApiError } from "@/lib/flights/api-helpers";
 import { verifyPayment } from "@/lib/payments/razorpay";
@@ -69,30 +71,40 @@ export async function POST(request: Request) {
       if (!booking) {
         booking = await getFlightBookingById(parsed.data.bookingId);
       }
+      if (booking) {
+        const guest = await ensureFlightGuestCustomerAccess(booking);
+        booking = guest.booking;
+      }
       return apiSuccess({
         verified: true,
         booking,
         manualReview: true,
         message: CUSTOMER_PENDING_MESSAGE,
+        loginCredentials:
+          booking?.guestAccountProvisioned ? resolveFlightLoginCredentials(booking) : undefined,
       });
     }
 
+    const guest = await ensureFlightGuestCustomerAccess(booking);
+
     return apiSuccess({
       verified: true,
-      booking,
+      booking: guest.booking,
       manualReview:
-        booking.status === "payment_received_booking_failed" ||
-        booking.status === "manual_review_required" ||
-        booking.status === "booking_pending",
-      bookingFailed: booking.status === "payment_received_booking_failed",
+        guest.booking.status === "payment_received_booking_failed" ||
+        guest.booking.status === "manual_review_required" ||
+        guest.booking.status === "booking_pending",
+      bookingFailed: guest.booking.status === "payment_received_booking_failed",
       message:
-        booking.status === "payment_received_booking_failed"
+        guest.booking.status === "payment_received_booking_failed"
           ? CUSTOMER_PENDING_MESSAGE
-          : booking.status === "manual_review_required" || booking.status === "booking_pending"
+          : guest.booking.status === "manual_review_required" ||
+              guest.booking.status === "booking_pending"
             ? CUSTOMER_PENDING_MESSAGE
-            : booking.status === "confirmed"
+            : guest.booking.status === "confirmed"
               ? "Flight booking confirmed"
               : "Booking in progress",
+      loginCredentials: guest.loginCredentials ?? undefined,
     });
   } catch (err) {
     return flightApiError(err, "Payment verification failed");

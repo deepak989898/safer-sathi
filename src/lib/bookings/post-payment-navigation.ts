@@ -13,3 +13,13 @@ export function postPaymentSuccessMessage(
   }
   return `Booking ${bookingNumber} confirmed! Sign in with your email and Booking ID (${bookingNumber}) as your password.`;
 }
+
+/** Flight guest checkout — password is the flight booking ID (e.g. flight_123_abc). */
+export function postFlightPaymentSuccessMessage(bookingId: string): string {
+  return `Payment received! Sign in with your email and Booking ID (${bookingId}) as your password to view tickets in My Bookings.`;
+}
+
+/** Where to send the customer after a successful flight payment. */
+export function postFlightPaymentPath(isLoggedIn: boolean): string {
+  return isLoggedIn ? "/account/flight-bookings" : "/login?redirect=/account/flight-bookings";
+}

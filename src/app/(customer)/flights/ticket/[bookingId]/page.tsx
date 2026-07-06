@@ -10,6 +10,11 @@ import { FlightCancelDialog } from "@/components/flights/flight-cancel-dialog";
 import { FlightTicketView } from "@/components/flights/flight-ticket-view";
 import { Button } from "@/components/ui/button";
 import { canCancelBooking, canReleasePnr } from "@/lib/flights/booking-guards";
+import {
+  isTicketPageProcessingStatus,
+  TICKET_PAGE_POLL_INTERVAL_MS,
+  TICKET_PAGE_POLL_MAX_MS,
+} from "@/lib/flights/booking-status-display";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import type { NormalizedCancellationCharges } from "@/lib/tripjack/types";
@@ -36,6 +41,17 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
     setBooking(next);
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    if (!bookingId) return;
+    setRefreshing(true);
+    const refreshed = await api.refreshBookingDetail(bookingId);
+    if (refreshed) {
+      applyBooking(refreshed);
+      setLoadError(null);
+    }
+    setRefreshing(false);
+  }, [api, bookingId, applyBooking]);
+
   useEffect(() => {
     void params.then(async ({ bookingId: id }) => {
       setBookingId(id);
@@ -57,19 +73,31 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
     });
   }, [params]);
 
-  // Poll booking details while ticket is being issued.
+  // Poll booking details while ticket is being issued (up to ~3 minutes).
   useEffect(() => {
     if (!booking) return;
-    if (booking.status !== "booking_pending" && booking.status !== "payment_success") return;
+    if (!isTicketPageProcessingStatus(booking)) return;
 
+    const started = Date.now();
     const timer = window.setInterval(() => {
+      if (Date.now() - started > TICKET_PAGE_POLL_MAX_MS) {
+        window.clearInterval(timer);
+        return;
+      }
       void api.refreshBookingDetail(booking.bookingId).then((b) => {
         if (b) applyBooking(b);
       });
-    }, 5000);
+    }, TICKET_PAGE_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [booking?.bookingId, booking?.status]);
+  }, [
+    booking?.bookingId,
+    booking?.status,
+    booking?.passengerTicketStatus,
+    booking?.pipelineStatus,
+    api,
+    applyBooking,
+  ]);
 
   // Poll amendment every 20s while cancellation is in progress.
   useEffect(() => {
@@ -185,7 +213,13 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           <FlightBookingTimeline booking={booking} />
         </div>
 
-        <FlightTicketView booking={booking} locale={locale} />
+        <FlightTicketView
+          booking={booking}
+          locale={locale}
+          showDebug={isStaff}
+          refreshing={refreshing}
+          onRefresh={() => void handleRefresh()}
+        />
 
         <div className="flex flex-wrap justify-center gap-2 print:hidden">
           {canCancelBooking(booking) && (
@@ -211,10 +245,8 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           <Button
             variant="outline"
             className="rounded-xl"
-            onClick={() =>
-              void api.refreshBookingDetail(booking.bookingId).then((b) => b && applyBooking(b))
-            }
-            disabled={api.loading}
+            onClick={() => void handleRefresh()}
+            disabled={api.loading || refreshing}
           >
             Refresh Status
           </Button>

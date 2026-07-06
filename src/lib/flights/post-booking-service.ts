@@ -12,6 +12,9 @@ import {
 } from "@/lib/tripjack/parse-amendment";
 import { normalizeTripJackBookingDetails } from "@/lib/tripjack/parse-booking-details";
 import { canCancelBooking, canReleasePnr } from "@/lib/flights/booking-guards";
+import { buildBookingDetailSyncPatch } from "@/lib/flights/booking-status-sync";
+import { ensureFlightGuestCustomerAccess } from "@/lib/flights/flight-guest-access";
+import { handleFlightBookingEmailTransition } from "@/lib/flights/notifications";
 import { getFlightBookingById, updateFlightBooking } from "@/lib/flights/firestore";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 
@@ -44,39 +47,17 @@ export async function refreshFlightBookingDetails(
   const normalized = normalizeTripJackBookingDetails(booking.bookResponse, detailsResponse);
   if (!normalized) throw new Error("Could not parse booking details");
 
-  let status = booking.status;
-  if (normalized.isHoldBooking && booking.paymentStatus !== "paid") {
-    status = "hold";
-  } else if (
-    (normalized.orderStatus === "SUCCESS" || normalized.orderStatus === "COMPLETED") &&
-    booking.status !== "cancellation_requested" &&
-    booking.status !== "cancelled" &&
-    booking.status !== "refund_pending" &&
-    booking.status !== "refund_completed"
-  ) {
-    status = "confirmed";
-  }
+  const patch = buildBookingDetailSyncPatch(booking, normalized, detailsResponse);
+  patch.bookingDetailsPollStatus = normalized.orderStatus;
 
-  const updated = await updateFlightBooking(bookingId, {
-    bookingDetailResponse: detailsResponse,
-    bookingDetailsResponse: detailsResponse,
-    bookingDetailNormalized: normalized,
-    normalizedBookingDetails: normalized,
-    pnr: normalized.pnr || booking.pnr,
-    airlinePnr: normalized.airlinePnr || booking.airlinePnr,
-    ticketNumber: normalized.ticketNumber || booking.ticketNumber,
-    orderStatus: normalized.orderStatus,
-    ticketStatus: normalized.ticketStatus,
-    tripjackStatus: normalized.tripStatus,
-    isHoldBooking: normalized.isHoldBooking,
-    totalFare: normalized.fareDetails.totalFare || booking.totalFare,
-    baseFare: normalized.fareDetails.baseFare || booking.baseFare,
-    taxesAndFees: normalized.fareDetails.taxesAndFees || booking.taxesAndFees,
-    status,
-  });
+  const updated = await updateFlightBooking(bookingId, patch);
 
   if (!updated) throw new Error("Failed to save booking details");
-  return updated;
+
+  const { booking: withGuest } = await ensureFlightGuestCustomerAccess(updated);
+  await handleFlightBookingEmailTransition(booking, withGuest);
+
+  return withGuest;
 }
 
 export async function getFlightCancellationCharges(

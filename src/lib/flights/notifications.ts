@@ -3,6 +3,7 @@ import "server-only";
 import { sendAdminBookingAlert, sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
 import { getInvoiceDownloadUrl } from "@/lib/bookings/invoice-access";
 import { flightBookingToLegacyBooking } from "@/lib/flights/flight-legacy-booking";
+import { resolveFlightLoginCredentials } from "@/lib/flights/flight-login-credentials";
 import { updateFlightBooking } from "@/lib/flights/firestore";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { sendViaResend, isResendConfigured } from "@/lib/email/resend";
@@ -79,10 +80,64 @@ export async function sendFlightBookingFailedAdminAlert(
   });
 }
 
+function flightLoginEmailLines(booking: FlightBookingRecord): string[] {
+  if (!booking.guestAccountProvisioned) return [];
+  const credentials = resolveFlightLoginCredentials(booking);
+  return [
+    "",
+    "--- Your Safar Sathi login ---",
+    `Login email: ${credentials.loginEmail}`,
+    `Password (Booking ID): ${credentials.loginPassword}`,
+    `Sign in: ${appUrl("/login?redirect=/account/flight-bookings")}`,
+    "You can change your password after signing in from My Bookings.",
+  ];
+}
+
+/** Payment received but ticket still processing — sent once per booking. */
+export async function sendFlightProcessingEmail(booking: FlightBookingRecord): Promise<void> {
+  if (!booking.customerEmail) return;
+  if (booking.processingEmailSentAt) return;
+  if (booking.status === "confirmed" || booking.confirmedEmailSentAt) return;
+
+  const ticketUrl = appUrl(`/flights/ticket/${booking.bookingId}`);
+  const text = [
+    `Hi ${booking.customerName},`,
+    "",
+    `We have received your payment for the flight booking below.`,
+    `Your ticket is being confirmed with the airline — this usually takes a few minutes.`,
+    "",
+    `Booking ID: ${booking.bookingId}`,
+    `Flight: ${booking.airlineName} ${booking.airlineCode} ${booking.flightNumber}`,
+    `Route: ${booking.sourceCode} → ${booking.destinationCode}`,
+    `Date: ${booking.travelDate}`,
+    `Fare paid: ${formatInr(booking.totalFare)}`,
+    "",
+    `Track status: ${ticketUrl}`,
+    "",
+    `You will receive a separate confirmation email with PNR/ticket once issued.`,
+    ...flightLoginEmailLines(booking),
+    "",
+    SITE_CONTACT.phone,
+  ].join("\n");
+
+  await deliverFlightEmail({
+    to: booking.customerEmail,
+    subject: `Payment received — flight booking processing — ${booking.bookingId}`,
+    text,
+  });
+
+  await updateFlightBooking(booking.bookingId, {
+    processingEmailSentAt: new Date().toISOString(),
+    lastEmailStatus: "processing",
+  });
+}
+
 export async function sendFlightConfirmationNotifications(
   booking: FlightBookingRecord
 ): Promise<void> {
   if (!booking.customerEmail) return;
+  if (booking.confirmedEmailSentAt) return;
+  if (booking.status !== "confirmed" && booking.passengerTicketStatus !== "CONFIRMED") return;
 
   const legacy = flightBookingToLegacyBooking(booking);
   const ticketUrl = appUrl(`/flights/ticket/${booking.bookingId}`);
@@ -100,7 +155,9 @@ export async function sendFlightConfirmationNotifications(
     "",
     `Booking ID: ${booking.bookingId}`,
     booking.pnr ? `PNR: ${booking.pnr}` : "",
-    booking.ticketNumber ? `Ticket: ${booking.ticketNumber}` : "",
+    booking.ticketNumber || booking.ticketNo
+      ? `Ticket: ${booking.ticketNumber || booking.ticketNo}`
+      : "",
     `Flight: ${booking.airlineName} ${booking.airlineCode} ${booking.flightNumber}`,
     `Route: ${booking.sourceCode} → ${booking.destinationCode}`,
     `Date: ${booking.travelDate}`,
@@ -109,6 +166,7 @@ export async function sendFlightConfirmationNotifications(
     "",
     `Download ticket: ${ticketUrl}`,
     `Download invoice: ${invoiceUrl}`,
+    ...flightLoginEmailLines(booking),
     "",
     SITE_CONTACT.phone,
   ]
@@ -127,8 +185,48 @@ export async function sendFlightConfirmationNotifications(
     /* non-blocking */
   }
 
+  const now = new Date().toISOString();
   await updateFlightBooking(booking.bookingId, {
-    emailSentAt: new Date().toISOString(),
-    invoiceSentAt: new Date().toISOString(),
+    emailSentAt: now,
+    invoiceSentAt: now,
+    confirmedEmailSentAt: now,
+    lastEmailStatus: "confirmed",
   });
+}
+
+/** Send processing or confirmed email based on current booking state (deduped). */
+export async function handleFlightBookingEmailTransition(
+  previous: FlightBookingRecord | null,
+  current: FlightBookingRecord
+): Promise<void> {
+  if (current.paymentStatus !== "paid") return;
+
+  const wasConfirmed =
+    previous?.status === "confirmed" || previous?.passengerTicketStatus === "CONFIRMED";
+  const isConfirmed =
+    current.status === "confirmed" || current.passengerTicketStatus === "CONFIRMED";
+
+  if (isConfirmed) {
+    if (!wasConfirmed || !current.confirmedEmailSentAt) {
+      try {
+        await sendFlightConfirmationNotifications(current);
+      } catch (emailError) {
+        console.warn("[flight-booking] confirmation notifications failed:", emailError);
+      }
+    }
+    return;
+  }
+
+  if (
+    current.status === "booking_pending" ||
+    current.status === "payment_success" ||
+    current.status === "manual_review_required" ||
+    current.pipelineStatus === "BOOKING_DETAILS_POLLING"
+  ) {
+    try {
+      await sendFlightProcessingEmail(current);
+    } catch (emailError) {
+      console.warn("[flight-booking] processing email failed:", emailError);
+    }
+  }
 }
