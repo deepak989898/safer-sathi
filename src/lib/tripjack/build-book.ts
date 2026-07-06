@@ -4,6 +4,12 @@ import type {
   TripJackTravellerPayload,
 } from "@/lib/tripjack/types";
 
+export interface TripJackBookContactInfo {
+  ecn?: string;
+  emails: string[];
+  contacts: string[];
+}
+
 export interface TripJackBookRequest {
   bookingId: string;
   paymentInfos: Array<{ amount: number }>;
@@ -13,6 +19,7 @@ export interface TripJackBookRequest {
     emails: string[];
     contacts: string[];
   };
+  contactInfo?: TripJackBookContactInfo;
 }
 
 function toTravellerPayload(row: FlightPassengerFormRow): TripJackTravellerPayload {
@@ -45,6 +52,14 @@ export function buildTripJackBookRequest(input: {
   gstInfo?: Record<string, unknown>;
 }): TripJackBookRequest {
   const contact = input.delivery.contact.replace(/\D/g, "").slice(-10);
+  const email = input.delivery.email.trim();
+  const code = input.delivery.countryCode?.replace(/\D/g, "") || "91";
+  const phoneWithCode = contact ? `+${code}${contact}` : contact;
+
+  const deliveryInfo = input.deliveryInfo ?? {
+    emails: [email],
+    contacts: [phoneWithCode || contact],
+  };
 
   return {
     bookingId: input.tripjackBookingId,
@@ -54,9 +69,11 @@ export function buildTripJackBookRequest(input: {
         ? input.travellerInfo
         : input.passengers.map(toTravellerPayload),
     gstInfo: input.gstInfo ?? {},
-    deliveryInfo: input.deliveryInfo ?? {
-      emails: [input.delivery.email.trim()],
-      contacts: [contact],
+    deliveryInfo,
+    contactInfo: {
+      ecn: "EmergencyContactDetails",
+      emails: deliveryInfo.emails,
+      contacts: deliveryInfo.contacts,
     },
   };
 }

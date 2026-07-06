@@ -50,6 +50,7 @@ export async function sendFlightBookingFailedAdminAlert(
     process.env.ADMIN_EMAIL?.trim() ||
     SITE_CONTACT.email;
 
+  const detail = booking.bookErrorDetail;
   const text = [
     `Flight booking FAILED after payment — action required`,
     "",
@@ -61,10 +62,15 @@ export async function sendFlightBookingFailedAdminAlert(
     `Razorpay: ${booking.razorpayPaymentId ?? "—"}`,
     "",
     `Error: ${errorMessage}`,
+    detail?.upstreamStatus ? `Upstream status: ${detail.upstreamStatus}` : "",
+    detail?.upstreamUrl ? `Upstream URL: ${detail.upstreamUrl}` : "",
+    detail?.rawPreview ? `Raw preview: ${detail.rawPreview.slice(0, 400)}` : "",
     "",
     `Admin: ${appUrl(`/admin/flight-bookings/${booking.bookingId}`)}`,
     "Use Retry TripJack Book from admin detail page.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   await deliverFlightEmail({
     to: adminEmail,

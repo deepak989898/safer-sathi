@@ -77,7 +77,10 @@ export function FlightBookingConfirmationScreen({
 }: BookingConfirmationScreenProps) {
   const confirmed = booking.status === "confirmed";
   const pending =
-    booking.status === "manual_review_required" || booking.status === "booking_pending";
+    booking.status === "manual_review_required" ||
+    booking.status === "booking_pending" ||
+    booking.status === "payment_received_booking_failed" ||
+    booking.status === "payment_success";
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
@@ -87,7 +90,7 @@ export function FlightBookingConfirmationScreen({
           title={confirmed ? "Booking Confirmed!" : "Booking In Progress"}
           description={
             pending
-              ? "Payment received. Ticket confirmation is pending. Our team will verify and update shortly."
+              ? "Payment received. Ticket confirmation is pending. Our team will process shortly."
               : "Your flight is booked. View your e-ticket and itinerary."
           }
           tone={pending ? "warning" : "success"}

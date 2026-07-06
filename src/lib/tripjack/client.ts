@@ -247,9 +247,13 @@ async function tripjackProxyPost(url: string, body: unknown): Promise<unknown> {
   const rawText = await response.text();
   let raw: unknown;
   try {
-    raw = JSON.parse(rawText);
+    raw = rawText ? JSON.parse(rawText) : {};
   } catch {
-    throw new TripJackApiError(`Invalid JSON from TripJack proxy`, response.status, rawText);
+    const preview = rawText.trim().slice(0, 200);
+    const hint = preview.startsWith("<")
+      ? `TripJack proxy returned HTML (route may be missing on VPS: ${url}).`
+      : `Invalid JSON from TripJack proxy (${url}).`;
+    throw new TripJackApiError(hint, response.status, rawText);
   }
 
   const record = raw as Record<string, unknown>;
@@ -257,7 +261,7 @@ async function tripjackProxyPost(url: string, body: unknown): Promise<unknown> {
     throw new TripJackApiError(
       extractTripJackProxyErrorMessage(record, `TripJack proxy error ${response.status}`),
       response.status,
-      raw
+      { ...record, upstreamUrl: url }
     );
   }
 
@@ -291,12 +295,11 @@ export async function fetchTripJackBookingDetails(
   bookingId: string,
   options?: { requirePaxPricing?: boolean }
 ): Promise<unknown> {
-  const { bookingDetailUrl, bookingDetailsUrl } = getTripJackProxyConfig();
-  const url = bookingDetailUrl || bookingDetailsUrl;
+  const { bookingDetailsUrl } = getTripJackProxyConfig();
   const body: Record<string, unknown> = { bookingId: bookingId.trim() };
   if (options?.requirePaxPricing) body.requirePaxPricing = true;
-  console.log("[tripjack-client] Booking Detail API →", url, body);
-  return tripjackProxyPost(url, body);
+  console.log("[tripjack-client] Booking Details API →", bookingDetailsUrl, body);
+  return tripjackProxyPost(bookingDetailsUrl, body);
 }
 
 export async function confirmTripJackFareBeforeTicket(bookingId: string): Promise<unknown> {

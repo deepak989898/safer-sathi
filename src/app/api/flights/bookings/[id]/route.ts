@@ -9,6 +9,7 @@ import {
   refreshFlightBookingDetails,
   releaseFlightPnr,
 } from "@/lib/flights/post-booking-service";
+import { retryTripJackFlightBook } from "@/lib/flights/booking-service";
 import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
@@ -44,7 +45,7 @@ export async function GET(
 }
 
 const patchSchema = z.object({
-  action: z.enum(["retry_poll", "retry_booking_detail", "retry_release_pnr"]),
+  action: z.enum(["retry_poll", "retry_booking_detail", "retry_release_pnr", "retry_book"]),
 });
 
 /** Admin-only retries. */
@@ -72,6 +73,8 @@ export async function PATCH(
       booking = await refreshFlightBookingDetails(id);
     } else if (parsed.data.action === "retry_release_pnr") {
       booking = await releaseFlightPnr(id);
+    } else if (parsed.data.action === "retry_book") {
+      booking = await retryTripJackFlightBook(id);
     }
 
     return apiSuccess({ booking });

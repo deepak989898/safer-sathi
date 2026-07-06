@@ -5,6 +5,9 @@ import { flightApiError } from "@/lib/flights/api-helpers";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
+const CUSTOMER_PENDING_MESSAGE =
+  "Payment received. Ticket confirmation is pending. Our team will process shortly.";
+
 const schema = z.object({
   bookingId: z.string().min(1),
   razorpayOrderId: z.string().min(1),
@@ -55,11 +58,12 @@ export async function POST(request: Request) {
         confirmError instanceof Error ? confirmError.message : "Confirmation failed";
       console.error("[flight-payment] post-payment booking confirm failed:", message);
       booking = await updateFlightBooking(parsed.data.bookingId, {
-        status: "manual_review_required",
+        status: "booking_pending",
         paymentStatus: "paid",
         razorpayOrderId: parsed.data.razorpayOrderId,
         razorpayPaymentId: parsed.data.razorpayPaymentId,
         razorpaySignatureVerified: true,
+        pipelineStatus: "BOOKING_DETAILS_POLLING",
         adminNotes: message,
       });
       if (!booking) {
@@ -69,9 +73,7 @@ export async function POST(request: Request) {
         verified: true,
         booking,
         manualReview: true,
-        message:
-          "Payment received. Ticket confirmation is pending. Our team will verify and update shortly.",
-        error: message,
+        message: CUSTOMER_PENDING_MESSAGE,
       });
     }
 
@@ -85,9 +87,9 @@ export async function POST(request: Request) {
       bookingFailed: booking.status === "payment_received_booking_failed",
       message:
         booking.status === "payment_received_booking_failed"
-          ? "Payment received but TripJack booking failed. Our team has been notified and will retry."
+          ? CUSTOMER_PENDING_MESSAGE
           : booking.status === "manual_review_required" || booking.status === "booking_pending"
-            ? "Payment received. Fetching your ticket from the airline…"
+            ? CUSTOMER_PENDING_MESSAGE
             : booking.status === "confirmed"
               ? "Flight booking confirmed"
               : "Booking in progress",

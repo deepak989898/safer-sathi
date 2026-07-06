@@ -45,6 +45,7 @@ const patchSchema = z.object({
   action: z.enum([
     "refresh_detail",
     "retry_booking_detail",
+    "retry_book",
     "retry_poll",
     "retry_release_pnr",
     "add_note",

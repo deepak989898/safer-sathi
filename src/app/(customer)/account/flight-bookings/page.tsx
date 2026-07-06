@@ -8,6 +8,7 @@ import { useFlightBookingApi } from "@/hooks/use-flight-booking";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AirlineAvatar, FlightSoftCard } from "@/components/flights/flight-ui";
+import { FlightPipelineStatusBadge } from "@/components/flights/flight-pipeline-status-badge";
 import type { FlightBookingRecord, FlightBookingStatus } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
@@ -164,9 +165,12 @@ function FlightBookingsContent() {
                 </div>
               </div>
               <div className="text-right">
-                <Badge className={`border-0 ${statusTone(b.status)}`}>
-                  {b.status.replace(/_/g, " ")}
-                </Badge>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Badge className={`border-0 ${statusTone(b.status)}`}>
+                    {b.status.replace(/_/g, " ")}
+                  </Badge>
+                  <FlightPipelineStatusBadge booking={b} />
+                </div>
                 <p className="mt-2 text-lg font-bold text-[#1a4fa3]">
                   {formatCurrency(b.totalFare, locale)}
                 </p>

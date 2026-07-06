@@ -1,12 +1,14 @@
 import {
   bookTripJackFlight,
 } from "@/lib/tripjack/client";
+import { getTripJackProxyConfig } from "@/lib/tripjack/config";
 import {
   buildTripJackBookRequest,
   type TripJackBookRequest,
 } from "@/lib/tripjack/build-book";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 import { logFlightApiCall } from "@/lib/flights/api-logging";
+import { captureFlightBookError } from "@/lib/flights/book-error";
 import {
   hasFlightTicketMetadata,
   isBookingDetailsSuccess,
@@ -22,7 +24,10 @@ import {
   sendFlightBookingFailedAdminAlert,
   sendFlightConfirmationNotifications,
 } from "@/lib/flights/notifications";
-import type { FlightBookingRecord } from "@/lib/flights/types";
+import type {
+  FlightBookingRecord,
+  FlightTripjackBookingStatus,
+} from "@/lib/flights/types";
 import type {
   FareValidateRequest,
   FlightPassengerDeliveryForm,
@@ -56,12 +61,49 @@ export function resolveTripjackBookingId(booking: FlightBookingRecord): string {
   );
 }
 
-function resolveValidatedTotalFare(booking: FlightBookingRecord): number {
-  const fromValidated = booking.fareValidateNormalized?.totalFare;
-  if (typeof fromValidated === "number" && Number.isFinite(fromValidated) && fromValidated > 0) {
-    return fromValidated;
+function resolveBookTotalFare(booking: FlightBookingRecord): number {
+  const reviewTf = booking.reviewNormalized?.totalFare;
+  if (typeof reviewTf === "number" && Number.isFinite(reviewTf) && reviewTf > 0) {
+    return reviewTf;
   }
+
+  const validatedTf = booking.fareValidateNormalized?.totalFare;
+  if (typeof validatedTf === "number" && Number.isFinite(validatedTf) && validatedTf > 0) {
+    return validatedTf;
+  }
+
   return booking.totalFare;
+}
+
+function deriveTripjackBookingStatus(bookResponse: unknown): FlightTripjackBookingStatus {
+  if (!bookResponse || typeof bookResponse !== "object") return "UNKNOWN";
+  const record = bookResponse as Record<string, unknown>;
+  const data = (record.data ?? record) as Record<string, unknown>;
+  const status = (data.status ?? record.status) as Record<string, unknown> | string | undefined;
+
+  if (typeof status === "string") {
+    const upper = status.toUpperCase();
+    if (upper === "SUCCESS" || upper === "COMPLETED") return "SUCCESS";
+    if (upper === "PENDING" || upper === "IN_PROGRESS" || upper === "PROCESSING") return "PENDING";
+    if (upper === "FAILED" || upper === "ABORTED" || upper === "CANCELLED") return "FAILED";
+  }
+
+  if (status && typeof status === "object") {
+    if (status.success === true) return "SUCCESS";
+    if (status.success === false) return "FAILED";
+    const message = String(status.message ?? "").toUpperCase();
+    if (message.includes("PENDING")) return "PENDING";
+  }
+
+  if (record.success === true || data.success === true) return "SUCCESS";
+  if (record.success === false || data.success === false) return "FAILED";
+  return "PENDING";
+}
+
+function shouldSkipTripJackBook(booking: FlightBookingRecord): boolean {
+  if (!booking.tripjackBookAttempted) return false;
+  const tjStatus = booking.tripjackBookingStatus;
+  return tjStatus === "SUCCESS" || tjStatus === "PENDING";
 }
 
 function resolveTravellerInfo(booking: FlightBookingRecord): TripJackTravellerPayload[] | undefined {
@@ -74,13 +116,22 @@ function resolveDeliveryInfo(
   booking: FlightBookingRecord
 ): TripJackBookRequest["deliveryInfo"] | undefined {
   const request = booking.fareValidateRequest as FareValidateRequest | undefined;
-  if (request?.deliveryInfo?.emails?.length && request.deliveryInfo.contacts?.length) {
-    return {
-      emails: request.deliveryInfo.emails,
-      contacts: request.deliveryInfo.contacts,
-    };
+  if (!request?.deliveryInfo?.emails?.length || !request.deliveryInfo.contacts?.length) {
+    return undefined;
   }
-  return undefined;
+
+  const code = request.deliveryInfo.code?.[0]?.replace(/\D/g, "") || "91";
+  const contacts = request.deliveryInfo.contacts.map((contact) => {
+    const digits = contact.replace(/\D/g, "");
+    if (contact.startsWith("+") || digits.length > 10) return contact;
+    const local = digits.slice(-10);
+    return local ? `+${code}${local}` : contact;
+  });
+
+  return {
+    emails: request.deliveryInfo.emails,
+    contacts,
+  };
 }
 
 function resolveGstInfo(booking: FlightBookingRecord): Record<string, unknown> {
@@ -176,6 +227,8 @@ async function applyBookingDetailsToRecord(
     ...paymentFields,
     tripjackBookingId: input.tripjackBookingId,
     status: success ? "confirmed" : "booking_pending",
+    pipelineStatus: success ? "CONFIRMED" : "BOOKING_DETAILS_POLLING",
+    tripjackBookingStatus: success ? "SUCCESS" : input.pollStatus === "FAILED" ? "FAILED" : "PENDING",
     bookRequest: input.bookRequest,
     bookResponse: input.bookResponse,
     bookingDetailsResponse: input.detailsResponse,
@@ -199,16 +252,21 @@ async function applyBookingDetailsToRecord(
 
 async function executeTripJackFlightBook(
   bookingId: string,
-  paymentFields: PaymentFields
+  paymentFields: PaymentFields,
+  options?: { skipBook?: boolean }
 ): Promise<FlightBookingRecord> {
   const booking = await getFlightBookingById(bookingId);
   if (!booking) throw new Error("Booking not found");
 
   const tripjackBookingId = resolveTripjackBookingId(booking);
+  const { bookUrl } = getTripJackProxyConfig();
+  const totalFare = resolveBookTotalFare(booking);
+
   if (!tripjackBookingId) {
     const failed = await updateFlightBooking(bookingId, {
       ...paymentFields,
       status: "payment_received_booking_failed",
+      pipelineStatus: "FAILED",
       tripjackStatus: "missing_booking_id",
       bookError: "TripJack bookingId missing after payment",
     });
@@ -217,7 +275,6 @@ async function executeTripJackFlightBook(
     return failed;
   }
 
-  const totalFare = resolveValidatedTotalFare(booking);
   const bookRequest = buildTripJackBookRequest({
     tripjackBookingId,
     totalFare,
@@ -228,82 +285,132 @@ async function executeTripJackFlightBook(
     gstInfo: resolveGstInfo(booking),
   });
 
-  await updateFlightBooking(bookingId, {
-    status: "booking_pending",
-    bookRequest,
-    bookAttemptedAt: new Date().toISOString(),
-  });
+  let bookResponse: unknown = booking.bookResponse;
+  let tripjackBookingStatus = booking.tripjackBookingStatus ?? "UNKNOWN";
 
-  const bookStarted = Date.now();
-  let bookResponse: unknown;
-
-  try {
-    const bookResult = await bookTripJackFlight(bookRequest);
-    bookResponse = bookResult.rawResponse;
-    await logFlightApiCall({
-      bookingId,
-      endpoint: "book",
-      method: "POST",
-      requestBody: bookRequest,
-      responseBody: bookResponse,
-      success: true,
-      durationMs: Date.now() - bookStarted,
-      userId: booking.userId,
-    });
-  } catch (bookError) {
-    const message = bookError instanceof Error ? bookError.message : "Book failed";
-    await logFlightApiCall({
-      bookingId,
-      endpoint: "book",
-      method: "POST",
-      requestBody: bookRequest,
-      success: false,
-      errorMessage: message,
-      durationMs: Date.now() - bookStarted,
-      userId: booking.userId,
-    });
-
-    const updated = await updateFlightBooking(bookingId, {
-      ...paymentFields,
-      status: "payment_received_booking_failed",
+  if (!options?.skipBook) {
+    await updateFlightBooking(bookingId, {
+      status: "booking_pending",
+      pipelineStatus: "TRIPJACK_BOOKING_STARTED",
+      tripjackBookAttempted: true,
       bookRequest,
-      bookResponse: bookError instanceof Error ? { message: bookError.message } : undefined,
-      tripjackStatus: "book_failed",
-      bookError: message,
+      bookAttemptedAt: new Date().toISOString(),
     });
-    if (!updated) throw new Error("Booking update failed");
-    await sendFlightBookingFailedAdminAlert(updated, message);
-    return updated;
-  }
 
-  const confirmedBookingId = extractTripJackBookingId(bookResponse) || tripjackBookingId;
-
-  const pollResult = await pollTripJackFlightBookingDetails({
-    tripjackBookingId: confirmedBookingId,
-    bookResponse,
-    onAttempt: async (attempt, orderStatus) => {
-      await updateFlightBooking(bookingId, {
-        bookingDetailsPollAttempts: attempt,
-        bookingDetailsPollStatus: orderStatus,
-        orderStatus,
-      });
+    const bookStarted = Date.now();
+    try {
+      const bookResult = await bookTripJackFlight(bookRequest);
+      bookResponse = bookResult.rawResponse;
+      tripjackBookingStatus = deriveTripjackBookingStatus(bookResponse);
       await logFlightApiCall({
         bookingId,
-        endpoint: "booking-details/poll",
+        endpoint: "book",
         method: "POST",
-        requestBody: { bookingId: confirmedBookingId, attempt },
-        responseBody: { orderStatus },
-        success: isBookingDetailsSuccess(orderStatus),
+        requestBody: bookRequest,
+        responseBody: bookResponse,
+        success: tripjackBookingStatus !== "FAILED",
+        durationMs: Date.now() - bookStarted,
         userId: booking.userId,
       });
-    },
+
+      await updateFlightBooking(bookingId, {
+        bookResponse,
+        tripjackBookingId: bookResult.bookingId || tripjackBookingId,
+        tripjackBookingStatus,
+      });
+    } catch (bookError) {
+      const errorDetail = captureFlightBookError(bookError, bookRequest, bookUrl);
+      await logFlightApiCall({
+        bookingId,
+        endpoint: "book",
+        method: "POST",
+        requestBody: bookRequest,
+        success: false,
+        errorMessage: errorDetail.message,
+        durationMs: Date.now() - bookStarted,
+        userId: booking.userId,
+      });
+
+      const updated = await updateFlightBooking(bookingId, {
+        ...paymentFields,
+        status: "payment_received_booking_failed",
+        pipelineStatus: "TRIPJACK_BOOKING_FAILED",
+        tripjackBookAttempted: true,
+        tripjackBookingStatus: "FAILED",
+        bookRequest,
+        bookResponse: errorDetail.response ?? { message: errorDetail.message },
+        bookError: errorDetail.message,
+        bookErrorDetail: errorDetail,
+        tripjackStatus: "book_failed",
+      });
+      if (!updated) throw new Error("Booking update failed");
+      await sendFlightBookingFailedAdminAlert(updated, errorDetail.message);
+      return updated;
+    }
+  }
+
+  const confirmedBookingId =
+    extractTripJackBookingId(bookResponse) || booking.tripjackBookingId || tripjackBookingId;
+
+  await updateFlightBooking(bookingId, {
+    pipelineStatus: "BOOKING_DETAILS_POLLING",
   });
+
+  let pollResult;
+  try {
+    pollResult = await pollTripJackFlightBookingDetails({
+      tripjackBookingId: confirmedBookingId,
+      bookResponse,
+      onAttempt: async (attempt, orderStatus) => {
+        await updateFlightBooking(bookingId, {
+          bookingDetailsPollAttempts: attempt,
+          bookingDetailsPollStatus: orderStatus,
+          orderStatus,
+          pipelineStatus: "BOOKING_DETAILS_POLLING",
+        });
+        await logFlightApiCall({
+          bookingId,
+          endpoint: "booking-details/poll",
+          method: "POST",
+          requestBody: { bookingId: confirmedBookingId, requirePaxPricing: true, attempt },
+          responseBody: { orderStatus },
+          success: isBookingDetailsSuccess(orderStatus),
+          userId: booking.userId,
+        });
+      },
+    });
+  } catch (pollError) {
+    const message = pollError instanceof Error ? pollError.message : "Booking details poll failed";
+    await logFlightApiCall({
+      bookingId,
+      endpoint: "booking-details",
+      method: "POST",
+      requestBody: { bookingId: confirmedBookingId, requirePaxPricing: true },
+      success: false,
+      errorMessage: message,
+      userId: booking.userId,
+    });
+
+    const pending = await updateFlightBooking(bookingId, {
+      ...paymentFields,
+      status: "booking_pending",
+      pipelineStatus: "BOOKING_DETAILS_POLLING",
+      tripjackBookAttempted: true,
+      tripjackBookingStatus: tripjackBookingStatus === "FAILED" ? "FAILED" : "PENDING",
+      bookRequest,
+      bookResponse,
+      bookError: message,
+      tripjackStatus: "details_pending",
+    });
+    if (!pending) throw new Error("Booking update failed");
+    return pending;
+  }
 
   await logFlightApiCall({
     bookingId,
     endpoint: "booking-details",
     method: "POST",
-    requestBody: { bookingId: confirmedBookingId },
+    requestBody: { bookingId: confirmedBookingId, requirePaxPricing: true },
     responseBody: pollResult.normalized,
     success: hasFlightTicketMetadata(pollResult.normalized),
     durationMs: pollResult.attempts * 5000,
@@ -367,6 +474,15 @@ export async function confirmFlightAfterPayment(input: {
   if (
     booking.idempotencyKey === idempotencyKey &&
     booking.razorpayPaymentId === input.razorpayPaymentId &&
+    shouldSkipTripJackBook(booking)
+  ) {
+    if (booking.status === "confirmed") return booking;
+    return executeTripJackFlightBook(input.bookingId, paymentFields, { skipBook: true });
+  }
+
+  if (
+    booking.idempotencyKey === idempotencyKey &&
+    booking.razorpayPaymentId === input.razorpayPaymentId &&
     booking.status === "payment_received_booking_failed"
   ) {
     await updateFlightBooking(input.bookingId, {
@@ -385,6 +501,7 @@ export async function confirmFlightAfterPayment(input: {
     if (lockAge < 120_000) {
       const latest = await getFlightBookingById(input.bookingId);
       if (latest?.status === "confirmed") return latest;
+      if (latest && shouldSkipTripJackBook(latest)) return latest;
       throw new Error("Booking confirmation is already in progress");
     }
   }
@@ -396,6 +513,7 @@ export async function confirmFlightAfterPayment(input: {
   await updateFlightBooking(input.bookingId, {
     ...paymentFields,
     status: "payment_success",
+    pipelineStatus: "PAYMENT_SUCCESS",
     bookingLock: true,
     bookInProgressAt: new Date().toISOString(),
   });
@@ -447,7 +565,7 @@ export async function retryTripJackFlightBook(bookingId: string): Promise<Flight
         normalized: pollResult.normalized,
         pollAttempts: pollResult.attempts,
         pollStatus: pollResult.finalStatus,
-        totalFare: resolveValidatedTotalFare(booking),
+        totalFare: resolveBookTotalFare(booking),
       });
       if (!updated) throw new Error("Booking update failed");
       if (updated.status === "confirmed") {

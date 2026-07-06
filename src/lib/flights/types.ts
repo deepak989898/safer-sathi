@@ -36,6 +36,30 @@ export type FlightRefundStatus =
 
 export type FlightPollStatus = "idle" | "polling" | "SUCCESS" | "FAILED" | "CANCELLED";
 
+export type FlightTripjackBookingStatus =
+  | "SUCCESS"
+  | "PENDING"
+  | "FAILED"
+  | "UNKNOWN";
+
+export type FlightPipelineStatus =
+  | "PAYMENT_SUCCESS"
+  | "TRIPJACK_BOOKING_STARTED"
+  | "TRIPJACK_BOOKING_FAILED"
+  | "BOOKING_DETAILS_POLLING"
+  | "CONFIRMED"
+  | "FAILED";
+
+export interface FlightBookErrorDetail {
+  message: string;
+  upstreamStatus?: number;
+  upstreamUrl?: string;
+  rawPreview?: string;
+  requestRedacted?: unknown;
+  response?: unknown;
+  at: string;
+}
+
 export interface FlightAdminNote {
   note: string;
   adminId: string;
@@ -84,7 +108,11 @@ export interface FlightBookingRecord {
   bookingLock?: boolean;
   bookInProgressAt?: string;
   bookAttemptedAt?: string;
+  tripjackBookAttempted?: boolean;
+  tripjackBookingStatus?: FlightTripjackBookingStatus;
+  pipelineStatus?: FlightPipelineStatus;
   bookError?: string;
+  bookErrorDetail?: FlightBookErrorDetail;
   bookingDetailsPollAttempts?: number;
   bookingDetailsPollStatus?: string;
   emailSentAt?: string;

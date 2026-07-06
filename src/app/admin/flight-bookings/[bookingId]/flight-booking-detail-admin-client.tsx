@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { adminApiFetch } from "@/lib/admin/api-client";
 import { getAdminNotesHistory } from "@/lib/flights/admin-notes";
+import { FlightPipelineStatusBadge } from "@/components/flights/flight-pipeline-status-badge";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -194,8 +195,14 @@ export default function FlightBookingDetailAdminClient({
             />
             <Field
               label="Booking status"
-              value={<Badge variant="secondary">{booking.status.replace(/_/g, " ")}</Badge>}
+              value={
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{booking.status.replace(/_/g, " ")}</Badge>
+                  <FlightPipelineStatusBadge booking={booking} />
+                </div>
+              }
             />
+            <Field label="TripJack book status" value={booking.tripjackBookingStatus || "—"} />
             <Field label="Ticket status" value={booking.ticketStatus || booking.ticketNumber} />
             <Field label="Cancellation / refund" value={booking.refundStatus || "—"} />
             <Field label="Created" value={new Date(booking.createdAt).toLocaleString("en-IN")} />
@@ -344,8 +351,13 @@ export default function FlightBookingDetailAdminClient({
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="font-semibold">Book</p>
                 <p className="text-muted-foreground">
-                  {booking.bookResponse ? "Book response saved" : "Not available"}
+                  {booking.bookResponse
+                    ? `Attempted · ${booking.tripjackBookingStatus || "saved"}`
+                    : "Not available"}
                 </p>
+                {booking.bookError && (
+                  <p className="mt-1 text-xs text-red-700">{booking.bookError}</p>
+                )}
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="font-semibold">Booking detail</p>
@@ -365,6 +377,8 @@ export default function FlightBookingDetailAdminClient({
                 <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">
                   {JSON.stringify(
                     {
+                      bookRequest: booking.bookRequest,
+                      bookErrorDetail: booking.bookErrorDetail,
                       reviewResponse: booking.reviewResponse,
                       fareValidateResponse: booking.fareValidateResponse,
                       bookResponse: booking.bookResponse,
