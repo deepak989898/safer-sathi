@@ -21,8 +21,10 @@ export async function POST(request: Request) {
 
     const url = new URL(request.url);
     const mode = (url.searchParams.get("mode") ?? "full") as TripJackHotelSyncMode;
-    const maxPages = Number(url.searchParams.get("maxPages") ?? "50");
-    const syncNext = url.searchParams.get("syncNext");
+    const maxMappingPages = Number(
+      url.searchParams.get("maxMappingPages") ?? url.searchParams.get("maxPages") ?? "50"
+    );
+    const startMappingPage = Number(url.searchParams.get("startMappingPage") ?? "0");
 
     if (mode === "nationalities") {
       const result = await syncTripJackHotelNationalities({
@@ -45,9 +47,10 @@ export async function POST(request: Request) {
 
     const result = await syncTripJackHotelCatalog({
       mode,
-      maxPages: Number.isFinite(maxPages) ? maxPages : 50,
-      startSyncNext: syncNext || null,
-      rebuildDestinations: mode !== "deleted_only",
+      maxMappingPages: Number.isFinite(maxMappingPages) ? maxMappingPages : 50,
+      maxContentBatches: Number(url.searchParams.get("maxContentBatches") ?? "0") || undefined,
+      startMappingPage: Number.isFinite(startMappingPage) ? startMappingPage : 0,
+      rebuildDestinations: mode !== "mapping_only",
       actorId: auth.user.id,
       actorEmail: auth.user.email,
     });

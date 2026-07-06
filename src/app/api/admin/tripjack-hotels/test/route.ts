@@ -3,7 +3,12 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { fetchTripJackHotelBookingDetails, fetchTripJackHotelReview } from "@/lib/tripjack-hotels/client";
 import { listTripJackHotels } from "@/lib/tripjack-hotels/client";
 import { fetchTripJackHotelPricing } from "@/lib/tripjack-hotels/client";
-import { fetchTripJackHotelNationalities, fetchTripJackStaticHotels, TripJackHotelStaticApiError } from "@/lib/tripjack-hotels/static-client";
+import {
+  fetchTripJackHotelContent,
+  fetchTripJackHotelMapping,
+  fetchTripJackHotelNationalities,
+  TripJackHotelStaticApiError,
+} from "@/lib/tripjack-hotels/static-client";
 import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 import { logTripJackHotelApiCall, sanitizeLogPayload } from "@/lib/tripjack-hotels/ops-firestore";
 
@@ -27,8 +32,20 @@ export async function POST(request: Request) {
         case "nationalities":
           result = await fetchTripJackHotelNationalities();
           break;
-        case "static-hotels":
-          result = await fetchTripJackStaticHotels();
+        case "hotel-mapping":
+          result = await fetchTripJackHotelMapping({
+            countryName: String(body.payload?.countryName ?? "INDIA"),
+            page: Number(body.payload?.page ?? 0),
+            size: Number(body.payload?.size ?? 5),
+            ...(Array.isArray(body.payload?.regionIds)
+              ? { regionIds: body.payload?.regionIds }
+              : {}),
+          });
+          break;
+        case "hotel-content":
+          result = await fetchTripJackHotelContent({
+            hotelIds: (body.payload?.hotelIds as string[]) ?? ["100001743803"],
+          });
           break;
         case "listing":
           result = await listTripJackHotels({
@@ -76,7 +93,11 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       success = false;
-      if (test === "static-hotels" && e instanceof TripJackHotelStaticApiError && e.upstreamStatus === 403) {
+      if (
+        (test === "hotel-mapping" || test === "hotel-content") &&
+        e instanceof TripJackHotelStaticApiError &&
+        e.upstreamStatus === 403
+      ) {
         errorMessage = TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE;
         result = {
           proxyRouteOk: true,
@@ -104,7 +125,7 @@ export async function POST(request: Request) {
 
     if (!success) {
       if (
-        test === "static-hotels" &&
+        (test === "hotel-mapping" || test === "hotel-content") &&
         errorMessage === TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE
       ) {
         return apiSuccess({

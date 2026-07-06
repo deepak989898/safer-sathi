@@ -14,6 +14,9 @@ export interface TripJackHotelCatalogEntry {
   facilities: string[];
   geolocation?: { lat?: number; lng?: number };
   propertyType?: string;
+  description?: string;
+  contact?: string;
+  contentSynced?: boolean;
   isDeleted: boolean;
   searchBlob: string;
   updatedAt: string;
@@ -41,6 +44,13 @@ export interface TripJackHotelCatalogMeta {
   lastNationalitySyncAt?: string | null;
   lastBookingStatusSyncAt?: string | null;
   failedSyncRecords?: number;
+  lastMappingPage?: number;
+  totalMappingIds?: number;
+  contentBatchesCompleted?: number;
+  contentSuccessCount?: number;
+  contentFailedCount?: number;
+  failedHotelIds?: string[];
+  lastSyncMessage?: string | null;
 }
 
 export interface DestinationSuggestion {
@@ -70,12 +80,15 @@ export const TRIPJACK_HOTEL_NATIONALITIES_COLLECTION = "tripjackHotelNationaliti
 export const TRIPJACK_HOTEL_OPS_META_DOC = "tripjackHotelOpsMeta/settings";
 export const TRIPJACK_HOTEL_MANUAL_DESTINATIONS_COLLECTION = "tripjackHotelManualDestinations";
 export const MAX_LISTING_HIDS = 100;
+export const MAX_HOTEL_CONTENT_BATCH = 100;
+export const MAX_HOTEL_MAPPING_PAGE_SIZE = 2000;
 export const MAX_HOTEL_ROOMS = 9;
 
 export type TripJackHotelSyncMode =
   | "full"
   | "incremental"
-  | "deleted_only"
+  | "mapping_only"
+  | "content_only"
   | "nationalities"
   | "destinations_only"
   | "booking_status";
@@ -95,6 +108,12 @@ export interface TripJackHotelSyncLog {
   nationalitiesSynced: number;
   failedRecords: number;
   lastSyncNext: string | null;
+  mappingPagesFetched?: number;
+  mappingIdsFound?: number;
+  contentBatchesCompleted?: number;
+  contentSuccessCount?: number;
+  contentFailedCount?: number;
+  failedHotelIds?: string[];
   errorMessage?: string;
   durationMs?: number;
 }

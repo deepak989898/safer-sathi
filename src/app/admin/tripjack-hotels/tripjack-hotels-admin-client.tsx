@@ -189,7 +189,8 @@ export default function TripJackHotelsAdminClient() {
     { key: "listing", label: "Dynamic listing", names: ["listing"] },
     { key: "pricing", label: "Pricing", names: ["pricing"] },
     { key: "review", label: "Review", names: ["review"] },
-    { key: "static-catalog", label: "Static catalog", names: ["static-catalog"] },
+    { key: "static-mapping", label: "Hotel mapping", names: ["hotel-mapping"] },
+    { key: "static-content", label: "Hotel content", names: ["hotel-content"] },
   ] as const;
 
   const toggleLive = async () => {
@@ -269,10 +270,14 @@ export default function TripJackHotelsAdminClient() {
               <h2 className="font-semibold">Catalog & status sync</h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              Last catalog sync: {dashboard?.catalogMeta.lastSyncedAt ?? "Never"} · Deleted:{" "}
-              {dashboard?.catalogMeta.deletedHotels ?? 0} · Last booking sync:{" "}
-              {dashboard?.catalogMeta.lastBookingStatusSyncAt ?? "Never"}
+              Last catalog sync: {dashboard?.catalogMeta.lastSyncedAt ?? "Never"} · Mapping IDs:{" "}
+              {dashboard?.catalogMeta.totalMappingIds ?? 0} · Content ok/failed:{" "}
+              {dashboard?.catalogMeta.contentSuccessCount ?? 0}/{dashboard?.catalogMeta.contentFailedCount ?? 0}{" "}
+              · Last booking sync: {dashboard?.catalogMeta.lastBookingStatusSyncAt ?? "Never"}
             </p>
+            {dashboard?.catalogMeta.lastSyncMessage ? (
+              <p className="text-sm text-muted-foreground">{dashboard.catalogMeta.lastSyncMessage}</p>
+            ) : null}
             {staticCatalogueBlocked && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 {TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE}
@@ -309,9 +314,10 @@ export default function TripJackHotelsAdminClient() {
             )}
             <div className="flex flex-wrap gap-2">
               {[
-                ["full", "Sync all hotels"],
-                ["incremental", "Sync updated"],
-                ["deleted_only", "Sync deleted"],
+                ["full", "Sync mapping + content"],
+                ["mapping_only", "Sync mapping only"],
+                ["content_only", "Sync content only"],
+                ["incremental", "Incremental sync"],
                 ["nationalities", "Sync nationalities"],
                 ["booking_status", "Sync booking status"],
               ].map(([mode, label]) => (
@@ -343,7 +349,7 @@ export default function TripJackHotelsAdminClient() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Tests health, nationalities, static catalogue, and listing/pricing/review separately via
+              Tests health, nationalities, V3 static mapping/content, and listing/pricing/review via
               server → VPS proxy.
               {proxyBaseUrl ? ` Proxy: ${proxyBaseUrl}` : null}
             </p>

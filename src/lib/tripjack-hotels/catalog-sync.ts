@@ -5,19 +5,25 @@ import {
   upsertTripJackHotelCatalogEntries,
   upsertTripJackHotelDestinations,
 } from "@/lib/tripjack-hotels/catalog-firestore";
-import { MAX_LISTING_HIDS } from "@/lib/tripjack-hotels/catalog-types";
+import {
+  MAX_HOTEL_CONTENT_BATCH,
+  MAX_HOTEL_MAPPING_PAGE_SIZE,
+  MAX_LISTING_HIDS,
+} from "@/lib/tripjack-hotels/catalog-types";
 import type { TripJackHotelSyncMode } from "@/lib/tripjack-hotels/catalog-types";
 import {
   createTripJackHotelSyncLog,
   updateTripJackHotelSyncLog,
 } from "@/lib/tripjack-hotels/ops-firestore";
 import {
-  extractStaticHotelsPayload,
+  extractHotelContentPayload,
+  extractHotelMappingPayload,
+  mappingRecordToCatalogEntry,
   normalizeStaticHotelRecord,
 } from "@/lib/tripjack-hotels/normalize-static";
 import {
-  fetchTripJackDeletedStaticHotels,
-  fetchTripJackStaticHotels,
+  fetchTripJackHotelContent,
+  fetchTripJackHotelMapping,
   TripJackHotelStaticApiError,
 } from "@/lib/tripjack-hotels/static-client";
 
@@ -25,6 +31,12 @@ export interface TripJackHotelCatalogSyncResult {
   synced: boolean;
   syncLogId: string;
   pagesFetched: number;
+  mappingPagesFetched: number;
+  mappingIdsFound: number;
+  contentBatchesCompleted: number;
+  contentSuccessCount: number;
+  contentFailedCount: number;
+  failedHotelIds: string[];
   hotelsUpserted: number;
   deletedMarked: number;
   destinationsIndexed: number;
@@ -32,33 +44,152 @@ export interface TripJackHotelCatalogSyncResult {
   message: string;
 }
 
-const MAX_SYNC_PAGES = 50;
+const MAX_MAPPING_PAGES = 100;
 
-async function syncStaticHotelsPage(
-  syncNext: string | null,
-  markDeleted: boolean
-): Promise<{ entries: ReturnType<typeof normalizeStaticHotelRecord>[]; next: string | null }> {
-  const fetcher = markDeleted ? fetchTripJackDeletedStaticHotels : fetchTripJackStaticHotels;
-  const { data } = await fetcher(syncNext);
-  const { hotels, syncNext: next } = extractStaticHotelsPayload(data);
+function chunk<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
 
-  const entries = hotels
-    .map((hotel) => normalizeStaticHotelRecord(hotel, { isDeleted: markDeleted }))
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+async function fetchAllHotelMappings(input: {
+  countryName?: string;
+  regionIds?: string[];
+  startPage?: number;
+  maxPages: number;
+  onPage?: (progress: {
+    page: number;
+    mappingsOnPage: number;
+    totalMappings: number;
+  }) => Promise<void>;
+}): Promise<{ mappings: ReturnType<typeof mappingRecordToCatalogEntry>[]; pagesFetched: number }> {
+  const countryName = input.countryName ?? "INDIA";
+  const mappings: ReturnType<typeof mappingRecordToCatalogEntry>[] = [];
+  let page = input.startPage ?? 0;
+  let pagesFetched = 0;
 
-  return { entries, next };
+  while (pagesFetched < input.maxPages) {
+    const body: Record<string, unknown> = {
+      countryName,
+      page,
+      size: MAX_HOTEL_MAPPING_PAGE_SIZE,
+    };
+    if (input.regionIds?.length) {
+      body.regionIds = input.regionIds;
+    }
+
+    const { data } = await fetchTripJackHotelMapping(body);
+    const parsed = extractHotelMappingPayload(data, MAX_HOTEL_MAPPING_PAGE_SIZE);
+    const pageEntries = parsed.mappings.map((mapping) =>
+      mappingRecordToCatalogEntry(mapping, countryName)
+    );
+    mappings.push(...pageEntries);
+    pagesFetched += 1;
+
+    await input.onPage?.({
+      page,
+      mappingsOnPage: pageEntries.length,
+      totalMappings: mappings.length,
+    });
+
+    if (!parsed.hasMore || pageEntries.length === 0) break;
+    page += 1;
+  }
+
+  return { mappings, pagesFetched };
+}
+
+async function syncHotelContentBatches(input: {
+  hotelIds: number[];
+  maxBatches?: number;
+  onBatch?: (progress: {
+    batchIndex: number;
+    batchTotal: number;
+    successCount: number;
+    failedCount: number;
+    failedIds: string[];
+  }) => Promise<void>;
+}): Promise<{
+  contentBatchesCompleted: number;
+  contentSuccessCount: number;
+  contentFailedCount: number;
+  failedHotelIds: string[];
+  hotelsUpserted: number;
+}> {
+  const uniqueIds = [...new Set(input.hotelIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const batches = chunk(uniqueIds, MAX_HOTEL_CONTENT_BATCH);
+  const limitedBatches =
+    input.maxBatches && input.maxBatches > 0 ? batches.slice(0, input.maxBatches) : batches;
+
+  let contentBatchesCompleted = 0;
+  let contentSuccessCount = 0;
+  let contentFailedCount = 0;
+  let hotelsUpserted = 0;
+  const failedHotelIds: string[] = [];
+
+  for (let index = 0; index < limitedBatches.length; index += 1) {
+    const batch = limitedBatches[index];
+    const batchIds = batch.map(String);
+
+    try {
+      const { data } = await fetchTripJackHotelContent({ hotelIds: batchIds });
+      const hotels = extractHotelContentPayload(data);
+      const entries = hotels
+        .map((hotel) => normalizeStaticHotelRecord(hotel))
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+      if (entries.length) {
+        hotelsUpserted += await upsertTripJackHotelCatalogEntries(entries);
+      }
+      contentSuccessCount += entries.length;
+      const missing = batch.length - entries.length;
+      if (missing > 0) {
+        contentFailedCount += missing;
+        failedHotelIds.push(...batchIds.slice(entries.length));
+      }
+    } catch (error) {
+      contentFailedCount += batch.length;
+      failedHotelIds.push(...batchIds);
+      console.warn("[tripjack-hotel-sync] content batch failed:", {
+        batchIds,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+
+    contentBatchesCompleted += 1;
+    await input.onBatch?.({
+      batchIndex: index + 1,
+      batchTotal: limitedBatches.length,
+      successCount: contentSuccessCount,
+      failedCount: contentFailedCount,
+      failedIds: failedHotelIds.slice(-batch.length),
+    });
+  }
+
+  return {
+    contentBatchesCompleted,
+    contentSuccessCount,
+    contentFailedCount,
+    failedHotelIds,
+    hotelsUpserted,
+  };
 }
 
 export async function syncTripJackHotelCatalog(options?: {
   mode?: TripJackHotelSyncMode;
-  maxPages?: number;
-  startSyncNext?: string | null;
+  maxMappingPages?: number;
+  maxContentBatches?: number;
+  startMappingPage?: number;
+  countryName?: string;
+  regionIds?: string[];
   rebuildDestinations?: boolean;
   actorId?: string;
   actorEmail?: string;
 }): Promise<TripJackHotelCatalogSyncResult> {
   const mode = options?.mode ?? "full";
-  const maxPages = options?.maxPages ?? MAX_SYNC_PAGES;
+  const maxMappingPages = options?.maxMappingPages ?? MAX_MAPPING_PAGES;
   const started = Date.now();
   const syncLogId = await createTripJackHotelSyncLog({
     mode,
@@ -73,56 +204,90 @@ export async function syncTripJackHotelCatalog(options?: {
     nationalitiesSynced: 0,
     failedRecords: 0,
     lastSyncNext: null,
+    mappingPagesFetched: 0,
+    mappingIdsFound: 0,
+    contentBatchesCompleted: 0,
+    contentSuccessCount: 0,
+    contentFailedCount: 0,
+    failedHotelIds: [],
   });
 
-  let syncNext = options?.startSyncNext ?? null;
-  let pagesFetched = 0;
+  let mappingPagesFetched = 0;
+  let mappingIdsFound = 0;
+  let contentBatchesCompleted = 0;
+  let contentSuccessCount = 0;
+  let contentFailedCount = 0;
+  let failedHotelIds: string[] = [];
   let hotelsUpserted = 0;
-  let deletedMarked = 0;
-  let failedRecords = 0;
+  let destinationsIndexed = 0;
+  let lastMappingPage = 0;
 
   await updateTripJackHotelCatalogMeta({ syncInProgress: true });
 
   try {
-    if (mode === "full" || mode === "incremental") {
-      while (pagesFetched < maxPages) {
-        const { entries, next } = await syncStaticHotelsPage(syncNext, false);
-        pagesFetched += 1;
+    let mappingEntries: ReturnType<typeof mappingRecordToCatalogEntry>[] = [];
 
-        if (entries.length) {
-          try {
-            hotelsUpserted += await upsertTripJackHotelCatalogEntries(
-              entries.filter((e): e is NonNullable<typeof e> => Boolean(e))
-            );
-          } catch {
-            failedRecords += entries.length;
-          }
-        }
+    if (mode === "full" || mode === "incremental" || mode === "mapping_only") {
+      const mappingResult = await fetchAllHotelMappings({
+        countryName: options?.countryName,
+        regionIds: options?.regionIds,
+        startPage: options?.startMappingPage ?? 0,
+        maxPages: mode === "incremental" ? Math.min(maxMappingPages, 5) : maxMappingPages,
+        onPage: async ({ page, totalMappings }) => {
+          lastMappingPage = page;
+          mappingIdsFound = totalMappings;
+          await updateTripJackHotelCatalogMeta({
+            lastMappingPage: page,
+            totalMappingIds: totalMappings,
+            lastSyncMessage: `Mapping page ${page} — ${totalMappings} hotel IDs found`,
+          });
+        },
+      });
 
-        syncNext = next;
-        if (!syncNext) break;
-        if (mode === "incremental" && pagesFetched >= 5) break;
+      mappingEntries = mappingResult.mappings;
+      mappingPagesFetched = mappingResult.pagesFetched;
+      mappingIdsFound = mappingEntries.length;
+
+      if (mappingEntries.length) {
+        hotelsUpserted += await upsertTripJackHotelCatalogEntries(mappingEntries);
       }
     }
 
-    if (mode === "full" || mode === "deleted_only") {
-      let deletedSyncNext: string | null = null;
-      let deletedPages = 0;
-      while (deletedPages < 10) {
-        const { entries, next } = await syncStaticHotelsPage(deletedSyncNext, true);
-        deletedPages += 1;
-        if (entries.length) {
-          const deletedEntries = entries.map((entry) => ({ ...entry!, isDeleted: true }));
-          deletedMarked += await upsertTripJackHotelCatalogEntries(deletedEntries);
-        }
-        deletedSyncNext = next;
-        if (!deletedSyncNext) break;
+    if (mode === "full" || mode === "incremental" || mode === "content_only") {
+      let contentIds = mappingEntries.map((entry) => entry.tjHotelId);
+
+      if (mode === "content_only") {
+        const activeHotels = await getAllTripJackActiveHotelsForIndexRebuild();
+        contentIds = activeHotels
+          .filter((hotel) => !hotel.contentSynced || !hotel.cityName)
+          .map((hotel) => hotel.tjHotelId);
       }
+
+      const contentResult = await syncHotelContentBatches({
+        hotelIds: contentIds,
+        maxBatches: mode === "incremental" ? options?.maxContentBatches ?? 20 : options?.maxContentBatches,
+        onBatch: async ({ batchIndex, batchTotal, successCount, failedCount }) => {
+          contentBatchesCompleted = batchIndex;
+          contentSuccessCount = successCount;
+          contentFailedCount = failedCount;
+          await updateTripJackHotelCatalogMeta({
+            contentBatchesCompleted: batchIndex,
+            contentSuccessCount: successCount,
+            contentFailedCount: failedCount,
+            lastSyncMessage: `Content batch ${batchIndex}/${batchTotal} — ${successCount} ok, ${failedCount} failed`,
+          });
+        },
+      });
+
+      contentBatchesCompleted = contentResult.contentBatchesCompleted;
+      contentSuccessCount = contentResult.contentSuccessCount;
+      contentFailedCount = contentResult.contentFailedCount;
+      failedHotelIds = contentResult.failedHotelIds;
+      hotelsUpserted += contentResult.hotelsUpserted;
     }
 
-    let destinationsIndexed = 0;
     if (
-      (options?.rebuildDestinations !== false && mode !== "deleted_only") ||
+      (options?.rebuildDestinations !== false && mode !== "mapping_only") ||
       mode === "destinations_only"
     ) {
       const activeHotels = await getAllTripJackActiveHotelsForIndexRebuild();
@@ -132,57 +297,83 @@ export async function syncTripJackHotelCatalog(options?: {
 
     const activeHotels = await getAllTripJackActiveHotelsForIndexRebuild();
     const now = new Date().toISOString();
+    const message = [
+      `Mapping: ${mappingIdsFound} IDs across ${mappingPagesFetched} page(s)`,
+      `Content: ${contentSuccessCount} ok, ${contentFailedCount} failed in ${contentBatchesCompleted} batch(es)`,
+      destinationsIndexed ? `${destinationsIndexed} destinations indexed` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
     await updateTripJackHotelCatalogMeta({
       lastSyncedAt: now,
-      totalHotels: activeHotels.length + deletedMarked,
+      totalHotels: activeHotels.length,
       activeHotels: activeHotels.length,
-      deletedHotels: deletedMarked,
-      lastSyncNext: syncNext,
+      deletedHotels: 0,
+      lastSyncNext: null,
       syncInProgress: false,
-      failedSyncRecords: failedRecords,
+      failedSyncRecords: contentFailedCount,
+      lastMappingPage,
+      totalMappingIds: mappingIdsFound,
+      contentBatchesCompleted,
+      contentSuccessCount,
+      contentFailedCount,
+      failedHotelIds: failedHotelIds.slice(0, 200),
+      lastSyncMessage: message,
     });
-
-    const message =
-      hotelsUpserted > 0
-        ? `Synced ${hotelsUpserted} hotel(s) across ${pagesFetched} page(s)`
-        : mode === "deleted_only"
-          ? `Marked ${deletedMarked} deleted hotel(s)`
-          : "Sync completed — verify VPS static routes if zero hotels returned";
 
     await updateTripJackHotelSyncLog(syncLogId, {
       completedAt: now,
       success: true,
-      pagesFetched,
+      pagesFetched: mappingPagesFetched,
+      mappingPagesFetched,
+      mappingIdsFound,
+      contentBatchesCompleted,
+      contentSuccessCount,
+      contentFailedCount,
+      failedHotelIds: failedHotelIds.slice(0, 200),
       hotelsUpserted,
-      deletedMarked,
+      deletedMarked: 0,
       destinationsIndexed,
-      failedRecords,
-      lastSyncNext: syncNext,
+      failedRecords: contentFailedCount,
       durationMs: Date.now() - started,
     });
 
     return {
       synced: true,
       syncLogId,
-      pagesFetched,
+      pagesFetched: mappingPagesFetched,
+      mappingPagesFetched,
+      mappingIdsFound,
+      contentBatchesCompleted,
+      contentSuccessCount,
+      contentFailedCount,
+      failedHotelIds: failedHotelIds.slice(0, 200),
       hotelsUpserted,
-      deletedMarked,
+      deletedMarked: 0,
       destinationsIndexed,
-      lastSyncNext: syncNext,
+      lastSyncNext: null,
       message,
     };
   } catch (error) {
-    await updateTripJackHotelCatalogMeta({ syncInProgress: false });
+    await updateTripJackHotelCatalogMeta({
+      syncInProgress: false,
+      lastSyncMessage: error instanceof Error ? error.message : "Sync failed",
+    });
     const message = error instanceof Error ? error.message : "Sync failed";
     await updateTripJackHotelSyncLog(syncLogId, {
       completedAt: new Date().toISOString(),
       success: false,
       errorMessage: message,
-      pagesFetched,
+      pagesFetched: mappingPagesFetched,
+      mappingPagesFetched,
+      mappingIdsFound,
+      contentBatchesCompleted,
+      contentSuccessCount,
+      contentFailedCount,
+      failedHotelIds: failedHotelIds.slice(0, 200),
       hotelsUpserted,
-      deletedMarked,
-      failedRecords,
+      failedRecords: contentFailedCount,
       durationMs: Date.now() - started,
     });
     if (error instanceof TripJackHotelStaticApiError) throw error;

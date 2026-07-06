@@ -96,11 +96,9 @@ async function callStaticProxy<T = unknown>(input: {
     const proxyRouteOk = parsedEnvelope.proxyRouteOk === true;
     const msg =
       envelope.error ??
-      (envelope.upstreamStatus === 403 && proxyRouteOk
+      (envelope.upstreamStatus === 403
         ? TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE
-        : envelope.upstreamStatus === 403
-          ? `TripJack upstream returned 403 (${envelope.upstreamUrl})`
-          : "TripJack hotel static API failed");
+        : "TripJack hotel static API failed");
     throw new TripJackHotelStaticApiError(
       msg,
       envelope.upstreamStatus || httpResponse.status,
@@ -118,37 +116,20 @@ async function callStaticProxy<T = unknown>(input: {
   };
 }
 
-function buildStaticPaginationBody(syncNext?: string | null): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-  if (syncNext) {
-    body.next = syncNext;
-    body.syncNext = syncNext;
-  }
-  return body;
-}
-
-export async function fetchTripJackStaticHotels(syncNext?: string | null) {
-  return callStaticProxy<unknown>({
-    pathKey: "fetchStaticHotelsUrl",
-    method: "POST",
-    body: buildStaticPaginationBody(syncNext),
-  });
-}
-
-export async function fetchTripJackDeletedStaticHotels(syncNext?: string | null) {
-  return callStaticProxy<unknown>({
-    pathKey: "fetchStaticHotelsDeletedUrl",
-    method: "POST",
-    body: buildStaticPaginationBody(syncNext),
-  });
-}
-
 export async function fetchTripJackHotelMapping(body: Record<string, unknown> = {}) {
-  return callStaticProxy<unknown>({ pathKey: "fetchHotelMappingUrl", method: "POST", body });
+  return callStaticProxy<unknown>({
+    pathKey: "fetchHotelMappingUrl",
+    method: "POST",
+    body,
+  });
 }
 
-export async function fetchTripJackHotelStaticDetail(body: Record<string, unknown>) {
-  return callStaticProxy<unknown>({ pathKey: "staticDetailUrl", method: "POST", body });
+export async function fetchTripJackHotelContent(body: { hotelIds: string[] }) {
+  return callStaticProxy<unknown>({
+    pathKey: "fetchHotelContentUrl",
+    method: "POST",
+    body,
+  });
 }
 
 /** Nationality-info — GET upstream via VPS proxy (POST fallback on VPS if needed). */

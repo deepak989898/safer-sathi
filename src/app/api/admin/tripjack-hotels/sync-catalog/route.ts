@@ -14,13 +14,14 @@ export async function POST(request: Request) {
     if ("error" in auth) return auth.error;
 
     const url = new URL(request.url);
-    const maxPages = Number(url.searchParams.get("maxPages") ?? "50");
-    const startSyncNext = url.searchParams.get("syncNext");
+    const maxMappingPages = Number(url.searchParams.get("maxMappingPages") ?? url.searchParams.get("maxPages") ?? "50");
+    const startMappingPage = Number(url.searchParams.get("startMappingPage") ?? "0");
 
     const result = await syncTripJackHotelCatalog({
       mode: "full",
-      maxPages: Number.isFinite(maxPages) ? maxPages : 50,
-      startSyncNext: startSyncNext || null,
+      maxMappingPages: Number.isFinite(maxMappingPages) ? maxMappingPages : 50,
+      maxContentBatches: Number(url.searchParams.get("maxContentBatches") ?? "0") || undefined,
+      startMappingPage: Number.isFinite(startMappingPage) ? startMappingPage : 0,
       rebuildDestinations: true,
       actorId: auth.user.id,
       actorEmail: auth.user.email,

@@ -21,18 +21,12 @@ const TRIPJACK_HOTEL_BOOKING_DETAILS_URL =
 const TRIPJACK_HOTEL_CANCEL_BOOKING_URL =
   process.env.TRIPJACK_HOTEL_CANCEL_BOOKING_URL ||
   `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/hotel/cancel-booking`;
-const TRIPJACK_HOTEL_FETCH_STATIC_URL =
-  process.env.TRIPJACK_HOTEL_FETCH_STATIC_URL ||
-  `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/fetch-static-hotels`;
-const TRIPJACK_HOTEL_FETCH_STATIC_DELETED_URL =
-  process.env.TRIPJACK_HOTEL_FETCH_STATIC_DELETED_URL ||
-  `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/fetch-static-hotels/deleted`;
 const TRIPJACK_HOTEL_FETCH_MAPPING_URL =
   process.env.TRIPJACK_HOTEL_FETCH_MAPPING_URL ||
   `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/content/fetch-hotel-mapping`;
-const TRIPJACK_HOTEL_STATIC_DETAIL_URL =
-  process.env.TRIPJACK_HOTEL_STATIC_DETAIL_URL ||
-  `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/hotel/static-detail`;
+const TRIPJACK_HOTEL_FETCH_CONTENT_URL =
+  process.env.TRIPJACK_HOTEL_FETCH_CONTENT_URL ||
+  `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/content/fetch-hotel-content`;
 const TRIPJACK_HOTEL_NATIONALITIES_URL =
   process.env.TRIPJACK_HOTEL_NATIONALITIES_URL ||
   `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/nationality-info`;
@@ -216,23 +210,19 @@ app.post("/api/tripjack/hotels/cancel-booking", (req, res) =>
   forwardTripJackHotel(res, TRIPJACK_HOTEL_CANCEL_BOOKING_URL, req.body, "cancel-booking")
 );
 
-app.post("/api/tripjack/hotels/fetch-static-hotels", (req, res) =>
-  forwardTripJackHotel(res, TRIPJACK_HOTEL_FETCH_STATIC_URL, req.body, "fetch-static-hotels")
-);
-
-app.post("/api/tripjack/hotels/fetch-static-hotels/deleted", (req, res) =>
-  forwardTripJackHotel(res, TRIPJACK_HOTEL_FETCH_STATIC_DELETED_URL, req.body, "fetch-static-hotels-deleted")
-);
-
 app.post("/api/tripjack/hotels/fetch-hotel-mapping", (req, res) =>
   forwardTripJackHotel(res, TRIPJACK_HOTEL_FETCH_MAPPING_URL, req.body, "fetch-hotel-mapping")
 );
 
-app.post("/api/tripjack/hotels/static-detail", (req, res) => {
-  if (!req.body?.hotelId && !req.body?.tjHotelId && !req.body?.hid) {
-    return res.status(400).json({ success: false, error: "hotelId is required" });
+app.post("/api/tripjack/hotels/fetch-hotel-content", (req, res) => {
+  const hotelIds = req.body?.hotelIds;
+  if (!Array.isArray(hotelIds) || hotelIds.length === 0) {
+    return res.status(400).json({ success: false, error: "hotelIds array is required" });
   }
-  return forwardTripJackHotel(res, TRIPJACK_HOTEL_STATIC_DETAIL_URL, req.body, "static-detail");
+  if (hotelIds.length > 100) {
+    return res.status(400).json({ success: false, error: "Maximum 100 hotelIds per request" });
+  }
+  return forwardTripJackHotel(res, TRIPJACK_HOTEL_FETCH_CONTENT_URL, req.body, "fetch-hotel-content");
 });
 
 app.post("/api/tripjack/hotels/nationalities", (req, res) =>

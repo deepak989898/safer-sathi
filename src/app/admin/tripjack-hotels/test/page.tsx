@@ -68,14 +68,15 @@ export default function TripJackHotelsTestPage() {
   const tests = [
     { id: "proxy-health", label: "Health (proxy)", action: () => runProxy("health") },
     { id: "nationalities", label: "Nationalities", action: () => void run("nationalities") },
+    { id: "hotel-mapping", label: "Hotel mapping", action: () => void run("hotel-mapping") },
+    {
+      id: "hotel-content",
+      label: "Hotel content",
+      action: () => void run("hotel-content", { hotelIds: ["100001743803"] }),
+    },
     { id: "listing", label: "Listing", action: () => void run("listing") },
     { id: "pricing", label: "Pricing", action: () => void run("pricing") },
     { id: "review", label: "Review", action: () => void run("review") },
-    {
-      id: "static-hotels",
-      label: "Static catalog",
-      action: () => void run("static-hotels"),
-    },
   ] as const;
 
   return (
@@ -87,8 +88,8 @@ export default function TripJackHotelsTestPage() {
         </Link>
 
         <p className="text-sm text-muted-foreground">
-          Tests call server → VPS proxy → TripJack HMS. Static catalog 403 means TripJack account
-          permissions — dynamic listing may still work.
+          Tests call server → VPS proxy → TripJack HMS V3 static content APIs (mapping + content).
+          A 403 means TripJack account permissions — dynamic listing may still work.
         </p>
 
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

@@ -86,13 +86,34 @@ export function normalizeStaticHotelRecord(
   const address = pickString(rec, ["address", "fullAddress", "locationAddress"]);
   const propertyType = pickString(rec, ["propertyType", "type", "category"]);
   const rating = asNumber(rec.rating ?? rec.starRating ?? rec.stars);
+  const description = pickString(rec, [
+    "description",
+    "hotelDescription",
+    "longDescription",
+    "about",
+    "overview",
+  ]);
+  const contact = pickString(rec, [
+    "contact",
+    "phone",
+    "contactNumber",
+    "mobile",
+    "telephone",
+  ]);
   const unicaIdRaw = rec.unicaId ?? rec.unicaID ?? rec.unica;
   const unicaId =
     typeof unicaIdRaw === "string" || typeof unicaIdRaw === "number" ? unicaIdRaw : undefined;
 
   const nameLower = name.toLowerCase();
   const cityNameLower = cityName.toLowerCase();
-  const searchBlob = buildSearchBlob([name, cityName, countryName, address, propertyType]);
+  const searchBlob = buildSearchBlob([
+    name,
+    cityName,
+    countryName,
+    address,
+    propertyType,
+    description,
+  ]);
 
   const now = new Date().toISOString();
 
@@ -112,12 +133,145 @@ export function normalizeStaticHotelRecord(
     facilities: pickFacilities(rec),
     geolocation: pickGeo(rec),
     propertyType: propertyType || undefined,
+    description: description || undefined,
+    contact: contact || undefined,
+    contentSynced: true,
     isDeleted: options?.isDeleted ?? Boolean(rec.isDeleted ?? rec.deleted),
     searchBlob,
     updatedAt: now,
   };
 }
 
+export interface TripJackHotelMappingRecord {
+  tjHotelId: number;
+  unicaId?: string | number;
+}
+
+export function normalizeHotelMappingRecord(raw: unknown): TripJackHotelMappingRecord | null {
+  const rec = asRecord(raw);
+  if (!rec) return null;
+
+  const tjHotelId =
+    asNumber(rec.tjHotelId) ??
+    asNumber(rec.hotelId) ??
+    asNumber(rec.hid) ??
+    asNumber(rec.id);
+  if (!tjHotelId || tjHotelId <= 0) return null;
+
+  const unicaIdRaw = rec.unicaId ?? rec.unicaID ?? rec.unica;
+  const unicaId =
+    typeof unicaIdRaw === "string" || typeof unicaIdRaw === "number" ? unicaIdRaw : undefined;
+
+  return { tjHotelId, unicaId };
+}
+
+export function mappingRecordToCatalogEntry(
+  mapping: TripJackHotelMappingRecord,
+  countryName = "INDIA"
+): TripJackHotelCatalogEntry {
+  const now = new Date().toISOString();
+  const label = `Hotel ${mapping.tjHotelId}`;
+  return {
+    id: `tj_${mapping.tjHotelId}`,
+    tjHotelId: mapping.tjHotelId,
+    unicaId: mapping.unicaId,
+    name: label,
+    nameLower: label.toLowerCase(),
+    cityName: "",
+    cityNameLower: "",
+    countryName,
+    address: "",
+    rating: null,
+    images: [],
+    facilities: [],
+    contentSynced: false,
+    isDeleted: false,
+    searchBlob: buildSearchBlob([label, String(mapping.unicaId ?? "")]),
+    updatedAt: now,
+  };
+}
+
+function extractArrayFromPayload(raw: unknown, keys: string[]): unknown[] {
+  const root = asRecord(raw);
+  if (!root) return [];
+
+  const data = asRecord(root.data) ?? root;
+  for (const key of keys) {
+    const value = data[key] ?? root[key];
+    if (Array.isArray(value) && value.length) return value;
+  }
+
+  if (Array.isArray(root)) return root;
+  return [];
+}
+
+export function extractHotelMappingPayload(
+  raw: unknown,
+  pageSize = 2000
+): {
+  mappings: TripJackHotelMappingRecord[];
+  page: number;
+  totalPages: number | null;
+  hasMore: boolean;
+} {
+  const root = asRecord(raw);
+  if (!root) {
+    return { mappings: [], page: 0, totalPages: null, hasMore: false };
+  }
+
+  const data = asRecord(root.data) ?? root;
+  const items = extractArrayFromPayload(raw, [
+    "hotelMappings",
+    "hotelMapping",
+    "mappings",
+    "mappingList",
+    "content",
+    "hotels",
+    "hotelList",
+  ]);
+
+  const mappings = items
+    .map((item) => normalizeHotelMappingRecord(item))
+    .filter((item): item is TripJackHotelMappingRecord => Boolean(item));
+
+  const page =
+    asNumber(data.page) ??
+    asNumber(data.pageNumber) ??
+    asNumber(root.page) ??
+    0;
+  const totalPages =
+    asNumber(data.totalPages) ??
+    asNumber(data.totalPage) ??
+    asNumber(root.totalPages) ??
+    null;
+  const totalElements =
+    asNumber(data.totalElements) ??
+    asNumber(data.totalCount) ??
+    asNumber(root.totalElements) ??
+    null;
+
+  const hasMore =
+    totalPages !== null
+      ? page + 1 < totalPages
+      : totalElements !== null
+        ? (page + 1) * pageSize < totalElements
+        : mappings.length >= pageSize;
+
+  return { mappings, page, totalPages, hasMore };
+}
+
+export function extractHotelContentPayload(raw: unknown): unknown[] {
+  return extractArrayFromPayload(raw, [
+    "hotels",
+    "hotelList",
+    "hotelContent",
+    "content",
+    "staticHotels",
+    "data",
+  ]);
+}
+
+/** @deprecated Legacy fetch-static-hotels pagination — do not use. */
 export function extractStaticHotelsPayload(raw: unknown): {
   hotels: unknown[];
   syncNext: string | null;

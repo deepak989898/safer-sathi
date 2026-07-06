@@ -25,17 +25,18 @@ export async function GET(request: Request) {
     if (task === "catalog_incremental") {
       const result = await syncTripJackHotelCatalog({
         mode: "incremental",
-        maxPages: Number(url.searchParams.get("maxPages") ?? "20"),
+        maxMappingPages: Number(url.searchParams.get("maxMappingPages") ?? "5"),
+        maxContentBatches: Number(url.searchParams.get("maxContentBatches") ?? "20"),
         actorId: "cron",
         actorEmail: "cron@system",
       });
       return apiSuccess({ task, ...result });
     }
 
-    if (task === "catalog_deleted") {
+    if (task === "catalog_content") {
       const result = await syncTripJackHotelCatalog({
-        mode: "deleted_only",
-        maxPages: Number(url.searchParams.get("maxPages") ?? "20"),
+        mode: "content_only",
+        maxContentBatches: Number(url.searchParams.get("maxContentBatches") ?? "50"),
         actorId: "cron",
         actorEmail: "cron@system",
       });
@@ -51,7 +52,10 @@ export async function GET(request: Request) {
       return apiSuccess({ task, ...result });
     }
 
-    return apiError("Unknown task. Use booking_status, catalog_incremental, or catalog_deleted.", 400);
+    return apiError(
+      "Unknown task. Use booking_status, catalog_incremental, or catalog_content.",
+      400
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Cron sync failed";
     return apiError(message, 500);

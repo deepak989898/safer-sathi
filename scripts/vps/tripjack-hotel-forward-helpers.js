@@ -49,19 +49,13 @@ function logHotelHmsUrlsOnStartup() {
     process.env.TRIPJACK_HOTEL_STATIC_BASE ||
     "https://apitest-hms.tripjack.com";
   console.log("[tripjack-proxy] Hotel HMS URL config:", {
-    TRIPJACK_HOTEL_STATIC_BASE: process.env.TRIPJACK_HOTEL_STATIC_BASE || base,
-    TRIPJACK_HOTEL_FETCH_STATIC_URL:
-      process.env.TRIPJACK_HOTEL_FETCH_STATIC_URL ||
-      `${base}/hms/v3/fetch-static-hotels`,
-    TRIPJACK_HOTEL_FETCH_STATIC_DELETED_URL:
-      process.env.TRIPJACK_HOTEL_FETCH_STATIC_DELETED_URL ||
-      `${base}/hms/v3/fetch-static-hotels/deleted`,
+    TRIPJACK_HOTEL_HMS_BASE: process.env.TRIPJACK_HOTEL_HMS_BASE || base,
     TRIPJACK_HOTEL_FETCH_MAPPING_URL:
       process.env.TRIPJACK_HOTEL_FETCH_MAPPING_URL ||
       `${base}/hms/v3/content/fetch-hotel-mapping`,
-    TRIPJACK_HOTEL_STATIC_DETAIL_URL:
-      process.env.TRIPJACK_HOTEL_STATIC_DETAIL_URL ||
-      `${base}/hms/v3/hotel/static-detail`,
+    TRIPJACK_HOTEL_FETCH_CONTENT_URL:
+      process.env.TRIPJACK_HOTEL_FETCH_CONTENT_URL ||
+      `${base}/hms/v3/content/fetch-hotel-content`,
     TRIPJACK_HOTEL_NATIONALITIES_URL:
       process.env.TRIPJACK_HOTEL_NATIONALITIES_URL ||
       `${base}/hms/v3/nationality-info`,
