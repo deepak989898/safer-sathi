@@ -10,6 +10,10 @@ import type {
   FlightSearchResult,
 } from "@/lib/tripjack/types";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
+import {
+  extractTripJackProxyErrorMessage,
+  fareValidateFailureHint,
+} from "@/lib/tripjack/extract-proxy-error";
 
 export class TripJackApiError extends Error {
   constructor(
@@ -71,7 +75,7 @@ export async function searchTripJackFlights(
   const record = raw as Record<string, unknown>;
   if (!response.ok) {
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? `Proxy error ${response.status}`),
+      extractTripJackProxyErrorMessage(record, `Proxy error ${response.status}`),
       response.status,
       raw
     );
@@ -79,7 +83,7 @@ export async function searchTripJackFlights(
 
   if (record.success === false) {
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? "TripJack search failed"),
+      extractTripJackProxyErrorMessage(record, "TripJack search failed"),
       response.status,
       raw
     );
@@ -143,7 +147,7 @@ export async function reviewTripJackFlight(input: {
   const record = raw as Record<string, unknown>;
   if (!response.ok) {
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? `Review proxy error ${response.status}`),
+      extractTripJackProxyErrorMessage(record, `Review proxy error ${response.status}`),
       response.status,
       raw
     );
@@ -151,7 +155,7 @@ export async function reviewTripJackFlight(input: {
 
   if (record.success === false) {
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? "TripJack review failed"),
+      extractTripJackProxyErrorMessage(record, "TripJack review failed"),
       response.status,
       raw
     );
@@ -197,16 +201,21 @@ export async function fareValidateTripJackFlight(input: {
 
   const record = raw as Record<string, unknown>;
   if (!response.ok) {
+    const message = extractTripJackProxyErrorMessage(
+      record,
+      `Fare validate proxy error ${response.status}`
+    );
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? `Fare validate proxy error ${response.status}`),
+      fareValidateFailureHint(message, response.status),
       response.status,
       raw
     );
   }
 
   if (record.success === false) {
+    const message = extractTripJackProxyErrorMessage(record, "TripJack fare validate failed");
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? "TripJack fare validate failed"),
+      fareValidateFailureHint(message, response.status),
       response.status,
       raw
     );
@@ -246,7 +255,7 @@ async function tripjackProxyPost(url: string, body: unknown): Promise<unknown> {
   const record = raw as Record<string, unknown>;
   if (!response.ok || record.success === false) {
     throw new TripJackApiError(
-      String(record.error ?? record.message ?? `TripJack proxy error ${response.status}`),
+      extractTripJackProxyErrorMessage(record, `TripJack proxy error ${response.status}`),
       response.status,
       raw
     );
