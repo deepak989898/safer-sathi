@@ -211,18 +211,20 @@ export function FlightSearchScreen({
                   Travelers &amp; Class
                 </Label>
                 <Popover open={travelersOpen} onOpenChange={setTravelersOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-1 h-11 w-full justify-between rounded-xl border-slate-200 bg-slate-50 px-3 font-normal text-slate-800"
-                    >
-                      <span className="flex items-center gap-2 truncate">
-                        <Users className="h-4 w-4 shrink-0 text-[#1a4fa3]" />
-                        {travelersSummary(params)}
-                      </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-                    </Button>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-1 h-11 w-full justify-between rounded-xl border-slate-200 bg-slate-50 px-3 font-normal text-slate-800"
+                      />
+                    }
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <Users className="h-4 w-4 shrink-0 text-[#1a4fa3]" />
+                      {travelersSummary(params)}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                   </PopoverTrigger>
                   <PopoverContent className="w-72 p-4" align="start">
                     <TravelerStepper
