@@ -5,6 +5,8 @@ import {
   getHotelBookingById,
   updateHotelBooking,
 } from "@/lib/hotels/firestore";
+import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
+import { sendHotelBookingProcessingNotification } from "@/lib/hotels/notifications";
 import { refreshHotelBookingDetails } from "@/lib/hotels/post-booking-service";
 import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/types";
 import { buildTripJackHotelBookRequest } from "@/lib/tripjack-hotels/build-book";
@@ -236,12 +238,18 @@ async function executeTripJackHotelBook(
   if (!updated) throw new Error("Booking update failed");
 
   if (updated.status === "confirmed") {
+    const { booking: withGuest, loginCredentials } =
+      await ensureHotelGuestCustomerAccess(updated);
     try {
       await sendBookingConfirmationNotifications({
-        booking: hotelBookingToLegacyBooking(updated),
+        booking: hotelBookingToLegacyBooking(withGuest),
+        isFullyPaid: true,
+        loginEmail: loginCredentials?.loginEmail,
+        loginPassword: loginCredentials?.loginPassword,
       });
       await updateHotelBooking(bookingId, {
         emailSentAt: new Date().toISOString(),
+        confirmedEmailSentAt: new Date().toISOString(),
         invoiceSentAt: new Date().toISOString(),
       });
     } catch (emailError) {
@@ -252,9 +260,22 @@ async function executeTripJackHotelBook(
     } catch (refreshError) {
       console.warn("[hotel-booking] post-book refresh failed:", refreshError);
     }
+    return (await getHotelBookingById(bookingId)) ?? withGuest;
   }
 
-  return (await getHotelBookingById(bookingId)) ?? updated;
+  const { booking: withGuest } = await ensureHotelGuestCustomerAccess(updated);
+  if (withGuest.status === "booking_pending" && !withGuest.processingEmailSentAt) {
+    try {
+      const { loginCredentials } = await ensureHotelGuestCustomerAccess(withGuest);
+      await sendHotelBookingProcessingNotification(withGuest, loginCredentials);
+      await updateHotelBooking(bookingId, {
+        processingEmailSentAt: new Date().toISOString(),
+      });
+    } catch (emailError) {
+      console.warn("[hotel-booking] processing email failed:", emailError);
+    }
+  }
+  return (await getHotelBookingById(bookingId)) ?? withGuest;
 }
 
 /** Admin retry: re-call TripJack Book when payment already verified. */

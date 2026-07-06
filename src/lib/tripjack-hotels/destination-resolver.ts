@@ -14,6 +14,11 @@ import {
 } from "@/lib/tripjack-hotels/catalog-types";
 import { suggestFallbackDestinations } from "@/lib/tripjack-hotels/destination-fallback";
 import { resolveDestinationFromLiveCatalog } from "@/lib/tripjack-hotels/destination-live-lookup";
+import {
+  getTripJackHotelManualDestinationByQuery,
+  listTripJackHotelManualDestinations,
+  manualDestinationToSuggestion,
+} from "@/lib/tripjack-hotels/manual-destinations";
 
 function normalizeQuery(query: string): string {
   return query.toLowerCase().trim().replace(/\s+/g, " ");
@@ -40,13 +45,24 @@ export async function suggestHotelDestinations(
   const q = normalizeQuery(query);
   if (!q) return [];
 
-  const [destinations, hotelsByPrefix, hotelsByBlob] = await Promise.all([
+  const [destinations, hotelsByPrefix, hotelsByBlob, manualDestinations] = await Promise.all([
     searchTripJackHotelDestinations(q, 20),
     searchTripJackHotelCatalogByNamePrefix(q, 10),
     q.length >= 3 ? findTripJackHotelsBySearchBlob(q, 20) : Promise.resolve([]),
+    listTripJackHotelManualDestinations(),
   ]);
 
   const suggestions: DestinationSuggestion[] = [];
+
+  for (const dest of manualDestinations) {
+    const rank = rankSuggestion(dest.label, dest.searchKey, q);
+    const aliasRank = dest.searchKeys.some((key) => rankSuggestion(dest.label, key, q) <= 2)
+      ? 1
+      : 99;
+    if (rank <= 2 || aliasRank <= 2) {
+      suggestions.push(manualDestinationToSuggestion(dest));
+    }
+  }
 
   for (const dest of destinations) {
     if (dest.type === "hotel") continue;
@@ -151,6 +167,19 @@ export async function resolveDestinationToHids(
       label: exactDest.label,
       hids: capped.hids,
       totalMatched: exactDest.hids.length,
+      truncated: capped.truncated,
+    };
+  }
+
+  const manualDest = await getTripJackHotelManualDestinationByQuery(query);
+  if (manualDest?.hids.length) {
+    const capped = capHidsForListing(manualDest.hids);
+    return {
+      query,
+      matchType: "city",
+      label: manualDest.label,
+      hids: capped.hids,
+      totalMatched: manualDest.hids.length,
       truncated: capped.truncated,
     };
   }

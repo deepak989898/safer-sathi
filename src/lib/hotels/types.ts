@@ -167,6 +167,11 @@ export interface HotelBookingRecord {
   invoiceSentAt?: string;
   emailSentAt?: string;
 
+  guestAccountProvisioned?: boolean;
+  guestAccountCreated?: boolean;
+  processingEmailSentAt?: string;
+  confirmedEmailSentAt?: string;
+
   createdAt: string;
   updatedAt: string;
 }

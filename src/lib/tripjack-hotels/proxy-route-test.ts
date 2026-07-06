@@ -150,7 +150,7 @@ export async function runTripJackHotelProxyRouteTests(): Promise<{
     healthResult.ok ? healthResult : await runOne({ name: "root", url: rootUrl, method: "GET" }),
     await runOne({ name: "nationalities", url: config.nationalitiesUrl, method: "GET" }),
     await runOne({
-      name: "fetch-static-hotels",
+      name: "static-catalog",
       url: config.fetchStaticHotelsUrl,
       method: "POST",
       body: {},
@@ -181,6 +181,12 @@ export async function runTripJackHotelProxyRouteTests(): Promise<{
       method: "POST",
       body: { correlationId: "proxy-test" },
     }),
+    await runOne({
+      name: "booking-details",
+      url: config.bookingDetailsUrl,
+      method: "POST",
+      body: { bookingId: "proxy-test" },
+    }),
   ];
 
   const bookingRouteNames = new Set(["listing", "pricing", "review"]);
@@ -188,7 +194,7 @@ export async function runTripJackHotelProxyRouteTests(): Promise<{
     .filter((row) => bookingRouteNames.has(row.name))
     .every((row) => row.ok || row.proxyRouteOk);
 
-  const staticRow = results.find((row) => row.name === "fetch-static-hotels");
+  const staticRow = results.find((row) => row.name === "static-catalog");
   const staticCatalogueBlocked = Boolean(staticRow?.warning);
 
   return { proxyBaseUrl: baseUrl, results, bookingRoutesOk, staticCatalogueBlocked };

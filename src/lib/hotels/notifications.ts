@@ -39,17 +39,31 @@ async function deliverSimpleEmail(input: {
 }
 
 export async function sendHotelVoucherReadyNotification(
-  booking: HotelBookingRecord
+  booking: HotelBookingRecord,
+  loginCredentials?: { loginEmail: string; loginPassword: string } | null
 ): Promise<void> {
   if (!booking.customerEmail) return;
 
   const legacy = hotelBookingToLegacyBooking(booking);
   const invoiceUrl = getInvoiceDownloadUrl(legacy.id, legacy.customerEmail);
+  const guest = booking.guestDetails?.primaryGuest;
+  const roomGuests = booking.guestDetails?.roomGuests?.flat() ?? [];
+  const option = booking.reviewNormalized?.option;
   const voucherLine = booking.voucherUrl
     ? `\nVoucher: ${booking.voucherUrl}`
     : booking.confirmationNumber
       ? `\nConfirmation: ${booking.confirmationNumber}`
       : "";
+
+  const loginBlock = loginCredentials
+    ? [
+        "",
+        "My Bookings login:",
+        `Email: ${loginCredentials.loginEmail}`,
+        `Password: ${loginCredentials.loginPassword}`,
+        `Sign in: ${appUrl("/login")}`,
+      ]
+    : [];
 
   const text = [
     `Hi ${booking.customerName},`,
@@ -58,12 +72,26 @@ export async function sendHotelVoucherReadyNotification(
     "",
     `Booking ID: ${booking.bookingId}`,
     `TripJack Ref: ${booking.tripjackBookingId}`,
+    booking.supplierReference ? `Supplier ref: ${booking.supplierReference}` : "",
+    `Status: ${booking.tripjackStatus ?? booking.status}`,
+    "",
     `Check-in: ${booking.checkIn}`,
     `Check-out: ${booking.checkOut}`,
+    `Room: ${booking.roomName}`,
+    `Meal basis: ${booking.mealBasis}`,
+    guest?.address ? `Address: ${guest.address}, ${guest.city}` : "",
+    roomGuests.length
+      ? `Guests: ${roomGuests.map((g) => `${g.firstName} ${g.lastName}`).join(", ")}`
+      : "",
+    option
+      ? `Cancellation: ${option.isRefundable ? "Refundable" : "Non-refundable"}${option.freeCancellationUntil ? ` until ${option.freeCancellationUntil}` : ""}`
+      : "",
+    `Amount paid: ${formatInr(booking.totalFare)}`,
     voucherLine,
     "",
     `View booking: ${appUrl(`/hotels/booking/${booking.bookingId}`)}`,
     `Download invoice: ${invoiceUrl}`,
+    ...loginBlock,
     "",
     "Thank you for choosing Safar Sathi!",
     SITE_CONTACT.phone,
@@ -74,6 +102,46 @@ export async function sendHotelVoucherReadyNotification(
   await deliverSimpleEmail({
     to: booking.customerEmail,
     subject: `Hotel voucher ready — ${booking.hotelName}`,
+    text,
+  });
+}
+
+export async function sendHotelBookingProcessingNotification(
+  booking: HotelBookingRecord,
+  loginCredentials?: { loginEmail: string; loginPassword: string } | null
+): Promise<void> {
+  if (!booking.customerEmail) return;
+  if (booking.processingEmailSentAt) return;
+
+  const loginBlock = loginCredentials
+    ? [
+        "",
+        "Track in My Bookings:",
+        `Email: ${loginCredentials.loginEmail}`,
+        `Password: ${loginCredentials.loginPassword}`,
+        appUrl("/login"),
+      ]
+    : [`Track status: ${appUrl(`/hotels/booking/${booking.bookingId}`)}`];
+
+  const text = [
+    `Hi ${booking.customerName},`,
+    "",
+    "Payment received for your hotel booking. Confirmation is pending with the supplier.",
+    "We will notify you shortly once your voucher is ready.",
+    "",
+    `Booking ID: ${booking.bookingId}`,
+    `Hotel: ${booking.hotelName}`,
+    `Check-in: ${booking.checkIn}`,
+    `Check-out: ${booking.checkOut}`,
+    `Amount: ${formatInr(booking.totalFare)}`,
+    ...loginBlock,
+    "",
+    SITE_CONTACT.phone,
+  ].join("\n");
+
+  await deliverSimpleEmail({
+    to: booking.customerEmail,
+    subject: `Hotel booking pending — ${booking.hotelName}`,
     text,
   });
 }

@@ -52,6 +52,52 @@ const TRIPJACK_HOTEL_NATIONALITIES_URL =
   process.env.TRIPJACK_HOTEL_NATIONALITIES_URL ||
   `${TRIPJACK_HOTEL_HMS_BASE}/hms/v3/nationality-info`;
 
+function formatUpstreamNonJsonError(upstream, text, upstreamUrl, label) {
+  const trimmed = (text || "").trim();
+  const isEmpty = !trimmed;
+  if (upstream.status === 403 && isEmpty) {
+    return {
+      httpStatus: 403,
+      body: {
+        success: false,
+        proxyRouteOk: true,
+        error:
+          "TripJack upstream returned 403 empty body. Verify HMS Static Content API access, API key permission and IP whitelist.",
+        upstreamStatus: upstream.status,
+        upstreamUrl,
+        upstreamData: { raw: "" },
+      },
+    };
+  }
+  if (upstream.status === 403) {
+    return {
+      httpStatus: 403,
+      body: {
+        success: false,
+        proxyRouteOk: true,
+        error:
+          "TripJack upstream returned 403. Verify HMS API access, API key permission and IP whitelist.",
+        upstreamStatus: upstream.status,
+        upstreamUrl,
+        upstreamData: { raw: trimmed.slice(0, 500) },
+      },
+    };
+  }
+  return {
+    httpStatus: upstream.status || 502,
+    body: {
+      success: false,
+      proxyRouteOk: true,
+      error: isEmpty
+        ? `TripJack hotel ${label} returned empty response (HTTP ${upstream.status})`
+        : `TripJack hotel ${label} returned non-JSON response`,
+      upstreamStatus: upstream.status,
+      upstreamUrl,
+      upstreamData: { raw: trimmed.slice(0, 500) },
+    },
+  };
+}
+
 async function forwardTripJackHotelGet(res, upstreamUrl, label) {
   if (!process.env.TRIPJACK_API_KEY) {
     return res.status(500).json({ success: false, error: "TRIPJACK_API_KEY is not set on VPS" });
@@ -68,17 +114,11 @@ async function forwardTripJackHotelGet(res, upstreamUrl, label) {
     const elapsedMs = Date.now() - started;
     let data;
     try {
-      data = JSON.parse(text);
+      data = text.trim() ? JSON.parse(text) : null;
     } catch {
       console.error(`[tripjack-proxy] Hotel ${label} GET non-JSON:`, text.slice(0, 300));
-      return res.status(upstream.status || 502).json({
-        success: false,
-        error: `Invalid JSON from TripJack Hotel ${label} API`,
-        upstreamUrl,
-        upstreamStatus: upstream.status,
-        elapsedMs,
-        upstreamData: { raw: text.slice(0, 500) },
-      });
+      const formatted = formatUpstreamNonJsonError(upstream, text, upstreamUrl, label);
+      return res.status(formatted.httpStatus).json({ ...formatted.body, elapsedMs });
     }
 
     console.log(`[tripjack-proxy] Hotel ${label} GET upstream:`, upstream.status, "ms:", elapsedMs);
@@ -139,17 +179,11 @@ async function forwardTripJackHotel(res, upstreamUrl, requestBody, label) {
     const elapsedMs = Date.now() - started;
     let data;
     try {
-      data = JSON.parse(text);
+      data = text.trim() ? JSON.parse(text) : null;
     } catch {
       console.error(`[tripjack-proxy] Hotel ${label} non-JSON:`, text.slice(0, 300));
-      return res.status(upstream.status || 502).json({
-        success: false,
-        error: `Invalid JSON from TripJack Hotel ${label} API`,
-        upstreamUrl,
-        upstreamStatus: upstream.status,
-        elapsedMs,
-        upstreamData: { raw: text.slice(0, 500) },
-      });
+      const formatted = formatUpstreamNonJsonError(upstream, text, upstreamUrl, label);
+      return res.status(formatted.httpStatus).json({ ...formatted.body, elapsedMs });
     }
 
     console.log(`[tripjack-proxy] Hotel ${label} upstream:`, upstream.status, "ms:", elapsedMs);

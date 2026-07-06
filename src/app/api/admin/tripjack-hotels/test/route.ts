@@ -1,7 +1,8 @@
 import { requireSuperAdminAuth } from "@/lib/admin/api-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
-import { fetchTripJackHotelBookingDetails } from "@/lib/tripjack-hotels/client";
+import { fetchTripJackHotelBookingDetails, fetchTripJackHotelReview } from "@/lib/tripjack-hotels/client";
 import { listTripJackHotels } from "@/lib/tripjack-hotels/client";
+import { fetchTripJackHotelPricing } from "@/lib/tripjack-hotels/client";
 import { fetchTripJackHotelNationalities, fetchTripJackStaticHotels, TripJackHotelStaticApiError } from "@/lib/tripjack-hotels/static-client";
 import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 import { logTripJackHotelApiCall, sanitizeLogPayload } from "@/lib/tripjack-hotels/ops-firestore";
@@ -37,6 +38,32 @@ export async function POST(request: Request) {
             rooms: [{ adults: 2 }],
             currency: "INR",
             nationality: "106",
+          });
+          break;
+        case "pricing":
+          result = await fetchTripJackHotelPricing({
+            correlationId: String(body.payload?.correlationId ?? "admin-test"),
+            hid: Number(body.payload?.hid ?? 1001),
+            checkIn: String(body.payload?.checkIn ?? "2026-08-01"),
+            checkOut: String(body.payload?.checkOut ?? "2026-08-03"),
+            rooms: [{ adults: 2 }],
+            currency: "INR",
+            nationality: "106",
+          });
+          break;
+        case "review":
+          result = await fetchTripJackHotelReview({
+            correlationId: String(body.payload?.correlationId ?? "admin-test"),
+            optionId: String(body.payload?.optionId ?? "admin-test"),
+            reviewHash: String(body.payload?.reviewHash ?? "admin-test"),
+            hid: Number(body.payload?.hid ?? 1001),
+            searchContext: {
+              checkIn: "2026-08-01",
+              checkOut: "2026-08-03",
+              rooms: [{ adults: 2 }],
+              currency: "INR",
+              nationality: "106",
+            },
           });
           break;
         case "booking-details":

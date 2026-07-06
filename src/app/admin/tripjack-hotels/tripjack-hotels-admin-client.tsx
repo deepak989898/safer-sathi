@@ -16,6 +16,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { adminApiFetch } from "@/lib/admin/api-client";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
@@ -48,6 +49,13 @@ export default function TripJackHotelsAdminClient() {
   const [proxyBaseUrl, setProxyBaseUrl] = useState<string | null>(null);
   const [proxyMessage, setProxyMessage] = useState<string | null>(null);
   const [staticCatalogueBlocked, setStaticCatalogueBlocked] = useState(false);
+  const [manualLabel, setManualLabel] = useState("");
+  const [manualHids, setManualHids] = useState("");
+  const [manualAliases, setManualAliases] = useState("");
+  const [manualDestinations, setManualDestinations] = useState<
+    Array<{ id: string; label: string; hids: number[]; searchKeys: string[] }>
+  >([]);
+  const [manualSaving, setManualSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +74,11 @@ export default function TripJackHotelsAdminClient() {
       }
       if (syncJson.success) setLogs(syncJson.data.logs ?? []);
       if (checkJson.success) setChecklist(checkJson.data.items ?? []);
+      const manualRes = await adminApiFetch("/api/admin/tripjack-hotels/manual-destinations");
+      const manualJson = await manualRes.json();
+      if (manualJson.success) {
+        setManualDestinations(manualJson.data.destinations ?? []);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -137,6 +150,47 @@ export default function TripJackHotelsAdminClient() {
       setProxyTesting(false);
     }
   };
+
+  const saveManualDestination = async () => {
+    setManualSaving(true);
+    try {
+      const hids = manualHids
+        .split(/[,\s]+/)
+        .map((value) => Number(value.trim()))
+        .filter((value) => value > 0);
+      const searchKeys = manualAliases
+        .split(/[,\n]+/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const res = await adminApiFetch("/api/admin/tripjack-hotels/manual-destinations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: manualLabel.trim(), hids, searchKeys }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Save failed");
+      toast.success(`Saved ${manualLabel.trim()}`);
+      setManualLabel("");
+      setManualHids("");
+      setManualAliases("");
+      void load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  const proxyStatus = (name: string) => proxyTests?.find((row) => row.name === name);
+
+  const apiStatusRows = [
+    { key: "health", label: "Proxy health", names: ["health", "root"] },
+    { key: "nationalities", label: "Nationalities", names: ["nationalities"] },
+    { key: "listing", label: "Dynamic listing", names: ["listing"] },
+    { key: "pricing", label: "Pricing", names: ["pricing"] },
+    { key: "review", label: "Review", names: ["review"] },
+    { key: "static-catalog", label: "Static catalog", names: ["static-catalog"] },
+  ] as const;
 
   const toggleLive = async () => {
     try {
@@ -221,9 +275,36 @@ export default function TripJackHotelsAdminClient() {
             </p>
             {staticCatalogueBlocked && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE} Nationalities and booking APIs are
-                separate — use manual HID override on search or the test panel while catalogue sync is
-                blocked.
+                {TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE}
+              </div>
+            )}
+            {proxyTests && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {apiStatusRows.map((row) => {
+                  const match =
+                    row.names.map((name) => proxyStatus(name)).find(Boolean) ?? null;
+                  const ok = match?.ok || Boolean(match?.warning);
+                  const blocked = Boolean(match?.warning);
+                  return (
+                    <div key={row.key} className="rounded-lg border px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{row.label}</span>
+                        <Badge variant={blocked ? "outline" : ok ? "secondary" : "destructive"}>
+                          {blocked ? "TRIPJACK BLOCKED" : ok ? "OK" : "FAIL"}
+                        </Badge>
+                      </div>
+                      {match?.upstreamStatus != null ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          upstream {match.upstreamStatus}
+                          {match.upstreamUrl ? ` · ${match.upstreamUrl}` : ""}
+                        </p>
+                      ) : null}
+                      {match?.warning ? (
+                        <p className="mt-1 text-xs text-amber-700">{match.warning}</p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="flex flex-wrap gap-2">
@@ -308,6 +389,53 @@ export default function TripJackHotelsAdminClient() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <h2 className="font-semibold">Manual destination → hotel IDs</h2>
+            <p className="text-sm text-muted-foreground">
+              Use when static catalogue is blocked (403). Customers search by city name; hotel IDs
+              stay hidden. Example: Goa → comma-separated TripJack HIDs.
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input
+                placeholder="City label (e.g. Goa)"
+                value={manualLabel}
+                onChange={(e) => setManualLabel(e.target.value)}
+              />
+              <Input
+                placeholder="HIDs: 12345, 67890"
+                value={manualHids}
+                onChange={(e) => setManualHids(e.target.value)}
+              />
+              <Input
+                placeholder="Aliases: goa, north goa"
+                value={manualAliases}
+                onChange={(e) => setManualAliases(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={manualSaving || !manualLabel.trim() || !manualHids.trim()}
+              onClick={() => void saveManualDestination()}
+            >
+              {manualSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save manual destination
+            </Button>
+            {manualDestinations.length > 0 ? (
+              <div className="space-y-2">
+                {manualDestinations.map((dest) => (
+                  <div key={dest.id} className="rounded-lg border px-3 py-2 text-sm">
+                    <p className="font-medium">{dest.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {dest.hids.length} HIDs · aliases: {dest.searchKeys.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

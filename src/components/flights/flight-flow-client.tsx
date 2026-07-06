@@ -70,6 +70,18 @@ export function FlightFlowClient() {
 
   const showDebug = user ? canShowAdminNav(user.role) : false;
 
+  const resetToSearchView = useCallback(() => {
+    prefetchAbort.current?.abort();
+    setView("search");
+    setFlights([]);
+    setOnwardCount(0);
+    setMessage("");
+    setDateFareCache({});
+    setDateLoadingMap({});
+    setDebug({});
+    setError(null);
+  }, [setError]);
+
   const applySearchResult = useCallback(
     (
       searchParams: FlightSearchParams,
@@ -141,25 +153,31 @@ export function FlightFlowClient() {
   }, []);
 
   useEffect(() => {
+    resetToSearchView();
+
     const saved = loadFlightSearchSession();
-    if (!saved) return;
+    if (!saved?.params) return;
 
     setParams(saved.params);
     setFromQuery(resolveAirportDisplayLabel(saved.params.fromCode));
     setToQuery(resolveAirportDisplayLabel(saved.params.toCode));
-
-    void (async () => {
-      setView("results");
-      const result = await searchFlights(saved.params);
-      if (!result) {
-        setView("search");
-        return;
-      }
-      applySearchResult(saved.params, result);
-      void prefetchAdjacentFares(saved.params);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on /flights mount
   }, []);
+
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      resetToSearchView();
+      const saved = loadFlightSearchSession();
+      if (!saved?.params) return;
+      setParams(saved.params);
+      setFromQuery(resolveAirportDisplayLabel(saved.params.fromCode));
+      setToQuery(resolveAirportDisplayLabel(saved.params.toCode));
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [resetToSearchView]);
 
   const handleChange = useCallback((patch: Partial<FlightSearchParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
@@ -235,10 +253,9 @@ export function FlightFlowClient() {
   );
 
   const handleModify = useCallback(() => {
-    setView("search");
-    setError(null);
+    resetToSearchView();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [setError]);
+  }, [resetToSearchView]);
 
   const handleReviewFlight = useCallback(
     (flight: NormalizedFlight) => {

@@ -68,6 +68,7 @@ export const TRIPJACK_HOTEL_SYNC_LOGS_COLLECTION = "tripjackHotelSyncLogs";
 export const TRIPJACK_HOTEL_API_LOGS_COLLECTION = "tripjackHotelApiLogs";
 export const TRIPJACK_HOTEL_NATIONALITIES_COLLECTION = "tripjackHotelNationalities";
 export const TRIPJACK_HOTEL_OPS_META_DOC = "tripjackHotelOpsMeta/settings";
+export const TRIPJACK_HOTEL_MANUAL_DESTINATIONS_COLLECTION = "tripjackHotelManualDestinations";
 export const MAX_LISTING_HIDS = 100;
 export const MAX_HOTEL_ROOMS = 9;
 

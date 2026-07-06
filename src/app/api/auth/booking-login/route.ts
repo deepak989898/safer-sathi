@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { findBookingForLogin } from "@/lib/auth/booking-login-server";
 import { findFlightBookingForLogin } from "@/lib/auth/flight-booking-login-server";
+import { findHotelBookingForLogin } from "@/lib/auth/hotel-booking-login-server";
 import {
   createBookingLoginCustomToken,
   provisionCustomerBookingLogin,
 } from "@/lib/auth/booking-customer-access";
-import { isFlightBookingIdPassword } from "@/lib/auth/booking-login-credentials";
+import {
+  isFlightBookingIdPassword,
+  isHotelBookingIdPassword,
+} from "@/lib/auth/booking-login-credentials";
 import { provisionFlightBookingLogin } from "@/lib/flights/flight-guest-access";
+import { provisionHotelBookingLogin } from "@/lib/hotels/hotel-guest-access";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import {
   apiRateLimited,
@@ -62,6 +67,34 @@ export async function POST(request: Request) {
         bookingNumber: provision.loginPassword,
         passwordUpdated: provision.passwordUpdated,
         bookingType: "flight",
+      });
+    }
+
+    const hotelBooking = isHotelBookingIdPassword(bookingRef)
+      ? await findHotelBookingForLogin(parsed.data.email, bookingRef)
+      : null;
+
+    if (hotelBooking) {
+      const provision = await provisionHotelBookingLogin(hotelBooking);
+      if (!provision.ok) {
+        return apiError(provision.reason, 503, { code: provision.code });
+      }
+
+      const customToken = await createBookingLoginCustomToken(provision.userId);
+      if (!customToken) {
+        return apiError(
+          "Could not start your sign-in session. Please try again in a minute or contact support@thesafarsathi.com.",
+          503
+        );
+      }
+
+      return apiSuccess({
+        provisioned: true,
+        customToken,
+        email: provision.email,
+        bookingNumber: provision.loginPassword,
+        passwordUpdated: provision.passwordUpdated,
+        bookingType: "hotel",
       });
     }
 

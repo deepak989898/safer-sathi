@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { confirmHotelAfterPayment } from "@/lib/hotels/booking-service";
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
+import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
 import { assertTripJackHotelBookingAllowed, hotelApiError } from "@/lib/hotels/api-helpers";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
           : booking.status === "booking_pending"
             ? "Payment received. Booking confirmation is in progress."
             : "Booking in progress",
+      loginCredentials: (await ensureHotelGuestCustomerAccess(booking)).loginCredentials,
     });
   } catch (err) {
     return hotelApiError(err, "Payment verification failed");

@@ -1,10 +1,14 @@
 import { z } from "zod";
 import { prepareHotelBookingFromReview } from "@/lib/hotels/booking-service";
-import { assertTripJackHotelBookingAllowed, hotelApiError, requireHotelUserAuth } from "@/lib/hotels/api-helpers";
+import {
+  assertTripJackHotelBookingAllowed,
+  getHotelUserId,
+  hotelApiError,
+} from "@/lib/hotels/api-helpers";
 import { listHotelBookings } from "@/lib/hotels/firestore";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
-import { isHotelSearchSessionExpired } from "@/lib/tripjack-hotels/session";
+import { isHotelReviewSearchSessionExpired } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import type { HotelGuestDetailsForm } from "@/lib/hotels/types";
 
@@ -50,13 +54,6 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
-    if (isHotelSearchSessionExpired()) {
-      return apiError("Session expired. Please search hotels again.", 400, {
-        code: "SEARCH_SESSION_EXPIRED",
-        backToSearch: true,
-      });
-    }
-
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
@@ -67,6 +64,13 @@ export async function POST(request: Request) {
 
     const review = parsed.data.review as unknown as NormalizedHotelReviewResult;
     const guestDetails = parsed.data.guestDetails as HotelGuestDetailsForm;
+
+    if (isHotelReviewSearchSessionExpired(review)) {
+      return apiError("Session expired. Please search hotels again.", 400, {
+        code: "SEARCH_SESSION_EXPIRED",
+        backToSearch: true,
+      });
+    }
 
     if (review.option.panRequired && !guestDetails.primaryGuest.pan?.trim()) {
       return apiError("PAN number is required for this hotel", 400, { code: "PAN_MISSING" });
@@ -100,14 +104,13 @@ export async function POST(request: Request) {
       }
     }
 
-    const auth = await requireHotelUserAuth(request);
-    if ("error" in auth) return auth.error;
+    const userId = await getHotelUserId(request);
 
     const bookingAllowed = await assertTripJackHotelBookingAllowed();
     if ("error" in bookingAllowed) return bookingAllowed.error;
 
     const booking = await prepareHotelBookingFromReview({
-      userId: auth.userId,
+      userId,
       review,
       guestDetails,
     });

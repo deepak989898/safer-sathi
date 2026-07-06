@@ -14,6 +14,7 @@ import {
   sendHotelCancellationRequestedNotification,
   sendHotelVoucherReadyNotification,
 } from "@/lib/hotels/notifications";
+import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
 import type { HotelActionLogEntry, HotelBookingRecord } from "@/lib/hotels/types";
 
 export { canCancelHotelBooking, estimateHotelCancellationCharge };
@@ -102,9 +103,11 @@ export async function refreshHotelBookingDetails(
 
   if (!hadVoucher && hasVoucherNow && updated.status === "confirmed") {
     try {
-      await sendHotelVoucherReadyNotification(updated);
+      const { loginCredentials } = await ensureHotelGuestCustomerAccess(updated);
+      await sendHotelVoucherReadyNotification(updated, loginCredentials);
       await updateHotelBooking(bookingId, {
         voucherEmailSentAt: new Date().toISOString(),
+        confirmedEmailSentAt: new Date().toISOString(),
       });
     } catch (emailError) {
       console.warn("[hotel-post-booking] voucher email failed:", emailError);

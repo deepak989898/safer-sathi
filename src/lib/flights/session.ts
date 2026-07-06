@@ -50,6 +50,11 @@ export function loadFlightSearchSession(): FlightSearchSession | null {
   }
 }
 
+export function clearFlightSearchSession(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 export function defaultFlightSearchParams(): FlightSearchParams {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 7);

@@ -262,3 +262,32 @@ export function loadHotelReviewBookingId(): string | null {
   if (isHotelStorageExpired()) return null;
   return loadJson<string>(HOTEL_SESSION_KEYS.bookingId);
 }
+
+/** Server-safe: validate review session using TripJack deadline or review timestamp. */
+export function isHotelReviewExpired(review: NormalizedHotelReviewResult): boolean {
+  if (review.deadlineDateTime) {
+    const deadline = new Date(review.deadlineDateTime).getTime();
+    if (!Number.isNaN(deadline) && Date.now() > deadline) return true;
+  }
+  if (review.reviewedAt) {
+    const reviewed = new Date(review.reviewedAt).getTime();
+    if (!Number.isNaN(reviewed) && Date.now() - reviewed > HOTEL_SESSION_TTL_MS) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Server-safe: listing search window from optional searchedAt on review context. */
+export function isHotelReviewSearchSessionExpired(
+  review: NormalizedHotelReviewResult
+): boolean {
+  const ctx = review.searchContext as { searchedAt?: string; correlationId?: string };
+  if (ctx?.searchedAt) {
+    const expires =
+      new Date(ctx.searchedAt).getTime() + HOTEL_SEARCH_SESSION_MS;
+    if (Date.now() > expires) return true;
+  }
+  if (!review.correlationId) return true;
+  return isHotelReviewExpired(review);
+}

@@ -162,6 +162,7 @@ export function loadFareValidateSession(): {
 export {
   saveFlightSearchSession,
   loadFlightSearchSession,
+  clearFlightSearchSession,
   defaultFlightSearchParams,
   lightFlights,
   type FlightSearchSession,
