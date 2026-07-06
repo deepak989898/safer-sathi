@@ -28,10 +28,10 @@ export const busPassengerSchema = z.object({
   city: z.string().trim().min(2).max(80).optional(),
   state: z.string().trim().min(2).max(80).optional(),
   pincode: z.string().regex(/^\d{6}$/, "Pincode must be exactly 6 digits").optional(),
-  emergencyContact: z
-    .string()
-    .regex(/^\d{10}$/, "Emergency contact must be exactly 10 digits")
-    .optional(),
+  emergencyContact: z.preprocess(
+    (value) => (value === "" || value === null || value === undefined ? undefined : value),
+    z.string().regex(/^\d{10}$/, "Emergency contact must be exactly 10 digits").optional()
+  ),
   gst: z.string().optional(),
   seatName: z.string().min(1),
   ladiesSeat: z.boolean(),
@@ -51,8 +51,28 @@ export async function requireBusUser(request: Request) {
   return { user: auth };
 }
 
+export function formatBusApiValidationError(details: unknown, fallback = "Validation failed"): string {
+  if (!details || typeof details !== "object") return fallback;
+  const record = details as {
+    fieldErrors?: Record<string, string[]>;
+    formErrors?: string[];
+  };
+  for (const messages of Object.values(record.fieldErrors ?? {})) {
+    if (messages?.[0]) return messages[0];
+  }
+  if (record.formErrors?.[0]) return record.formErrors[0];
+  return fallback;
+}
+
 export function busApiError(error: unknown, fallback = "Request failed") {
   const message = error instanceof Error ? error.message : fallback;
   console.error("[bus-api]", message);
-  return apiError(message, 500);
+  const status =
+    error &&
+    typeof error === "object" &&
+    "statusCode" in error &&
+    typeof (error as { statusCode?: number }).statusCode === "number"
+      ? (error as { statusCode: number }).statusCode
+      : 500;
+  return apiError(message, status >= 400 && status < 600 ? status : 500);
 }

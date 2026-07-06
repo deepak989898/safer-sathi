@@ -114,21 +114,41 @@ export function useBusBookingApi() {
 
   const blockTicket = useCallback(
     async (payload: Record<string, unknown>) => {
-      return run(async () => {
+      setLoading(true);
+      setError(null);
+      try {
         const res = await customerApiFetch("/api/bus/block-ticket", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         const json = await res.json();
-        if (!json.success) throw new Error(json.error ?? "Block failed");
-        return json.data as {
-          booking: BusBookingRecord;
-          blockExpiresAt: string;
+        if (!json.success) {
+          const message =
+            json.details?.fieldErrors &&
+            typeof json.details.fieldErrors === "object"
+              ? Object.values(json.details.fieldErrors as Record<string, string[]>).flat()[0] ??
+                json.error
+              : json.error ?? "Block failed";
+          setError(message);
+          return { ok: false as const, error: String(message) };
+        }
+        return {
+          ok: true as const,
+          data: json.data as {
+            booking: BusBookingRecord;
+            blockExpiresAt: string;
+          },
         };
-      });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Block failed";
+        setError(message);
+        return { ok: false as const, error: message };
+      } finally {
+        setLoading(false);
+      }
     },
-    [run]
+    []
   );
 
   const payForBooking = useCallback(

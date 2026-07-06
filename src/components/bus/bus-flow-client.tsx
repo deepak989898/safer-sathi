@@ -604,19 +604,19 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       operatorId: session.trip.operator,
     });
 
-    if (!result) {
-      toast.error(api.error ?? "Block seat failed. Please check details and try again.");
+    if (!result.ok) {
+      toast.error(result.error);
       return;
     }
     const next: BusBookingSession = {
       ...session,
       passengers: normalized,
-      bookingId: result.booking.bookingId,
-      blockExpiresAt: result.blockExpiresAt,
+      bookingId: result.data.booking.bookingId,
+      blockExpiresAt: result.data.blockExpiresAt,
     };
     saveBusSession(next);
     setSession(next);
-    router.push(`/bus/payment?bookingId=${result.booking.bookingId}`);
+    router.push(`/bus/payment?bookingId=${result.data.booking.bookingId}`);
   };
 
   const payNow = async () => {

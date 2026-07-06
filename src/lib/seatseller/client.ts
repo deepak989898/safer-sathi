@@ -33,16 +33,9 @@ const availableTripsCache = new Map<
   { expiresAt: number; trips: SeatSellerTrip[] }
 >();
 
-export class SeatSellerApiError extends Error {
-  constructor(
-    message: string,
-    public statusCode?: number,
-    public raw?: unknown
-  ) {
-    super(message);
-    this.name = "SeatSellerApiError";
-  }
-}
+import { SeatSellerApiError } from "@/lib/seatseller/api-error";
+
+export { SeatSellerApiError };
 
 interface RequestOptions {
   method?: "GET" | "POST";

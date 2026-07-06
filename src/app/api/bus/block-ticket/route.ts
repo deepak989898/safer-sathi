@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { blockBusTicket, validateSeatGenderRules } from "@/lib/bus/booking-service";
-import { busApiError, busPassengerSchema, getBusUserId } from "@/lib/bus/api-helpers";
+import {
+  busApiError,
+  busPassengerSchema,
+  formatBusApiValidationError,
+  getBusUserId,
+} from "@/lib/bus/api-helpers";
+import { getSeatApiFare } from "@/lib/bus/fare-utils";
 import { fetchTripDetails, fetchTripDetailsV2 } from "@/lib/seatseller/client";
 import { parseSeatSellerTripDetails } from "@/lib/seatseller/parse-trip-details";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -38,7 +44,11 @@ export async function POST(request: Request) {
 
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return apiError("Validation failed", 400, parsed.error.flatten());
+      return apiError(
+        formatBusApiValidationError(parsed.error.flatten()),
+        400,
+        parsed.error.flatten()
+      );
     }
 
     const tripDetailsRaw =
@@ -55,16 +65,31 @@ export async function POST(request: Request) {
       return apiError(`Maximum ${maxSeats} seats allowed per ticket`, 400);
     }
 
-    const genderError = validateSeatGenderRules(
-      parsed.data.passengers,
-      tripDetails.seats
-    );
+    const passengers = parsed.data.passengers.map((passenger) => {
+      const seat = tripDetails.seats.find((row) => row.name === passenger.seatName);
+      if (!seat || seat.available === false) {
+        throw new Error(`Seat ${passenger.seatName} is no longer available. Please reselect seats.`);
+      }
+      const liveFare = getSeatApiFare(seat);
+      if (!liveFare || liveFare <= 0) {
+        throw new Error(
+          `Live fare missing for seat ${passenger.seatName}. Please reload seat layout and try again.`
+        );
+      }
+      return {
+        ...passenger,
+        fare: liveFare,
+        ladiesSeat: Boolean(seat.ladiesSeat ?? passenger.ladiesSeat),
+      };
+    });
+
+    const genderError = validateSeatGenderRules(passengers, tripDetails.seats);
     if (genderError) return apiError(genderError, 400);
 
     const forced = tripDetails.forcedSeats ?? [];
-    const femalePassengers = parsed.data.passengers.filter((p) => p.gender === "FEMALE");
+    const femalePassengers = passengers.filter((p) => p.gender === "FEMALE");
     for (const forcedSeat of forced) {
-      const taken = parsed.data.passengers.some((p) => p.seatName === forcedSeat);
+      const taken = passengers.some((p) => p.seatName === forcedSeat);
       if (!taken && femalePassengers.length > 0) {
         return apiError(
           `Please select forced ladies seat ${forcedSeat} for female passenger`,
@@ -73,10 +98,18 @@ export async function POST(request: Request) {
       }
     }
 
+    if (parsed.data.bpDpSeatLayout && !parsed.data.operatorId) {
+      return apiError(
+        "Operator ID is missing for this bus service. Please search again and retry.",
+        400
+      );
+    }
+
     const userId = await getBusUserId(request);
     const booking = await blockBusTicket({
       userId,
       ...parsed.data,
+      passengers,
       callFareBreakupApi:
         parsed.data.callFareBreakupApi ?? tripDetails.callFareBreakupApi ?? false,
       operatorId: parsed.data.operatorId,

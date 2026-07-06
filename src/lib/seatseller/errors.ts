@@ -1,11 +1,27 @@
-export function formatSeatSellerHttpError(status: number, body: unknown): string {
-  const text =
-    typeof body === "string"
-      ? body
-      : body && typeof body === "object" && "message" in body
-        ? String((body as { message: string }).message)
-        : "";
+import { asRecord, pickString } from "@/lib/seatseller/normalize";
 
+export function extractSeatSellerErrorMessage(body: unknown, status = 500): string {
+  if (typeof body === "string") {
+    const trimmed = body.trim();
+    if (trimmed) return trimmed.slice(0, 500);
+    return `SeatSeller API error (HTTP ${status})`;
+  }
+
+  const record = asRecord(body);
+  if (!record) return `SeatSeller API error (HTTP ${status})`;
+
+  const message = pickString(
+    record,
+    ["error", "Error", "message", "errorMessage", "error_description", "description"],
+    ""
+  );
+  if (message) return message.slice(0, 500);
+
+  return `SeatSeller API error (HTTP ${status})`;
+}
+
+export function formatSeatSellerHttpError(status: number, body: unknown): string {
+  const text = extractSeatSellerErrorMessage(body, status);
   const trimmed = text.trim();
 
   if (trimmed.includes("OAUTH verification failed")) {

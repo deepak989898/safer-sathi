@@ -1,3 +1,5 @@
+import { buildSeatSellerBlockPayload } from "@/lib/seatseller/block-payload";
+import { parseSeatSellerBlockTicketResponse } from "@/lib/seatseller/parse-block-response";
 import {
   blockTicket,
   bookTicket,
@@ -63,39 +65,18 @@ export async function blockBusTicket(
   const taxes = 0;
 
   const bookingId = generateBusBookingId();
-  const inventoryItems = input.passengers.map((p) => ({
-    seatname: p.seatName,
-    fare: p.fare,
-    ladiesSeat: p.ladiesSeat,
-    passenger: {
-      title: p.title,
-      name: p.name,
-      age: p.age,
-      gender: p.gender,
-      mobile: p.mobile,
-      email: p.email,
-      idType: p.idType,
-      idNumber: p.idNumber,
-      address: p.address,
-    },
-  }));
-
-  const blockPayload: Record<string, unknown> = {
-    availableTripID: input.tripId,
-    inventoryItems,
+  const blockPayload = buildSeatSellerBlockPayload({
+    tripId: input.tripId,
+    sourceCityId: input.sourceCityId,
+    destinationCityId: input.destinationCityId,
     boardingPointId: input.boardingPoint.id,
     droppingPointId: input.droppingPoint.id,
-    source: input.sourceCityId,
-    destination: input.destinationCityId,
-    doj: input.doj,
-    totalFare,
-  };
+    passengers: input.passengers,
+    operatorId: input.bpDpSeatLayout ? input.operatorId : input.operatorId,
+  });
 
-  if (input.operatorId) {
-    blockPayload.operator = input.operatorId;
-  }
-
-  const blockResponse = await blockTicket(blockPayload, bookingId);
+  const blockResponseRaw = await blockTicket(blockPayload, bookingId);
+  const blockResponse = parseSeatSellerBlockTicketResponse(blockResponseRaw);
   const expiresAt = new Date(Date.now() + BLOCK_MINUTES * 60 * 1000).toISOString();
 
   const primary = input.passengers[0];
