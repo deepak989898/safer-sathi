@@ -527,7 +527,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
   };
 
   const submitPassengers = async () => {
-    if (!session?.trip || !session.boardingPoint || !session.droppingPoint) return;
+    if (!session?.trip || !session.boardingPoint || !session.droppingPoint) {
+      toast.error("Missing trip or boarding/dropping details. Please reselect seats.");
+      return;
+    }
     const normalized = passengers.map((p) => ({
       ...p,
       name:
@@ -536,9 +539,40 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
     }));
     setPassengers(normalized);
 
-    for (const p of normalized) {
-      if (!p.name || !p.mobile || !p.email || !p.idNumber || !p.address) {
-        toast.error("Fill all required passenger details");
+    for (let i = 0; i < normalized.length; i += 1) {
+      const p = normalized[i];
+      const passengerNo = i + 1;
+      if (!p.name || p.name.trim().length < 2) {
+        toast.error(`Passenger ${passengerNo}: enter valid full name`);
+        return;
+      }
+      if (!/^\d{10}$/.test(p.mobile ?? "")) {
+        toast.error(`Passenger ${passengerNo}: mobile must be exactly 10 digits`);
+        return;
+      }
+      if (p.emergencyContact && !/^\d{10}$/.test(p.emergencyContact)) {
+        toast.error(`Passenger ${passengerNo}: emergency contact must be 10 digits`);
+        return;
+      }
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email ?? "");
+      if (!emailOk) {
+        toast.error(`Passenger ${passengerNo}: enter valid email`);
+        return;
+      }
+      if (!p.idNumber || p.idNumber.trim().length < 4) {
+        toast.error(`Passenger ${passengerNo}: enter valid ID number`);
+        return;
+      }
+      if (!p.address || p.address.trim().length < 3) {
+        toast.error(`Passenger ${passengerNo}: enter valid address`);
+        return;
+      }
+      if (p.pincode && !/^\d{6}$/.test(p.pincode)) {
+        toast.error(`Passenger ${passengerNo}: pincode must be 6 digits`);
+        return;
+      }
+      if (!Number.isInteger(p.age) || p.age < 1 || p.age > 120) {
+        toast.error(`Passenger ${passengerNo}: age must be between 1 and 120`);
         return;
       }
       const seat = selectedSeats.find((s) => s.name === p.seatName);
@@ -570,7 +604,10 @@ export function BusFlowClient({ step }: { step: BusFlowStep }) {
       operatorId: session.trip.operator,
     });
 
-    if (!result) return;
+    if (!result) {
+      toast.error(api.error ?? "Block seat failed. Please check details and try again.");
+      return;
+    }
     const next: BusBookingSession = {
       ...session,
       passengers: normalized,

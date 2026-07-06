@@ -48,6 +48,9 @@ export function BusPassengerScreen({
   onSubmit,
 }: BusPassengerScreenProps) {
   const totalFare = passengers.reduce((sum, p) => sum + p.fare, 0);
+  const digitsOnly = (value: string, max: number) => value.replace(/\D/g, "").slice(0, max);
+  const textOnly = (value: string, max = 80) =>
+    value.replace(/[^a-zA-Z\s.'-]/g, "").replace(/\s+/g, " ").slice(0, max);
 
   const updatePassenger = (index: number, patch: Partial<BusPassengerDetail>) => {
     onChange(
@@ -139,7 +142,9 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.firstName ?? p.name.split(" ")[0] ?? ""}
-                      onChange={(e) => updatePassenger(index, { firstName: e.target.value })}
+                      onChange={(e) =>
+                        updatePassenger(index, { firstName: textOnly(e.target.value, 40) })
+                      }
                     />
                   </div>
                   <div>
@@ -147,7 +152,9 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.lastName ?? p.name.split(" ").slice(1).join(" ") ?? ""}
-                      onChange={(e) => updatePassenger(index, { lastName: e.target.value })}
+                      onChange={(e) =>
+                        updatePassenger(index, { lastName: textOnly(e.target.value, 40) })
+                      }
                     />
                   </div>
                   <div>
@@ -156,7 +163,12 @@ export function BusPassengerScreen({
                       type="number"
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.age}
-                      onChange={(e) => updatePassenger(index, { age: Number(e.target.value) })}
+                      min={1}
+                      max={120}
+                      onChange={(e) => {
+                        const age = Number(e.target.value);
+                        updatePassenger(index, { age: Number.isFinite(age) ? age : 0 });
+                      }}
                     />
                   </div>
                   <div>
@@ -164,7 +176,11 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.mobile}
-                      onChange={(e) => updatePassenger(index, { mobile: e.target.value })}
+                      inputMode="numeric"
+                      maxLength={10}
+                      onChange={(e) =>
+                        updatePassenger(index, { mobile: digitsOnly(e.target.value, 10) })
+                      }
                       placeholder="10-digit mobile"
                     />
                   </div>
@@ -182,7 +198,8 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.address}
-                      onChange={(e) => updatePassenger(index, { address: e.target.value })}
+                      maxLength={200}
+                      onChange={(e) => updatePassenger(index, { address: e.target.value.slice(0, 200) })}
                     />
                   </div>
                   <div>
@@ -190,7 +207,7 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.city ?? ""}
-                      onChange={(e) => updatePassenger(index, { city: e.target.value })}
+                      onChange={(e) => updatePassenger(index, { city: textOnly(e.target.value, 80) })}
                     />
                   </div>
                   <div>
@@ -198,7 +215,7 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.state ?? ""}
-                      onChange={(e) => updatePassenger(index, { state: e.target.value })}
+                      onChange={(e) => updatePassenger(index, { state: textOnly(e.target.value, 80) })}
                     />
                   </div>
                   <div>
@@ -206,7 +223,9 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.pincode ?? ""}
-                      onChange={(e) => updatePassenger(index, { pincode: e.target.value })}
+                      inputMode="numeric"
+                      maxLength={6}
+                      onChange={(e) => updatePassenger(index, { pincode: digitsOnly(e.target.value, 6) })}
                     />
                   </div>
                   <div>
@@ -236,7 +255,12 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.idNumber}
-                      onChange={(e) => updatePassenger(index, { idNumber: e.target.value })}
+                      maxLength={30}
+                      onChange={(e) =>
+                        updatePassenger(index, {
+                          idNumber: e.target.value.replace(/\s+/g, " ").trimStart().slice(0, 30),
+                        })
+                      }
                     />
                   </div>
                   <div>
@@ -244,7 +268,11 @@ export function BusPassengerScreen({
                     <Input
                       className="mt-1.5 h-11 rounded-xl"
                       value={p.emergencyContact ?? ""}
-                      onChange={(e) => updatePassenger(index, { emergencyContact: e.target.value })}
+                      inputMode="numeric"
+                      maxLength={10}
+                      onChange={(e) =>
+                        updatePassenger(index, { emergencyContact: digitsOnly(e.target.value, 10) })
+                      }
                     />
                   </div>
                   {index === 0 && (
