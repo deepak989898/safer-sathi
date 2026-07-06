@@ -56,13 +56,11 @@ interface FlightSearchScreenProps {
   onRouteErrors: (errors: { fromError?: string | null; toError?: string | null }) => void;
   onSwap: () => void;
   onSearch: (route?: { fromCode: string; toCode: string }) => void;
-  /** After first search — compact bar only (no hero image). */
-  compact?: boolean;
 }
 
-/** Side-view commercial jet — full aircraft visible (object-contain). */
+/** Commercial jet in flight — reference hero style. */
 const FLIGHT_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1583608205776-bfd35f0d9a83?auto=format&fit=crop&w=1200&q=85";
+  "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=85";
 
 function TravelerStepper({
   label,
@@ -120,7 +118,6 @@ export function FlightSearchScreen({
   onRouteErrors,
   onSwap,
   onSearch,
-  compact = false,
 }: FlightSearchScreenProps) {
   const [travelersOpen, setTravelersOpen] = useState(false);
 
@@ -168,12 +165,7 @@ export function FlightSearchScreen({
   };
 
   const formCard = (
-    <div
-      className={cn(
-        "rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-blue-900/5 sm:p-5",
-        compact && "shadow-md"
-      )}
-    >
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-blue-900/5 sm:p-5">
             <div className="mb-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-[#1a4fa3] px-3.5 py-1 text-xs font-semibold text-white">
                 One Way
@@ -332,42 +324,32 @@ export function FlightSearchScreen({
     </div>
   );
 
-  if (compact) {
-    return (
-      <section className="border-b border-slate-200/80 bg-[#f4f7fb]">
-        <div className="container mx-auto max-w-6xl px-4 py-4">{formCard}</div>
-      </section>
-    );
-  }
-
   return (
-    <section className="bg-gradient-to-b from-[#e8f2fc] via-[#f4f8fd] to-[#f4f7fb]">
-      <div className="container mx-auto flex min-h-[calc(100dvh-8.5rem)] max-w-6xl flex-col px-4 py-5 lg:min-h-[calc(100dvh-7rem)] lg:py-6">
-        <div className="shrink-0 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#1a4fa3] md:text-3xl lg:text-4xl">
-            Find The Best Flight Deals
-          </h1>
-          <p className="mx-auto mt-1.5 max-w-lg text-sm text-slate-600">
-            Book your next adventure — search, review fares, pay securely, and get your e-ticket
-            instantly.
-          </p>
-        </div>
+    <section className="overflow-hidden bg-gradient-to-b from-[#e8f2fc] via-[#f4f8fd] to-[#f4f7fb]">
+      <div className="container mx-auto flex max-h-[calc(100dvh-4.5rem)] min-h-[calc(100dvh-4.5rem)] max-w-6xl flex-col px-4 py-4 md:max-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-4rem)] md:py-5">
+        <div className="grid shrink-0 grid-cols-1 items-center gap-3 md:grid-cols-[1fr_minmax(0,340px)] md:gap-6">
+          <div className="text-center md:text-left">
+            <h1 className="text-2xl font-bold tracking-tight text-[#1a4fa3] md:text-3xl lg:text-[2rem] lg:leading-tight">
+              Find The Best Flight Deals
+            </h1>
+            <p className="mx-auto mt-1 max-w-md text-sm text-slate-600 md:mx-0">
+              Book your next adventure — enjoy the best offers on domestic and international
+              flights.
+            </p>
+          </div>
 
-        <div className="mt-5 grid flex-1 items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
-          <div className="order-2 lg:order-1">{formCard}</div>
-
-          <div className="order-1 flex min-h-[200px] items-center justify-center lg:order-2 lg:min-h-0">
-            <div className="relative flex h-full w-full max-h-[min(420px,50vh)] items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100/80 via-blue-50/50 to-transparent p-3 sm:max-h-[280px] lg:max-h-none lg:min-h-[340px]">
-              <img
-                src={FLIGHT_HERO_IMAGE}
-                alt="Commercial airplane"
-                className="max-h-full w-full max-w-full object-contain object-center drop-shadow-xl"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
+          <div className="flex items-center justify-center md:justify-end">
+            <img
+              src={FLIGHT_HERO_IMAGE}
+              alt="Airplane"
+              className="h-28 w-auto max-w-full object-contain drop-shadow-lg sm:h-32 md:h-36 lg:h-40"
+              loading="eager"
+              decoding="async"
+            />
           </div>
         </div>
+
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto md:mt-4">{formCard}</div>
       </div>
     </section>
   );

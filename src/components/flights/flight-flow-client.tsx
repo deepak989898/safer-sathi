@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FlightDebugPanel } from "@/components/flights/flight-debug-panel";
 import { FlightResultsScreen } from "@/components/flights/flight-results-screen";
 import { FlightSearchScreen } from "@/components/flights/flight-search-screen";
-import { FlightStepBar } from "@/components/flights/flight-ui";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightSearch, type FlightSearchDebug } from "@/hooks/use-flight-search";
+import {
+  adjacentDatesForPrefetch,
+  type DateFareCache,
+  updateDateFareCache,
+} from "@/lib/flights/date-fare-cache";
 import {
   defaultFlightSearchParams,
   lightFlights,
@@ -21,12 +25,30 @@ import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type { FlightSearchParams, NormalizedFlight } from "@/lib/tripjack/types";
 import { useAppStore } from "@/store/app-store";
 
+type FlightView = "search" | "results";
+
+async function fetchFlightsQuiet(params: FlightSearchParams) {
+  const res = await fetch("/api/flights/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const json = await res.json();
+  if (!json.success) return null;
+  return json.data as {
+    onwardCount: number;
+    flights: NormalizedFlight[];
+    message: string;
+  };
+}
+
 export function FlightFlowClient() {
   const router = useRouter();
   const { locale } = useAppStore();
   const { user } = useAuth();
   const { loading, error, setError, searchFlights } = useFlightSearch();
 
+  const [view, setView] = useState<FlightView>("search");
   const [params, setParams] = useState<FlightSearchParams>(() => defaultFlightSearchParams());
   const [fromQuery, setFromQuery] = useState(() =>
     resolveAirportDisplayLabel(defaultFlightSearchParams().fromCode)
@@ -39,22 +61,104 @@ export function FlightFlowClient() {
   const [flights, setFlights] = useState<NormalizedFlight[]>([]);
   const [onwardCount, setOnwardCount] = useState(0);
   const [message, setMessage] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
+  const [dateFareCache, setDateFareCache] = useState<DateFareCache>({});
+  const [dateLoadingMap, setDateLoadingMap] = useState<Record<string, boolean>>({});
   const [debug, setDebug] = useState<FlightSearchDebug>({});
+  const prefetchAbort = useRef<AbortController | null>(null);
+  const dateFareCacheRef = useRef(dateFareCache);
+  dateFareCacheRef.current = dateFareCache;
 
   const showDebug = user ? canShowAdminNav(user.role) : false;
 
+  const applySearchResult = useCallback(
+    (
+      searchParams: FlightSearchParams,
+      result: {
+        onwardCount: number;
+        flights: NormalizedFlight[];
+        message: string;
+        requestBody?: unknown;
+        proxyEndpoint?: string;
+        payloadShape?: { topLevelKeys: string[]; tripInfoKeys: string[] };
+        debug?: { rawResponse: unknown };
+      }
+    ) => {
+      const flightsLight = lightFlights(result.flights);
+      setFlights(flightsLight);
+      setOnwardCount(result.onwardCount);
+      setMessage(result.message);
+      setDateFareCache((cache) =>
+        updateDateFareCache(cache, searchParams.departureDate, flightsLight)
+      );
+
+      if (showDebug) {
+        setDebug({
+          requestBody: result.requestBody,
+          proxyEndpoint: result.proxyEndpoint,
+          payloadShape: result.payloadShape,
+          rawResponse: result.debug ?? { omittedRawResponse: true },
+        });
+      } else {
+        setDebug({});
+      }
+
+      window.setTimeout(() => {
+        saveFlightSearchSession({
+          params: searchParams,
+          flights: [],
+          onwardCount: result.onwardCount,
+          message: result.message,
+          searchedAt: new Date().toISOString(),
+        });
+      }, 0);
+    },
+    [showDebug]
+  );
+
+  const prefetchAdjacentFares = useCallback(async (searchParams: FlightSearchParams) => {
+    prefetchAbort.current?.abort();
+    const controller = new AbortController();
+    prefetchAbort.current = controller;
+
+    for (const date of adjacentDatesForPrefetch(searchParams.departureDate)) {
+      if (controller.signal.aborted) break;
+      if (dateFareCacheRef.current[date] !== undefined) continue;
+      setDateLoadingMap((prev) => ({ ...prev, [date]: true }));
+      try {
+        const result = await fetchFlightsQuiet({ ...searchParams, departureDate: date });
+        if (controller.signal.aborted) break;
+        if (result) {
+          setDateFareCache((cache) =>
+            updateDateFareCache(cache, date, lightFlights(result.flights))
+          );
+        }
+      } catch {
+        /* non-blocking prefetch */
+      } finally {
+        setDateLoadingMap((prev) => ({ ...prev, [date]: false }));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const saved = loadFlightSearchSession();
-    if (saved) {
-      setParams(saved.params);
-      setFromQuery(resolveAirportDisplayLabel(saved.params.fromCode));
-      setToQuery(resolveAirportDisplayLabel(saved.params.toCode));
-      setFlights(saved.flights);
-      setOnwardCount(saved.onwardCount);
-      setMessage(saved.message);
-      setHasSearched(true);
-    }
+    if (!saved) return;
+
+    setParams(saved.params);
+    setFromQuery(resolveAirportDisplayLabel(saved.params.fromCode));
+    setToQuery(resolveAirportDisplayLabel(saved.params.toCode));
+
+    void (async () => {
+      setView("results");
+      const result = await searchFlights(saved.params);
+      if (!result) {
+        setView("search");
+        return;
+      }
+      applySearchResult(saved.params, result);
+      void prefetchAdjacentFares(saved.params);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once on mount
   }, []);
 
   const handleChange = useCallback((patch: Partial<FlightSearchParams>) => {
@@ -73,53 +177,25 @@ export function FlightFlowClient() {
     setToError(null);
   }, [fromQuery, toQuery]);
 
-  const handleSearch = useCallback(
-    async (route?: { fromCode: string; toCode: string }) => {
-      const searchParams = route ? { ...params, ...route } : params;
-
+  const runSearch = useCallback(
+    async (searchParams: FlightSearchParams) => {
       if (!searchParams.departureDate) {
         toast.error("Select a departure date");
         return;
       }
 
       setError(null);
-      setHasSearched(true);
+      setView("results");
 
       const result = await searchFlights(searchParams);
-      if (!result) return;
-
-      if (route) {
-        setParams(searchParams);
+      if (!result) {
+        setView("search");
+        return;
       }
 
-      // Strip heavy fields before React state — prevents "Page Unresponsive".
-      const flightsLight = lightFlights(result.flights);
-      setFlights(flightsLight);
-      setOnwardCount(result.onwardCount);
-      setMessage(result.message);
-
-      if (showDebug) {
-        setDebug({
-          requestBody: result.requestBody,
-          proxyEndpoint: result.proxyEndpoint,
-          payloadShape: result.payloadShape,
-          // Never store full TripJack search JSON in React state.
-          rawResponse: result.debug ?? { omittedRawResponse: true },
-        });
-      } else {
-        setDebug({});
-      }
-
-      // Defer session write so paint is not blocked.
-      window.setTimeout(() => {
-        saveFlightSearchSession({
-          params: searchParams,
-          flights: [],
-          onwardCount: result.onwardCount,
-          message: result.message,
-          searchedAt: new Date().toISOString(),
-        });
-      }, 0);
+      setParams(searchParams);
+      applySearchResult(searchParams, result);
+      void prefetchAdjacentFares(searchParams);
 
       if (result.flights.length === 0) {
         toast.info(result.message, { duration: 2500 });
@@ -129,8 +205,40 @@ export function FlightFlowClient() {
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [params, searchFlights, setError, showDebug]
+    [applySearchResult, prefetchAdjacentFares, searchFlights, setError]
   );
+
+  const handleSearch = useCallback(
+    async (route?: { fromCode: string; toCode: string }) => {
+      const searchParams = route ? { ...params, ...route } : params;
+      await runSearch(searchParams);
+    },
+    [params, runSearch]
+  );
+
+  const handleSelectDate = useCallback(
+    async (date: string) => {
+      const searchParams = { ...params, departureDate: date };
+      setParams(searchParams);
+      setDateLoadingMap((prev) => ({ ...prev, [date]: true }));
+      setError(null);
+
+      const result = await searchFlights(searchParams);
+      setDateLoadingMap((prev) => ({ ...prev, [date]: false }));
+
+      if (!result) return;
+
+      applySearchResult(searchParams, result);
+      void prefetchAdjacentFares(searchParams);
+    },
+    [applySearchResult, params, prefetchAdjacentFares, searchFlights, setError]
+  );
+
+  const handleModify = useCallback(() => {
+    setView("search");
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [setError]);
 
   const handleReviewFlight = useCallback(
     (flight: NormalizedFlight) => {
@@ -146,39 +254,46 @@ export function FlightFlowClient() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
-      {hasSearched && <FlightStepBar current="results" />}
+      {view === "search" && (
+        <FlightSearchScreen
+          params={params}
+          fromQuery={fromQuery}
+          toQuery={toQuery}
+          fromError={fromError}
+          toError={toError}
+          loading={loading}
+          onChange={handleChange}
+          onFromQueryChange={setFromQuery}
+          onToQueryChange={setToQuery}
+          onRouteErrors={({ fromError: nextFromError, toError: nextToError }) => {
+            if (nextFromError !== undefined) setFromError(nextFromError);
+            if (nextToError !== undefined) setToError(nextToError);
+          }}
+          onSwap={handleSwap}
+          onSearch={handleSearch}
+        />
+      )}
 
-      <FlightSearchScreen
-        params={params}
-        fromQuery={fromQuery}
-        toQuery={toQuery}
-        fromError={fromError}
-        toError={toError}
-        loading={loading}
-        onChange={handleChange}
-        onFromQueryChange={setFromQuery}
-        onToQueryChange={setToQuery}
-        onRouteErrors={({ fromError: nextFromError, toError: nextToError }) => {
-          if (nextFromError !== undefined) setFromError(nextFromError);
-          if (nextToError !== undefined) setToError(nextToError);
-        }}
-        onSwap={handleSwap}
-        onSearch={handleSearch}
-        compact={hasSearched}
-      />
-
-      {hasSearched && (
+      {view === "results" && (
         <FlightResultsScreen
+          params={params}
+          fromQuery={fromQuery}
+          toQuery={toQuery}
           flights={flights}
+          onwardCount={onwardCount}
           loading={loading}
           error={error}
           message={message}
           locale={locale}
+          dateFareCache={dateFareCache}
+          dateLoadingMap={dateLoadingMap}
           onReviewFlight={handleReviewFlight}
+          onSelectDate={handleSelectDate}
+          onModify={handleModify}
         />
       )}
 
-      {showDebug && hasSearched && (debug.rawResponse != null || debug.requestBody != null) && (
+      {showDebug && view === "results" && (debug.rawResponse != null || debug.requestBody != null) && (
         <div className="container mx-auto px-4 pb-10">
           <FlightDebugPanel debug={debug} />
         </div>

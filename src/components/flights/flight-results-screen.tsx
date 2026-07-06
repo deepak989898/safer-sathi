@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Plane } from "lucide-react";
+import { AlertCircle, Pencil, Plane } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FlightCard } from "@/components/flights/flight-card";
+import { FlightDateFareStrip } from "@/components/flights/flight-date-fare-strip";
 import {
   FlightFiltersMobileBar,
   FlightFiltersSidebar,
 } from "@/components/flights/flight-filters-sidebar";
 import { FlightPagination } from "@/components/flights/flight-pagination";
 import { FlightSoftCard } from "@/components/flights/flight-ui";
+import { findAirportByIata } from "@/lib/flights/airports";
+import type { DateFareCache } from "@/lib/flights/date-fare-cache";
 import {
   applyFlightFilters,
   buildFlightFilterMeta,
@@ -20,16 +24,24 @@ import {
   paginateFlights,
   type FlightFilters,
 } from "@/lib/flights/filters";
-import type { NormalizedFlight } from "@/lib/tripjack/types";
+import type { FlightSearchParams, NormalizedFlight } from "@/lib/tripjack/types";
 import type { Locale } from "@/types";
 
 interface FlightResultsScreenProps {
+  params: FlightSearchParams;
+  fromQuery: string;
+  toQuery: string;
   flights: NormalizedFlight[];
+  onwardCount: number;
   loading: boolean;
   error: string | null;
   message: string;
   locale: Locale;
+  dateFareCache: DateFareCache;
+  dateLoadingMap?: Record<string, boolean>;
   onReviewFlight?: (flight: NormalizedFlight) => void;
+  onSelectDate: (date: string) => void;
+  onModify: () => void;
 }
 
 function FlightCardSkeleton() {
@@ -48,13 +60,26 @@ function FlightCardSkeleton() {
   );
 }
 
+function formatResultDate(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export function FlightResultsScreen({
+  params,
+  fromQuery,
+  toQuery,
   flights,
+  onwardCount,
   loading,
   error,
   message,
   locale,
+  dateFareCache,
+  dateLoadingMap,
   onReviewFlight,
+  onSelectDate,
+  onModify,
 }: FlightResultsScreenProps) {
   const [filters, setFilters] = useState<FlightFilters>(() => initFiltersFromFlights(flights));
   const [page, setPage] = useState(1);
@@ -79,6 +104,11 @@ export function FlightResultsScreen({
 
   const activeFilterCount = countActiveFilters(filters, meta);
 
+  const fromAirport = findAirportByIata(params.fromCode);
+  const toAirport = findAirportByIata(params.toCode);
+  const travelerCount = params.adults + params.children + params.infants;
+  const cabinLabel = params.cabinClass.replace(/_/g, " ");
+
   const handleFilterChange = (patch: Partial<FlightFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
     setPage(1);
@@ -89,13 +119,55 @@ export function FlightResultsScreen({
     setPage(1);
   };
 
-  if (!loading && !error && flights.length === 0 && !message) {
-    return null;
-  }
-
   return (
-    <section className="border-t border-blue-50 bg-[#f4f7fb] py-0">
-      <div className="container mx-auto px-4 py-8">
+    <section className="min-h-screen bg-[#f4f7fb]">
+      <div className="border-b bg-white shadow-sm">
+        <div className="container mx-auto max-w-6xl px-4 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
+                {params.fromCode} → {params.toCode}
+              </h1>
+              <p className="mt-0.5 text-sm text-slate-600">
+                {fromAirport?.city ?? fromQuery} to {toAirport?.city ?? toQuery}
+                {fromAirport?.country && toAirport?.country
+                  ? ` · ${fromAirport.country} to ${toAirport.country}`
+                  : ""}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {formatResultDate(params.departureDate)} · {travelerCount} Traveler
+                {travelerCount > 1 ? "s" : ""} · {cabinLabel}
+                {!loading && !error && onwardCount > 0 && (
+                  <span className="text-slate-400"> · {onwardCount} flights</span>
+                )}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 rounded-full border-[#1a4fa3] text-[#1a4fa3] hover:bg-blue-50"
+              onClick={onModify}
+            >
+              <Pencil className="mr-2 h-3.5 w-3.5" />
+              Modify Search
+            </Button>
+          </div>
+
+          <div className="mt-4">
+            <FlightDateFareStrip
+              selectedDate={params.departureDate}
+              locale={locale}
+              loading={loading}
+              dateFareCache={dateFareCache}
+              loadingDates={dateLoadingMap}
+              onSelectDate={onSelectDate}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto max-w-6xl px-4 py-6">
         {loading && (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -123,16 +195,24 @@ export function FlightResultsScreen({
               <p className="font-semibold text-slate-900">No flights found</p>
               <p className="mt-2 max-w-md text-sm text-slate-600">
                 {message ||
-                  "Try a different date, route, or enable connecting flights in your search."}
+                  "Try a different date from the calendar above, or modify your search."}
               </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4 rounded-full"
+                onClick={onModify}
+              >
+                Modify Search
+              </Button>
             </div>
           </FlightSoftCard>
         )}
 
         {!loading && !error && flights.length > 0 && (
-          <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
             <aside className="hidden lg:block">
-              <div className="sticky top-24">
+              <div className="sticky top-20">
                 <FlightFiltersSidebar
                   filters={filters}
                   meta={meta}
@@ -163,7 +243,6 @@ export function FlightResultsScreen({
                             ? "Departure"
                             : "Recommended"}
                   </span>
-                  <span className="text-slate-400"> · use filters to change</span>
                 </p>
               </div>
 
