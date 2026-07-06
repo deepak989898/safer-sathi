@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { adminApiFetch } from "@/lib/admin/api-client";
 import { getAdminNotesHistory } from "@/lib/flights/admin-notes";
 import { FlightPipelineStatusBadge } from "@/components/flights/flight-pipeline-status-badge";
+import { AirlineLogo } from "@/components/flights/airline-logo";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -217,6 +218,15 @@ export default function FlightBookingDetailAdminClient({
         </Section>
 
         <Section title="2. Flight Details">
+          <div className="mb-4 flex items-center gap-3">
+            <AirlineLogo code={booking.airlineCode} name={booking.airlineName} size={52} />
+            <div>
+              <p className="font-semibold text-slate-900">{booking.airlineName}</p>
+              <p className="text-sm text-muted-foreground">
+                {booking.airlineCode} {booking.flightNumber}
+              </p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Airline" value={`${booking.airlineName} (${booking.airlineCode})`} />
             <Field label="Flight number" value={booking.flightNumber} />

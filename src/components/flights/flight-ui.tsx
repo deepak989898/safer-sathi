@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { ArrowLeft, Check, Plane } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AirlineLogo, type AirlineLogoSize } from "@/components/flights/airline-logo";
+import { getAirlineDisplayName } from "@/lib/flights/airline-logos";
 
 export const FLIGHT_BLUE = "#1a4fa3";
 export const FLIGHT_BLUE_HOVER = "#16408a";
@@ -95,20 +97,26 @@ export function FlightPageHeader({
 
 export function AirlineAvatar({
   code,
+  name,
+  logoUrl,
   className,
+  size = 48,
 }: {
   code: string;
+  name?: string;
+  logoUrl?: string | null;
   className?: string;
+  size?: AirlineLogoSize;
 }) {
   return (
-    <div
-      className={cn(
-        "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 text-sm font-bold text-[#1a4fa3] shadow-sm ring-1 ring-blue-100",
-        className
-      )}
-    >
-      {(code || "FL").slice(0, 2).toUpperCase()}
-    </div>
+    <AirlineLogo
+      code={code}
+      name={name ?? getAirlineDisplayName(code)}
+      logoUrl={logoUrl}
+      size={size}
+      className={className}
+      shape="rounded"
+    />
   );
 }
 

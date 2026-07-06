@@ -6,6 +6,7 @@ import type {
 } from "@/lib/tripjack/types";
 import type { FlightSearchParams } from "@/lib/tripjack/types";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
+import { extractTripJackAirlineLogoUrl } from "@/lib/flights/airline-logos";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -116,6 +117,7 @@ function parseSegment(seg: Record<string, unknown>): FlightReviewSegment {
   return {
     airlineCode: pickString(airline, ["code"], ""),
     airlineName: pickString(airline, ["name"], "Airline"),
+    airlineLogoUrl: extractTripJackAirlineLogoUrl(airline),
     flightNumber: pickString(fd, ["fN", "flightNumber"], ""),
     isLcc: pickBoolean(airline, ["isLcc", "isLCC"]),
     departureAirportCode: pickString(da, ["code"], ""),
@@ -292,6 +294,7 @@ export function normalizeTripJackReview(
   return {
     airlineName: first.airlineName,
     airlineCode: first.airlineCode,
+    airlineLogoUrl: first.airlineLogoUrl,
     flightNumber: first.flightNumber,
     isLcc: first.isLcc,
     departureAirportCode: first.departureAirportCode,

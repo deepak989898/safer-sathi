@@ -7,7 +7,8 @@ import { RequireAuth } from "@/components/auth/require-auth";
 import { useFlightBookingApi } from "@/hooks/use-flight-booking";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AirlineAvatar, FlightSoftCard } from "@/components/flights/flight-ui";
+import { AirlineLogo } from "@/components/flights/airline-logo";
+import { FlightSoftCard } from "@/components/flights/flight-ui";
 import { FlightPipelineStatusBadge } from "@/components/flights/flight-pipeline-status-badge";
 import type { FlightBookingRecord, FlightBookingStatus } from "@/lib/flights/types";
 import { formatCurrency } from "@/lib/i18n";
@@ -142,7 +143,7 @@ function FlightBookingsContent() {
           <FlightSoftCard key={b.bookingId}>
             <div className="flex flex-wrap items-center justify-between gap-4 p-5">
               <div className="flex items-start gap-3">
-                <AirlineAvatar code={b.airlineCode} />
+                <AirlineLogo code={b.airlineCode} name={b.airlineName} size={48} />
                 <div>
                   <p className="text-lg font-bold text-slate-900">
                     {b.sourceCity || b.sourceCode} → {b.destinationCity || b.destinationCode}

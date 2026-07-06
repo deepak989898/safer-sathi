@@ -1,6 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="IndiGo">
-  <rect width="96" height="96" rx="12" fill="#fff"/>
-  <circle cx="30" cy="48" r="10" fill="#001B94"/>
-  <circle cx="48" cy="48" r="10" fill="#001B94"/>
-  <circle cx="66" cy="48" r="10" fill="#001B94"/>
+  <rect width="96" height="96" rx="16" fill="#000099"/>
+  <text x="48" y="58" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="700" fill="#FFFFFF">6E</text>
 </svg>

@@ -12,6 +12,7 @@ import {
   type FlightPassengersSession,
 } from "@/lib/flights/flight-session";
 import { buildFareValidateRequest, buildEmptyPassengerRows } from "@/lib/tripjack/build-fare-validate";
+import { isFutureDateOfBirth } from "@/lib/phone-country-codes";
 import { extractTripJackBookingId } from "@/lib/tripjack/extract-booking-id";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import type {
@@ -82,9 +83,11 @@ export function FlightPassengersClient() {
       setDelivery((d) => ({ ...d, email: user.email }));
     }
     if (user?.phone) {
+      const digits = user.phone.replace(/\D/g, "");
       setDelivery((d) => ({
         ...d,
-        contact: user.phone!.replace(/\D/g, "").slice(-10),
+        countryCode: digits.length > 10 ? digits.slice(0, digits.length - 10) : d.countryCode,
+        contact: digits.slice(-10),
       }));
     }
 
@@ -117,6 +120,17 @@ export function FlightPassengersClient() {
     if (!delivery.email.trim() || !delivery.contact.trim()) {
       toast.error("Please enter email and mobile number");
       return;
+    }
+    if (delivery.contact.replace(/\D/g, "").length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    for (const p of passengers) {
+      if (p.dateOfBirth && isFutureDateOfBirth(p.dateOfBirth)) {
+        toast.error("Date of birth cannot be in the future");
+        return;
+      }
     }
 
     const passengersSession: FlightPassengersSession = { passengers, delivery };

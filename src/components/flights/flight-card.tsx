@@ -35,7 +35,12 @@ export function FlightCard({ flight, locale, onReview }: FlightCardProps) {
     <FlightSoftCard className="overflow-hidden transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <AirlineLogo code={flight.airlineCode} name={flight.airlineName} size={48} />
+          <AirlineLogo
+            code={flight.airlineCode}
+            name={flight.airlineName}
+            logoUrl={flight.airlineLogoUrl}
+            size={48}
+          />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-slate-900">{flight.airlineName}</p>
             <p className="text-sm text-slate-500">

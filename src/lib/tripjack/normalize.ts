@@ -1,4 +1,5 @@
 import type { NormalizedFlight } from "@/lib/tripjack/types";
+import { extractTripJackAirlineLogoUrl } from "@/lib/flights/airline-logos";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -151,6 +152,7 @@ function parseFlightSegments(trip: Record<string, unknown>) {
   return {
     airlineName: pickString(airline, ["name"], "Airline"),
     airlineCode: pickString(airline, ["code"], ""),
+    airlineLogoUrl: extractTripJackAirlineLogoUrl(airline),
     flightNumber: pickString(fd, ["fN", "flightNumber"], ""),
     departureAirportCode: pickString(da, ["code"], ""),
     departureCity: pickString(da, ["city", "name"], ""),
@@ -194,6 +196,7 @@ function parsePriceOption(
   return {
     airlineName: flightInfo.airlineName,
     airlineCode: flightInfo.airlineCode,
+    airlineLogoUrl: flightInfo.airlineLogoUrl,
     flightNumber: flightInfo.flightNumber,
     departureAirportCode: flightInfo.departureAirportCode,
     departureCity: flightInfo.departureCity,

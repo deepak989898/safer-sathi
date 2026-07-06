@@ -81,7 +81,11 @@ export function FlightPaymentScreen({
           <FlightSoftCard>
             <div className="space-y-4 p-5 md:p-6">
               <div className="flex items-center gap-3">
-                <AirlineAvatar code={validated.airlineCode || review.airlineCode} />
+                <AirlineAvatar
+                  code={validated.airlineCode || review.airlineCode}
+                  name={validated.airlineName || review.airlineName}
+                  logoUrl={validated.airlineLogoUrl ?? review.airlineLogoUrl}
+                />
                 <div>
                   <p className="font-semibold text-slate-900">
                     {validated.airlineName || review.airlineName}

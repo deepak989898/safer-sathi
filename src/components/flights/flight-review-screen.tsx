@@ -119,7 +119,11 @@ export function FlightReviewScreen({
                 <div className="space-y-5 p-5 md:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <AirlineAvatar code={review.airlineCode} />
+                      <AirlineAvatar
+                        code={review.airlineCode}
+                        name={review.airlineName}
+                        logoUrl={review.airlineLogoUrl}
+                      />
                       <div>
                         <p className="font-semibold text-slate-900">{review.airlineName}</p>
                         <p className="text-sm text-slate-500">

@@ -19,6 +19,9 @@ import {
   FlightSuccessPanel,
   flightPrimaryButtonClass,
 } from "@/components/flights/flight-ui";
+import { PhoneCountryCodeSelect } from "@/components/flights/phone-country-code-select";
+import { AirlineLogo } from "@/components/flights/airline-logo";
+import { maxDateOfBirthValue } from "@/lib/phone-country-codes";
 import { formatCurrency } from "@/lib/i18n";
 import type {
   FlightPassengerDeliveryForm,
@@ -89,6 +92,7 @@ export function FlightPassengersScreen({
 
   const reviewTotal = review.totalFare;
   const displayTotal = validated?.totalFare ?? reviewTotal;
+  const maxDob = maxDateOfBirthValue();
 
   if (validated) {
     return (
@@ -175,15 +179,18 @@ export function FlightPassengersScreen({
                 <div>
                   <Label>Mobile</Label>
                   <div className="mt-2 flex gap-2">
-                    <Input
-                      className="h-11 w-20 rounded-xl bg-slate-50"
+                    <PhoneCountryCodeSelect
                       value={delivery.countryCode}
-                      onChange={(e) => onDeliveryChange({ countryCode: e.target.value })}
+                      onChange={(dialCode) => onDeliveryChange({ countryCode: dialCode })}
                     />
                     <Input
-                      className="h-11 flex-1 rounded-xl bg-slate-50"
+                      className="h-11 min-w-0 flex-1 rounded-xl bg-slate-50"
+                      type="tel"
+                      inputMode="numeric"
                       value={delivery.contact}
-                      onChange={(e) => onDeliveryChange({ contact: e.target.value })}
+                      onChange={(e) =>
+                        onDeliveryChange({ contact: e.target.value.replace(/\D/g, "").slice(0, 15) })
+                      }
                       placeholder="9876543210"
                     />
                   </div>
@@ -270,8 +277,13 @@ export function FlightPassengersScreen({
                       <Input
                         className="mt-2 h-11 rounded-xl bg-slate-50"
                         type="date"
+                        max={maxDob}
                         value={passenger.dateOfBirth}
-                        onChange={(e) => onPassengerChange(index, { dateOfBirth: e.target.value })}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          if (next && next > maxDob) return;
+                          onPassengerChange(index, { dateOfBirth: next });
+                        }}
                       />
                     </div>
                     <div>
@@ -330,10 +342,20 @@ export function FlightPassengersScreen({
         <aside>
           <FlightSoftCard className="sticky top-24">
             <div className="space-y-3 p-5 md:p-6">
-              <p className="text-lg font-bold text-slate-900">Fare summary</p>
-              <p className="text-sm text-slate-600">
-                {review.airlineName} · {review.airlineCode} {review.flightNumber}
-              </p>
+              <div className="flex items-center gap-3">
+                <AirlineLogo
+                  code={review.airlineCode}
+                  name={review.airlineName}
+                  logoUrl={review.airlineLogoUrl}
+                  size={44}
+                />
+                <div>
+                  <p className="text-lg font-bold text-slate-900">Fare summary</p>
+                  <p className="text-sm text-slate-600">
+                    {review.airlineName} · {review.airlineCode} {review.flightNumber}
+                  </p>
+                </div>
+              </div>
               <p className="text-sm text-slate-600">
                 {review.departureAirportCode} → {review.arrivalAirportCode}
               </p>

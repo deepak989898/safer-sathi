@@ -16,6 +16,7 @@ export interface FlightSearchParams {
 export interface NormalizedFlight {
   airlineName: string;
   airlineCode: string;
+  airlineLogoUrl?: string;
   flightNumber: string;
   departureAirportCode: string;
   departureCity: string;
@@ -56,6 +57,7 @@ export interface FlightSearchResult {
 export interface FlightReviewSegment {
   airlineCode: string;
   airlineName: string;
+  airlineLogoUrl?: string;
   flightNumber: string;
   isLcc: boolean;
   departureAirportCode: string;
@@ -92,6 +94,7 @@ export interface TripJackReviewConditions {
 export interface NormalizedFlightReview {
   airlineName: string;
   airlineCode: string;
+  airlineLogoUrl?: string;
   flightNumber: string;
   isLcc: boolean;
   departureAirportCode: string;
@@ -198,6 +201,7 @@ export interface NormalizedFareValidate {
   segments: FlightReviewSegment[];
   airlineName: string;
   airlineCode: string;
+  airlineLogoUrl?: string;
   flightNumber: string;
   departureAirportCode: string;
   departureCity: string;
