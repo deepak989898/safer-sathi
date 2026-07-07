@@ -2,10 +2,14 @@ import "server-only";
 
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
-import { listFeaturedTripJackHotelsFromFirestore } from "@/lib/tripjack-hotels/catalog-firestore";
+import {
+  listBrowsableIndiaHotelsPage,
+  listFeaturedTripJackHotelsFromFirestore,
+} from "@/lib/tripjack-hotels/catalog-firestore";
 import {
   hasFeaturedIndianCity,
   isIndiaTripJackCatalogHotel,
+  resolveIndianDisplayCity,
 } from "@/lib/tripjack-hotels/india-catalog";
 
 export interface FeaturedTripJackHotelCard {
@@ -66,11 +70,7 @@ function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
 }
 
 function resolveFeaturedCityName(entry: TripJackHotelCatalogEntry): string | null {
-  const city = entry.cityName?.trim() ?? "";
-  if (city && !/^(india|ind|bharat)$/i.test(city)) return city;
-  if (entry.region?.trim()) return entry.region.trim();
-  if (entry.stateName?.trim()) return entry.stateName.trim();
-  return null;
+  return resolveIndianDisplayCity(entry);
 }
 
 export function mapCatalogEntryToFeaturedCard(
@@ -79,16 +79,21 @@ export function mapCatalogEntryToFeaturedCard(
   const imageUrls = catalogEntryImageUrls(entry);
   if (entry.websiteVisible === false || entry.isDeleted || !entry.contentSynced) return null;
   if (!entry.name?.trim() || isMappingOnlyStub(entry)) return null;
-  if (!isIndiaTripJackCatalogHotel(entry) || !hasFeaturedIndianCity(entry)) return null;
+  if (!isIndiaTripJackCatalogHotel(entry)) return null;
 
   const cityName = resolveFeaturedCityName(entry);
-  if (!cityName) return null;
+  if (!cityName && !hasFeaturedIndianCity(entry)) {
+    const blob = entry.searchBlob?.trim();
+    if (!blob) return null;
+  }
+
+  const displayCity = cityName ?? entry.stateName?.trim() ?? "India";
 
   return {
     tjHotelId: entry.tjHotelId,
     name: entry.name,
-    cityName,
-    location: [entry.address, cityName, entry.stateName, entry.countryName]
+    cityName: displayCity,
+    location: [entry.address, displayCity, entry.stateName, entry.countryName]
       .filter(Boolean)
       .join(", "),
     heroImage: entry.heroImage ?? imageUrls[0],
@@ -99,7 +104,21 @@ export function mapCatalogEntryToFeaturedCard(
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
-  const entries = await listFeaturedTripJackHotelsFromFirestore(Math.max(limit * 4, 120));
+  const pickLimit = Math.max(limit * 4, 120);
+  let entries = await listFeaturedTripJackHotelsFromFirestore(pickLimit);
+
+  if (entries.length < limit) {
+    const browsePage = await listBrowsableIndiaHotelsPage({ page: 1, pageSize: pickLimit });
+    const seen = new Set(entries.map((entry) => entry.tjHotelId));
+    for (const entry of browsePage.entries) {
+      if (seen.has(entry.tjHotelId)) continue;
+      if (!entry.contentSynced) continue;
+      seen.add(entry.tjHotelId);
+      entries.push(entry);
+      if (entries.length >= pickLimit) break;
+    }
+  }
+
   const cardsByCity = new Map<string, FeaturedTripJackHotelCard[]>();
   const fallback: FeaturedTripJackHotelCard[] = [];
 

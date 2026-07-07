@@ -8,6 +8,15 @@ import { getHotelWebsiteSettings, isTripjackHotelsWebsiteEnabled } from "@/lib/h
 
 export const dynamic = "force-dynamic";
 
+const STALE_SYNC_MS = 20 * 60 * 1000;
+
+function isStaleCatalogSync(meta: Awaited<ReturnType<typeof getTripJackHotelCatalogMeta>>): boolean {
+  if (!meta.syncInProgress) return false;
+  const lastSyncedAt = meta.lastSyncedAt ? Date.parse(meta.lastSyncedAt) : NaN;
+  if (!Number.isFinite(lastSyncedAt)) return true;
+  return Date.now() - lastSyncedAt > STALE_SYNC_MS;
+}
+
 export async function GET(request: Request) {
   try {
     const settings = await getHotelWebsiteSettings();
@@ -31,7 +40,7 @@ export async function GET(request: Request) {
         catalog: {
           contentSyncedCount,
           totalActiveHotels: meta.activeHotels ?? meta.totalHotels ?? 0,
-          syncInProgress: Boolean(meta.syncInProgress),
+          syncInProgress: Boolean(meta.syncInProgress) && !isStaleCatalogSync(meta),
           contentSuccessCount: meta.contentSuccessCount ?? contentSyncedCount,
         },
       },

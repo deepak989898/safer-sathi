@@ -1,9 +1,10 @@
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
+import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   hasFeaturedIndianCity,
   isIndiaTripJackCatalogHotel,
+  resolveIndianDisplayCity,
 } from "@/lib/tripjack-hotels/india-catalog";
 import {
   TRIPJACK_HOTEL_CATALOG_COLLECTION,
@@ -44,6 +45,17 @@ function isFeaturedCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
   if (!entry.name?.trim()) return false;
   if (!isIndiaTripJackCatalogHotel(entry)) return false;
   return hasFeaturedIndianCity(entry);
+}
+
+function isFeaturedCatalogEntryRelaxed(entry: TripJackHotelCatalogEntry): boolean {
+  if (entry.isDeleted || entry.websiteVisible === false) return false;
+  if (!entry.contentSynced) return false;
+  if (isMappingOnlyCatalogStub(entry)) return false;
+  if (!entry.name?.trim()) return false;
+  if (!isIndiaTripJackCatalogHotel(entry)) return false;
+  const city = resolveIndianDisplayCity(entry);
+  if (city) return true;
+  return Boolean(entry.searchBlob?.trim());
 }
 
 function featuredEntryScore(entry: TripJackHotelCatalogEntry): number {
@@ -148,13 +160,92 @@ export async function countContentSyncedTripJackHotels(): Promise<number> {
   const db = await getSafeAdminDb();
   if (!db) return 0;
 
-  const snap = await db
+  try {
+    const snap = await db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("contentSynced", "==", true)
+      .where("isDeleted", "==", false)
+      .count()
+      .get();
+    return snap.data().count;
+  } catch (error) {
+    if (!isFirestoreIndexError(error)) throw error;
+    const snap = await db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("contentSynced", "==", true)
+      .count()
+      .get();
+    return snap.data().count;
+  }
+}
+
+const BROWSE_SCAN_BATCH = 250;
+
+function isFirestoreIndexError(error: unknown): boolean {
+  const code = (error as { code?: number | string })?.code;
+  if (code === 9 || code === "failed-precondition") return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("FAILED_PRECONDITION") ||
+    message.includes("requires an index") ||
+    message.includes("failed-precondition")
+  );
+}
+
+type BrowseCatalogScanMode = "indexed" | "fallback";
+
+async function fetchBrowsableCatalogBatch(
+  db: Firestore,
+  options: { mode: BrowseCatalogScanMode; lastNameLower?: string }
+): Promise<{
+  entries: TripJackHotelCatalogEntry[];
+  lastNameLower?: string;
+  hasMore: boolean;
+}> {
+  const limit = BROWSE_SCAN_BATCH;
+
+  if (options.mode === "indexed") {
+    let query = db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("contentSynced", "==", true)
+      .where("isDeleted", "==", false)
+      .orderBy("nameLower")
+      .limit(limit);
+    if (options.lastNameLower) {
+      query = query.startAfter(options.lastNameLower);
+    }
+    const snap = await query.get();
+    const entries = snap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry);
+    return {
+      entries,
+      lastNameLower: entries[entries.length - 1]?.nameLower,
+      hasMore: snap.size >= limit,
+    };
+  }
+
+  let query = db
     .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-    .where("contentSynced", "==", true)
-    .where("isDeleted", "==", false)
-    .count()
-    .get();
-  return snap.data().count;
+    .orderBy("nameLower")
+    .limit(limit * 4);
+  if (options.lastNameLower) {
+    query = query.startAfter(options.lastNameLower);
+  }
+  const snap = await query.get();
+  const entries = snap.docs
+    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
+    .filter((entry) => entry.contentSynced && !entry.isDeleted);
+  const lastDoc = snap.docs[snap.docs.length - 1]?.data() as TripJackHotelCatalogEntry | undefined;
+  return {
+    entries,
+    lastNameLower: lastDoc?.nameLower,
+    hasMore: snap.size >= limit * 4,
+  };
+}
+
+function entryCityKey(entry: TripJackHotelCatalogEntry): string {
+  const fromField = entry.cityNameLower?.trim() || entry.cityName?.trim().toLowerCase() || "";
+  if (fromField) return fromField;
+  return resolveIndianDisplayCity(entry)?.trim().toLowerCase() ?? "";
 }
 
 export async function searchTripJackHotelCatalogByCityPrefix(
@@ -221,9 +312,10 @@ export async function listFeaturedTripJackHotelsFromFirestore(
   if (!db) return [];
 
   const merged = new Map<number, TripJackHotelCatalogEntry>();
-  const addEntries = (entries: TripJackHotelCatalogEntry[]) => {
+  const addEntries = (entries: TripJackHotelCatalogEntry[], relaxed = false) => {
+    const matches = relaxed ? isFeaturedCatalogEntryRelaxed : isFeaturedCatalogEntry;
     for (const entry of entries) {
-      if (!isFeaturedCatalogEntry(entry)) continue;
+      if (!matches(entry)) continue;
       const existing = merged.get(entry.tjHotelId);
       if (!existing || featuredEntryScore(entry) > featuredEntryScore(existing)) {
         merged.set(entry.tjHotelId, entry);
@@ -231,9 +323,9 @@ export async function listFeaturedTripJackHotelsFromFirestore(
     }
   };
 
-  const perCityFetch = 12;
+  const perCityFetch = 16;
 
-  // Fast path: parallel fetch by popular Indian city prefixes (India hotels only).
+  // Path 1: cityNameLower prefix for popular Indian cities.
   const citySnaps = await Promise.all(
     FEATURED_PRIORITY_CITIES.map((city) =>
       db
@@ -243,7 +335,10 @@ export async function listFeaturedTripJackHotelsFromFirestore(
         .endAt(`${city}\uf8ff`)
         .limit(perCityFetch * 2)
         .get()
-        .catch(() => null)
+        .catch((error) => {
+          console.warn("[listFeaturedTripJackHotelsFromFirestore] city prefix failed:", city, error);
+          return null;
+        })
     )
   );
 
@@ -252,47 +347,76 @@ export async function listFeaturedTripJackHotelsFromFirestore(
     addEntries(snap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
   }
 
-  // Boost from destination index for the same Indian cities.
+  // Path 2: searchBlob lookup (catches hotels where city is only in address/description).
+  if (merged.size < pickLimit) {
+    const blobResults = await Promise.all(
+      FEATURED_PRIORITY_CITIES.map((city) =>
+        findTripJackHotelsBySearchBlob(city, perCityFetch * 2).catch(() => [] as TripJackHotelCatalogEntry[])
+      )
+    );
+    for (const entries of blobResults) {
+      addEntries(entries);
+    }
+  }
+
+  // Path 3: destination index for the same Indian cities.
   if (merged.size < pickLimit) {
     const destinationHids: number[] = [];
     for (const city of FEATURED_PRIORITY_CITIES) {
       if (destinationHids.length >= pickLimit * 2) break;
       const dest = await getTripJackDestinationBySearchKey(city);
       if (!dest?.hids?.length) continue;
-      destinationHids.push(...dest.hids.slice(0, 6));
+      destinationHids.push(...dest.hids.slice(0, 8));
     }
     if (destinationHids.length) {
       addEntries(await getTripJackHotelCatalogEntriesByHids(destinationHids));
     }
   }
 
-  // Fallback: paginate content-synced hotels and keep India + city matches only.
+  // Path 4: paginate content-synced hotels; falls back when composite index is missing.
   if (merged.size < pickLimit) {
-    let cursor: number | undefined;
-    for (let page = 0; page < 8 && merged.size < pickLimit * 2; page += 1) {
+    let lastNameLower: string | undefined;
+    let scanMode: BrowseCatalogScanMode = "indexed";
+    for (let page = 0; page < 30 && merged.size < pickLimit * 2; page += 1) {
       try {
-        let query = db
-          .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-          .where("contentSynced", "==", true)
-          .orderBy("tjHotelId")
-          .limit(250);
-        if (cursor != null) {
-          query = query.startAfter(cursor);
-        }
-        const snap = await query.get();
-        if (snap.empty) break;
+        const batch = await fetchBrowsableCatalogBatch(db, { mode: scanMode, lastNameLower });
+        if (!batch.entries.length) break;
 
-        for (const doc of snap.docs) {
-          const entry = doc.data() as TripJackHotelCatalogEntry;
-          cursor = entry.tjHotelId;
-          if (isFeaturedCatalogEntry(entry)) {
-            addEntries([entry]);
-          }
-        }
-
-        if (snap.size < 250) break;
+        lastNameLower = batch.lastNameLower;
+        addEntries(batch.entries);
+        if (!batch.hasMore) break;
       } catch (error) {
-        console.error("[listFeaturedTripJackHotelsFromFirestore] paginated scan failed:", error);
+        if (scanMode === "indexed" && isFirestoreIndexError(error)) {
+          scanMode = "fallback";
+          lastNameLower = undefined;
+          page = -1;
+          continue;
+        }
+        console.error("[listFeaturedTripJackHotelsFromFirestore] browse scan failed:", error);
+        break;
+      }
+    }
+  }
+
+  // Path 5: relaxed scan — content-synced India hotels even when city fields are sparse.
+  if (merged.size < Math.min(pickLimit, 12)) {
+    let lastNameLower: string | undefined;
+    let scanMode: BrowseCatalogScanMode = "indexed";
+    for (let page = 0; page < 15 && merged.size < pickLimit; page += 1) {
+      try {
+        const batch = await fetchBrowsableCatalogBatch(db, { mode: scanMode, lastNameLower });
+        if (!batch.entries.length) break;
+
+        lastNameLower = batch.lastNameLower;
+        addEntries(batch.entries, true);
+        if (!batch.hasMore) break;
+      } catch (error) {
+        if (scanMode === "indexed" && isFirestoreIndexError(error)) {
+          scanMode = "fallback";
+          lastNameLower = undefined;
+          page = -1;
+          continue;
+        }
         break;
       }
     }
@@ -493,10 +617,13 @@ export async function listBrowsableIndiaHotelsPage(input: {
 
   const matchesFilters = (entry: TripJackHotelCatalogEntry) => {
     if (!isBrowsableIndiaHotel(entry)) return false;
-    if (city && entry.cityNameLower !== city && !entry.cityNameLower.startsWith(city)) return false;
+    if (city) {
+      const entryCity = entryCityKey(entry);
+      if (entryCity !== city && !entryCity.startsWith(city)) return false;
+    }
     if (query) {
       const haystack = entry.searchBlob || buildSearchBlobFromEntry(entry);
-      if (!haystack.includes(query) && !entry.nameLower.includes(query) && !entry.cityNameLower.includes(query)) {
+      if (!haystack.includes(query) && !entry.nameLower.includes(query) && !entryCityKey(entry).includes(query)) {
         return false;
       }
     }
@@ -528,6 +655,31 @@ export async function listBrowsableIndiaHotelsPage(input: {
     };
   }
 
+  if (city && query.length < 2) {
+    const fetchLimit = Math.min(3000, Math.max(400, page * pageSize * 4));
+    const [byCity, byBlob] = await Promise.all([
+      searchTripJackHotelCatalogByCityPrefix(city, fetchLimit),
+      findTripJackHotelsBySearchBlob(city, fetchLimit),
+    ]);
+    const merged = new Map<number, TripJackHotelCatalogEntry>();
+    for (const entry of [...byCity, ...byBlob]) {
+      if (!merged.has(entry.tjHotelId)) merged.set(entry.tjHotelId, entry);
+    }
+    const filtered = [...merged.values()]
+      .filter(matchesFilters)
+      .sort((a, b) => a.nameLower.localeCompare(b.nameLower));
+    const totalCount = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    return {
+      entries: filtered.slice(start, start + pageSize),
+      page,
+      pageSize,
+      totalCount,
+      totalPages,
+    };
+  }
+
   if (!isAdminEnvConfigured()) {
     return { entries: [], page, pageSize, totalCount: 0, totalPages: 1 };
   }
@@ -540,37 +692,48 @@ export async function listBrowsableIndiaHotelsPage(input: {
   const matched: TripJackHotelCatalogEntry[] = [];
   let lastNameLower: string | undefined;
   let scanComplete = false;
+  let scanMode: BrowseCatalogScanMode = "indexed";
 
   while (matched.length < skip + pageSize && !scanComplete) {
-    let firestoreQuery = db
-      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-      .where("contentSynced", "==", true)
-      .where("isDeleted", "==", false)
-      .orderBy("nameLower")
-      .limit(200);
-    if (lastNameLower) {
-      firestoreQuery = firestoreQuery.startAfter(lastNameLower);
-    }
+    try {
+      const batch = await fetchBrowsableCatalogBatch(db, {
+        mode: scanMode,
+        lastNameLower,
+      });
+      if (!batch.entries.length) {
+        scanComplete = true;
+        break;
+      }
 
-    const snap = await firestoreQuery.get();
-    if (snap.empty) {
-      scanComplete = true;
-      break;
-    }
+      lastNameLower = batch.lastNameLower;
+      for (const entry of batch.entries) {
+        if (!matchesFilters(entry)) continue;
+        matched.push(entry);
+      }
 
-    for (const doc of snap.docs) {
-      const entry = doc.data() as TripJackHotelCatalogEntry;
-      lastNameLower = entry.nameLower;
-      if (!matchesFilters(entry)) continue;
-      matched.push(entry);
+      if (!batch.hasMore) scanComplete = true;
+      if (matched.length >= skip + pageSize + pageSize) scanComplete = true;
+    } catch (error) {
+      if (scanMode === "indexed" && isFirestoreIndexError(error)) {
+        console.warn(
+          "[listBrowsableIndiaHotelsPage] composite index missing, using fallback scan:",
+          error instanceof Error ? error.message : error
+        );
+        scanMode = "fallback";
+        lastNameLower = undefined;
+        matched.length = 0;
+        continue;
+      }
+      throw error;
     }
-
-    if (snap.size < 200) scanComplete = true;
-    if (matched.length >= skip + pageSize + pageSize) scanComplete = true;
   }
 
-  const totalEstimate = await countContentSyncedTripJackHotels();
-  const totalCount = Math.max(matched.length, totalEstimate);
+  let totalCount = matched.length;
+  try {
+    totalCount = Math.max(matched.length, await countContentSyncedTripJackHotels());
+  } catch {
+    // count() can also require an index; matched length is enough for pagination UI.
+  }
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return {

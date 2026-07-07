@@ -169,15 +169,15 @@ export function FeaturedTripJackHotelsSection({
     if (loading || hotels.length > 0) return null;
     const ready = catalogInfo?.contentSyncedCount ?? catalogInfo?.contentSuccessCount ?? 0;
     const total = catalogInfo?.totalActiveHotels ?? 0;
-    if (catalogInfo?.syncInProgress) {
-      return `Hotel catalog sync is running. ${ready.toLocaleString()} hotel${
-        ready === 1 ? "" : "s"
-      } with photos and details are ready${
-        total > ready ? ` (${total.toLocaleString()} mapping IDs in catalog)` : ""
-      }. Featured hotels appear here as content sync completes.`;
-    }
     if (ready > 0) {
-      return `${ready.toLocaleString()} synced hotels are in the catalog. Search by city or hotel name below.`;
+      return `${ready.toLocaleString()} synced hotels are in the catalog${
+        total > ready ? ` (${total.toLocaleString()} mapping IDs total)` : ""
+      }. Use search below or browse all hotels — featured cards load from Indian cities as the index updates.`;
+    }
+    if (catalogInfo?.syncInProgress) {
+      return `Hotel catalog sync is running. Featured hotels will appear here as content sync completes${
+        total > 0 ? ` (${total.toLocaleString()} mapping IDs in catalog)` : ""
+      }.`;
     }
     return "Live TripJack hotels will appear here after catalog content sync completes in admin.";
   }, [loading, hotels.length, catalogInfo]);
@@ -234,21 +234,6 @@ export function FeaturedTripJackHotelsSection({
       {!showLiveSearch && !loading && hotels.length === 0 ? (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-6 text-sm text-amber-950">
           <p>{syncMessage}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              className="bg-[#1a4fa3] hover:bg-[#16408a]"
-              onClick={() => setShowLiveSearch(true)}
-            >
-              <Search className="mr-2 h-4 w-4" />
-              Search live hotels by city
-            </Button>
-            <Link href="/hotels/browse">
-              <Button size="sm" variant="outline">
-                View all hotels
-              </Button>
-            </Link>
-          </div>
         </div>
       ) : !showLiveSearch ? (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">

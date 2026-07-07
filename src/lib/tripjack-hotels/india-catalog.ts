@@ -17,9 +17,20 @@ export function isIndiaTripJackCatalogHotel(
   return false;
 }
 
+/** Best display city for India hotels — falls back to region/state when cityName is missing. */
+export function resolveIndianDisplayCity(entry: TripJackHotelCatalogEntry): string | null {
+  const city = entry.cityName?.trim() ?? "";
+  if (city && !INDIA_COUNTRY_PATTERN.test(city)) return city;
+
+  const region = entry.region?.trim() ?? "";
+  if (region && !INDIA_COUNTRY_PATTERN.test(region)) return region;
+
+  const state = entry.stateName?.trim() ?? "";
+  if (state && !INDIA_COUNTRY_PATTERN.test(state)) return state;
+
+  return null;
+}
+
 export function hasFeaturedIndianCity(entry: TripJackHotelCatalogEntry): boolean {
-  const city = entry.cityName?.trim().toLowerCase() ?? "";
-  if (!city) return false;
-  if (INDIA_COUNTRY_PATTERN.test(city)) return false;
-  return true;
+  return resolveIndianDisplayCity(entry) != null;
 }

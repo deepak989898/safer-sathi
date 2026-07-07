@@ -1,4 +1,23 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "tripjackHotelCatalog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contentSynced", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "nameLower", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tripjackHotelCatalog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contentSynced", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "tjHotelId", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }
