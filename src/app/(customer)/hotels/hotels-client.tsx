@@ -20,6 +20,8 @@ import {
 import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
+import { FeaturedTripJackHotelsSection } from "@/components/hotels-tripjack/featured-tripjack-hotels";
+import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
 import type { Hotel } from "@/types";
 
 const STAR_OPTIONS = [
@@ -64,8 +66,14 @@ function matchesStayCategory(hotel: Hotel, categories: string[]): boolean {
 
 export default function HotelsClient({
   initialHotels,
+  featuredTripJackHotels = [],
+  tripjackHotelsEnabled = true,
+  manualHotelsEnabled = true,
 }: {
   initialHotels: Hotel[];
+  featuredTripJackHotels?: FeaturedTripJackHotelCard[];
+  tripjackHotelsEnabled?: boolean;
+  manualHotelsEnabled?: boolean;
 }) {
   const { locale, searchFilters, resetSearchFilters } = useAppStore();
   const [query, setQuery] = useState("");
@@ -185,16 +193,33 @@ export default function HotelsClient({
 
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
-      <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
-        Looking for live TripJack hotel rates?{" "}
-        <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
-          Search live hotels
-        </Link>
-      </div>
+      {tripjackHotelsEnabled && featuredTripJackHotels.length > 0 && (
+        <FeaturedTripJackHotelsSection hotels={featuredTripJackHotels} />
+      )}
+
+      {tripjackHotelsEnabled && featuredTripJackHotels.length === 0 && (
+        <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
+          Looking for live TripJack hotel rates?{" "}
+          <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
+            Search live hotels
+          </Link>
+        </div>
+      )}
+      {!manualHotelsEnabled ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Our curated hotel catalog is temporarily unavailable.{" "}
+          {tripjackHotelsEnabled ? (
+            <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
+              Search live hotels instead
+            </Link>
+          ) : null}
+        </div>
+      ) : (
+        <>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
-            {locale === "hi" ? "होटल" : "Hotels"}
+            {locale === "hi" ? "होटल" : manualHotelsEnabled ? "Curated Hotels" : "Hotels"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {locale === "hi"
@@ -231,6 +256,8 @@ export default function HotelsClient({
           </div>
         )}
       </ListingLayout>
+        </>
+      )}
     </section>
   );
 }

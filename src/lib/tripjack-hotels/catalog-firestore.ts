@@ -84,31 +84,6 @@ export async function upsertTripJackHotelDestinations(
   );
 }
 
-export async function searchTripJackHotelCatalogByCityPrefix(
-  query: string,
-  limit = 120
-): Promise<TripJackHotelCatalogEntry[]> {
-  if (!isAdminEnvConfigured()) return [];
-  const db = await getSafeAdminDb();
-  if (!db) return [];
-
-  const q = query.toLowerCase().trim();
-  if (!q) return [];
-
-  const snap = await db
-    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-    .orderBy("cityNameLower")
-    .startAt(q)
-    .endAt(`${q}\uf8ff`)
-    .limit(limit * 2)
-    .get();
-
-  return snap.docs
-    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
-    .filter((hotel) => !hotel.isDeleted && hotel.cityNameLower && hotel.contentSynced)
-    .slice(0, limit);
-}
-
 export async function countActiveTripJackHotels(): Promise<number> {
   if (!isAdminEnvConfigured()) return 0;
   const db = await getSafeAdminDb();
@@ -134,6 +109,56 @@ export async function countContentSyncedTripJackHotels(): Promise<number> {
     .count()
     .get();
   return snap.data().count;
+}
+
+export async function searchTripJackHotelCatalogByCityPrefix(
+  query: string,
+  limit = 120
+): Promise<TripJackHotelCatalogEntry[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+
+  const snap = await db
+    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+    .orderBy("cityNameLower")
+    .startAt(q)
+    .endAt(`${q}\uf8ff`)
+    .limit(limit * 2)
+    .get();
+
+  return snap.docs
+    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
+    .filter((hotel) => !hotel.isDeleted && hotel.cityNameLower && hotel.contentSynced)
+    .slice(0, limit);
+}
+
+export async function listFeaturedTripJackHotelsFromFirestore(
+  limit = 72
+): Promise<TripJackHotelCatalogEntry[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const snap = await db
+    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+    .orderBy("updatedAt", "desc")
+    .limit(limit * 4)
+    .get();
+
+  return snap.docs
+    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
+    .filter(
+      (hotel) =>
+        !hotel.isDeleted &&
+        hotel.contentSynced &&
+        hotel.websiteVisible !== false &&
+        (Boolean(hotel.heroImage) || (hotel.imageUrls?.length ?? 0) > 0)
+    )
+    .slice(0, limit);
 }
 
 /** Fetch next batch of hotel IDs needing content sync (cursor-based scan). */
@@ -307,6 +332,55 @@ export async function getTripJackHotelCatalogEntryByHid(
   if (!snap.exists) return null;
   const entry = snap.data() as TripJackHotelCatalogEntry;
   return entry.isDeleted ? null : entry;
+}
+
+export async function updateTripJackHotelCatalogVisibility(
+  hid: number | string,
+  websiteVisible: boolean
+): Promise<TripJackHotelCatalogEntry | null> {
+  if (!isAdminEnvConfigured()) return null;
+  const db = await getSafeAdminDb();
+  if (!db) return null;
+
+  const id = `tj_${hid}`;
+  const ref = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const now = new Date().toISOString();
+  await ref.set({ websiteVisible, updatedAt: now }, { merge: true });
+  const entry = { ...(snap.data() as TripJackHotelCatalogEntry), websiteVisible, updatedAt: now };
+  return entry;
+}
+
+export async function getTripJackCatalogVisibilityMap(
+  hids: Array<number | string>
+): Promise<Map<number, boolean>> {
+  const map = new Map<number, boolean>();
+  if (!hids.length || !isAdminEnvConfigured()) {
+    for (const hid of hids) map.set(Number(hid), true);
+    return map;
+  }
+
+  const db = await getSafeAdminDb();
+  if (!db) {
+    for (const hid of hids) map.set(Number(hid), true);
+    return map;
+  }
+
+  const unique = [...new Set(hids.map((hid) => Number(hid)).filter((id) => Number.isFinite(id) && id > 0))];
+  await Promise.all(
+    unique.map(async (hid) => {
+      const snap = await db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).doc(`tj_${hid}`).get();
+      if (!snap.exists) {
+        map.set(hid, true);
+        return;
+      }
+      const entry = snap.data() as TripJackHotelCatalogEntry;
+      map.set(hid, entry.websiteVisible !== false && !entry.isDeleted);
+    })
+  );
+  return map;
 }
 
 export async function getAllTripJackActiveHotelsForIndexRebuild(): Promise<

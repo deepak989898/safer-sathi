@@ -1,22 +1,73 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Search, SlidersHorizontal } from "lucide-react";
-import { HotelCard } from "@/components/hotels-tripjack/hotel-card";
+import { Building2, Search } from "lucide-react";
+import { ListingLayout } from "@/components/customer/listing-filter-sort";
+import { HOTEL_SORT_KEYS, type CatalogSortKey } from "@/lib/catalog/sort";
+import { TripJackHotelGridCard } from "@/components/hotels-tripjack/tripjack-hotel-grid-card";
+import { TripJackResultsGridSkeleton } from "@/components/hotels-tripjack/tripjack-hotel-grid-skeleton";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
-import { HotelCard as HotelUiCard, HotelFieldLabel, HotelPrimaryButton } from "@/components/hotels-tripjack/hotel-ui-primitives";
-import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
+import { TripJackSearchPanel } from "@/components/hotels-tripjack/tripjack-search-panel";
+import {
+  extractCityFromLocation,
+  TripJackResultsFilters,
+  type TripJackResultsFilterState,
+} from "@/components/hotels-tripjack/tripjack-results-filters";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
+import { useTripJackHotelSearch } from "@/hooks/use-tripjack-hotel-search";
 import { explainHotelImageResolution } from "@/lib/tripjack-hotels/hotel-images";
 import { loadHotelListingSession } from "@/lib/tripjack-hotels/session";
-import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
+import type { HotelListingSearchParams, NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
+import { toggleFilterId } from "@/lib/catalog/budget-filters";
 
-type SortKey = "price_asc" | "price_desc" | "name";
+function sortTripJackHotels(hotels: NormalizedHotel[], sortKey: CatalogSortKey): NormalizedHotel[] {
+  const list = [...hotels];
+  switch (sortKey) {
+    case "price_asc":
+      return list.sort((a, b) => a.cheapestTotalPrice - b.cheapestTotalPrice);
+    case "price_desc":
+      return list.sort((a, b) => b.cheapestTotalPrice - a.cheapestTotalPrice);
+    case "rating_desc":
+      return list.sort((a, b) => (b.starRating ?? 0) - (a.starRating ?? 0));
+    case "name_asc":
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    default:
+      return list;
+  }
+}
 
-const PAGE_SIZE = 10;
+function ResultsSearchBar({
+  request,
+  onSearchSuccess,
+  onLoadingChange,
+}: {
+  request: HotelListingSearchParams;
+  onSearchSuccess: () => void;
+  onLoadingChange: (loading: boolean) => void;
+}) {
+  const search = useTripJackHotelSearch({
+    initialDestination: request.destinationLabel ?? request.destination ?? "",
+    initialParams: request,
+    redirectToResults: false,
+    onSearchSuccess,
+  });
+
+  useEffect(() => {
+    onLoadingChange(search.loading);
+  }, [search.loading, onLoadingChange]);
+
+  return (
+    <TripJackSearchPanel
+      {...search}
+      variant="compact"
+      onSearch={() => void search.onSearch()}
+    />
+  );
+}
 
 export function HotelResultsClient() {
   const router = useRouter();
@@ -26,60 +77,134 @@ export function HotelResultsClient() {
   const [debugOpen, setDebugOpen] = useState(false);
 
   const [ready, setReady] = useState(false);
+  const [sessionRequest, setSessionRequest] = useState<HotelListingSearchParams | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [hotels, setHotels] = useState<NormalizedHotel[]>([]);
   const [totalResults, setTotalResults] = useState(0);
   const [contextLabel, setContextLabel] = useState("");
-  const [nameFilter, setNameFilter] = useState("");
-  const [sort, setSort] = useState<SortKey>("price_asc");
-  const [refundableOnly, setRefundableOnly] = useState(false);
-  const [breakfastOnly, setBreakfastOnly] = useState(false);
-  const [minStars, setMinStars] = useState(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">("");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
 
-  useEffect(() => {
+  const [filters, setFilters] = useState<TripJackResultsFilterState>({
+    nameQuery: "",
+    priceRange: [0, 50000],
+    selectedCities: [],
+    minStars: [],
+    refundableOnly: false,
+    breakfastOnly: false,
+  });
+
+  const reloadFromSession = useCallback(() => {
     const session = loadHotelListingSession();
     if (!session.hotels.length || !session.correlationId) {
       router.replace("/hotels/search");
-      return;
+      return false;
     }
     setHotels(session.hotels);
     setTotalResults(session.totalResults);
-    const ctx = session.searchContext;
+    if (session.request) {
+      setSessionRequest(session.request);
+    }
+    const ctx = session.searchContext as {
+      destinationLabel?: string;
+      destination?: string;
+      checkIn?: string;
+      checkOut?: string;
+    } | null;
     if (ctx) {
       const parts = [
         ctx.destinationLabel || ctx.destination,
-        `${ctx.checkIn} → ${ctx.checkOut}`,
+        ctx.checkIn && ctx.checkOut ? `${ctx.checkIn} → ${ctx.checkOut}` : "",
       ].filter(Boolean);
       setContextLabel(parts.join(" · "));
     }
-    setReady(true);
+    return true;
   }, [router]);
 
-  const filtered = useMemo(() => {
-    let list = [...hotels];
-    if (nameFilter.trim()) {
-      const q = nameFilter.toLowerCase();
-      list = list.filter((h) => h.name.toLowerCase().includes(q));
+  useEffect(() => {
+    if (reloadFromSession()) {
+      setReady(true);
     }
-    if (refundableOnly) list = list.filter((h) => h.isRefundable);
-    if (breakfastOnly) list = list.filter((h) => h.hasBreakfast);
-    if (minStars > 0) {
-      list = list.filter((h) => (h.starRating ?? 0) >= minStars);
-    }
-    if (maxPrice !== "" && maxPrice > 0) {
-      list = list.filter((h) => h.cheapestTotalPrice <= maxPrice);
-    }
-    list.sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "price_desc") return b.cheapestTotalPrice - a.cheapestTotalPrice;
-      return a.cheapestTotalPrice - b.cheapestTotalPrice;
-    });
-    return list;
-  }, [hotels, nameFilter, sort, refundableOnly, breakfastOnly, minStars, maxPrice]);
+  }, [reloadFromSession]);
 
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  const maxPrice = useMemo(
+    () => Math.max(...hotels.map((h) => h.cheapestTotalPrice), 1000),
+    [hotels]
+  );
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, priceRange: [0, maxPrice] }));
+  }, [maxPrice]);
+
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    for (const hotel of hotels) {
+      const city = extractCityFromLocation(hotel.location);
+      if (city) cities.add(city);
+    }
+    return [...cities]
+      .sort((a, b) => a.localeCompare(b))
+      .map((city) => ({ id: city, label: city }));
+  }, [hotels]);
+
+  const handleSearchSuccess = useCallback(() => {
+    reloadFromSession();
+    setSearchLoading(false);
+    setFilters({
+      nameQuery: "",
+      priceRange: [0, maxPrice],
+      selectedCities: [],
+      minStars: [],
+      refundableOnly: false,
+      breakfastOnly: false,
+    });
+    setSortBy("price_asc");
+  }, [maxPrice, reloadFromSession]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.nameQuery.trim()) count++;
+    if (filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) count++;
+    if (filters.selectedCities.length > 0) count++;
+    if (filters.minStars.length > 0) count++;
+    if (filters.refundableOnly) count++;
+    if (filters.breakfastOnly) count++;
+    return count;
+  }, [filters, maxPrice]);
+
+  const clearFilters = useCallback(() => {
+    setFilters({
+      nameQuery: "",
+      priceRange: [0, maxPrice],
+      selectedCities: [],
+      minStars: [],
+      refundableOnly: false,
+      breakfastOnly: false,
+    });
+    setSortBy("price_asc");
+  }, [maxPrice]);
+
+  const filtered = useMemo(() => {
+    const starMin =
+      filters.minStars.length > 0 ? Math.min(...filters.minStars.map(Number)) : 0;
+    const q = filters.nameQuery.trim().toLowerCase();
+
+    let list = hotels.filter((hotel) => {
+      const city = extractCityFromLocation(hotel.location);
+      const matchName = !q || hotel.name.toLowerCase().includes(q);
+      const matchCity =
+        filters.selectedCities.length === 0 || filters.selectedCities.includes(city);
+      const matchPrice =
+        hotel.cheapestTotalPrice >= filters.priceRange[0] &&
+        hotel.cheapestTotalPrice <= filters.priceRange[1];
+      const matchStars = starMin === 0 || (hotel.starRating ?? 0) >= starMin;
+      const matchRefundable = !filters.refundableOnly || hotel.isRefundable;
+      const matchBreakfast = !filters.breakfastOnly || hotel.hasBreakfast;
+      return matchName && matchCity && matchPrice && matchStars && matchRefundable && matchBreakfast;
+    });
+
+    list = sortTripJackHotels(list, sortBy);
+    return list;
+  }, [hotels, filters, sortBy]);
 
   const onViewDetails = (hotel: NormalizedHotel) => {
     router.push(`/hotels/detail/${encodeURIComponent(String(hotel.tjHotelId))}`);
@@ -87,9 +212,9 @@ export function HotelResultsClient() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: HOTEL_UI.bg }}>
-        Loading results…
-      </div>
+      <HotelBookingLayout maxWidth="full" title="Live hotel results">
+        <TripJackResultsGridSkeleton count={6} />
+      </HotelBookingLayout>
     );
   }
 
@@ -97,142 +222,135 @@ export function HotelResultsClient() {
 
   return (
     <HotelBookingLayout
-      title={`${destinationTitle} — ${totalResults} Hotels found`}
+      title={`${destinationTitle} — ${totalResults} live hotels`}
       subtitle={contextLabel}
-      backHref="/hotels/search"
-      backLabel="Modify search"
-      maxWidth="xl"
+      backHref="/hotels"
+      backLabel="All hotels"
+      maxWidth="full"
     >
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="space-y-4">
-          <HotelUiCard padding="sm">
-            <div className="mb-3 flex items-center gap-2 font-bold" style={{ color: HOTEL_UI.primary }}>
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-            </div>
-            <HotelFieldLabel>Search by name</HotelFieldLabel>
-            <div className="relative mt-1.5">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                className="h-10 w-full rounded border bg-white pl-9 pr-3 text-sm"
-                style={{ borderColor: HOTEL_UI.border }}
-                placeholder="Hotel name"
-                value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
-              />
-            </div>
-            <div className="mt-4">
-              <HotelFieldLabel>Sort by</HotelFieldLabel>
-              <select
-                className="mt-1.5 h-10 w-full rounded border bg-white px-3 text-sm"
-                style={{ borderColor: HOTEL_UI.border }}
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-              >
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="name">Name A–Z</option>
-              </select>
-            </div>
-            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={refundableOnly}
-                onChange={(e) => {
-                  setRefundableOnly(e.target.checked);
-                  setVisibleCount(PAGE_SIZE);
-                }}
-              />
-              Refundable only
-            </label>
-            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={breakfastOnly}
-                onChange={(e) => {
-                  setBreakfastOnly(e.target.checked);
-                  setVisibleCount(PAGE_SIZE);
-                }}
-              />
-              Free breakfast
-            </label>
-            <div className="mt-4">
-              <HotelFieldLabel>Minimum star rating</HotelFieldLabel>
-              <select
-                className="mt-1.5 h-10 w-full rounded border bg-white px-3 text-sm"
-                style={{ borderColor: HOTEL_UI.border }}
-                value={minStars}
-                onChange={(e) => {
-                  setMinStars(Number(e.target.value));
-                  setVisibleCount(PAGE_SIZE);
-                }}
-              >
-                <option value={0}>Any</option>
-                <option value={3}>3+ stars</option>
-                <option value={4}>4+ stars</option>
-                <option value={5}>5 stars</option>
-              </select>
-            </div>
-            <div className="mt-4">
-              <HotelFieldLabel>Max price (INR)</HotelFieldLabel>
-              <input
-                type="number"
-                min={0}
-                className="mt-1.5 h-10 w-full rounded border bg-white px-3 text-sm"
-                style={{ borderColor: HOTEL_UI.border }}
-                placeholder="No limit"
-                value={maxPrice}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setMaxPrice(value === "" ? "" : Number(value));
-                  setVisibleCount(PAGE_SIZE);
-                }}
-              />
-            </div>
-          </HotelUiCard>
-        </aside>
+      <div className="mb-8">
+        {sessionRequest && (
+          <ResultsSearchBar
+            request={sessionRequest}
+            onSearchSuccess={handleSearchSuccess}
+            onLoadingChange={setSearchLoading}
+          />
+        )}
+      </div>
 
-        <div className="space-y-4">
-          {filtered.length === 0 && (
-            <HotelUiCard className="py-16 text-center">
-              <Building2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-              <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
-                No hotels found
-              </p>
-              <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-                Try different dates or filters.
-              </p>
-              <div className="mx-auto mt-6 max-w-xs">
-                <HotelPrimaryButton onClick={() => router.push("/hotels/search")}>
-                  Search again
-                </HotelPrimaryButton>
-              </div>
-            </HotelUiCard>
-          )}
+      {searchLoading && (
+        <div className="mb-6">
+          <TripJackResultsGridSkeleton count={6} />
+        </div>
+      )}
 
-          {visible.map((hotel) => (
-            <HotelCard
-              key={String(hotel.tjHotelId)}
-              hotel={hotel}
-              locale={locale}
-              onViewDetails={onViewDetails}
+      {!searchLoading && (
+        <ListingLayout
+          filterSidebar={
+            <TripJackResultsFilters
+              maxPrice={maxPrice}
+              cityOptions={cityOptions}
+              filters={filters}
+              onNameQueryChange={(value) =>
+                setFilters((prev) => ({ ...prev, nameQuery: value }))
+              }
+              onPriceChange={(priceRange) => setFilters((prev) => ({ ...prev, priceRange }))}
+              onCityToggle={(cityId) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  selectedCities: toggleFilterId(prev.selectedCities, cityId),
+                }))
+              }
+              onStarToggle={(starId) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  minStars: prev.minStars.includes(starId)
+                    ? prev.minStars.filter((s) => s !== starId)
+                    : [starId],
+                }))
+              }
+              onRefundableChange={(refundableOnly) =>
+                setFilters((prev) => ({ ...prev, refundableOnly }))
+              }
+              onBreakfastChange={(breakfastOnly) =>
+                setFilters((prev) => ({ ...prev, breakfastOnly }))
+              }
+              onClear={clearFilters}
+              hasActiveFilters={activeFilterCount > 0}
             />
-          ))}
-
-          {hasMore && (
-            <div className="pt-2 text-center">
-              <HotelPrimaryButton
-                variant="outline"
-                className="!w-auto px-8"
-                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-              >
-                Load more ({filtered.length - visibleCount} remaining)
-              </HotelPrimaryButton>
+          }
+          mobileFilterPanel={
+            <TripJackResultsFilters
+              embedded
+              maxPrice={maxPrice}
+              cityOptions={cityOptions}
+              filters={filters}
+              onNameQueryChange={(value) =>
+                setFilters((prev) => ({ ...prev, nameQuery: value }))
+              }
+              onPriceChange={(priceRange) => setFilters((prev) => ({ ...prev, priceRange }))}
+              onCityToggle={(cityId) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  selectedCities: toggleFilterId(prev.selectedCities, cityId),
+                }))
+              }
+              onStarToggle={(starId) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  minStars: prev.minStars.includes(starId)
+                    ? prev.minStars.filter((s) => s !== starId)
+                    : [starId],
+                }))
+              }
+              onRefundableChange={(refundableOnly) =>
+                setFilters((prev) => ({ ...prev, refundableOnly }))
+              }
+              onBreakfastChange={(breakfastOnly) =>
+                setFilters((prev) => ({ ...prev, breakfastOnly }))
+              }
+              onClear={clearFilters}
+              hasActiveFilters={activeFilterCount > 0}
+            />
+          }
+          sortKeys={HOTEL_SORT_KEYS}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          activeFilterCount={activeFilterCount}
+          resultCount={filtered.length}
+        >
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border bg-card px-6 py-16 text-center shadow-sm">
+              <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+              <h3 className="text-lg font-semibold text-[#0c2444]">No hotels match your filters</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Try another city or date, or clear filters to see all results.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+                <Button onClick={() => router.push("/hotels/search")}>
+                  <Search className="mr-2 h-4 w-4" />
+                  New search
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((hotel) => (
+                <TripJackHotelGridCard
+                  key={String(hotel.tjHotelId)}
+                  hotel={hotel}
+                  locale={locale}
+                  onViewDetails={onViewDetails}
+                />
+              ))}
             </div>
           )}
 
           {isSuperAdmin && hotels.length > 0 && (
-            <div className="rounded border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
+            <div className="mt-8 rounded border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
               <button
                 type="button"
                 className="font-semibold underline"
@@ -257,27 +375,13 @@ export function HotelResultsClient() {
                     <p>
                       <strong>imageUrls:</strong> {debug.imageUrls?.join(", ") || "—"}
                     </p>
-                    <div>
-                      <strong>resolution steps:</strong>
-                      <ul className="mt-1 list-inside list-disc">
-                        {debug.steps.map((step) => (
-                          <li key={step}>{step}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <strong>first raw image object:</strong>
-                      <pre className="mt-1 max-h-48 overflow-auto rounded bg-white p-2 text-[10px]">
-                        {JSON.stringify(debug.firstRawImage ?? null, null, 2)}
-                      </pre>
-                    </div>
                   </div>
                 );
               })()}
             </div>
           )}
-        </div>
-      </div>
+        </ListingLayout>
+      )}
     </HotelBookingLayout>
   );
 }

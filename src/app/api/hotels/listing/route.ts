@@ -10,11 +10,15 @@ import {
   listTripJackHotels,
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
-import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
+import { getTripJackHotelCatalogMeta, getTripJackCatalogVisibilityMap } from "@/lib/tripjack-hotels/catalog-firestore";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import { enrichListingHotelsWithImages } from "@/lib/tripjack-hotels/listing-image-enrichment";
-import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY, getTripJackHotelProxyBaseUrl } from "@/lib/tripjack-hotels/config";
+import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY, getTripJackHotelProxyBaseUrl, isTripJackHotelProviderEnabled } from "@/lib/tripjack-hotels/config";
 import { resolveDestinationToHids } from "@/lib/tripjack-hotels/destination-resolver";
+import {
+  getHotelWebsiteSettings,
+  isTripjackHotelsWebsiteEnabled,
+} from "@/lib/hotels/website-settings";
 
 export const maxDuration = 60;
 
@@ -44,6 +48,17 @@ function todayIsoDate(): string {
 
 export async function POST(request: Request) {
   try {
+    if (!isTripJackHotelProviderEnabled()) {
+      return apiError("TripJack hotel search is disabled", 503);
+    }
+
+    const websiteSettings = await getHotelWebsiteSettings();
+    if (!isTripjackHotelsWebsiteEnabled(websiteSettings)) {
+      return apiError("Live hotel search is temporarily unavailable", 503, {
+        code: "TRIPJACK_HOTELS_HIDDEN",
+      });
+    }
+
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
 
@@ -108,6 +123,12 @@ export async function POST(request: Request) {
     const result = await listTripJackHotels(listingParams);
 
     const enrichedHotels = await enrichListingHotelsWithImages(result.hotels);
+    const visibilityMap = await getTripJackCatalogVisibilityMap(
+      enrichedHotels.map((hotel) => hotel.tjHotelId)
+    );
+    const visibleHotels = enrichedHotels.filter(
+      (hotel) => visibilityMap.get(Number(hotel.tjHotelId)) !== false
+    );
 
     const includeDebug = Boolean(auth && isStaffUser(auth));
     const requestBody = buildHotelListingBody(listingParams);
@@ -117,12 +138,12 @@ export async function POST(request: Request) {
       nationality: result.nationality,
       currency: result.currency,
       totalResults: result.totalResults,
-      hotels: enrichedHotels,
+      hotels: visibleHotels,
       destinationLabel,
       destinationResolution,
       message:
         result.hotels.length > 0
-          ? `${result.totalResults} hotel(s) found${destinationLabel ? ` in ${destinationLabel}` : ""}`
+          ? `${visibleHotels.length} hotel(s) found${destinationLabel ? ` in ${destinationLabel}` : ""}`
           : `No hotels found${destinationLabel ? ` for ${destinationLabel}` : ""}. Try different dates.`,
       requestBody,
       proxyEndpoint: `${getTripJackHotelProxyBaseUrl()}/api/tripjack/hotels/listing`,

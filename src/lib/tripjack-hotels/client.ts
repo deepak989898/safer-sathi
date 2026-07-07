@@ -296,17 +296,21 @@ export async function fetchTripJackHotelPricing(input: {
     if (input.catalogEnrichment.rating != null && detail.starRating == null) {
       detail.starRating = input.catalogEnrichment.rating;
     }
-    if (!detail.images.length && input.catalogEnrichment) {
-      const catalogUrls = input.catalogEnrichment.imageUrls?.length
-        ? input.catalogEnrichment.imageUrls
-        : catalogEntryImageUrls({
-            imageUrls: input.catalogEnrichment.imageUrls,
-            heroImage: input.catalogEnrichment.heroImage,
-            images: input.catalogEnrichment.images,
-          });
-      if (catalogUrls.length) {
-        detail.images = catalogUrls;
+    const catalogUrls = input.catalogEnrichment.imageUrls?.length
+      ? [...input.catalogEnrichment.imageUrls]
+      : catalogEntryImageUrls({
+          imageUrls: input.catalogEnrichment.imageUrls,
+          heroImage: input.catalogEnrichment.heroImage,
+          images: input.catalogEnrichment.images,
+        });
+    if (input.catalogEnrichment.heroImage) {
+      const hero = input.catalogEnrichment.heroImage;
+      const merged = [hero, ...catalogUrls.filter((url) => url !== hero)];
+      if (merged.length) {
+        detail.images = [...new Set([...merged, ...detail.images])];
       }
+    } else if (catalogUrls.length) {
+      detail.images = [...new Set([...catalogUrls, ...detail.images])];
     }
     if (!detail.amenities.length && input.catalogEnrichment.facilities?.length) {
       detail.amenities = input.catalogEnrichment.facilities;

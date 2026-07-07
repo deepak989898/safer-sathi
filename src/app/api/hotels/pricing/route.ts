@@ -14,6 +14,10 @@ import {
   DEFAULT_HOTEL_NATIONALITY,
   isTripJackHotelProviderEnabled,
 } from "@/lib/tripjack-hotels/config";
+import {
+  getHotelWebsiteSettings,
+  isTripjackHotelsWebsiteEnabled,
+} from "@/lib/hotels/website-settings";
 import { mapHotelPricingError } from "@/lib/tripjack-hotels/pricing-errors";
 
 const roomSchema = z.object({
@@ -42,6 +46,13 @@ export async function POST(request: Request) {
   try {
     if (!isTripJackHotelProviderEnabled()) {
       return apiError("TripJack hotel provider is disabled", 503);
+    }
+
+    const websiteSettings = await getHotelWebsiteSettings();
+    if (!isTripjackHotelsWebsiteEnabled(websiteSettings)) {
+      return apiError("Live hotel booking is temporarily unavailable", 503, {
+        code: "TRIPJACK_HOTELS_HIDDEN",
+      });
     }
 
     const { data: body, error } = await parseJsonBody(request);

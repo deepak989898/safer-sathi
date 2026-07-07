@@ -5,6 +5,10 @@ import {
   getPublishedHotels,
   reloadHotelsStore,
 } from "@/lib/hotel-store";
+import {
+  getHotelWebsiteSettings,
+  isManualHotelsWebsiteEnabled,
+} from "@/lib/hotels/website-settings";
 import { isCatalogPublished } from "@/lib/catalog/publish";
 import {
   getAllPublishedPackageSlugs,
@@ -107,6 +111,11 @@ export async function getPackageById(id: string): Promise<TourPackage | null> {
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
   await reloadHotelsStore();
+  const websiteSettings = await getHotelWebsiteSettings();
+  if (!isManualHotelsWebsiteEnabled(websiteSettings)) {
+    return [];
+  }
+
   let results = getPublishedHotels().map(normalizeHotelForCatalog);
   if (filters?.starRating) {
     results = results.filter((h) => h.starRating >= filters.starRating!);

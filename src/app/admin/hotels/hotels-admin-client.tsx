@@ -81,14 +81,23 @@ export default function HotelsAdminClient() {
   const [form, setForm] = useState(emptyForm);
   const [activeTab, setActiveTab] = useState("all");
   const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [manualWebsiteEnabled, setManualWebsiteEnabled] = useState(true);
+  const [websiteSettingsSaving, setWebsiteSettingsSaving] = useState(false);
 
   const loadHotels = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApiFetch("/api/admin/hotels");
+      const [res, settingsRes] = await Promise.all([
+        adminApiFetch("/api/admin/hotels"),
+        adminApiFetch("/api/admin/hotel-website-settings"),
+      ]);
       const json = await res.json();
+      const settingsJson = await settingsRes.json();
       if (json.success) setHotels(json.data);
       else toast.error(json.error ?? "Failed to load hotels");
+      if (settingsJson.success && settingsJson.data?.settings) {
+        setManualWebsiteEnabled(settingsJson.data.settings.manualHotelsWebsiteEnabled !== false);
+      }
     } catch {
       toast.error("Failed to load hotels");
     } finally {
@@ -296,6 +305,51 @@ export default function HotelsAdminClient() {
     }
   };
 
+  const toggleManualWebsite = async () => {
+    setWebsiteSettingsSaving(true);
+    try {
+      const res = await adminApiFetch("/api/admin/hotel-website-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manualHotelsWebsiteEnabled: !manualWebsiteEnabled }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Failed to update");
+      setManualWebsiteEnabled(json.data.settings.manualHotelsWebsiteEnabled !== false);
+      toast.success(
+        json.data.settings.manualHotelsWebsiteEnabled
+          ? "Manual hotels are visible on the website"
+          : "Manual hotels are hidden from the website"
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update visibility");
+    } finally {
+      setWebsiteSettingsSaving(false);
+    }
+  };
+
+  const toggleHotelWebsiteVisibility = async (hotel: Hotel) => {
+    const nextAvailable = !hotel.available;
+    try {
+      const res = await adminApiFetch(`/api/admin/hotels/${hotel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updates: {
+            available: nextAvailable,
+            status: nextAvailable ? "active" : "inactive",
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Update failed");
+      toast.success(nextAvailable ? "Hotel is now visible on website" : "Hotel hidden from website");
+      loadHotels();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update hotel");
+    }
+  };
+
   const handleDelete = async (hotel: Hotel) => {
     if (!confirm(`Delete "${localizedText(hotel.name, "en")}"?`)) return;
     try {
@@ -392,7 +446,7 @@ export default function HotelsAdminClient() {
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.available} onChange={(e) => setForm({ ...form, available: e.target.checked })} />
-          Available on website
+          Show on website
         </label>
       </div>
     </div>
@@ -461,6 +515,19 @@ export default function HotelsAdminClient() {
       ),
     },
     {
+      id: "website",
+      header: "Website",
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant={row.original.available ? "outline" : "secondary"}
+          onClick={() => void toggleHotelWebsiteVisibility(row.original)}
+        >
+          {row.original.available ? "Visible" : "Hidden"}
+        </Button>
+      ),
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
@@ -501,6 +568,25 @@ export default function HotelsAdminClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-6">
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Manual hotels on website</p>
+              <p className="text-sm text-muted-foreground">
+                Show or hide all manually added hotels on /hotels. Per-hotel visibility uses the Website column.
+              </p>
+            </div>
+            <Button
+              variant={manualWebsiteEnabled ? "destructive" : "default"}
+              disabled={websiteSettingsSaving}
+              onClick={() => void toggleManualWebsite()}
+            >
+              {websiteSettingsSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {manualWebsiteEnabled ? "Hide all manual hotels" : "Show all manual hotels"}
+            </Button>
+          </div>
+        </div>
+
         {isStaff && (
           <div className="flex flex-wrap gap-3">
             <Button onClick={handleSeedHotels} disabled={seeding}>

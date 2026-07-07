@@ -1,4 +1,6 @@
 import { getHotels } from "@/lib/data-service";
+import { getHotelWebsiteSettings } from "@/lib/hotels/website-settings";
+import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalog";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import HotelsClient from "./hotels-client";
 
@@ -13,6 +15,20 @@ export const metadata = buildPageMetadata({
 });
 
 export default async function HotelsPage() {
-  const hotels = await getHotels();
-  return <HotelsClient initialHotels={hotels} />;
+  const websiteSettings = await getHotelWebsiteSettings();
+  const tripjackEnabled = websiteSettings.tripjackHotelsWebsiteEnabled !== false;
+
+  const [hotels, featuredTripJackHotels] = await Promise.all([
+    getHotels(),
+    tripjackEnabled ? getFeaturedTripJackHotels(24) : Promise.resolve([]),
+  ]);
+
+  return (
+    <HotelsClient
+      initialHotels={hotels}
+      featuredTripJackHotels={featuredTripJackHotels}
+      tripjackHotelsEnabled={tripjackEnabled}
+      manualHotelsEnabled={websiteSettings.manualHotelsWebsiteEnabled !== false}
+    />
+  );
 }

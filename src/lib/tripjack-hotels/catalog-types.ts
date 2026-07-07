@@ -26,6 +26,8 @@ export interface TripJackHotelCatalogEntry {
   description?: string;
   contact?: string;
   contentSynced?: boolean;
+  /** Admin can hide individual TripJack hotels from website search/results */
+  websiteVisible?: boolean;
   isActive?: boolean;
   isDeleted: boolean;
   searchBlob: string;

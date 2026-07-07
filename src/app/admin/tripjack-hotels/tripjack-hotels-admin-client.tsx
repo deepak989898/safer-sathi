@@ -74,6 +74,10 @@ export default function TripJackHotelsAdminClient() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [liveEnabled, setLiveEnabled] = useState(false);
+  const [tripjackWebsiteEnabled, setTripjackWebsiteEnabled] = useState(true);
+  const [websiteSettingsSaving, setWebsiteSettingsSaving] = useState(false);
+  const [visibilityHid, setVisibilityHid] = useState("");
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [proxyTesting, setProxyTesting] = useState(false);
   const [proxyTests, setProxyTests] = useState<ProxyRouteTestResult[] | null>(null);
   const [proxyBaseUrl, setProxyBaseUrl] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export default function TripJackHotelsAdminClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [dashResult, syncResult, checkResult] = await Promise.all([
+      const [dashResult, syncResult, checkResult, settingsResult] = await Promise.all([
         tripjackAdminApiCall<{ dashboard: TripJackHotelOpsDashboard }>(
           "/api/admin/tripjack-hotels/dashboard",
           undefined,
@@ -107,6 +111,11 @@ export default function TripJackHotelsAdminClient() {
           "/api/admin/tripjack-hotels/checklist",
           undefined,
           "Load checklist"
+        ),
+        tripjackAdminApiCall<{ settings: { tripjackHotelsWebsiteEnabled?: boolean } }>(
+          "/api/admin/hotel-website-settings",
+          undefined,
+          "Load website settings"
         ),
       ]);
 
@@ -123,6 +132,10 @@ export default function TripJackHotelsAdminClient() {
 
       if (checkResult.ok && checkResult.data) {
         setChecklist(checkResult.data.items ?? []);
+      }
+
+      if (settingsResult.ok && settingsResult.data?.settings) {
+        setTripjackWebsiteEnabled(settingsResult.data.settings.tripjackHotelsWebsiteEnabled !== false);
       }
 
       const manualResult = await tripjackAdminApiCall<{
@@ -291,6 +304,64 @@ export default function TripJackHotelsAdminClient() {
     { key: "static-mapping", label: "Hotel mapping", names: ["hotel-mapping"] },
     { key: "static-content", label: "Hotel content", names: ["hotel-content"] },
   ] as const;
+
+  const toggleTripjackWebsite = async () => {
+    setWebsiteSettingsSaving(true);
+    try {
+      const result = await tripjackAdminApiCall<{ settings: { tripjackHotelsWebsiteEnabled?: boolean } }>(
+        "/api/admin/hotel-website-settings",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tripjackHotelsWebsiteEnabled: !tripjackWebsiteEnabled }),
+        },
+        "Update TripJack website visibility"
+      );
+      if (!result.ok) {
+        setApiError(toApiError("Update website visibility", result));
+        return;
+      }
+      setTripjackWebsiteEnabled(result.data?.settings?.tripjackHotelsWebsiteEnabled !== false);
+      toast.success(
+        result.data?.settings?.tripjackHotelsWebsiteEnabled
+          ? "TripJack hotels are visible on the website"
+          : "TripJack hotels are hidden from the website"
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update visibility");
+    } finally {
+      setWebsiteSettingsSaving(false);
+    }
+  };
+
+  const updateCatalogHotelVisibility = async (websiteVisible: boolean) => {
+    const hid = Number(visibilityHid);
+    if (!Number.isFinite(hid) || hid <= 0) {
+      toast.error("Enter a valid TripJack hotel ID (HID)");
+      return;
+    }
+    setVisibilitySaving(true);
+    try {
+      const result = await tripjackAdminApiCall<{ message?: string }>(
+        "/api/admin/tripjack-hotels/catalog-visibility",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hid, websiteVisible }),
+        },
+        "Update hotel visibility"
+      );
+      if (!result.ok) {
+        setApiError(toApiError("Update hotel visibility", result));
+        return;
+      }
+      toast.success(result.data?.message ?? "Hotel visibility updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update hotel");
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
 
   const toggleLive = async () => {
     setApiError(null);
@@ -570,6 +641,59 @@ export default function TripJackHotelsAdminClient() {
                 ))}
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Website visibility</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Control whether customers can search and book TripJack hotels on the public website
+              (/hotels/search).
+            </p>
+            <Button
+              size="sm"
+              variant={tripjackWebsiteEnabled ? "destructive" : "default"}
+              disabled={websiteSettingsSaving}
+              onClick={() => void toggleTripjackWebsite()}
+            >
+              {websiteSettingsSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {tripjackWebsiteEnabled ? "Hide TripJack hotels on website" : "Show TripJack hotels on website"}
+            </Button>
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium">Hide/show individual TripJack hotel</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Enter a TripJack HID to hide it from search results without deleting catalog data.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Input
+                  placeholder="TripJack HID"
+                  value={visibilityHid}
+                  onChange={(e) => setVisibilityHid(e.target.value.replace(/\D/g, ""))}
+                  className="max-w-[200px]"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={visibilitySaving}
+                  onClick={() => void updateCatalogHotelVisibility(false)}
+                >
+                  Hide hotel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={visibilitySaving}
+                  onClick={() => void updateCatalogHotelVisibility(true)}
+                >
+                  Show hotel
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
