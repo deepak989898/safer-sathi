@@ -3,6 +3,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { syncRecentHotelBookingStatuses } from "@/lib/tripjack-hotels/booking-status-sync";
 import {
   finalizeTripJackCatalogSync,
+  runCatalogLocationBackfillRun,
   startTripJackCatalogSyncSession,
   syncCatalogLocationBackfillBatch,
   syncTripJackHotelCatalog,
@@ -10,6 +11,7 @@ import {
   syncTripJackHotelMappingPage,
 } from "@/lib/tripjack-hotels/catalog-sync";
 import type { TripJackHotelSyncMode } from "@/lib/tripjack-hotels/catalog-types";
+import { LOCATION_BACKFILL_CHUNK_SIZE, LOCATION_BACKFILL_MAX_PER_RUN } from "@/lib/tripjack-hotels/catalog-types";
 import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
 import { syncTripJackHotelNationalities } from "@/lib/tripjack-hotels/nationalities-sync";
 import { listTripJackHotelSyncLogs } from "@/lib/tripjack-hotels/ops-firestore";
@@ -19,7 +21,7 @@ import {
   TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE,
 } from "@/lib/tripjack-hotels/messages";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function staticApiErrorResponse(error: TripJackHotelStaticApiError) {
   const staticCatalogue403 = isTripJackStaticCatalogue403({
@@ -118,7 +120,18 @@ export async function POST(request: Request) {
     }
 
     if (mode === "location_backfill") {
-      const result = await syncCatalogLocationBackfillBatch();
+      const maxHotelsParam = Number(url.searchParams.get("maxHotels") ?? "0");
+      const chunked = url.searchParams.get("chunked") === "1";
+      const maxHotels = Number.isFinite(maxHotelsParam) && maxHotelsParam > 0
+        ? Math.min(LOCATION_BACKFILL_MAX_PER_RUN, maxHotelsParam)
+        : LOCATION_BACKFILL_MAX_PER_RUN;
+
+      const result = chunked
+        ? await syncCatalogLocationBackfillBatch({
+            maxHotels: Math.min(LOCATION_BACKFILL_CHUNK_SIZE, maxHotels),
+          })
+        : await runCatalogLocationBackfillRun({ maxHotels });
+
       const meta = await getTripJackHotelCatalogMeta();
       return apiSuccess({ ...result, meta, mode });
     }

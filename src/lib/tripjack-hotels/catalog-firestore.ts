@@ -528,6 +528,86 @@ export async function getNextLocationBackfillBatch(
   };
 }
 
+/** Fast pass: derive city/locality from existing name/address without TripJack API. */
+export async function enrichCatalogLocationBulkChunk(
+  maxRecords = 5000
+): Promise<{
+  scanned: number;
+  updated: number;
+  hasMore: boolean;
+}> {
+  if (!isAdminEnvConfigured()) {
+    return { scanned: 0, updated: 0, hasMore: false };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) return { scanned: 0, updated: 0, hasMore: false };
+
+  const meta = await getTripJackHotelCatalogMeta();
+  let cursor = meta.locationEnrichCursor ?? null;
+  let scanned = 0;
+  let updated = 0;
+  let scanHasMore = true;
+  const pending: TripJackHotelCatalogEntry[] = [];
+
+  const flush = async () => {
+    if (!pending.length) return;
+    await upsertTripJackHotelCatalogEntries(pending.splice(0, pending.length));
+  };
+
+  while (scanned < maxRecords && scanHasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(400);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) {
+      scanHasMore = false;
+      break;
+    }
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted || !hotel.contentSynced) continue;
+
+      scanned += 1;
+      const enriched = enrichCatalogEntryLocation(hotel);
+      const locationNow = formatFeaturedCardLocation(enriched);
+      const locationBefore = formatFeaturedCardLocation(hotel);
+      const changed =
+        enriched.cityName !== hotel.cityName ||
+        enriched.cityNameLower !== hotel.cityNameLower ||
+        enriched.region !== hotel.region ||
+        enriched.searchBlob !== hotel.searchBlob ||
+        Boolean(locationNow && !locationBefore);
+
+      if (changed) {
+        pending.push(enriched);
+        updated += 1;
+      }
+
+      if (scanned >= maxRecords) break;
+      if (pending.length >= FIRESTORE_BATCH_SIZE) {
+        await flush();
+      }
+    }
+
+    if (snap.size < 400) scanHasMore = false;
+  }
+
+  await flush();
+  await updateTripJackHotelCatalogMeta({
+    locationEnrichCursor: scanHasMore ? cursor : null,
+  });
+
+  return {
+    scanned,
+    updated,
+    hasMore: scanHasMore,
+  };
+}
+
 export async function searchTripJackHotelCatalogByNamePrefix(
   query: string,
   limit = 15

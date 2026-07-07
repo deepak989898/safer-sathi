@@ -6,6 +6,7 @@ import {
   getNextContentSyncBatch,
   getNextLocationBackfillBatch,
   getTripJackHotelCatalogMeta,
+  enrichCatalogLocationBulkChunk,
   updateTripJackHotelCatalogMeta,
   upsertTripJackHotelCatalogEntries,
   upsertTripJackHotelDestinations,
@@ -18,6 +19,8 @@ import {
   MAX_HOTEL_CONTENT_BATCH,
   MAX_HOTEL_MAPPING_PAGE_SIZE,
   MAX_LISTING_HIDS,
+  LOCATION_BACKFILL_CHUNK_SIZE,
+  LOCATION_BACKFILL_MAX_PER_RUN,
 } from "@/lib/tripjack-hotels/catalog-types";
 import type { TripJackHotelSyncMode } from "@/lib/tripjack-hotels/catalog-types";
 import {
@@ -447,60 +450,162 @@ export async function syncTripJackHotelContentBatch(options: {
 
 export async function syncCatalogLocationBackfillBatch(options?: {
   maxRetries?: number;
+  maxHotels?: number;
 }): Promise<{
   batchSize: number;
   batchSuccess: number;
   batchFailed: number;
+  enrichScanned: number;
+  enrichUpdated: number;
+  apiBatches: number;
   hasMore: boolean;
   message: string;
 }> {
-  const meta = await getTripJackHotelCatalogMeta();
-  const cursor = meta.locationBackfillCursor ?? null;
-  const { ids, lastTjHotelId, hasMore } = await getNextLocationBackfillBatch(
-    cursor,
-    MAX_HOTEL_CONTENT_BATCH
+  const budget = Math.min(
+    LOCATION_BACKFILL_MAX_PER_RUN,
+    Math.max(100, options?.maxHotels ?? LOCATION_BACKFILL_CHUNK_SIZE)
   );
 
-  if (!ids.length) {
-    const message = "No hotels need location backfill";
-    await updateTripJackHotelCatalogMeta({
-      locationBackfillCursor: null,
-      lastSyncMessage: message,
-    });
-    return { batchSize: 0, batchSuccess: 0, batchFailed: 0, hasMore: false, message };
-  }
+  const enrichBudget = Math.min(budget, 10_000);
+  const enrichResult = await enrichCatalogLocationBulkChunk(enrichBudget);
 
-  const batchIds = ids.map(String);
-  let batchSuccess = 0;
-  let batchFailed = 0;
+  let apiProcessed = 0;
+  let apiSuccess = 0;
+  let apiFailed = 0;
+  let apiBatches = 0;
+  let apiHasMore = true;
+  const apiBudget = Math.max(0, budget - enrichResult.updated);
 
-  try {
-    const { data } = await fetchHotelContentWithRetry(batchIds, options?.maxRetries ?? 3);
-    const hotels = extractHotelContentPayload(data);
-    const entries = hotels
-      .map((hotel) => normalizeStaticHotelRecord(hotel))
-      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  while (apiProcessed < apiBudget && apiHasMore) {
+    const meta = await getTripJackHotelCatalogMeta();
+    const cursor = meta.locationBackfillCursor ?? null;
+    const remaining = apiBudget - apiProcessed;
+    const fetchSize = Math.min(MAX_HOTEL_CONTENT_BATCH, remaining);
 
-    if (entries.length) {
-      await upsertTripJackHotelCatalogEntries(entries);
+    const { ids, lastTjHotelId, hasMore: scanHasMore } = await getNextLocationBackfillBatch(
+      cursor,
+      fetchSize
+    );
+
+    if (!ids.length) {
+      apiHasMore = false;
+      await updateTripJackHotelCatalogMeta({
+        locationBackfillCursor: null,
+      });
+      break;
     }
-    batchSuccess = entries.length;
-    batchFailed = Math.max(0, ids.length - entries.length);
-  } catch (error) {
-    batchFailed = ids.length;
-    console.warn("[tripjack-hotel-sync] location backfill batch failed:", error);
+
+    const batchIds = ids.map(String);
+    try {
+      const { data } = await fetchHotelContentWithRetry(batchIds, options?.maxRetries ?? 3);
+      const hotels = extractHotelContentPayload(data);
+      const entries = hotels
+        .map((hotel) => normalizeStaticHotelRecord(hotel))
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+      if (entries.length) {
+        await upsertTripJackHotelCatalogEntries(entries);
+      }
+      apiSuccess += entries.length;
+      apiFailed += Math.max(0, ids.length - entries.length);
+    } catch (error) {
+      apiFailed += ids.length;
+      console.warn("[tripjack-hotel-sync] location backfill API batch failed:", error);
+    }
+
+    apiProcessed += ids.length;
+    apiBatches += 1;
+    apiHasMore = scanHasMore;
+
+    await updateTripJackHotelCatalogMeta({
+      locationBackfillCursor: lastTjHotelId,
+    });
+
+    if (!scanHasMore) {
+      await updateTripJackHotelCatalogMeta({ locationBackfillCursor: null });
+      apiHasMore = false;
+    }
   }
 
-  const message = `Location backfill — ${batchSuccess} updated, ${batchFailed} failed (${ids.length} scanned)`;
-  await updateTripJackHotelCatalogMeta({
-    locationBackfillCursor: lastTjHotelId,
-    lastSyncMessage: message,
-  });
+  const totalTouched = enrichResult.updated + apiSuccess;
+  const hasMore = enrichResult.hasMore || apiHasMore;
+
+  const message = [
+    `Location backfill chunk`,
+    `${enrichResult.updated.toLocaleString()} enriched from catalog`,
+    `${apiSuccess.toLocaleString()} refreshed via content API`,
+    apiFailed > 0 ? `${apiFailed.toLocaleString()} API failed` : null,
+    hasMore ? "more remaining — run again or wait for orchestrator" : "catalog pass complete",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
 
   return {
-    batchSize: ids.length,
-    batchSuccess,
-    batchFailed,
+    batchSize: enrichResult.scanned + apiProcessed,
+    batchSuccess: totalTouched,
+    batchFailed: apiFailed,
+    enrichScanned: enrichResult.scanned,
+    enrichUpdated: enrichResult.updated,
+    apiBatches,
+    hasMore,
+    message,
+  };
+}
+
+/** Process up to LOCATION_BACKFILL_MAX_PER_RUN hotels in repeated internal chunks (long-running). */
+export async function runCatalogLocationBackfillRun(options?: {
+  maxHotels?: number;
+  maxRetries?: number;
+}): Promise<{
+  totalProcessed: number;
+  totalUpdated: number;
+  totalFailed: number;
+  chunks: number;
+  hasMore: boolean;
+  message: string;
+}> {
+  const target = Math.min(
+    LOCATION_BACKFILL_MAX_PER_RUN,
+    Math.max(LOCATION_BACKFILL_CHUNK_SIZE, options?.maxHotels ?? LOCATION_BACKFILL_MAX_PER_RUN)
+  );
+
+  let totalProcessed = 0;
+  let totalUpdated = 0;
+  let totalFailed = 0;
+  let chunks = 0;
+  let hasMore = true;
+
+  while (totalUpdated < target && hasMore) {
+    const remaining = target - totalUpdated;
+    const chunk = await syncCatalogLocationBackfillBatch({
+      maxRetries: options?.maxRetries,
+      maxHotels: Math.min(LOCATION_BACKFILL_CHUNK_SIZE, remaining + 500),
+    });
+
+    chunks += 1;
+    totalProcessed += chunk.batchSize;
+    totalUpdated += chunk.batchSuccess;
+    totalFailed += chunk.batchFailed;
+    hasMore = chunk.hasMore;
+
+    if (chunk.batchSuccess === 0 && chunk.enrichUpdated === 0) break;
+  }
+
+  const message = `Location backfill run — ${totalUpdated.toLocaleString()} hotel${
+    totalUpdated === 1 ? "" : "s"
+  } updated (${chunks} chunk${chunks === 1 ? "" : "s"})${
+    hasMore ? " · more hotels remaining" : " · finished for this run"
+  }`;
+
+  await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
+
+  return {
+    totalProcessed,
+    totalUpdated,
+    totalFailed,
+    chunks,
     hasMore,
     message,
   };

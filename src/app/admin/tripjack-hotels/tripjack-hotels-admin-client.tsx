@@ -23,9 +23,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import {
+  orchestrateLocationBackfill,
   orchestrateTripJackSync,
+  type LocationBackfillProgress,
   type TripJackSyncProgress,
 } from "@/lib/tripjack-hotels/admin-sync-orchestrator";
+import { LOCATION_BACKFILL_MAX_PER_RUN } from "@/lib/tripjack-hotels/catalog-types";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
@@ -52,7 +55,7 @@ const SYNC_MODE_LABELS: Record<string, string> = {
   incremental: "Incremental sync",
   nationalities: "Sync nationalities",
   booking_status: "Sync booking status",
-  location_backfill: "Backfill city/address (100)",
+  location_backfill: `Backfill city/address (up to ${LOCATION_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
 };
 
 function toApiError(
@@ -93,6 +96,8 @@ export default function TripJackHotelsAdminClient() {
   const [manualSaving, setManualSaving] = useState(false);
   const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
   const [syncProgress, setSyncProgress] = useState<TripJackSyncProgress | null>(null);
+  const [locationBackfillProgress, setLocationBackfillProgress] =
+    useState<LocationBackfillProgress | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,6 +173,26 @@ export default function TripJackHotelsAdminClient() {
     const orchestratedModes = new Set(["full", "mapping_only", "content_only", "incremental"]);
 
     try {
+      if (mode === "location_backfill") {
+        setLocationBackfillProgress(null);
+        const result = await orchestrateLocationBackfill((progress) =>
+          setLocationBackfillProgress(progress)
+        );
+
+        if (!result.ok) {
+          setApiError({ context: label, message: result.error ?? result.message });
+          toast.error(result.message);
+          return;
+        }
+
+        toast.success(result.message);
+        setLocationBackfillProgress((prev) =>
+          prev ? { ...prev, phase: "done", message: result.message } : null
+        );
+        void load();
+        return;
+      }
+
       if (orchestratedModes.has(mode)) {
         const result = await orchestrateTripJackSync(
           mode as "full" | "mapping_only" | "content_only" | "incremental",
@@ -209,6 +234,9 @@ export default function TripJackHotelsAdminClient() {
       toast.error(message);
     } finally {
       setSyncing(null);
+      if (mode !== "location_backfill") {
+        setLocationBackfillProgress(null);
+      }
     }
   };
 
@@ -463,7 +491,24 @@ export default function TripJackHotelsAdminClient() {
             {dashboard?.catalogMeta.lastSyncMessage ? (
               <p className="text-sm text-muted-foreground">{dashboard.catalogMeta.lastSyncMessage}</p>
             ) : null}
-            {syncProgress && syncing ? (
+            {locationBackfillProgress && syncing === "location_backfill" ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                <p className="font-semibold capitalize">
+                  Location backfill — {locationBackfillProgress.phase}
+                </p>
+                <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+                  <span>
+                    Updated: {locationBackfillProgress.totalUpdated.toLocaleString()} /{" "}
+                    {locationBackfillProgress.target.toLocaleString()}
+                  </span>
+                  <span>Chunks: {locationBackfillProgress.chunks}</span>
+                  <span>Processed: {locationBackfillProgress.totalProcessed.toLocaleString()}</span>
+                  <span>Failed: {locationBackfillProgress.totalFailed.toLocaleString()}</span>
+                </div>
+                <p className="mt-2 text-xs">{locationBackfillProgress.message}</p>
+              </div>
+            ) : null}
+            {syncProgress && syncing && syncing !== "location_backfill" ? (
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
                 <p className="font-semibold capitalize">Sync in progress — {syncProgress.phase}</p>
                 <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">

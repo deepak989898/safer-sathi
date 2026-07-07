@@ -1,4 +1,8 @@
 import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
+import {
+  LOCATION_BACKFILL_CHUNK_SIZE,
+  LOCATION_BACKFILL_MAX_PER_RUN,
+} from "@/lib/tripjack-hotels/catalog-types";
 
 export interface TripJackSyncProgress {
   phase: "starting" | "mapping" | "content" | "destinations" | "done" | "error";
@@ -29,6 +33,11 @@ interface SyncStepData {
   batchSize?: number;
   savedHotels?: number;
   failedHotels?: number;
+  batchSuccess?: number;
+  batchFailed?: number;
+  totalUpdated?: number;
+  totalProcessed?: number;
+  totalFailed?: number;
   meta?: {
     totalMappingIds?: number;
     contentSuccessCount?: number;
@@ -211,6 +220,110 @@ export async function orchestrateTripJackSync(
     savedHotels: finalize.data?.meta?.contentSuccessCount ?? progress.savedHotels,
     failedHotels: finalize.data?.meta?.contentFailedCount ?? progress.failedHotels,
     totalMappingIds: finalize.data?.meta?.totalMappingIds ?? progress.totalMappingIds,
+    message,
+  };
+  onProgress(progress);
+
+  return { ok: true, message };
+}
+
+export interface LocationBackfillProgress {
+  phase: "running" | "done" | "error";
+  totalUpdated: number;
+  totalProcessed: number;
+  totalFailed: number;
+  chunks: number;
+  target: number;
+  hasMore: boolean;
+  message: string;
+}
+
+export async function orchestrateLocationBackfill(
+  onProgress: (progress: LocationBackfillProgress) => void
+): Promise<TripJackOrchestratedSyncResult> {
+  const target = LOCATION_BACKFILL_MAX_PER_RUN;
+  let totalUpdated = 0;
+  let totalProcessed = 0;
+  let totalFailed = 0;
+  let chunks = 0;
+  let hasMore = true;
+
+  let progress: LocationBackfillProgress = {
+    phase: "running",
+    totalUpdated: 0,
+    totalProcessed: 0,
+    totalFailed: 0,
+    chunks: 0,
+    target,
+    hasMore: true,
+    message: `Starting location backfill (up to ${target.toLocaleString()} hotels)…`,
+  };
+  onProgress(progress);
+
+  while (totalUpdated < target && hasMore) {
+    const step = await syncStep(
+      "location_backfill",
+      {
+        maxHotels: LOCATION_BACKFILL_CHUNK_SIZE,
+        chunked: "1",
+      },
+      `Location backfill chunk ${chunks + 1}`
+    );
+
+    if (!step.ok) {
+      progress = {
+        ...progress,
+        phase: "error",
+        message: step.error ?? "Location backfill failed",
+      };
+      onProgress(progress);
+      return { ok: false, message: progress.message, error: step.error };
+    }
+
+    const batchSuccess = step.data?.batchSuccess ?? step.data?.totalUpdated ?? 0;
+    const batchSize = step.data?.batchSize ?? step.data?.totalProcessed ?? 0;
+    const batchFailed = step.data?.batchFailed ?? step.data?.totalFailed ?? 0;
+    hasMore = Boolean(step.data?.hasMore);
+
+    totalUpdated += batchSuccess;
+    totalProcessed += batchSize;
+    totalFailed += batchFailed;
+    chunks += 1;
+
+    progress = {
+      phase: "running",
+      totalUpdated,
+      totalProcessed,
+      totalFailed,
+      chunks,
+      target,
+      hasMore,
+      message:
+        step.data?.message ??
+        `${totalUpdated.toLocaleString()} updated · chunk ${chunks}`,
+    };
+    onProgress(progress);
+
+    if (batchSuccess === 0 && batchSize === 0) {
+      hasMore = false;
+      break;
+    }
+
+    await sleep(250);
+  }
+
+  const message = `Location backfill complete — ${totalUpdated.toLocaleString()} hotel${
+    totalUpdated === 1 ? "" : "s"
+  } updated${hasMore ? " (more may remain — click again to continue)" : ""}`;
+
+  progress = {
+    ...progress,
+    phase: "done",
+    totalUpdated,
+    totalProcessed,
+    totalFailed,
+    chunks,
+    hasMore,
     message,
   };
   onProgress(progress);

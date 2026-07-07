@@ -66,6 +66,7 @@ export interface TripJackHotelCatalogMeta {
   contentSyncCursor?: number | null;
   mappingHasMore?: boolean;
   locationBackfillCursor?: number | null;
+  locationEnrichCursor?: number | null;
 }
 
 export interface DestinationSuggestion {
@@ -97,6 +98,10 @@ export const TRIPJACK_HOTEL_MANUAL_DESTINATIONS_COLLECTION = "tripjackHotelManua
 export const MAX_LISTING_HIDS = 100;
 export const MAX_HOTEL_CONTENT_BATCH = 100;
 export const MAX_HOTEL_MAPPING_PAGE_SIZE = 2000;
+/** Max hotels to update per admin backfill click (client orchestrator loops chunks). */
+export const LOCATION_BACKFILL_MAX_PER_RUN = 50_000;
+/** Hotels processed per backfill API request (enrich + content API batches). */
+export const LOCATION_BACKFILL_CHUNK_SIZE = 5_000;
 export const MAX_HOTEL_ROOMS = 9;
 
 export type TripJackHotelSyncMode =

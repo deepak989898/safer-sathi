@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { FilterSidebar, SearchInput } from "@/components/customer/filter-sidebar";
 import { HotelCard } from "@/components/customer/hotel-card";
 import { ListingLayout } from "@/components/customer/listing-filter-sort";
@@ -243,41 +242,12 @@ export default function HotelsClient({
         </div>
       )}
 
-      {tripjackHotelsEnabled &&
-        !featuredLoading &&
-        featuredHotels.length === 0 &&
-        !featuredCatalogInfo?.syncInProgress && (
-        <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
-          Looking for live TripJack hotel rates? Use{" "}
-          <button
-            type="button"
-            className="font-semibold text-[#1a4fa3] hover:underline"
-            onClick={() => document.getElementById("tripjack-featured-hotels")?.scrollIntoView({ behavior: "smooth" })}
-          >
-            Search more live hotels
-          </button>{" "}
-          on this page or{" "}
-          <Link href="/hotels/browse" className="font-semibold text-[#1a4fa3] hover:underline">
-            view all hotels
-          </Link>
-          .
-        </div>
-      )}
-      {!manualHotelsEnabled ? (
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Our curated hotel catalog is temporarily unavailable.{" "}
-          {tripjackHotelsEnabled ? (
-            <Link href="/hotels/browse" className="font-semibold text-[#1a4fa3] hover:underline">
-              browse all live hotels
-            </Link>
-          ) : null}
-        </div>
-      ) : (
+      {manualHotelsEnabled ? (
         <>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
-            {locale === "hi" ? "होटल" : manualHotelsEnabled ? "Curated Hotels" : "Hotels"}
+            {locale === "hi" ? "होटल" : "Curated Hotels"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {locale === "hi"
