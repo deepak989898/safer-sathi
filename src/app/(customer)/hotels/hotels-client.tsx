@@ -285,7 +285,7 @@ export default function HotelsClient({
         )}
       </ListingLayout>
         </>
-      )}
+      ) : null}
     </section>
   );
 }
