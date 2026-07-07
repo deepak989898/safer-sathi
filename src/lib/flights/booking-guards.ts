@@ -13,6 +13,8 @@ export function canCancelBooking(booking: FlightBookingRecord): boolean {
   const blocked = new Set([
     "cancellation_requested",
     "cancelled",
+    "failed_cancellation",
+    "refund_processing",
     "refund_pending",
     "refund_completed",
     "released",

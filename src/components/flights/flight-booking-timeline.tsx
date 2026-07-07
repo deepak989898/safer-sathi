@@ -16,6 +16,7 @@ function activeStepIndex(booking: FlightBookingRecord): number {
   if (booking.status === "cancelled" && booking.refundStatus === "completed") return 3;
   if (
     booking.status === "cancellation_requested" ||
+    booking.status === "refund_processing" ||
     booking.refundStatus === "processing" ||
     booking.refundStatus === "pending"
   ) {

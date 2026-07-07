@@ -45,13 +45,22 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   const handleRefresh = useCallback(async () => {
     if (!bookingId) return;
     setRefreshing(true);
-    const refreshed = await api.refreshBookingDetail(bookingId);
+    const shouldPollAmendment =
+      booking?.status === "cancellation_requested" ||
+      booking?.status === "refund_processing" ||
+      (booking?.amendmentId &&
+        booking?.pollStatus !== "SUCCESS" &&
+        booking?.pollStatus !== "FAILED" &&
+        booking?.pollStatus !== "CANCELLED");
+    const refreshed = shouldPollAmendment
+      ? await api.pollAmendment(bookingId)
+      : await api.refreshBookingDetail(bookingId);
     if (refreshed) {
       applyBooking(refreshed);
       setLoadError(null);
     }
     setRefreshing(false);
-  }, [api, bookingId, applyBooking]);
+  }, [api, bookingId, booking, applyBooking]);
 
   useEffect(() => {
     void params.then(async ({ bookingId: id }) => {
@@ -124,6 +133,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
     if (!booking) return;
     setCancelOpen(true);
     setCancelError(null);
+    setCharges(null);
     setLoadingCharges(true);
     const result = await api.fetchCancellationCharges(booking.bookingId);
     setLoadingCharges(false);
@@ -147,7 +157,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
     }
     applyBooking(updated);
     setCancelOpen(false);
-    toast.success("Cancellation requested");
+    toast.success(updated.status === "cancelled" ? "Booking cancelled" : "Cancellation requested");
   };
 
   const handleReleasePnr = async () => {

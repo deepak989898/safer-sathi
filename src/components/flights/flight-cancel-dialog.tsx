@@ -66,6 +66,12 @@ export function FlightCancelDialog({
           {charges && !loadingCharges && (
             <div className="space-y-2 rounded-2xl bg-slate-50 p-4 text-sm">
               <div className="flex justify-between">
+                <span className="text-slate-600">Refundability</span>
+                <span className={cn("font-semibold", charges.refundable ? "text-emerald-700" : "text-red-700")}>
+                  {charges.refundable ? "Refundable" : "Non-refundable"}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-slate-600">Cancellation charges</span>
                 <span className="font-semibold">
                   {formatCurrency(charges.cancellationCharges, locale)}
@@ -102,9 +108,33 @@ export function FlightCancelDialog({
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-[#1a4fa3]">
-                <span>Refundable amount</span>
-                <span>{formatCurrency(charges.refundableAmount, locale)}</span>
+                <span>Total refund</span>
+                <span>{formatCurrency(charges.totalRefund, locale)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Cancellation deadline</span>
+                <span>{charges.cancellationDeadline || "As per airline rules"}</span>
+              </div>
+              {charges.trips.length > 0 && (
+                <div className="space-y-2 border-t border-slate-200 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Passenger / Segment charges
+                  </p>
+                  {charges.trips.map((trip, idx) => (
+                    <div key={`${trip.src}-${trip.dest}-${idx}`} className="rounded-xl border border-slate-200 bg-white p-2.5">
+                      <p className="text-xs font-semibold text-slate-700">
+                        {trip.src} → {trip.dest} {trip.departureDate ? `· ${trip.departureDate}` : ""}
+                      </p>
+                      {trip.paxCharges.map((pax, pIdx) => (
+                        <p key={`${pax.type}-${pIdx}`} className="mt-1 text-xs text-slate-600">
+                          {pax.type}: Charges {formatCurrency(pax.amendmentCharges, locale)} · Refund{" "}
+                          {formatCurrency(pax.refundAmount, locale)}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

@@ -33,12 +33,12 @@ const TABS: Array<{ id: string; label: string; statuses: FlightBookingStatus[] |
   {
     id: "cancelled",
     label: "Cancelled",
-    statuses: ["cancelled", "released"],
+    statuses: ["cancelled", "released", "failed_cancellation"],
   },
   {
     id: "refund_pending",
     label: "Refund Pending",
-    statuses: ["cancellation_requested", "refund_pending"],
+    statuses: ["cancellation_requested", "refund_pending", "refund_processing"],
   },
   {
     id: "refund_completed",
@@ -65,6 +65,7 @@ function statusTone(status: FlightBookingStatus) {
     status === "payment_received_booking_failed" ||
     status === "booking_pending" ||
     status === "cancellation_requested" ||
+    status === "refund_processing" ||
     status === "refund_pending"
   ) {
     return "bg-amber-100 text-amber-800";
@@ -72,6 +73,7 @@ function statusTone(status: FlightBookingStatus) {
   if (
     status === "payment_failed" ||
     status === "booking_failed" ||
+    status === "failed_cancellation" ||
     status === "cancelled" ||
     status === "released"
   ) {

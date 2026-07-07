@@ -61,7 +61,7 @@ interface FlightSearchScreenProps {
 
 /** Commercial jet in flight — full-width hero background. */
 const FLIGHT_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1920&q=85";
+  "https://images.unsplash.com/photo-1517479149777-5f3b1511d5ad?auto=format&fit=crop&w=1920&q=85";
 
 function TravelerStepper({
   label,

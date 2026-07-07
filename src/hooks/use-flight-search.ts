@@ -25,9 +25,9 @@ export function useFlightSearch() {
         onwardCount: number;
         flights: NormalizedFlight[];
         message: string;
-        requestBody: unknown;
-        proxyEndpoint: string;
-        payloadShape: { topLevelKeys: string[]; tripInfoKeys: string[] };
+        requestBody?: unknown;
+        proxyEndpoint?: string;
+        payloadShape?: { topLevelKeys: string[]; tripInfoKeys: string[] };
         debug?: { rawResponse: unknown };
       };
     } catch (e) {

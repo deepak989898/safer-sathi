@@ -14,6 +14,7 @@ import {
 } from "@/components/flights/flight-filters-sidebar";
 import { FlightPagination } from "@/components/flights/flight-pagination";
 import { FlightSoftCard } from "@/components/flights/flight-ui";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { findAirportByIata } from "@/lib/flights/airports";
 import type { DateFareCache } from "@/lib/flights/date-fare-cache";
 import {
@@ -121,6 +122,7 @@ export function FlightResultsScreen({
 
   return (
     <section className="min-h-screen bg-[#f4f7fb]">
+      <HideSiteFooter />
       <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto max-w-6xl px-4 py-4">
           <div className="grid items-start gap-3 lg:grid-cols-[auto_1fr_auto] lg:gap-4">
@@ -137,9 +139,6 @@ export function FlightResultsScreen({
               <p className="mt-1 text-xs text-slate-500">
                 {formatResultDate(params.departureDate)} · {travelerCount} Traveler
                 {travelerCount > 1 ? "s" : ""} · {cabinLabel}
-                {!loading && !error && onwardCount > 0 && (
-                  <span className="text-slate-400"> · {onwardCount} flights</span>
-                )}
               </p>
             </div>
 
@@ -169,11 +168,17 @@ export function FlightResultsScreen({
       </div>
 
       <div className="container mx-auto max-w-6xl px-4 py-6">
-        {loading && (
+        {loading && flights.length === 0 && (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <FlightCardSkeleton key={i} />
             ))}
+          </div>
+        )}
+
+        {loading && flights.length > 0 && (
+          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2 text-xs text-[#1a4fa3]">
+            Updating flights... showing previously loaded results.
           </div>
         )}
 
@@ -210,7 +215,7 @@ export function FlightResultsScreen({
           </FlightSoftCard>
         )}
 
-        {!loading && !error && flights.length > 0 && (
+        {!error && flights.length > 0 && (
           <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
             <aside className="hidden lg:block">
               <div className="sticky top-20">

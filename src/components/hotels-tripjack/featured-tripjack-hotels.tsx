@@ -84,6 +84,23 @@ export function FeaturedTripJackHotelsSection({
 }) {
   if (hotels.length === 0) return null;
 
+  const [activeCity, setActiveCity] = useState<string>("all");
+  const cityOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const hotel of hotels) {
+      const city = (hotel.cityName || "Other").trim();
+      map.set(city, (map.get(city) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([city, count]) => ({ city, count }));
+  }, [hotels]);
+
+  const filteredHotels = useMemo(() => {
+    if (activeCity === "all") return hotels;
+    return hotels.filter((hotel) => (hotel.cityName || "Other").trim() === activeCity);
+  }, [hotels, activeCity]);
+
   return (
     <section className="mb-10">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -103,10 +120,48 @@ export function FeaturedTripJackHotelsSection({
         </Link>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {hotels.map((hotel) => (
-          <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
-        ))}
+      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border bg-white p-4">
+          <p className="mb-3 text-sm font-semibold text-slate-900">Filter by city</p>
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveCity("all")}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                activeCity === "all"
+                  ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
+                  : "hover:bg-slate-50"
+              }`}
+            >
+              All cities ({hotels.length})
+            </button>
+            {cityOptions.map((item) => (
+              <button
+                key={item.city}
+                type="button"
+                onClick={() => setActiveCity(item.city)}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                  activeCity === item.city
+                    ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                {item.city} ({item.count})
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredHotels.map((hotel) => (
+            <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
+          ))}
+          {filteredHotels.length === 0 && (
+            <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No featured hotels for this city right now.
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );

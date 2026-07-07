@@ -59,6 +59,7 @@ const CANCELLED_STATUSES = new Set<FlightBookingStatus>(["cancelled", "released"
 
 const REFUND_PENDING_STATUSES = new Set<FlightBookingStatus>([
   "cancellation_requested",
+  "refund_processing",
   "refund_pending",
 ]);
 
@@ -136,7 +137,10 @@ export function filterFlightBookingsForAdmin(
       list = list.filter((b) => PENDING_STATUSES.has(b.status));
     } else if (status === "failed") {
       list = list.filter(
-        (b) => b.status === "payment_failed" || b.status === "booking_failed"
+        (b) =>
+          b.status === "payment_failed" ||
+          b.status === "booking_failed" ||
+          b.status === "failed_cancellation"
       );
     } else if (status === "cancelled") {
       list = list.filter((b) => CANCELLED_STATUSES.has(b.status));

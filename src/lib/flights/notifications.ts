@@ -230,3 +230,63 @@ export async function handleFlightBookingEmailTransition(
     }
   }
 }
+
+export async function sendFlightCancellationStatusEmail(
+  booking: FlightBookingRecord,
+  status: "request_submitted" | "cancelled" | "refund_processing" | "refund_completed" | "failed"
+): Promise<void> {
+  if (!booking.customerEmail) return;
+  if (booking.lastCancellationEmailStatus === status) return;
+
+  const adminEmail =
+    process.env.ADMIN_BOOKING_EMAIL?.trim() ||
+    process.env.ADMIN_EMAIL?.trim() ||
+    SITE_CONTACT.email;
+
+  const headlineMap = {
+    request_submitted: "Cancellation request submitted",
+    cancelled: "Booking cancelled",
+    refund_processing: "Refund is being processed",
+    refund_completed: "Refund completed",
+    failed: "Cancellation failed",
+  } as const;
+
+  const text = [
+    `Hi ${booking.customerName},`,
+    "",
+    `${headlineMap[status]} for your flight booking.`,
+    "",
+    `Booking ID: ${booking.bookingId}`,
+    `TripJack booking ID: ${booking.tripjackBookingId || "—"}`,
+    `Route: ${booking.sourceCode} → ${booking.destinationCode}`,
+    `Travel date: ${booking.travelDate}`,
+    typeof booking.cancellationCharges === "number"
+      ? `Cancellation charges: ${formatInr(booking.cancellationCharges)}`
+      : "",
+    typeof booking.refundAmount === "number"
+      ? `Refund amount: ${formatInr(booking.refundAmount)}`
+      : "",
+    booking.cancellationDeadline ? `Cancellation deadline: ${booking.cancellationDeadline}` : "",
+    "",
+    `Track live status: ${appUrl(`/flights/ticket/${booking.bookingId}`)}`,
+    "",
+    SITE_CONTACT.phone,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const subject = `Flight ${headlineMap[status].toLowerCase()} — ${booking.bookingId}`;
+  await deliverFlightEmail({ to: booking.customerEmail, subject, text });
+  if (adminEmail && adminEmail !== booking.customerEmail) {
+    await deliverFlightEmail({
+      to: adminEmail,
+      subject: `[ADMIN] ${subject}`,
+      text: `${text}\n\nAdmin link: ${appUrl(`/admin/flight-bookings/${booking.bookingId}`)}`,
+    });
+  }
+
+  await updateFlightBooking(booking.bookingId, {
+    lastCancellationEmailStatus: status,
+    lastCancellationEmailSentAt: new Date().toISOString(),
+  });
+}

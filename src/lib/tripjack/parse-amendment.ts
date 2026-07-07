@@ -91,9 +91,16 @@ export function normalizeCancellationCharges(
     cancellationCharges,
     refundAmount,
     refundableAmount: refundAmount,
+    refundable: refundAmount > 0,
     airlineCharges: 0,
     supplierCharges: 0,
     convenienceFee: 0,
+    totalRefund: refundAmount,
+    cancellationDeadline:
+      pickString(payload, ["cancellationDeadline", "lastCancellationDateTime"], "") ||
+      trips[0]?.departureDate ||
+      undefined,
+    currency: pickString(payload, ["currency"], "INR"),
     rawResponse: raw,
   };
 }

@@ -308,9 +308,13 @@ export interface NormalizedCancellationCharges {
   cancellationCharges: number;
   refundAmount: number;
   refundableAmount: number;
+  refundable: boolean;
   airlineCharges: number;
   supplierCharges: number;
   convenienceFee: number;
+  totalRefund: number;
+  cancellationDeadline?: string;
+  currency: string;
   rawResponse: unknown;
 }
 

@@ -36,8 +36,7 @@ export async function POST(request: Request) {
     const result = await searchTripJackFlights(params);
     const auth = await optionalAuthenticateRequest(request);
     const includeDebug = Boolean(auth && isStaffUser(auth));
-
-    return apiSuccess({
+    const response: Record<string, unknown> = {
       count: result.flights.length,
       onwardCount: result.onwardCount,
       flights: result.flights,
@@ -45,23 +44,24 @@ export async function POST(request: Request) {
         result.flights.length > 0
           ? `${result.onwardCount} flight(s) found`
           : "No flights found for this route and date. Try another date or route.",
-      requestBody: buildTripJackSearchBody(params),
-      proxyEndpoint: process.env.TRIPJACK_PROXY_BASE_URL
+    };
+
+    if (includeDebug) {
+      response.requestBody = buildTripJackSearchBody(params);
+      response.proxyEndpoint = process.env.TRIPJACK_PROXY_BASE_URL
         ? `${process.env.TRIPJACK_PROXY_BASE_URL.replace(/\/$/, "")}/api/tripjack/flights/search`
-        : "http://178.128.151.233:4000/api/tripjack/flights/search",
-      payloadShape: result.payloadShape,
+        : "http://178.128.151.233:4000/api/tripjack/flights/search";
+      response.payloadShape = result.payloadShape;
       // Never send full TripJack search payload to the browser — freezes the tab (200+ flights).
-      ...(includeDebug
-        ? {
-            debug: {
-              omittedRawResponse: true,
-              flightCount: result.flights.length,
-              onwardCount: result.onwardCount,
-              payloadShape: result.payloadShape,
-            },
-          }
-        : {}),
-    });
+      response.debug = {
+        omittedRawResponse: true,
+        flightCount: result.flights.length,
+        onwardCount: result.onwardCount,
+        payloadShape: result.payloadShape,
+      };
+    }
+
+    return apiSuccess(response);
   } catch (error) {
     if (error instanceof TripJackApiError) {
       return apiError(error.message, error.statusCode ?? 502, { raw: error.raw });

@@ -94,7 +94,8 @@ export function FlightTicketView({
             <p className="text-base font-semibold">{banner.title}</p>
             <p className="mt-1 text-sm opacity-90">{banner.description}</p>
           </div>
-          {displayStatus === "processing" && onRefresh && (
+          {(displayStatus === "processing" || displayStatus === "cancellation_requested") &&
+            onRefresh && (
             <Button
               size="sm"
               variant="outline"
@@ -109,7 +110,7 @@ export function FlightTicketView({
               )}
               Refresh status
             </Button>
-          )}
+            )}
         </div>
       </FlightSoftCard>
 
@@ -139,6 +140,7 @@ export function FlightTicketView({
                 displayStatus === "confirmed" && "bg-emerald-500 text-white",
                 displayStatus === "processing" && "bg-amber-400 text-amber-950",
                 displayStatus === "failed" && "bg-red-500 text-white",
+                displayStatus === "cancellation_requested" && "bg-orange-500 text-white",
                 displayStatus === "cancelled" && "bg-slate-500 text-white",
                 displayStatus === "other" && "bg-white/20 text-white"
               )}

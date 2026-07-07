@@ -33,7 +33,10 @@ export async function POST(
 
     return apiSuccess({
       booking,
-      message: "Cancellation requested",
+      message:
+        booking.status === "cancelled" || booking.status === "refund_completed"
+          ? "Cancellation confirmed"
+          : "Cancellation requested",
       ...(includeDebug
         ? { debug: { submitAmendmentResponse: booking.submitAmendmentResponse } }
         : {}),

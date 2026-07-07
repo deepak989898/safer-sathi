@@ -11,14 +11,27 @@ import {
   normalizeSubmitAmendment,
 } from "@/lib/tripjack/parse-amendment";
 import { normalizeTripJackBookingDetails } from "@/lib/tripjack/parse-booking-details";
+import { extractTripJackProxyErrorMessage } from "@/lib/tripjack/extract-proxy-error";
 import { canCancelBooking, canReleasePnr } from "@/lib/flights/booking-guards";
 import { buildBookingDetailSyncPatch } from "@/lib/flights/booking-status-sync";
 import { ensureFlightGuestCustomerAccess } from "@/lib/flights/flight-guest-access";
-import { handleFlightBookingEmailTransition } from "@/lib/flights/notifications";
+import {
+  handleFlightBookingEmailTransition,
+  sendFlightCancellationStatusEmail,
+} from "@/lib/flights/notifications";
 import { getFlightBookingById, updateFlightBooking } from "@/lib/flights/firestore";
 import type { FlightBookingRecord } from "@/lib/flights/types";
 
 export { canCancelBooking, canReleasePnr };
+
+function resolveCancellationErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message || fallback;
+  if (error && typeof error === "object") {
+    const rec = error as Record<string, unknown>;
+    return extractTripJackProxyErrorMessage(rec, fallback);
+  }
+  return fallback;
+}
 
 function collectPnrs(booking: FlightBookingRecord): string[] {
   const set = new Set<string>();
@@ -74,13 +87,26 @@ export async function getFlightCancellationCharges(
     remarks: remarks ?? "Customer cancellation request",
   };
 
-  const response = await fetchTripJackCancellationCharges({
-    bookingId: booking.tripjackBookingId,
-    remarks: request.remarks,
-  });
-
-  const charges = normalizeCancellationCharges(response);
-  if (!charges) throw new Error("Could not parse cancellation charges");
+  let response: unknown;
+  let charges: ReturnType<typeof normalizeCancellationCharges> = null;
+  try {
+    response = await fetchTripJackCancellationCharges({
+      bookingId: booking.tripjackBookingId,
+      remarks: request.remarks,
+    });
+    charges = normalizeCancellationCharges(response);
+    if (!charges) throw new Error("Could not parse cancellation charges from TripJack response");
+  } catch (error) {
+    await updateFlightBooking(bookingId, {
+      getChargesRequest: request,
+      getChargesResponse: response ?? {
+        success: false,
+        error: resolveCancellationErrorMessage(error, "Failed to fetch cancellation charges"),
+      },
+      adminNotes: resolveCancellationErrorMessage(error, "Failed to fetch cancellation charges"),
+    });
+    throw new Error(resolveCancellationErrorMessage(error, "Failed to fetch cancellation charges"));
+  }
 
   const updated = await updateFlightBooking(bookingId, {
     getChargesRequest: request,
@@ -88,6 +114,7 @@ export async function getFlightCancellationCharges(
     cancellationChargesNormalized: charges,
     cancellationCharges: charges.cancellationCharges,
     refundAmount: charges.refundableAmount,
+    cancellationDeadline: charges.cancellationDeadline,
   });
 
   if (!updated) throw new Error("Failed to save cancellation charges");
@@ -108,14 +135,32 @@ export async function submitFlightCancellation(
     remarks: remarks ?? "Customer cancellation",
   };
 
-  const response = await submitTripJackAmendment({
-    bookingId: booking.tripjackBookingId,
-    remarks: request.remarks,
-  });
-
-  const submitted = normalizeSubmitAmendment(response);
-  if (!submitted?.amendmentId) {
-    throw new Error("Submit amendment failed — amendmentId missing");
+  let response: unknown;
+  let submitted: ReturnType<typeof normalizeSubmitAmendment> = null;
+  try {
+    response = await submitTripJackAmendment({
+      bookingId: booking.tripjackBookingId,
+      remarks: request.remarks,
+    });
+    submitted = normalizeSubmitAmendment(response);
+    if (!submitted?.amendmentId) {
+      throw new Error("Submit amendment failed — amendmentId missing");
+    }
+  } catch (error) {
+    const failed = await updateFlightBooking(bookingId, {
+      submitAmendmentRequest: request,
+      submitAmendmentResponse: response ?? {
+        success: false,
+        error: resolveCancellationErrorMessage(error, "Cancellation request failed"),
+      },
+      status: "failed_cancellation",
+      refundStatus: "failed",
+      adminNotes: resolveCancellationErrorMessage(error, "Cancellation request failed"),
+    });
+    if (failed) {
+      await sendFlightCancellationStatusEmail(failed, "failed");
+    }
+    throw new Error(resolveCancellationErrorMessage(error, "Cancellation request failed"));
   }
 
   const updated = await updateFlightBooking(bookingId, {
@@ -128,6 +173,7 @@ export async function submitFlightCancellation(
   });
 
   if (!updated) throw new Error("Failed to save cancellation request");
+  await sendFlightCancellationStatusEmail(updated, "request_submitted");
   return updated;
 }
 
@@ -164,6 +210,7 @@ export async function pollFlightAmendment(bookingId: string): Promise<FlightBook
       updates.status = "cancelled";
     }
   } else if (statusUpper === "FAILED" || statusUpper === "CANCELLED") {
+    updates.status = "failed_cancellation";
     updates.refundStatus = "failed";
     updates.adminNotes = `Amendment ${statusUpper}`;
   } else {
@@ -173,6 +220,16 @@ export async function pollFlightAmendment(bookingId: string): Promise<FlightBook
 
   const updated = await updateFlightBooking(bookingId, updates);
   if (!updated) throw new Error("Failed to save poll result");
+  if (statusUpper === "SUCCESS") {
+    await sendFlightCancellationStatusEmail(
+      updated,
+      updated.status === "refund_completed" ? "refund_completed" : "cancelled"
+    );
+  } else if (statusUpper === "FAILED" || statusUpper === "CANCELLED") {
+    await sendFlightCancellationStatusEmail(updated, "failed");
+  } else {
+    await sendFlightCancellationStatusEmail(updated, "refund_processing");
+  }
   return updated;
 }
 

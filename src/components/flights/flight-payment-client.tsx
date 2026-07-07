@@ -109,6 +109,17 @@ export function FlightPaymentClient() {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
+  useEffect(() => {
+    if (phase !== "booking_status" || !confirmedBooking) return;
+    if (confirmedBooking.status !== "confirmed") return;
+
+    const timer = window.setTimeout(() => {
+      router.push(`/flights/ticket/${confirmedBooking.bookingId}`);
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [phase, confirmedBooking, router]);
+
   const continueAfterPayment = (
     result: {
       booking: FlightBookingRecord;

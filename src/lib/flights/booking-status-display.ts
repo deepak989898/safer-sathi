@@ -5,6 +5,7 @@ export type CustomerTicketDisplayStatus =
   | "confirmed"
   | "processing"
   | "failed"
+  | "cancellation_requested"
   | "cancelled"
   | "other";
 
@@ -41,13 +42,16 @@ export function getCustomerTicketDisplayStatus(
   }
   if (
     booking.status === "payment_received_booking_failed" ||
-    booking.status === "booking_failed"
+    booking.status === "booking_failed" ||
+    booking.status === "failed_cancellation"
   ) {
     return "failed";
   }
+  if (booking.status === "cancellation_requested" || booking.status === "refund_processing") {
+    return "cancellation_requested";
+  }
   if (
     booking.status === "cancelled" ||
-    booking.status === "cancellation_requested" ||
     booking.status === "refund_completed"
   ) {
     return "cancelled";
@@ -80,6 +84,11 @@ export const TICKET_STATUS_BANNER: Record<
     title: "Booking cancelled",
     description: "This booking has been cancelled. Refund details are shown below if applicable.",
     className: "border-slate-200 bg-slate-50 text-slate-800",
+  },
+  cancellation_requested: {
+    title: "Cancellation Requested",
+    description: "Your cancellation is under review by airline/supplier. Use refresh to get latest status.",
+    className: "border-orange-200 bg-orange-50 text-orange-900",
   },
   other: {
     title: "Booking status",

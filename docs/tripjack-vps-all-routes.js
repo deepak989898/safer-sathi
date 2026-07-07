@@ -30,6 +30,18 @@ const TRIPJACK_BOOKING_DETAILS_URL =
 const TRIPJACK_CONFIRM_FARE_URL =
   process.env.TRIPJACK_CONFIRM_FARE_URL ||
   "https://apitest.tripjack.com/oms/v1/air/confirm-fare-before-ticket";
+const TRIPJACK_GET_CHARGES_URL =
+  process.env.TRIPJACK_GET_CHARGES_URL ||
+  "https://apitest.tripjack.com/oms/v1/air/get-charges";
+const TRIPJACK_SUBMIT_AMENDMENT_URL =
+  process.env.TRIPJACK_SUBMIT_AMENDMENT_URL ||
+  "https://apitest.tripjack.com/oms/v1/air/submit-amendment";
+const TRIPJACK_POLL_AMENDMENT_URL =
+  process.env.TRIPJACK_POLL_AMENDMENT_URL ||
+  "https://apitest.tripjack.com/oms/v1/air/poll-amendment";
+const TRIPJACK_RELEASE_PNR_URL =
+  process.env.TRIPJACK_RELEASE_PNR_URL ||
+  "https://apitest.tripjack.com/oms/v1/air/unhold";
 
 // ========== SHARED FORWARDER ==========
 async function forwardTripJack(res, targetUrl, requestBody, label) {
@@ -237,4 +249,42 @@ app.post("/api/tripjack/flights/confirm-fare-before-ticket", async (req, res) =>
     return res.status(400).json({ success: false, error: "bookingId is required" });
   }
   return forwardTripJack(res, TRIPJACK_CONFIRM_FARE_URL, req.body, "confirm-fare");
+});
+
+// ========== 7. CANCELLATION CHARGES ==========
+app.post("/api/tripjack/flights/get-charges", async (req, res) => {
+  if (!req.body?.bookingId) {
+    return res.status(400).json({ success: false, error: "bookingId is required" });
+  }
+  if (!req.body?.type) {
+    return res.status(400).json({ success: false, error: "type is required (CANCELLATION)" });
+  }
+  return forwardTripJack(res, TRIPJACK_GET_CHARGES_URL, req.body, "get-charges");
+});
+
+// ========== 8. SUBMIT CANCELLATION ==========
+app.post("/api/tripjack/flights/submit-amendment", async (req, res) => {
+  if (!req.body?.bookingId) {
+    return res.status(400).json({ success: false, error: "bookingId is required" });
+  }
+  if (!req.body?.type) {
+    return res.status(400).json({ success: false, error: "type is required (CANCELLATION)" });
+  }
+  return forwardTripJack(res, TRIPJACK_SUBMIT_AMENDMENT_URL, req.body, "submit-amendment");
+});
+
+// ========== 9. POLL CANCELLATION STATUS ==========
+app.post("/api/tripjack/flights/poll-amendment", async (req, res) => {
+  if (!req.body?.amendmentId) {
+    return res.status(400).json({ success: false, error: "amendmentId is required" });
+  }
+  return forwardTripJack(res, TRIPJACK_POLL_AMENDMENT_URL, req.body, "poll-amendment");
+});
+
+// ========== 10. RELEASE HOLD PNR ==========
+app.post("/api/tripjack/flights/release-pnr", async (req, res) => {
+  if (!req.body?.bookingId) {
+    return res.status(400).json({ success: false, error: "bookingId is required" });
+  }
+  return forwardTripJack(res, TRIPJACK_RELEASE_PNR_URL, req.body, "release-pnr");
 });

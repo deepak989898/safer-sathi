@@ -20,6 +20,8 @@ export type FlightBookingStatus =
   | "manual_review_required"
   | "cancellation_requested"
   | "cancelled"
+  | "failed_cancellation"
+  | "refund_processing"
   | "refund_pending"
   | "refund_completed"
   | "hold"
@@ -124,6 +126,13 @@ export interface FlightBookingRecord {
   processingEmailSentAt?: string;
   confirmedEmailSentAt?: string;
   lastEmailStatus?: "processing" | "confirmed" | "failed";
+  lastCancellationEmailStatus?:
+    | "request_submitted"
+    | "cancelled"
+    | "refund_processing"
+    | "refund_completed"
+    | "failed";
+  lastCancellationEmailSentAt?: string;
   guestAccountProvisioned?: boolean;
   guestAccountCreated?: boolean;
   loginCredentialsShownAt?: string;
@@ -141,6 +150,7 @@ export interface FlightBookingRecord {
   amendmentId?: string;
   cancellationCharges?: number;
   refundAmount?: number;
+  cancellationDeadline?: string;
   refundStatus?: FlightRefundStatus;
   pollStatus?: FlightPollStatus;
   releasePNRStatus?: string;
