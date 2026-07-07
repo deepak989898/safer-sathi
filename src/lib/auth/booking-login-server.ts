@@ -9,7 +9,17 @@ function normalizeBookingNumber(bookingNumber: string): string {
   return bookingNumber.trim().toUpperCase();
 }
 
+function resolveBookingLoginExpiry(booking: Booking): Date | null {
+  const start = booking.startDate?.trim();
+  if (!start) return null;
+  // For non-flight package/vehicle/hotel generic bookings, allow till start-date end.
+  const dt = new Date(`${start.slice(0, 10)}T23:59:59`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
 function isEligibleForLogin(booking: Booking): boolean {
+  const expiry = resolveBookingLoginExpiry(booking);
+  if (expiry && Date.now() > expiry.getTime()) return false;
   return (
     booking.status === "confirmed" ||
     booking.paymentStatus === "paid" ||

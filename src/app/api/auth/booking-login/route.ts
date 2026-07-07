@@ -13,6 +13,7 @@ import {
 import { provisionFlightBookingLogin } from "@/lib/flights/flight-guest-access";
 import { provisionHotelBookingLogin } from "@/lib/hotels/hotel-guest-access";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
+import { getSafeAdminDb } from "@/lib/firebase/admin-safe";
 import {
   apiRateLimited,
   checkBookingLoginRateLimit,
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
       return apiRateLimited(rateLimited.resetAt);
     }
 
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
     const bookingRef = parsed.data.bookingNumber.trim();
     const flightBooking = isFlightBookingIdPassword(bookingRef)
       ? await findFlightBookingForLogin(parsed.data.email, bookingRef)
@@ -50,6 +52,15 @@ export async function POST(request: Request) {
       const provision = await provisionFlightBookingLogin(flightBooking);
       if (!provision.ok) {
         return apiError(provision.reason, 503, { code: provision.code });
+      }
+
+      const db = await getSafeAdminDb();
+      if (db) {
+        const userSnap = await db.collection("users").doc(provision.userId).get();
+        const role = String(userSnap.data()?.role ?? "customer");
+        if (role !== "customer") {
+          return apiError("Booking-ID login is only available for customer accounts.", 403);
+        }
       }
 
       const customToken = await createBookingLoginCustomToken(provision.userId);
@@ -80,6 +91,15 @@ export async function POST(request: Request) {
         return apiError(provision.reason, 503, { code: provision.code });
       }
 
+      const db = await getSafeAdminDb();
+      if (db) {
+        const userSnap = await db.collection("users").doc(provision.userId).get();
+        const role = String(userSnap.data()?.role ?? "customer");
+        if (role !== "customer") {
+          return apiError("Booking-ID login is only available for customer accounts.", 403);
+        }
+      }
+
       const customToken = await createBookingLoginCustomToken(provision.userId);
       if (!customToken) {
         return apiError(
@@ -98,7 +118,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const booking = await findBookingForLogin(parsed.data.email, bookingRef);
+    const booking = await findBookingForLogin(normalizedEmail, bookingRef);
 
     if (!booking) {
       return apiError(
@@ -110,6 +130,15 @@ export async function POST(request: Request) {
     const provision = await provisionCustomerBookingLogin(booking);
     if (!provision.ok) {
       return apiError(provision.reason, 503, { code: provision.code });
+    }
+
+    const db = await getSafeAdminDb();
+    if (db) {
+      const userSnap = await db.collection("users").doc(provision.userId).get();
+      const role = String(userSnap.data()?.role ?? "customer");
+      if (role !== "customer") {
+        return apiError("Booking-ID login is only available for customer accounts.", 403);
+      }
     }
 
     const customToken = await createBookingLoginCustomToken(provision.userId);

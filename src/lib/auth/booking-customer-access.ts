@@ -4,7 +4,6 @@ import {
   createFirebaseCustomToken,
   isFirebaseAuthRestAvailable,
   lookupAuthUserByEmail,
-  updateAuthUser,
 } from "@/lib/firebase/auth-rest-admin";
 import { upsertBooking } from "@/lib/data-service";
 import type { Booking } from "@/types";
@@ -49,16 +48,12 @@ async function findOrCreateAuthUserId(
 > {
   const existing = await lookupAuthUserByEmail(email);
   if (existing) {
-    const updated = await updateAuthUser({
-      localId: existing.localId,
-      email,
-      password: loginPassword,
-      displayName,
-    });
     return {
       userId: existing.localId,
       created: false,
-      passwordUpdated: updated.ok,
+      // Keep the user's existing password unchanged. Booking-ID login is handled
+      // through custom-token flow, so both normal password and booking-ID methods work.
+      passwordUpdated: false,
     };
   }
 
@@ -75,16 +70,10 @@ async function findOrCreateAuthUserId(
     ) {
       const retryLookup = await lookupAuthUserByEmail(email);
       if (retryLookup) {
-        const updated = await updateAuthUser({
-          localId: retryLookup.localId,
-          email,
-          password: loginPassword,
-          displayName,
-        });
         return {
           userId: retryLookup.localId,
           created: false,
-          passwordUpdated: updated.ok,
+          passwordUpdated: false,
         };
       }
     }
