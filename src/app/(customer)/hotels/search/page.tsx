@@ -16,7 +16,7 @@ export default async function HotelSearchPage() {
       <div className="container mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-[#0c2444]">Live hotel search unavailable</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          TripJack live hotel booking is temporarily hidden by the administrator.
+          Live hotel booking is temporarily hidden by the administrator.
         </p>
         <Link href="/hotels" className="mt-6 inline-block font-semibold text-[#1a4fa3] hover:underline">
           Browse curated hotels

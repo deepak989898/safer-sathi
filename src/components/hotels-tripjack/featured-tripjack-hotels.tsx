@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 
-function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
+function FeaturedLiveHotelCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
   const candidates = useMemo(
     () =>
       resolveHotelImageCandidates({
@@ -23,11 +23,11 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
   const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-  const searchHref = `/hotels/search?destination=${encodeURIComponent(hotel.cityName || hotel.name)}`;
+  const detailHref = `/hotels/detail/${encodeURIComponent(String(hotel.tjHotelId))}`;
 
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <Link href={searchHref} className="block">
+      <Link href={detailHref} className="block">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {showImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -47,7 +47,7 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
           )}
           <Badge className="absolute left-3 top-3 z-10 gap-1 bg-[#006CE4] hover:bg-[#006CE4]">
             <Zap className="h-3 w-3 fill-current" />
-            Live TripJack Hotel
+            Live rates
           </Badge>
           {stars > 0 && (
             <Badge variant="secondary" className="absolute right-3 top-3 z-10 bg-white/95">
@@ -58,18 +58,28 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
         </div>
       </Link>
       <CardContent className="space-y-2 pt-4">
-        <Link href={searchHref} className="hover:text-primary">
+        <Link href={detailHref} className="hover:text-primary">
           <h3 className="line-clamp-2 font-semibold leading-snug">{hotel.name}</h3>
         </Link>
         <p className="flex items-start gap-1 text-sm text-muted-foreground">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span className="line-clamp-2">{hotel.location || hotel.cityName}</span>
+          <span className="line-clamp-1">{hotel.cityName}</span>
         </p>
+        {hotel.amenities.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {hotel.amenities.slice(0, 3).map((amenity) => (
+              <Badge key={amenity} variant="secondary" className="text-xs">
+                {amenity}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <p className="text-sm font-semibold text-primary">Live rates on detail</p>
       </CardContent>
       <CardFooter className="border-t bg-transparent">
-        <Link href={searchHref} className="w-full">
+        <Link href={detailHref} className="w-full">
           <Button variant="outline" className="w-full">
-            Check live rates
+            View rooms
           </Button>
         </Link>
       </CardFooter>
@@ -91,11 +101,11 @@ export function FeaturedTripJackHotelsSection({
           <div className="mb-1 flex items-center gap-2">
             <Zap className="h-5 w-5 text-[#006CE4]" />
             <h2 className="text-xl font-bold text-[#0c2444] md:text-2xl">
-              Featured live TripJack hotels
+              Featured live hotels
             </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Browse synced properties with photos — search for live rates and availability.
+            Popular cities with photos — open a hotel to see live room rates.
           </p>
         </div>
         <Link href="/hotels/search">
@@ -105,7 +115,7 @@ export function FeaturedTripJackHotelsSection({
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {hotels.map((hotel) => (
-          <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
+          <FeaturedLiveHotelCard key={hotel.tjHotelId} hotel={hotel} />
         ))}
       </div>
     </section>

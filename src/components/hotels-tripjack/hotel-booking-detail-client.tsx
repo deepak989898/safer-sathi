@@ -238,7 +238,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
           <h2 className="font-semibold text-slate-900">Booking details</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-            <Item label="TripJack reference" value={booking.tripjackBookingId} />
+            <Item label="Booking reference" value={booking.tripjackBookingId} />
             <Item label="Supplier reference" value={booking.supplierReference ?? "—"} />
             <Item label="Confirmation / voucher" value={booking.confirmationNumber ?? booking.voucherNumber ?? "—"} />
             <Item label="Check-in" value={booking.checkIn} />

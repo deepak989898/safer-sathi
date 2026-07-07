@@ -206,7 +206,7 @@ export function HotelBookingSuccessClient() {
         >
           <Row label="Hotel" value={booking.hotelName} />
           <Row label="Booking ID" value={booking.bookingId} mono />
-          <Row label="TripJack Ref" value={booking.tripjackBookingId} mono />
+          <Row label="Booking reference" value={booking.tripjackBookingId} mono />
           {booking.confirmationNumber && (
             <Row label="Confirmation" value={booking.confirmationNumber} mono />
           )}

@@ -22,6 +22,7 @@ import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { FeaturedTripJackHotelsSection } from "@/components/hotels-tripjack/featured-tripjack-hotels";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
+import { POPULAR_FEATURED_CITIES } from "@/lib/tripjack-hotels/popular-cities";
 import type { Hotel } from "@/types";
 
 const STAR_OPTIONS = [
@@ -156,7 +157,7 @@ export default function HotelsClient({
         </div>
         <div className="space-y-2 border-t pt-4">
           <p className="text-sm font-medium">{locale === "hi" ? "लोकप्रिय शहर" : "Popular Cities"}</p>
-          {["Delhi", "Goa", "Udaipur", "Jaipur", "Manali"].map((city) => (
+          {POPULAR_FEATURED_CITIES.map((city) => (
             <button
               key={city}
               type="button"
@@ -191,15 +192,54 @@ export default function HotelsClient({
     [filtered, sortBy]
   );
 
+  const filteredLiveHotels = useMemo(() => {
+    const starMin = minStars.length > 0 ? Math.min(...minStars.map(Number)) : 0;
+    const q = query.trim().toLowerCase();
+    return featuredTripJackHotels.filter((hotel) => {
+      const matchQuery =
+        !q ||
+        hotel.name.toLowerCase().includes(q) ||
+        hotel.cityName.toLowerCase().includes(q) ||
+        hotel.location.toLowerCase().includes(q);
+      const matchStars = starMin === 0 || (hotel.starRating ?? 0) >= starMin;
+      return matchQuery && matchStars;
+    });
+  }, [featuredTripJackHotels, query, minStars]);
+
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
-      {tripjackHotelsEnabled && featuredTripJackHotels.length > 0 && (
-        <FeaturedTripJackHotelsSection hotels={featuredTripJackHotels} />
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
+            {locale === "hi" ? "होटल" : "Hotels"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {locale === "hi"
+              ? "लाइव रेट्स और चुनिंदा स्टे एक ही जगह"
+              : "Live hotel rates and handpicked stays in one place"}
+          </p>
+        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search city or hotel..."
+          className="w-full md:max-w-sm"
+        />
+      </div>
+
+      {tripjackHotelsEnabled && filteredLiveHotels.length > 0 && (
+        <FeaturedTripJackHotelsSection hotels={filteredLiveHotels} />
+      )}
+
+      {tripjackHotelsEnabled && featuredTripJackHotels.length > 0 && filteredLiveHotels.length === 0 && (
+        <div className="mb-8 rounded-2xl border bg-card px-6 py-12 text-center text-muted-foreground">
+          No live hotels match your search. Try another city or clear filters below.
+        </div>
       )}
 
       {tripjackHotelsEnabled && featuredTripJackHotels.length === 0 && (
         <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
-          Looking for live TripJack hotel rates?{" "}
+          Looking for live hotel rates?{" "}
           <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
             Search live hotels
           </Link>
@@ -218,21 +258,15 @@ export default function HotelsClient({
         <>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
-            {locale === "hi" ? "होटल" : manualHotelsEnabled ? "Curated Hotels" : "Hotels"}
-          </h1>
+          <h2 className="text-xl font-bold text-[#0c2444] md:text-2xl">
+            {locale === "hi" ? "चुनिंदा होटल" : "Curated Hotels"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {locale === "hi"
               ? "बजट से लक्ज़री — चुनिंदा होटल और रिसॉर्ट"
               : "Handpicked stays from budget-friendly to luxury resorts"}
           </p>
         </div>
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search city or hotel..."
-          className="w-full md:max-w-sm"
-        />
       </div>
 
       <ListingLayout

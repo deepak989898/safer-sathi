@@ -3,7 +3,7 @@ import { HotelDetailClient } from "@/components/hotels-tripjack/hotel-detail-cli
 
 export const metadata = {
   title: "Hotel Rooms & Pricing | Safar Sathi",
-  description: "TripJack hotel room options and pricing",
+  description: "Live hotel room options and pricing",
 };
 
 function DetailFallback() {

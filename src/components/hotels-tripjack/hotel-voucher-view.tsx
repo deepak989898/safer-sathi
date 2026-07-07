@@ -70,7 +70,7 @@ export function HotelVoucherView({ bookingId }: { bookingId: string }) {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <Block label="Booking ID" value={booking.bookingId} />
-            <Block label="TripJack Reference" value={booking.tripjackBookingId} />
+            <Block label="Booking reference" value={booking.tripjackBookingId} />
             {booking.confirmationNumber && (
               <Block label="Confirmation / Voucher No." value={booking.confirmationNumber} />
             )}
