@@ -5,6 +5,11 @@ import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
 import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
+  applyCatalogEnrichmentToDetail,
+  decodeHotelText,
+  type HotelCatalogEnrichment,
+} from "@/lib/tripjack-hotels/detail-content";
+import {
   normalizeTripJackHotelDetail,
   normalizeTripJackHotelListing,
   normalizeTripJackHotelReview,
@@ -225,17 +230,7 @@ export async function fetchTripJackHotelPricing(input: {
   currency: string;
   nationality: string;
   listingHotelName?: string;
-  catalogEnrichment?: {
-    name?: string;
-    address?: string;
-    cityName?: string;
-    countryName?: string;
-    rating?: number | null;
-    imageUrls?: string[];
-    heroImage?: string;
-    images?: unknown[];
-    facilities?: string[];
-  };
+  catalogEnrichment?: HotelCatalogEnrichment;
 }): Promise<{ detail: NormalizedHotelDetail; elapsedMs?: number; requestBody: HotelPricingRequestBody; rawResponse: unknown }> {
   const { pricingUrl } = getTripJackHotelProxyConfig();
   const body = buildHotelPricingBody(input);
@@ -274,7 +269,7 @@ export async function fetchTripJackHotelPricing(input: {
 
   console.log("[tripjack-hotels] pricing response time ms:", elapsedMs);
 
-  const detail = normalizeTripJackHotelDetail(raw, {
+  let detail = normalizeTripJackHotelDetail(raw, {
     correlationId: body.correlationId,
     hotelId: body.hid,
     checkIn: body.checkIn,
@@ -289,26 +284,19 @@ export async function fetchTripJackHotelPricing(input: {
     throw new TripJackHotelApiError("Could not parse hotel pricing response", 502, raw, pricingUrl);
   }
 
+  detail.description = decodeHotelText(detail.description);
+
   if (input.catalogEnrichment) {
-    if (input.catalogEnrichment.address || input.catalogEnrichment.cityName) {
-      detail.location =
-        detail.location ||
-        [input.catalogEnrichment.address, input.catalogEnrichment.cityName, input.catalogEnrichment.countryName]
-          .filter(Boolean)
-          .join(", ");
-    }
-    if (input.catalogEnrichment.rating != null && detail.starRating == null) {
-      detail.starRating = input.catalogEnrichment.rating;
-    }
-    const catalogUrls = input.catalogEnrichment.imageUrls?.length
-      ? [...input.catalogEnrichment.imageUrls]
+    const enrichment = input.catalogEnrichment;
+    const catalogUrls = enrichment.imageUrls?.length
+      ? [...enrichment.imageUrls]
       : catalogEntryImageUrls({
-          imageUrls: input.catalogEnrichment.imageUrls,
-          heroImage: input.catalogEnrichment.heroImage,
-          images: input.catalogEnrichment.images,
+          imageUrls: enrichment.imageUrls,
+          heroImage: enrichment.heroImage,
+          images: enrichment.images,
         });
-    if (input.catalogEnrichment.heroImage) {
-      const hero = input.catalogEnrichment.heroImage;
+    if (enrichment.heroImage) {
+      const hero = enrichment.heroImage;
       const merged = [hero, ...catalogUrls.filter((url) => url !== hero)];
       if (merged.length) {
         detail.images = [...new Set([...merged, ...detail.images])];
@@ -316,12 +304,7 @@ export async function fetchTripJackHotelPricing(input: {
     } else if (catalogUrls.length) {
       detail.images = [...new Set([...catalogUrls, ...detail.images])];
     }
-    if (!detail.amenities.length && input.catalogEnrichment.facilities?.length) {
-      detail.amenities = input.catalogEnrichment.facilities;
-    }
-    if (input.catalogEnrichment.name && detail.name === "Hotel") {
-      detail.name = input.catalogEnrichment.name;
-    }
+    detail = applyCatalogEnrichmentToDetail(detail, enrichment);
   }
 
   if (!detail.options.length) {

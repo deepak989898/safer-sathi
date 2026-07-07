@@ -8,6 +8,7 @@ import type {
 } from "@/lib/tripjack-hotels/types";
 import { extractImageUrlList, parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
+import { decodeHotelText } from "@/lib/tripjack-hotels/detail-content";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -392,6 +393,8 @@ export function normalizeTripJackHotelDetail(
     ...stringList(hotel.bookingNotes ?? hotel.notes),
   ];
 
+  const staticContent = asRecord(hotel.staticContent);
+
   return {
     correlationId: pickString(payload, ["correlationId"], context.correlationId),
     hotelId: typeof hotelId === "number" ? hotelId : String(hotelId),
@@ -409,8 +412,11 @@ export function normalizeTripJackHotelDetail(
       const n = pickNumber(hotel, ["starRating", "stars", "rating"], 0);
       return n > 0 ? n : null;
     })(),
-    amenities: stringList(hotel.amenities ?? hotel.facilities ?? payload.amenities),
-    description: pickString(hotel, ["description", "desc", "about"], ""),
+    amenities: stringList(hotel.amenities ?? hotel.facilities ?? payload.amenities ?? staticContent?.facilities),
+    description: decodeHotelText(
+      pickString(hotel, ["description", "desc", "about", "overview", "hotelDescription"], "") ||
+        pickString(staticContent ?? {}, ["description", "overview", "about"], "")
+    ),
     images: imageUrlList(hotel.images ?? hotel.photos ?? hotel.imageUrls ?? payload.images),
     checkIn: context.checkIn,
     checkOut: context.checkOut,

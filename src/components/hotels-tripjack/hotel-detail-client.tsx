@@ -3,24 +3,29 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Building2, MapPin, Star } from "lucide-react";
 import {
-  Building2,
-  MapPin,
-  Star,
-} from "lucide-react";
-import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
+  CatalogDetailTabsList,
+  CatalogDetailTabsTrigger,
+} from "@/components/customer/catalog-detail-tabs";
+import { PackageImageGallery } from "@/components/customer/package-image-gallery";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { HotelPricingDebugPanel } from "@/components/hotels-tripjack/hotel-pricing-debug-panel";
+import {
+  HotelAmenitiesPanel,
+  HotelOverviewPanel,
+  HotelSelectedRoomCard,
+} from "@/components/hotels-tripjack/hotel-detail-panels";
 import { HotelRoomOptionCard } from "@/components/hotels-tripjack/hotel-room-option-card";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import { HotelCard, HotelPrimaryButton, HotelStepBar } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
-import { PackageImageGallery } from "@/components/customer/package-image-gallery";
+import { HotelStayDetailsForm, type HotelStayDetails } from "@/components/hotels-tripjack/hotel-stay-details-form";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
-import { HotelStayDetailsForm, type HotelStayDetails } from "@/components/hotels-tripjack/hotel-stay-details-form";
 import { startHotelLivePricing } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import {
   isHotelBrowseSession,
@@ -38,12 +43,35 @@ import type {
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
 
+type DetailTab = "rooms" | "overview" | "amenities";
+
+type StaticContentPreview = Pick<
+  NormalizedHotelDetail,
+  | "name"
+  | "location"
+  | "address"
+  | "cityName"
+  | "stateName"
+  | "countryName"
+  | "starRating"
+  | "propertyType"
+  | "contact"
+  | "description"
+  | "amenities"
+  | "amenityGroups"
+  | "policies"
+  | "checkInPolicy"
+  | "checkOutPolicy"
+  | "geolocation"
+  | "images"
+>;
+
 function DetailSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
-      <div className="h-56 rounded bg-slate-200" />
+      <div className="h-48 rounded bg-slate-200" />
       <div className="h-8 w-2/3 rounded bg-slate-200" />
-      <div className="h-40 rounded bg-slate-200" />
+      <div className="h-32 rounded bg-slate-200" />
     </div>
   );
 }
@@ -79,8 +107,11 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
   const [needsStayDetails, setNeedsStayDetails] = useState(initialNeedsStayDetails);
   const [loading, setLoading] = useState(!initialNeedsStayDetails);
+  const [staticLoading, setStaticLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<DetailTab>("rooms");
   const [error, setError] = useState<PricingErrorState | null>(null);
   const [detail, setDetail] = useState<NormalizedHotelDetail | null>(null);
+  const [staticPreview, setStaticPreview] = useState<StaticContentPreview | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>("");
   const [sessionExpired, setSessionExpired] = useState(false);
   const [adminDebug, setAdminDebug] = useState<{
@@ -92,6 +123,64 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     if (!detail) return null;
     return detail.options.find((o) => o.optionId === selectedOptionId) ?? null;
   }, [detail, selectedOptionId]);
+
+  const displayDetail = useMemo<NormalizedHotelDetail | null>(() => {
+    if (detail) return detail;
+    if (!staticPreview) return null;
+    return {
+      correlationId: "",
+      hotelId: hid,
+      name: staticPreview.name || listingHotel?.name || "Hotel",
+      reviewHash: "",
+      location: staticPreview.location || listingHotel?.location || "",
+      starRating: staticPreview.starRating ?? listingHotel?.starRating ?? null,
+      amenities: staticPreview.amenities ?? [],
+      amenityGroups: staticPreview.amenityGroups,
+      description: staticPreview.description ?? "",
+      images: staticPreview.images ?? [],
+      checkIn: "",
+      checkOut: "",
+      guestSummary: "",
+      bookingNotes: [],
+      options: [],
+      currency: "INR",
+      nationality: "106",
+      fetchedAt: "",
+      expiresAt: "",
+      address: staticPreview.address,
+      cityName: staticPreview.cityName,
+      stateName: staticPreview.stateName,
+      countryName: staticPreview.countryName,
+      propertyType: staticPreview.propertyType,
+      contact: staticPreview.contact,
+      policies: staticPreview.policies,
+      checkInPolicy: staticPreview.checkInPolicy,
+      checkOutPolicy: staticPreview.checkOutPolicy,
+      geolocation: staticPreview.geolocation,
+    };
+  }, [detail, staticPreview, hid, listingHotel]);
+
+  const loadStaticContent = useCallback(async () => {
+    if (!hid) return;
+    setStaticLoading(true);
+    try {
+      const res = await fetch("/api/hotels/static-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hid }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.content) {
+        setStaticPreview(json.data.content as StaticContentPreview);
+      }
+    } catch (e) {
+      if (isStaff) {
+        console.warn("[hotel-detail] static content failed", e);
+      }
+    } finally {
+      setStaticLoading(false);
+    }
+  }, [hid, isStaff]);
 
   const loadPricing = useCallback(
     async (force = false) => {
@@ -220,6 +309,10 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   );
 
   useEffect(() => {
+    void loadStaticContent();
+  }, [loadStaticContent]);
+
+  useEffect(() => {
     if (!needsStayDetails) {
       void loadPricing(false);
     }
@@ -227,6 +320,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
   const onSelectRoom = (optionId: string) => {
     setSelectedOptionId(optionId);
+    setActiveTab("rooms");
     toast.success("Room selected", { duration: 1500 });
   };
 
@@ -321,13 +415,17 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         })
       );
     }
+    push(staticPreview?.images ?? []);
     push(detail?.images ?? []);
     return urls;
-  }, [listingHotel, detail?.images]);
+  }, [listingHotel, staticPreview?.images, detail?.images]);
+
+  const headerName = displayDetail?.name ?? listingHotel?.name ?? "Hotel details";
+  const headerLocation = displayDetail?.location ?? listingHotel?.location;
 
   return (
     <HotelBookingLayout
-      title={detail?.name ?? listingHotel?.name ?? "Hotel details"}
+      title={headerName}
       subtitle={
         detail
           ? `${detail.checkIn} → ${detail.checkOut} · ${detail.guestSummary}`
@@ -346,26 +444,42 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         current={1}
       />
 
-      {loading && !needsStayDetails && <DetailSkeleton />}
+      {loading && !needsStayDetails && !detail && <DetailSkeleton />}
 
       {needsStayDetails && !detail && listingHotel && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <HotelCard padding="sm" className="overflow-hidden">
             {galleryImages.length > 0 && (
               <PackageImageGallery images={galleryImages} alt={listingHotel.name} className="px-4 pt-4" />
             )}
-            <div className="space-y-3 p-5 md:p-6">
+            <div className="space-y-2 p-4 md:p-5">
               <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
                 {listingHotel.name}
               </h1>
-              {listingHotel.location && (
+              {headerLocation && (
                 <p className="inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
                   <MapPin className="h-4 w-4" style={{ color: HOTEL_UI.action }} />
-                  {listingHotel.location}
+                  {headerLocation}
                 </p>
               )}
             </div>
           </HotelCard>
+
+          {displayDetail && !staticLoading && (
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DetailTab)}>
+              <CatalogDetailTabsList>
+                <CatalogDetailTabsTrigger value="overview">Overview</CatalogDetailTabsTrigger>
+                <CatalogDetailTabsTrigger value="amenities">Amenities</CatalogDetailTabsTrigger>
+              </CatalogDetailTabsList>
+              <TabsContent value="overview" className="mt-4">
+                <HotelOverviewPanel detail={displayDetail} />
+              </TabsContent>
+              <TabsContent value="amenities" className="mt-4">
+                <HotelAmenitiesPanel detail={displayDetail} />
+              </TabsContent>
+            </Tabs>
+          )}
+
           <HotelStayDetailsForm
             hotelName={listingHotel.name}
             loading={loading}
@@ -374,128 +488,111 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         </div>
       )}
 
-        {error && !loading && !needsStayDetails && (
-          <HotelCard className="py-12 text-center">
-            <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
-            <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
-              Unable to load hotel pricing
-            </p>
-            <p className="mt-2 text-sm text-red-700">{error.message}</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {error.retryable && (
-                <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
-                  Retry
-                </HotelPrimaryButton>
-              )}
-              <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
-                <HotelPrimaryButton variant="outline" className="!w-auto px-6">
-                  {error.backToSearch ? "Search again" : "Back to results"}
-                </HotelPrimaryButton>
-              </Link>
-            </div>
-          </HotelCard>
-        )}
-
-        {detail && !loading && !error && (
-          <div className="space-y-6">
-            {isSuperAdmin && adminDebug && (
-              <HotelPricingDebugPanel
-                requestBody={adminDebug.requestBody}
-                rawResponse={adminDebug.rawResponse}
-              />
+      {error && !loading && !needsStayDetails && (
+        <HotelCard className="py-12 text-center">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
+          <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
+            Unable to load hotel pricing
+          </p>
+          <p className="mt-2 text-sm text-red-700">{error.message}</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {error.retryable && (
+              <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
+                Retry
+              </HotelPrimaryButton>
             )}
+            <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
+              <HotelPrimaryButton variant="outline" className="!w-auto px-6">
+                {error.backToSearch ? "Search again" : "Back to results"}
+              </HotelPrimaryButton>
+            </Link>
+          </div>
+        </HotelCard>
+      )}
 
-            <HotelCard padding="sm" className="overflow-hidden">
-              {galleryImages.length > 0 && (
-                <PackageImageGallery images={galleryImages} alt={detail.name} className="px-4 pt-4" />
-              )}
-              <div className="space-y-3 p-5 md:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
-                      {detail.name}
-                    </h1>
-                    {detail.location && (
-                      <p className="mt-2 inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-                        <MapPin className="h-4 w-4" style={{ color: HOTEL_UI.action }} />
-                        {detail.location}
-                      </p>
-                    )}
-                  </div>
-                  {detail.starRating != null && (
-                    <div
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold"
-                      style={{ backgroundColor: "#FFF8E6", color: "#9A7200", borderRadius: HOTEL_UI.btnRadius }}
-                    >
-                      <Star className="h-4 w-4 fill-[#FEBA02] text-[#FEBA02]" />
-                      {detail.starRating} Star
-                    </div>
+      {detail && !error && !needsStayDetails && (
+        <div className="space-y-4">
+          {isSuperAdmin && adminDebug && (
+            <HotelPricingDebugPanel
+              requestBody={adminDebug.requestBody}
+              rawResponse={adminDebug.rawResponse}
+            />
+          )}
+
+          <HotelCard padding="sm" className="overflow-hidden">
+            {galleryImages.length > 0 && (
+              <PackageImageGallery images={galleryImages} alt={detail.name} className="px-4 pt-4" />
+            )}
+            <div className="space-y-3 p-4 md:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
+                    {detail.name}
+                  </h1>
+                  {detail.location && (
+                    <p className="mt-1 inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+                      <MapPin className="h-4 w-4" style={{ color: HOTEL_UI.action }} />
+                      {detail.location}
+                    </p>
                   )}
                 </div>
-
-                <div className="flex gap-4 border-b text-sm font-semibold" style={{ borderColor: HOTEL_UI.border, color: HOTEL_UI.primary }}>
-                  <span className="border-b-2 pb-2" style={{ borderColor: HOTEL_UI.action }}>
-                    Rooms
-                  </span>
-                  <span className="pb-2 opacity-50">Overview</span>
-                  <span className="pb-2 opacity-50">Amenities</span>
-                </div>
-
-                {detail.description && (
-                  <p className="text-sm leading-relaxed text-slate-600">{detail.description}</p>
-                )}
-
-                {detail.amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {detail.amenities.slice(0, 12).map((a) => (
-                      <span
-                        key={a}
-                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
-                      >
-                        {a}
-                      </span>
-                    ))}
+                {detail.starRating != null && (
+                  <div
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold"
+                    style={{ backgroundColor: "#FFF8E6", color: "#9A7200", borderRadius: HOTEL_UI.btnRadius }}
+                  >
+                    <Star className="h-4 w-4 fill-[#FEBA02] text-[#FEBA02]" />
+                    {detail.starRating} Star
                   </div>
                 )}
               </div>
-            </HotelCard>
 
-            {detail.bookingNotes.length > 0 && (
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
-                <p className="mb-1 font-semibold">Booking notes</p>
-                {detail.bookingNotes.map((note) => (
-                  <p key={note}>• {note}</p>
-                ))}
-              </div>
-            )}
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DetailTab)}>
+                <CatalogDetailTabsList>
+                  <CatalogDetailTabsTrigger value="rooms">Rooms</CatalogDetailTabsTrigger>
+                  <CatalogDetailTabsTrigger value="overview">Overview</CatalogDetailTabsTrigger>
+                  <CatalogDetailTabsTrigger value="amenities">Amenities</CatalogDetailTabsTrigger>
+                </CatalogDetailTabsList>
 
-            {selectedOption && (
-              <HotelCancellationTimeline
-                isRefundable={selectedOption.isRefundable}
-                freeCancellationUntil={selectedOption.freeCancellationUntil}
-                penalties={selectedOption.penalties}
-                locale={locale}
-              />
-            )}
+                <TabsContent value="rooms" className="mt-4 space-y-4">
+                  {selectedOption && (
+                    <HotelSelectedRoomCard
+                      option={selectedOption}
+                      detail={detail}
+                      locale={locale}
+                    />
+                  )}
 
-            <div>
-              <h2 className="mb-3 text-lg font-bold" style={{ color: HOTEL_UI.primary }}>
-                Available rooms
-              </h2>
-              <div className="space-y-4">
-                {detail.options.map((option) => (
-                  <HotelRoomOptionCard
-                    key={option.optionId}
-                    option={option}
-                    selected={option.optionId === selectedOptionId}
-                    locale={locale}
-                    onSelect={onSelectRoom}
-                  />
-                ))}
-              </div>
+                  <div>
+                    <h2 className="mb-3 text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+                      Available rooms
+                    </h2>
+                    <div className="space-y-3">
+                      {detail.options.map((option) => (
+                        <HotelRoomOptionCard
+                          key={option.optionId}
+                          option={option}
+                          selected={option.optionId === selectedOptionId}
+                          locale={locale}
+                          onSelect={onSelectRoom}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="overview" className="mt-4">
+                  <HotelOverviewPanel detail={detail} />
+                </TabsContent>
+
+                <TabsContent value="amenities" className="mt-4">
+                  <HotelAmenitiesPanel detail={detail} />
+                </TabsContent>
+              </Tabs>
             </div>
+          </HotelCard>
 
-            <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur">
+          <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs" style={{ color: HOTEL_UI.textMuted }}>
@@ -516,8 +613,8 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                 </HotelPrimaryButton>
               </div>
             </HotelCard>
-          </div>
-        )}
+        </div>
+      )}
     </HotelBookingLayout>
   );
 }

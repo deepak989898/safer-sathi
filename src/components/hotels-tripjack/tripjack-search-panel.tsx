@@ -2,7 +2,6 @@
 
 import { Building2, Calendar, Loader2, MapPin, Plus, Search, Trash2, Users, Zap } from "lucide-react";
 import {
-  HotelAdminAdvancedPanel,
   HotelDestinationAutocomplete,
 } from "@/components/hotels-tripjack/hotel-destination-autocomplete";
 import {
@@ -23,9 +22,6 @@ export interface TripJackSearchPanelProps {
   destinationSuggestions: DestinationSuggestion[];
   destinationLoading: boolean;
   showDestinationDropdown: boolean;
-  adminHidsInput: string;
-  showAdminAdvanced: boolean;
-  isSuperAdmin: boolean;
   loading: boolean;
   error: string | null;
   nationalities: TripJackHotelNationality[];
@@ -37,8 +33,6 @@ export interface TripJackSearchPanelProps {
   destinationContainerRef?: React.RefObject<HTMLDivElement | null>;
   highlightedIndex?: number;
   onHighlightedIndexChange?: (index: number) => void;
-  onAdminHidsChange: (value: string) => void;
-  onToggleAdminAdvanced: () => void;
   onRoomChange: (index: number, patch: Partial<HotelRoomRequest>) => void;
   onAddRoom: () => void;
   onRemoveRoom: (index: number) => void;
@@ -57,9 +51,6 @@ export function TripJackSearchPanel({
   destinationSuggestions,
   destinationLoading,
   showDestinationDropdown,
-  adminHidsInput,
-  showAdminAdvanced,
-  isSuperAdmin,
   loading,
   error,
   nationalities,
@@ -71,8 +62,6 @@ export function TripJackSearchPanel({
   destinationContainerRef,
   highlightedIndex,
   onHighlightedIndexChange,
-  onAdminHidsChange,
-  onToggleAdminAdvanced,
   onRoomChange,
   onAddRoom,
   onRemoveRoom,
@@ -348,14 +337,6 @@ export function TripJackSearchPanel({
             </HotelPrimaryButton>
           </div>
         </div>
-
-        <HotelAdminAdvancedPanel
-          open={showAdminAdvanced}
-          onToggle={onToggleAdminAdvanced}
-          adminHidsInput={adminHidsInput}
-          onAdminHidsChange={onAdminHidsChange}
-          isSuperAdmin={isSuperAdmin}
-        />
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

@@ -2,13 +2,14 @@ import { z } from "zod";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
-import { getTripJackHotelCatalogEntryByHid } from "@/lib/tripjack-hotels/catalog-firestore";
-import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   buildHotelPricingBody,
   fetchTripJackHotelPricing,
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
+import { catalogEntryToEnrichment } from "@/lib/tripjack-hotels/detail-content";
+import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
+import { resolveHotelStaticEnrichment } from "@/lib/tripjack-hotels/static-content-service";
 import {
   DEFAULT_HOTEL_CURRENCY,
   DEFAULT_HOTEL_NATIONALITY,
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const catalog = await getTripJackHotelCatalogEntryByHid(parsed.data.hid);
+    const { enrichment, catalog, source: staticSource } = await resolveHotelStaticEnrichment(
+      parsed.data.hid
+    );
     const started = Date.now();
 
     const result = await fetchTripJackHotelPricing({
@@ -86,19 +89,14 @@ export async function POST(request: Request) {
       currency: parsed.data.currency,
       nationality: parsed.data.nationality,
       listingHotelName: parsed.data.listingHotelName,
-      catalogEnrichment: catalog
-        ? {
-            name: catalog.name,
-            address: catalog.address,
-            cityName: catalog.cityName,
-            countryName: catalog.countryName,
-            rating: catalog.rating,
-            imageUrls: catalogEntryImageUrls(catalog),
-            heroImage: catalog.heroImage,
-            images: catalog.images,
-            facilities: catalog.facilities,
-          }
-        : undefined,
+      catalogEnrichment:
+        enrichment ??
+        (catalog
+          ? {
+              ...catalogEntryToEnrichment(catalog),
+              imageUrls: catalogEntryImageUrls(catalog),
+            }
+          : undefined),
     });
 
     const requestBody = buildHotelPricingBody(parsed.data);
@@ -115,6 +113,7 @@ export async function POST(request: Request) {
               reviewHashPresent: Boolean(result.detail.reviewHash),
               elapsedMs: result.elapsedMs,
               catalogFound: Boolean(catalog),
+              staticSource,
             },
           }
         : {}),

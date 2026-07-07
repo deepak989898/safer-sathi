@@ -151,6 +151,7 @@ export interface NormalizedHotelDetail {
   location: string;
   starRating: number | null;
   amenities: string[];
+  amenityGroups?: { label: string; items: string[] }[];
   description: string;
   images: string[];
   checkIn: string;
@@ -162,6 +163,16 @@ export interface NormalizedHotelDetail {
   nationality: string;
   fetchedAt: string;
   expiresAt: string;
+  address?: string;
+  cityName?: string;
+  stateName?: string;
+  countryName?: string;
+  propertyType?: string;
+  contact?: string;
+  policies?: string[];
+  checkInPolicy?: string;
+  checkOutPolicy?: string;
+  geolocation?: { lat?: number; lng?: number };
 }
 
 /** Session payload prepared for Review API (Phase 3). */
