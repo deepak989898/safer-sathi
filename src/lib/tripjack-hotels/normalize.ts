@@ -6,6 +6,7 @@ import type {
   NormalizedHotelPricing,
   NormalizedHotelReviewResult,
 } from "@/lib/tripjack-hotels/types";
+import { extractImageUrlList } from "@/lib/tripjack-hotels/hotel-images";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -55,6 +56,10 @@ function unwrapPayload(raw: unknown): Record<string, unknown> | null {
   if (!record) return null;
   if (record.success === true && record.data) return asRecord(record.data);
   return record;
+}
+
+function imageUrlList(value: unknown): string[] {
+  return extractImageUrlList(value);
 }
 
 function stringList(value: unknown): string[] {
@@ -183,7 +188,7 @@ function parseOption(optionRaw: unknown, currencyFallback: string): NormalizedHo
     roomType: pickString(option, ["roomType", "type", "optionType"], roomName),
     ratePlan: pickString(option, ["ratePlan", "ratePlanName", "planName"], mealBasis),
     roomInfo,
-    roomImages: stringList(option.roomImages ?? option.images ?? option.photos),
+    roomImages: imageUrlList(option.roomImages ?? option.images ?? option.photos),
     roomCapacity: pickString(option, ["roomCapacity", "capacity", "occupancy"], ""),
     roomFeatures: stringList(option.roomFeatures ?? option.features ?? option.amenities),
     inclusions: stringList(option.inclusions),
@@ -227,25 +232,30 @@ function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHote
   const cheapest = options[0] ?? null;
 
   const starRaw = pickNumber(hotel, ["starRating", "stars", "rating"], 0);
-  const images = stringList(hotel.images ?? hotel.photos ?? hotel.imageList);
+  const images = imageUrlList(
+    hotel.images ?? hotel.photos ?? hotel.imageList ?? hotel.imageUrls ?? hotel.hotelImages
+  );
+  const heroImage = pickString(hotel, ["heroImage", "thumbnail", "thumbUrl", "mainImage"], "");
   const optionImage = cheapest?.roomImages[0];
-  const imageUrl = images[0] || optionImage || undefined;
-  const mealBasis = cheapest?.mealBasis ?? "—";
+  const imageUrl = images[0] || heroImage || optionImage || undefined;
 
   return {
     tjHotelId: typeof tjHotelId === "number" ? tjHotelId : String(tjHotelId),
     name,
     starRating: starRaw > 0 ? starRaw : null,
     imageUrl,
+    images: images.length ? images : heroImage ? [heroImage] : optionImage ? [optionImage] : [],
+    imageUrls: images.length ? images : undefined,
+    heroImage: heroImage || undefined,
     location: pickString(hotel, ["location", "address", "city", "locality"], ""),
-    hasBreakfast: hasBreakfastMeal(mealBasis),
+    hasBreakfast: hasBreakfastMeal(cheapest?.mealBasis ?? "—"),
     cheapestTotalPrice: cheapest?.pricing.totalPrice ?? 0,
     cheapestBasePrice: cheapest?.pricing.basePrice ?? 0,
     cheapestTaxes: cheapest?.pricing.taxes ?? 0,
     cheapestMf: cheapest?.pricing.mf ?? 0,
     cheapestMft: cheapest?.pricing.mft ?? 0,
     currency: cheapest?.pricing.currency ?? currencyFallback,
-    mealBasis,
+    mealBasis: cheapest?.mealBasis ?? "—",
     inclusions: cheapest?.inclusions ?? [],
     isRefundable: cheapest?.isRefundable ?? false,
     panRequired: cheapest?.panRequired ?? false,
@@ -382,7 +392,7 @@ export function normalizeTripJackHotelDetail(
     })(),
     amenities: stringList(hotel.amenities ?? hotel.facilities ?? payload.amenities),
     description: pickString(hotel, ["description", "desc", "about"], ""),
-    images: stringList(hotel.images ?? hotel.photos ?? hotel.imageUrls ?? payload.images),
+    images: imageUrlList(hotel.images ?? hotel.photos ?? hotel.imageUrls ?? payload.images),
     checkIn: context.checkIn,
     checkOut: context.checkOut,
     guestSummary: guestSummary(context.rooms),

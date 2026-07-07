@@ -40,7 +40,7 @@ export async function prepareHotelBookingFromReview(
     customerEmail: pg.email,
     customerMobile: pg.mobile,
     correlationId: input.review.correlationId,
-    reviewHash: input.reviewHash?.trim() || undefined,
+    reviewHash: input.reviewHash?.trim() || input.review.reviewHash || undefined,
     tjHotelId: input.review.tjHotelId,
     hotelName: input.review.hotelName,
     checkIn: input.review.searchContext.checkIn,

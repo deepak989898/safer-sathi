@@ -139,7 +139,10 @@ export function HotelReviewClient() {
         return;
       }
 
-      const reviewed = json.data.review as NormalizedHotelReviewResult;
+      const reviewed = {
+        ...(json.data.review as NormalizedHotelReviewResult),
+        reviewHash: sessionPrep.reviewHash,
+      };
       saveHotelReviewResult(reviewed);
       setReview(reviewed);
 

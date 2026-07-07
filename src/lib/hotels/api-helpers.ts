@@ -1,7 +1,8 @@
 import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { apiError } from "@/lib/api-response";
-import { isTripJackHotelLiveBookingAllowed } from "@/lib/tripjack-hotels/config";
-import { getTripJackHotelOpsMeta } from "@/lib/tripjack-hotels/ops-firestore";
+import {
+  assertTripJackHotelBookingAllowed as checkHotelBookingAllowed,
+} from "@/lib/hotels/booking-gates";
 
 export async function getHotelUserId(request: Request): Promise<string> {
   const auth = await optionalAuthenticateRequest(request);
@@ -21,16 +22,8 @@ export async function requireHotelUserAuth(
 export async function assertTripJackHotelBookingAllowed(): Promise<
   { ok: true } | { error: Response }
 > {
-  const ops = await getTripJackHotelOpsMeta();
-  if (!isTripJackHotelLiveBookingAllowed(ops.liveBookingEnabled)) {
-    return {
-      error: apiError(
-        "Hotel booking is temporarily unavailable. Please try again later or contact support.",
-        503,
-        { code: "HOTEL_BOOKING_DISABLED" }
-      ),
-    };
-  }
+  const result = await checkHotelBookingAllowed();
+  if ("error" in result) return { error: result.error };
   return { ok: true };
 }
 

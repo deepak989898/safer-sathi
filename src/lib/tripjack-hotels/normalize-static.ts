@@ -1,4 +1,5 @@
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
+import { extractImageUrlList } from "@/lib/tripjack-hotels/hotel-images";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -24,15 +25,8 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string {
 }
 
 function pickImages(raw: Record<string, unknown>): string[] {
-  const images = raw.images ?? raw.imageList ?? raw.hotelImages;
-  if (!Array.isArray(images)) return [];
-  return images
-    .map((item) => {
-      if (typeof item === "string") return item;
-      const rec = asRecord(item);
-      return rec ? pickString(rec, ["url", "imageUrl", "link", "path"]) : "";
-    })
-    .filter(Boolean);
+  const images = raw.images ?? raw.imageList ?? raw.hotelImages ?? raw.imageUrls;
+  return extractImageUrlList(images);
 }
 
 function pickFacilities(raw: Record<string, unknown>): string[] {

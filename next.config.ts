@@ -19,7 +19,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "firebasestorage.googleapis.com",
+        hostname: "i.travelapi.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.travelapi.com",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.tripjack.com",
       },
     ],
   },

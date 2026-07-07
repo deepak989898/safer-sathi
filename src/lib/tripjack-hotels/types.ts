@@ -85,6 +85,10 @@ export interface NormalizedHotel {
   name: string;
   starRating?: number | null;
   imageUrl?: string;
+  images?: string[];
+  imageUrls?: string[];
+  heroImage?: string;
+  staticContent?: { images?: unknown };
   location?: string;
   hasBreakfast?: boolean;
   cheapestTotalPrice: number;
@@ -203,6 +207,7 @@ export interface NormalizedHotelReviewResult {
   tjHotelId: string | number;
   hotelName: string;
   bookingId: string;
+  reviewHash?: string;
   option: NormalizedHotelOption;
   deadlineDateTime: string;
   onHoldAllowed: boolean;

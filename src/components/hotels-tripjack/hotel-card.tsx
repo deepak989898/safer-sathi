@@ -1,9 +1,11 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { useState } from "react";
+import { Building2, Star } from "lucide-react";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { formatCurrency } from "@/lib/i18n";
+import { resolveHotelCardImageUrl } from "@/lib/tripjack-hotels/hotel-images";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
 
@@ -15,28 +17,35 @@ interface HotelCardProps {
 
 export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
   const stars = hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
+  const imageSrc = resolveHotelCardImageUrl(hotel);
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(imageSrc) && !imageFailed;
 
   return (
     <article
       className="flex flex-col overflow-hidden border bg-white shadow-sm transition hover:shadow-md md:flex-row"
       style={{ borderRadius: HOTEL_UI.cardRadius, borderColor: HOTEL_UI.border }}
     >
-      {hotel.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={hotel.imageUrl}
-          alt={hotel.name}
-          className="h-48 w-full shrink-0 object-cover md:h-auto md:w-56"
-          loading="lazy"
-        />
-      ) : (
-        <div
-          className="flex h-48 w-full shrink-0 items-center justify-center bg-slate-100 md:h-auto md:w-56"
-          style={{ color: HOTEL_UI.textMuted }}
-        >
-          <span className="text-xs font-medium uppercase tracking-wide">No image</span>
-        </div>
-      )}
+      <div className="relative h-48 w-full shrink-0 overflow-hidden bg-slate-100 md:h-auto md:min-h-[12rem] md:w-56 lg:w-64">
+        {showImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageSrc}
+            alt={hotel.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div
+            className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center"
+            style={{ color: HOTEL_UI.textMuted }}
+          >
+            <Building2 className="h-8 w-8 opacity-40" />
+            <span className="text-xs font-medium uppercase tracking-wide">No image</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

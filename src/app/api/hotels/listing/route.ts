@@ -10,8 +10,10 @@ import {
   listTripJackHotels,
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
-import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
+import { getTripJackHotelCatalogEntryByHid } from "@/lib/tripjack-hotels/catalog-firestore";
+import { resolveHotelCardImageUrl } from "@/lib/tripjack-hotels/hotel-images";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
+import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
 import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY, getTripJackHotelProxyBaseUrl } from "@/lib/tripjack-hotels/config";
 import { resolveDestinationToHids } from "@/lib/tripjack-hotels/destination-resolver";
 
@@ -105,6 +107,22 @@ export async function POST(request: Request) {
     };
 
     const result = await listTripJackHotels(listingParams);
+
+    const enrichedHotels = await Promise.all(
+      result.hotels.map(async (hotel) => {
+        if (resolveHotelCardImageUrl(hotel)) return hotel;
+        const catalog = await getTripJackHotelCatalogEntryByHid(hotel.tjHotelId);
+        if (!catalog?.images?.length) return hotel;
+        return {
+          ...hotel,
+          images: catalog.images,
+          imageUrls: catalog.images,
+          imageUrl: catalog.images[0],
+          staticContent: { images: catalog.images },
+        };
+      })
+    );
+
     const includeDebug = Boolean(auth && isStaffUser(auth));
     const requestBody = buildHotelListingBody(listingParams);
 
@@ -113,7 +131,7 @@ export async function POST(request: Request) {
       nationality: result.nationality,
       currency: result.currency,
       totalResults: result.totalResults,
-      hotels: result.hotels,
+      hotels: enrichedHotels,
       destinationLabel,
       destinationResolution,
       message:

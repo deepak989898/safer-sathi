@@ -2,7 +2,7 @@
 
 const FRIENDLY_BY_CODE: Record<string, string> = {
   SEARCH_SESSION_EXPIRED: "Your session expired. Please search for hotels again.",
-  HOTEL_BOOKING_DISABLED: "Hotel booking is temporarily unavailable. Please try again later.",
+  HOTEL_BOOKING_DISABLED: "Hotel booking is unavailable. See details below or contact support.",
   PAN_MISSING: "PAN number is required for this hotel.",
   PASSPORT_MISSING: "Passport details are required for this hotel.",
   INVALID_HOTEL_ID: "This hotel is no longer available. Please choose another property.",
@@ -53,8 +53,15 @@ export function mapHotelCustomerError(input: {
 
 export function parseHotelApiClientError(json: {
   error?: string;
-  details?: { code?: string; message?: string };
+  details?: { code?: string; message?: string; blockers?: string[]; adminMessage?: string };
 }): string {
+  const blockers = json.details?.blockers;
+  if (blockers?.length) {
+    return `${json.error ?? "Hotel booking unavailable"}\n${blockers.map((b) => `• ${b}`).join("\n")}`;
+  }
+  if (json.details?.adminMessage) {
+    return String(json.details.adminMessage);
+  }
   return mapHotelCustomerError({
     message: json.error ?? json.details?.message,
     code: json.details?.code,
