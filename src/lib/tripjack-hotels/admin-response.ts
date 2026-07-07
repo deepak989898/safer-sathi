@@ -118,7 +118,31 @@ export async function tripjackAdminApiCall<T = unknown>(
   init?: RequestInit,
   context?: string
 ): Promise<TripJackAdminApiResult<T>> {
-  const response = await adminApiFetch(url, init);
+  let response: Response;
+  try {
+    response = await adminApiFetch(url, init);
+  } catch (error) {
+    const networkMessage =
+      error instanceof Error ? error.message : "Network request failed";
+    const friendly =
+      networkMessage === "Failed to fetch"
+        ? [
+            "Network error: the browser could not reach the server.",
+            "If this happened during a long sync, use the chunked sync flow (mapping/content batches).",
+            `Details: ${networkMessage}`,
+          ].join("\n")
+        : networkMessage;
+
+    console.error("[tripjack-admin-response] network error:", { context, error: friendly });
+
+    return {
+      ok: false,
+      status: 0,
+      contentType: "",
+      error: friendly,
+    };
+  }
+
   const parsed = await parseTripJackHttpResponse(response, context);
 
   if (parsed.parseError) {

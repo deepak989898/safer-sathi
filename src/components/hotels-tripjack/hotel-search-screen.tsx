@@ -35,6 +35,9 @@ interface HotelSearchScreenProps {
   onDestinationFocus: () => void;
   onDestinationBlur: () => void;
   onDestinationSelect: (suggestion: DestinationSuggestion) => void;
+  destinationContainerRef?: React.RefObject<HTMLDivElement | null>;
+  highlightedIndex?: number;
+  onHighlightedIndexChange?: (index: number) => void;
   onAdminHidsChange: (value: string) => void;
   onToggleAdminAdvanced: () => void;
   onRoomChange: (index: number, patch: Partial<HotelRoomRequest>) => void;
@@ -63,6 +66,9 @@ export function HotelSearchScreen({
   onDestinationFocus,
   onDestinationBlur,
   onDestinationSelect,
+  destinationContainerRef,
+  highlightedIndex,
+  onHighlightedIndexChange,
   onAdminHidsChange,
   onToggleAdminAdvanced,
   onRoomChange,
@@ -113,6 +119,9 @@ export function HotelSearchScreen({
                   onBlur={onDestinationBlur}
                   error={destinationError}
                   inputClassName="h-12 rounded border bg-white pl-0"
+                  containerRef={destinationContainerRef}
+                  highlightedIndex={highlightedIndex}
+                  onHighlightedIndexChange={onHighlightedIndexChange}
                 />
               </div>
             </div>

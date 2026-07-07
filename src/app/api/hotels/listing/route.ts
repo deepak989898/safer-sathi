@@ -10,6 +10,7 @@ import {
   listTripJackHotels,
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
+import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
 import { MAX_HOTEL_ROOMS } from "@/lib/tripjack-hotels/catalog-types";
 import { DEFAULT_HOTEL_CURRENCY, DEFAULT_HOTEL_NATIONALITY, getTripJackHotelProxyBaseUrl } from "@/lib/tripjack-hotels/config";
 import { resolveDestinationToHids } from "@/lib/tripjack-hotels/destination-resolver";
@@ -82,11 +83,14 @@ export async function POST(request: Request) {
     } else if (parsed.data.destination) {
       destinationResolution = await resolveDestinationToHids(parsed.data.destination);
       if (!destinationResolution.hids.length) {
-        return apiError(
-          `No hotels found for "${parsed.data.destination}". Try another city or hotel name.`,
-          404,
-          { destinationResolution }
-        );
+        const catalogMeta = await getTripJackHotelCatalogMeta();
+        const syncedCount = catalogMeta.activeHotels ?? 0;
+        const destinationLabel = parsed.data.destination.trim();
+        const message =
+          syncedCount > 0
+            ? `No synced hotels found for ${destinationLabel}. Try another city or run hotel catalog content sync for this region.`
+            : `No synced hotels found for ${destinationLabel}. Please run India hotel catalog sync or search another city.`;
+        return apiError(message, 404, { destinationResolution, catalogMeta });
       }
       hids = destinationResolution.hids;
       destinationLabel = destinationResolution.label || parsed.data.destination;

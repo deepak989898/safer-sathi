@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { HotelSearchScreen } from "@/components/hotels-tripjack/hotel-search-screen";
@@ -47,6 +47,9 @@ export function HotelSearchClient() {
   const [destinationSuggestions, setDestinationSuggestions] = useState<DestinationSuggestion[]>([]);
   const [destinationLoading, setDestinationLoading] = useState(false);
   const [showDestinationDropdown, setShowDestinationDropdown] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const destinationContainerRef = useRef<HTMLDivElement>(null);
+  const skipDropdownRef = useRef(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
 
   const [adminHidsInput, setAdminHidsInput] = useState("");
@@ -112,21 +115,61 @@ export function HotelSearchClient() {
   );
 
   useEffect(() => {
+    const onDocMouseDown = (event: MouseEvent) => {
+      if (
+        destinationContainerRef.current &&
+        !destinationContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowDestinationDropdown(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    const onDocKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowDestinationDropdown(false);
+        setHighlightedIndex(-1);
+        skipDropdownRef.current = true;
+      }
+    };
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onDocKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onDocKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
     const q = destinationQuery.trim();
+    if (skipDropdownRef.current) return;
     const shouldFetch = showDestinationDropdown || q.length >= 2;
     if (!shouldFetch) return;
 
     const timer = window.setTimeout(async () => {
       setDestinationLoading(true);
       try {
-        const url = q.length >= 2 ? `/api/hotels/destination-suggest?q=${encodeURIComponent(q)}` : "/api/hotels/destination-suggest";
+        const url =
+          q.length >= 2
+            ? `/api/hotels/destination-suggest?q=${encodeURIComponent(q)}`
+            : "/api/hotels/destination-suggest";
         const res = await fetch(url, { cache: "no-store" });
-        const json = await res.json();
+        const text = await res.text();
+        let json: { success?: boolean; data?: { suggestions?: DestinationSuggestion[] } };
+        try {
+          json = JSON.parse(text) as typeof json;
+        } catch {
+          setDestinationSuggestions([]);
+          return;
+        }
         if (json.success) {
-          setDestinationSuggestions(json.data.suggestions ?? []);
-          if ((json.data.suggestions ?? []).length > 0) {
+          const suggestions = json.data?.suggestions ?? [];
+          setDestinationSuggestions(suggestions);
+          if (suggestions.length > 0 && !skipDropdownRef.current) {
             setShowDestinationDropdown(true);
           }
+          setHighlightedIndex(-1);
         }
       } catch {
         setDestinationSuggestions([]);
@@ -149,10 +192,12 @@ export function HotelSearchClient() {
   }, []);
 
   const onDestinationSelect = useCallback((suggestion: DestinationSuggestion) => {
+    skipDropdownRef.current = true;
     setDestinationQuery(suggestion.label);
     setSelectedDestination(suggestion);
     setDestinationError(null);
     setShowDestinationDropdown(false);
+    setHighlightedIndex(-1);
     onChange({
       destination: suggestion.label,
       destinationLabel: suggestion.label,
@@ -161,11 +206,13 @@ export function HotelSearchClient() {
 
   const onPopularDestination = useCallback(
     (name: string) => {
+      skipDropdownRef.current = true;
       setDestinationQuery(name);
       setSelectedDestination(null);
       setDestinationError(null);
+      setShowDestinationDropdown(false);
+      setHighlightedIndex(-1);
       onChange({ destination: name, destinationLabel: name });
-      setShowDestinationDropdown(true);
     },
     [onChange]
   );
@@ -317,13 +364,23 @@ export function HotelSearchClient() {
       nationalities={nationalities}
       onChange={onChange}
       onDestinationQueryChange={(value) => {
+        skipDropdownRef.current = false;
         setDestinationQuery(value);
         setSelectedDestination(null);
         setDestinationError(null);
+        setShowDestinationDropdown(true);
+        setHighlightedIndex(-1);
         onChange({ destination: value, destinationLabel: value });
       }}
-      onDestinationFocus={() => setShowDestinationDropdown(true)}
-      onDestinationBlur={() => window.setTimeout(() => setShowDestinationDropdown(false), 150)}
+      onDestinationFocus={() => {
+        if (!skipDropdownRef.current) {
+          setShowDestinationDropdown(true);
+        }
+      }}
+      onDestinationBlur={() => undefined}
+      destinationContainerRef={destinationContainerRef}
+      highlightedIndex={highlightedIndex}
+      onHighlightedIndexChange={setHighlightedIndex}
       onDestinationSelect={onDestinationSelect}
       onAdminHidsChange={setAdminHidsInput}
       onToggleAdminAdvanced={() => setShowAdminAdvanced((prev) => !prev)}

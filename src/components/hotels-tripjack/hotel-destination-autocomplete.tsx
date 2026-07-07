@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { MapPin, Building2, Globe2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,9 @@ interface HotelDestinationAutocompleteProps {
   error?: string | null;
   hideLabel?: boolean;
   inputClassName?: string;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  highlightedIndex?: number;
+  onHighlightedIndexChange?: (index: number) => void;
 }
 
 function suggestionIcon(type: DestinationSuggestion["type"]) {
@@ -38,9 +42,35 @@ export function HotelDestinationAutocomplete({
   error,
   hideLabel,
   inputClassName,
+  containerRef,
+  highlightedIndex = -1,
+  onHighlightedIndexChange,
 }: HotelDestinationAutocompleteProps) {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const rootRef = containerRef ?? internalRef;
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown || !suggestions.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = Math.min(highlightedIndex + 1, suggestions.length - 1);
+      onHighlightedIndexChange?.(next);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = Math.max(highlightedIndex - 1, 0);
+      onHighlightedIndexChange?.(next);
+    } else if (event.key === "Enter" && highlightedIndex >= 0) {
+      event.preventDefault();
+      const item = suggestions[highlightedIndex];
+      if (item) onSelect(item);
+    } else if (event.key === "Escape") {
+      onHighlightedIndexChange?.(-1);
+    }
+  };
+
   return (
-    <div className="relative sm:col-span-2">
+    <div ref={rootRef} className="relative sm:col-span-2">
       {!hideLabel && (
         <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Destination / City / Hotel Name
@@ -53,6 +83,7 @@ export function HotelDestinationAutocomplete({
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
         onBlur={onBlur}
+        onKeyDown={handleKeyDown}
         autoComplete="off"
       />
       {showDropdown && (suggestions.length > 0 || loading || value.trim().length >= 2) && (
@@ -66,14 +97,18 @@ export function HotelDestinationAutocomplete({
             </div>
           )}
           {!loading &&
-            suggestions.map((item) => {
+            suggestions.map((item, index) => {
               const Icon = suggestionIcon(item.type);
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-blue-50"
+                  className={cn(
+                    "flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-blue-50",
+                    highlightedIndex === index && "bg-blue-50"
+                  )}
                   onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => onHighlightedIndexChange?.(index)}
                   onClick={() => onSelect(item)}
                 >
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#006CE4]" />

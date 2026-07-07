@@ -4,6 +4,7 @@ import {
 import {
   findTripJackHotelsBySearchBlob,
   getTripJackDestinationBySearchKey,
+  searchTripJackHotelCatalogByCityPrefix,
   searchTripJackHotelCatalogByNamePrefix,
   searchTripJackHotelDestinations,
 } from "@/lib/tripjack-hotels/catalog-firestore";
@@ -45,12 +46,21 @@ export async function suggestHotelDestinations(
   const q = normalizeQuery(query);
   if (!q) return [];
 
-  const [destinations, hotelsByPrefix, hotelsByBlob, manualDestinations] = await Promise.all([
-    searchTripJackHotelDestinations(q, 20),
-    searchTripJackHotelCatalogByNamePrefix(q, 10),
-    q.length >= 3 ? findTripJackHotelsBySearchBlob(q, 20) : Promise.resolve([]),
-    listTripJackHotelManualDestinations(),
-  ]);
+  const [destinations, hotelsByCity, hotelsByName, hotelsByBlob, manualDestinations] =
+    await Promise.all([
+      searchTripJackHotelDestinations(q, 20),
+      searchTripJackHotelCatalogByCityPrefix(q, 15),
+      searchTripJackHotelCatalogByNamePrefix(q, 10),
+      q.length >= 3 ? findTripJackHotelsBySearchBlob(q, 20) : Promise.resolve([]),
+      listTripJackHotelManualDestinations(),
+    ]);
+
+  const hotelCandidates = [...hotelsByCity];
+  for (const hotel of hotelsByName) {
+    if (!hotelCandidates.some((h) => h.tjHotelId === hotel.tjHotelId)) {
+      hotelCandidates.push(hotel);
+    }
+  }
 
   const suggestions: DestinationSuggestion[] = [];
 
@@ -79,7 +89,34 @@ export async function suggestHotelDestinations(
     });
   }
 
-  const hotelCandidates = [...hotelsByPrefix];
+  const cityGroups = new Map<string, { label: string; hids: number[]; countryName: string }>();
+  for (const hotel of hotelsByCity) {
+    if (!hotel.cityName) continue;
+    const key = hotel.cityNameLower || hotel.cityName.toLowerCase();
+    const existing = cityGroups.get(key);
+    if (existing) {
+      existing.hids.push(hotel.tjHotelId);
+    } else {
+      cityGroups.set(key, {
+        label: hotel.cityName,
+        hids: [hotel.tjHotelId],
+        countryName: hotel.countryName,
+      });
+    }
+  }
+
+  for (const [key, group] of cityGroups) {
+    if (suggestions.some((s) => s.type === "city" && s.label.toLowerCase() === key)) continue;
+    suggestions.push({
+      id: `city_catalog_${key}`,
+      type: "city",
+      label: group.label,
+      subtitle: `${group.countryName || "India"} · ${group.hids.length} hotel${group.hids.length === 1 ? "" : "s"}`,
+      hotelCount: group.hids.length,
+      hids: group.hids.slice(0, MAX_LISTING_HIDS),
+    });
+  }
+
   for (const hotel of hotelsByBlob) {
     if (!hotelCandidates.some((h) => h.tjHotelId === hotel.tjHotelId)) {
       hotelCandidates.push(hotel);
@@ -201,6 +238,20 @@ export async function resolveDestinationToHids(
       label: bestDest.label,
       hids: capped.hids,
       totalMatched: bestDest.hids.length,
+      truncated: capped.truncated,
+    };
+  }
+
+  const hotelsByCity = await searchTripJackHotelCatalogByCityPrefix(q, 120);
+  if (hotelsByCity.length) {
+    const cityLabel = hotelsByCity[0].cityName || query;
+    const capped = capHidsForListing(hotelsByCity.map((h) => h.tjHotelId));
+    return {
+      query,
+      matchType: "city",
+      label: cityLabel,
+      hids: capped.hids,
+      totalMatched: hotelsByCity.length,
       truncated: capped.truncated,
     };
   }

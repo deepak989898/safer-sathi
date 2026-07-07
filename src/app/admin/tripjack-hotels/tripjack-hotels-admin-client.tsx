@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
+import {
+  orchestrateTripJackSync,
+  type TripJackSyncProgress,
+} from "@/lib/tripjack-hotels/admin-sync-orchestrator";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
@@ -83,6 +87,7 @@ export default function TripJackHotelsAdminClient() {
   >([]);
   const [manualSaving, setManualSaving] = useState(false);
   const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
+  const [syncProgress, setSyncProgress] = useState<TripJackSyncProgress | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -141,11 +146,34 @@ export default function TripJackHotelsAdminClient() {
   }, [load]);
 
   const runSync = async (mode: string) => {
+    if (syncing) return;
     setSyncing(mode);
     setApiError(null);
     const label = SYNC_MODE_LABELS[mode] ?? mode;
 
+    const orchestratedModes = new Set(["full", "mapping_only", "content_only", "incremental"]);
+
     try {
+      if (orchestratedModes.has(mode)) {
+        const result = await orchestrateTripJackSync(
+          mode as "full" | "mapping_only" | "content_only" | "incremental",
+          (progress) => setSyncProgress(progress)
+        );
+
+        if (!result.ok) {
+          setApiError({ context: label, message: result.error ?? result.message });
+          toast.error(result.message);
+          return;
+        }
+
+        toast.success(result.message);
+        setSyncProgress((prev) =>
+          prev ? { ...prev, phase: "done", message: result.message } : null
+        );
+        void load();
+        return;
+      }
+
       const result = await tripjackAdminApiCall<{ message?: string }>(
         `/api/admin/tripjack-hotels/sync?mode=${mode}`,
         { method: "POST" },
@@ -363,6 +391,21 @@ export default function TripJackHotelsAdminClient() {
             {dashboard?.catalogMeta.lastSyncMessage ? (
               <p className="text-sm text-muted-foreground">{dashboard.catalogMeta.lastSyncMessage}</p>
             ) : null}
+            {syncProgress && syncing ? (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                <p className="font-semibold capitalize">Sync in progress — {syncProgress.phase}</p>
+                <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+                  <span>Mapping page: {syncProgress.mappingPage}</span>
+                  <span>Total mapping IDs: {syncProgress.totalMappingIds}</span>
+                  <span>
+                    Content batch: {syncProgress.contentBatch}/{syncProgress.contentBatchTotal || "?"}
+                  </span>
+                  <span>Saved hotels: {syncProgress.savedHotels}</span>
+                  <span>Failed hotels: {syncProgress.failedHotels}</span>
+                </div>
+                <p className="mt-2 text-xs">{syncProgress.message}</p>
+              </div>
+            ) : null}
             {staticCatalogueBlocked && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 {TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE}
@@ -410,7 +453,7 @@ export default function TripJackHotelsAdminClient() {
                   key={mode}
                   size="sm"
                   variant="outline"
-                  disabled={syncing === mode}
+                  disabled={Boolean(syncing)}
                   onClick={() => void runSync(mode)}
                 >
                   {syncing === mode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

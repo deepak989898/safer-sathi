@@ -598,9 +598,13 @@ export async function syncTripJackHotelCatalog(options?: {
           .map((hotel) => hotel.tjHotelId);
       }
 
+      const defaultMaxBatches = mode === "incremental" ? 20 : 20;
       const contentResult = await syncHotelContentBatches({
         hotelIds: contentIds,
-        maxBatches: mode === "incremental" ? options?.maxContentBatches ?? 20 : options?.maxContentBatches,
+        maxBatches:
+          options?.maxContentBatches && options.maxContentBatches > 0
+            ? options.maxContentBatches
+            : defaultMaxBatches,
         onBatch: async ({ batchIndex, batchTotal, successCount, failedCount }) => {
           contentBatchesCompleted = batchIndex;
           contentSuccessCount = successCount;
