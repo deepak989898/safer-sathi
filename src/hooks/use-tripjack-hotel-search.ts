@@ -162,7 +162,7 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
         if (json.success) {
           const suggestions = json.data?.suggestions ?? [];
           setDestinationSuggestions(suggestions);
-          if (suggestions.length > 0 && !skipDropdownRef.current) {
+          if (suggestions.length > 0 && !skipDropdownRef.current && showDestinationDropdown) {
             setShowDestinationDropdown(true);
           }
           setHighlightedIndex(-1);
@@ -235,6 +235,10 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
   );
 
   const onSearch = useCallback(async () => {
+    skipDropdownRef.current = true;
+    setShowDestinationDropdown(false);
+    setHighlightedIndex(-1);
+
     const destination = destinationQuery.trim();
     const destinationLabel = selectedDestination?.label ?? destination;
 
@@ -323,9 +327,9 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
     onChange,
     onDestinationQueryChange,
     onDestinationFocus: () => {
-      if (!skipDropdownRef.current) {
-        setShowDestinationDropdown(true);
-      }
+      skipDropdownRef.current = false;
+      setShowDestinationDropdown(true);
+      setHighlightedIndex(-1);
     },
     onDestinationBlur: () => undefined,
     onHighlightedIndexChange: setHighlightedIndex,
