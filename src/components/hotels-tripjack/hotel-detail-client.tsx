@@ -2,44 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Building2,
-  Calendar,
   MapPin,
   Star,
-  Users,
 } from "lucide-react";
 import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
 import { HotelPricingDebugPanel } from "@/components/hotels-tripjack/hotel-pricing-debug-panel";
 import { HotelRoomOptionCard } from "@/components/hotels-tripjack/hotel-room-option-card";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
-import { TripJackRelatedHotels } from "@/components/hotels-tripjack/tripjack-related-hotels";
 import { HotelCard, HotelPrimaryButton, HotelStepBar } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { PackageImageGallery } from "@/components/customer/package-image-gallery";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
-import { extractCityFromLocation } from "@/components/hotels-tripjack/tripjack-results-filters";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
-import { formatCurrency } from "@/lib/i18n";
 import {
-  ensureHotelListingSessionForDetail,
   isHotelSearchSessionExpired,
   loadHotelDetailCache,
   loadHotelListingSession,
-  parseHotelDetailUrlParams,
   saveHotelDetailCache,
   saveHotelReviewPrep,
 } from "@/lib/tripjack-hotels/session";
 import type {
   HotelRoomRequest,
-  NormalizedHotel,
   NormalizedHotelDetail,
   NormalizedHotelOption,
 } from "@/lib/tripjack-hotels/types";
@@ -49,7 +38,7 @@ import { toast } from "sonner";
 function DetailSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
-      <div className="h-48 rounded bg-slate-200" />
+      <div className="h-56 rounded bg-slate-200" />
       <div className="h-8 w-2/3 rounded bg-slate-200" />
       <div className="h-40 rounded bg-slate-200" />
     </div>
@@ -64,92 +53,8 @@ interface PricingErrorState {
   adminMessage?: string;
 }
 
-function SelectionSidebar({
-  detail,
-  selectedOption,
-  sessionExpired,
-  onContinue,
-}: {
-  detail: NormalizedHotelDetail;
-  selectedOption: NormalizedHotelOption | null;
-  sessionExpired: boolean;
-  onContinue: () => void;
-}) {
-  const { locale } = useAppStore();
-
-  return (
-    <Card className="sticky top-24 overflow-hidden shadow-md">
-      <CardHeader className="space-y-4 border-b bg-muted/20 pb-5">
-        <div className="space-y-2">
-          <CardTitle className="text-lg leading-snug text-[#0c2444] md:text-xl">
-            {detail.name}
-          </CardTitle>
-          {detail.location && (
-            <p className="flex items-start gap-2 text-sm text-muted-foreground">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span>{detail.location}</span>
-            </p>
-          )}
-        </div>
-
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-center gap-2.5">
-            <Calendar className="h-4 w-4 shrink-0 text-primary" />
-            {detail.checkIn} → {detail.checkOut}
-          </li>
-          <li className="flex items-center gap-2.5">
-            <Users className="h-4 w-4 shrink-0 text-primary" />
-            {detail.guestSummary}
-          </li>
-          {detail.starRating != null && detail.starRating > 0 && (
-            <li className="flex items-center gap-2.5">
-              <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
-              {detail.starRating} Star Hotel
-            </li>
-          )}
-          {selectedOption && (
-            <li className="flex items-start gap-2.5 font-medium text-[#0c2444]">
-              <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span>
-                {selectedOption.roomName || selectedOption.roomType}
-                {selectedOption.mealBasis ? ` · ${selectedOption.mealBasis}` : ""}
-              </span>
-            </li>
-          )}
-        </ul>
-
-        <div className="border-t pt-4">
-          <p className="text-xs text-muted-foreground">Selected total</p>
-          <p className="text-2xl font-bold text-[#0c2444]">
-            {selectedOption
-              ? formatCurrency(selectedOption.pricing.totalPrice, locale)
-              : "Select a room"}
-          </p>
-          {selectedOption?.isRefundable && (
-            <Badge variant="secondary" className="mt-2">
-              Refundable
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-5">
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={!selectedOption || sessionExpired}
-          onClick={onContinue}
-        >
-          Continue to Review
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function HotelDetailClient({ hid }: { hid: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { locale } = useAppStore();
   const { user } = useAuth();
   const isStaff = user ? canShowAdminNav(user.role) : false;
@@ -165,16 +70,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     rawResponse: unknown;
   } | null>(null);
 
-  const urlParams = useMemo(
-    () => parseHotelDetailUrlParams(searchParams),
-    [searchParams]
-  );
-
-  const listingSession = useMemo(() => {
-    ensureHotelListingSessionForDetail(hid, urlParams);
-    return loadHotelListingSession();
-  }, [hid, urlParams]);
-
+  const listingSession = useMemo(() => loadHotelListingSession(), []);
   const listingHotel = useMemo(
     () => listingSession.hotels.find((h) => String(h.tjHotelId) === String(hid)) ?? null,
     [listingSession.hotels, hid]
@@ -185,30 +81,25 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     return detail.options.find((o) => o.optionId === selectedOptionId) ?? null;
   }, [detail, selectedOptionId]);
 
-  const relatedCity = useMemo(() => {
-    if (!detail?.location) return listingHotel?.location ? extractCityFromLocation(listingHotel.location) : "";
-    return extractCityFromLocation(detail.location);
-  }, [detail?.location, listingHotel?.location]);
-
   const loadPricing = useCallback(
     async (force = false) => {
       if (!hid) {
-        setError({ message: "Hotel ID missing. Go back and select a hotel." });
+        setError({ message: "Hotel ID missing. Go back to results and select a hotel." });
         setLoading(false);
         return;
       }
 
-      const { request, correlationId } = ensureHotelListingSessionForDetail(hid, urlParams);
-
-      if (!request || !correlationId) {
-        setError({ message: "Unable to start hotel session. Please search again.", backToSearch: true });
-        setLoading(false);
-        return;
-      }
-
-      if (isHotelSearchSessionExpired() && !urlParams.checkIn) {
+      if (isHotelSearchSessionExpired()) {
         setSessionExpired(true);
         setError({ message: "Session expired. Please search hotels again.", backToSearch: true });
+        setLoading(false);
+        return;
+      }
+
+      const request = listingSession.request;
+      const correlationId = listingSession.correlationId;
+      if (!request || !correlationId) {
+        setError({ message: "Search session expired. Please search hotels again.", backToSearch: true });
         setLoading(false);
         return;
       }
@@ -268,14 +159,24 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         if (isSuperAdmin && json.data.adminDebug) {
           setAdminDebug(json.data.adminDebug);
         }
+
+        if (isStaff) {
+          console.log("[hotel-pricing] response", {
+            hotelId: next.hotelId,
+            options: next.options.length,
+            reviewHash: next.reviewHash,
+            elapsedMs: json.data.elapsedMs,
+          });
+        }
       } catch (e) {
         const message = e instanceof Error ? e.message : "Failed to load hotel pricing";
         setError({ message, retryable: true });
+        if (isStaff) console.error("[hotel-pricing] error", message);
       } finally {
         setLoading(false);
       }
     },
-    [hid, urlParams, listingSession, listingHotel?.name, isStaff, isSuperAdmin]
+    [hid, listingSession, listingHotel?.name, isStaff, isSuperAdmin]
   );
 
   useEffect(() => {
@@ -299,7 +200,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       return;
     }
 
-    const request = ensureHotelListingSessionForDetail(hid, urlParams).request;
+    const request = listingSession.request;
     if (!request) {
       toast.error("Search session expired. Please search again.");
       router.push("/hotels/search");
@@ -340,19 +241,17 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       expiresAt: new Date(now + HOTEL_SESSION_TTL_MS).toISOString(),
     });
 
+    if (isStaff) {
+      console.log("[hotel-pricing] review prep saved", {
+        correlationId: detail.correlationId,
+        hotelId: detail.hotelId,
+        reviewHash: detail.reviewHash,
+        optionId: selectedOption.optionId,
+      });
+    }
+
     toast.success("Room selected. Continue to review.");
     router.push("/hotels/review");
-  };
-
-  const onViewRelatedHotel = (hotel: NormalizedHotel) => {
-    if (!detail) return;
-    const params = new URLSearchParams({
-      checkIn: detail.checkIn,
-      checkOut: detail.checkOut,
-      adults: String(listingSession.request?.rooms?.[0]?.adults ?? 2),
-    });
-    if (relatedCity) params.set("city", relatedCity);
-    router.push(`/hotels/detail/${hotel.tjHotelId}?${params.toString()}`);
   };
 
   const galleryImages = useMemo(() => {
@@ -379,17 +278,15 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     return urls;
   }, [listingHotel, detail?.images]);
 
-  const backHref = listingSession.hotels.length > 1 ? "/hotels/results" : "/hotels";
-
   return (
     <HotelBookingLayout
       title={detail?.name ?? "Hotel details"}
       subtitle={detail ? `${detail.checkIn} → ${detail.checkOut} · ${detail.guestSummary}` : undefined}
-      backHref={backHref}
-      backLabel={listingSession.hotels.length > 1 ? "Back to results" : "All hotels"}
+      backHref="/hotels/results"
+      backLabel="Back to results"
       showCountdown
       onSessionExpired={() => setSessionExpired(true)}
-      maxWidth="full"
+      maxWidth="lg"
     >
       <HotelStepBar
         steps={["Search", "Select Room", "Review", "Guests", "Payment"]}
@@ -398,30 +295,29 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
       {loading && <DetailSkeleton />}
 
-      {error && !loading && (
-        <HotelCard className="py-12 text-center">
-          <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
-          <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
-            Unable to load hotel pricing
-          </p>
-          <p className="mt-2 text-sm text-red-700">{error.message}</p>
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {error.retryable && (
-              <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
-                Retry
-              </HotelPrimaryButton>
-            )}
-            <Link href={error.backToSearch ? "/hotels/search" : backHref}>
-              <HotelPrimaryButton variant="outline" className="!w-auto px-6">
-                {error.backToSearch ? "Search again" : "Go back"}
-              </HotelPrimaryButton>
-            </Link>
-          </div>
-        </HotelCard>
-      )}
+        {error && !loading && (
+          <HotelCard className="py-12 text-center">
+            <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
+            <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
+              Unable to load hotel pricing
+            </p>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {error.retryable && (
+                <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
+                  Retry
+                </HotelPrimaryButton>
+              )}
+              <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
+                <HotelPrimaryButton variant="outline" className="!w-auto px-6">
+                  {error.backToSearch ? "Search again" : "Back to results"}
+                </HotelPrimaryButton>
+              </Link>
+            </div>
+          </HotelCard>
+        )}
 
-      {detail && !loading && !error && (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        {detail && !loading && !error && (
           <div className="space-y-6">
             {isSuperAdmin && adminDebug && (
               <HotelPricingDebugPanel
@@ -432,12 +328,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
             <HotelCard padding="sm" className="overflow-hidden">
               {galleryImages.length > 0 && (
-                <PackageImageGallery
-                  images={galleryImages}
-                  alt={detail.name}
-                  compact
-                  className="px-4 pt-4"
-                />
+                <PackageImageGallery images={galleryImages} alt={detail.name} className="px-4 pt-4" />
               )}
               <div className="space-y-3 p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -452,7 +343,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                       </p>
                     )}
                   </div>
-                  {detail.starRating != null && detail.starRating > 0 && (
+                  {detail.starRating != null && (
                     <div
                       className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold"
                       style={{ backgroundColor: "#FFF8E6", color: "#9A7200", borderRadius: HOTEL_UI.btnRadius }}
@@ -461,6 +352,14 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                       {detail.starRating} Star
                     </div>
                   )}
+                </div>
+
+                <div className="flex gap-4 border-b text-sm font-semibold" style={{ borderColor: HOTEL_UI.border, color: HOTEL_UI.primary }}>
+                  <span className="border-b-2 pb-2" style={{ borderColor: HOTEL_UI.action }}>
+                    Rooms
+                  </span>
+                  <span className="pb-2 opacity-50">Overview</span>
+                  <span className="pb-2 opacity-50">Amenities</span>
                 </div>
 
                 {detail.description && (
@@ -517,17 +416,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
               </div>
             </div>
 
-            <TripJackRelatedHotels
-              hid={hid}
-              cityName={relatedCity}
-              starRating={detail.starRating}
-              checkIn={detail.checkIn}
-              checkOut={detail.checkOut}
-              locale={locale}
-              onViewHotel={onViewRelatedHotel}
-            />
-
-            <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur lg:hidden">
+            <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs" style={{ color: HOTEL_UI.textMuted }}>
@@ -535,7 +424,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                   </p>
                   <p className="text-xl font-bold" style={{ color: HOTEL_UI.primary }}>
                     {selectedOption
-                      ? formatCurrency(selectedOption.pricing.totalPrice, locale)
+                      ? `${selectedOption.pricing.currency} ${selectedOption.pricing.totalPrice.toLocaleString("en-IN")}`
                       : "Select a room"}
                   </p>
                 </div>
@@ -549,17 +438,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
               </div>
             </HotelCard>
           </div>
-
-          <div className="hidden lg:block">
-            <SelectionSidebar
-              detail={detail}
-              selectedOption={selectedOption}
-              sessionExpired={sessionExpired}
-              onContinue={onContinue}
-            />
-          </div>
-        </div>
-      )}
+        )}
     </HotelBookingLayout>
   );
 }

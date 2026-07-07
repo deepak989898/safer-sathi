@@ -3,7 +3,7 @@ import { HotelReviewClient } from "@/components/hotels-tripjack/hotel-review-cli
 
 export const metadata = {
   title: "Review Hotel Booking | Safar Sathi",
-  description: "Confirm your hotel booking before guest details",
+  description: "Confirm your TripJack hotel booking before guest details",
 };
 
 function ReviewFallback() {

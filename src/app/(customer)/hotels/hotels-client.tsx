@@ -194,12 +194,12 @@ export default function HotelsClient({
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
       {tripjackHotelsEnabled && featuredTripJackHotels.length > 0 && (
-        <FeaturedTripJackHotelsSection hotels={featuredTripJackHotels} locale={locale} />
+        <FeaturedTripJackHotelsSection hotels={featuredTripJackHotels} />
       )}
 
       {tripjackHotelsEnabled && featuredTripJackHotels.length === 0 && (
         <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
-          Looking for live hotel rates?{" "}
+          Looking for live TripJack hotel rates?{" "}
           <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
             Search live hotels
           </Link>

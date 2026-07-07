@@ -101,7 +101,7 @@ export function TripJackSearchPanel({
           </div>
           <div>
             <h2 className="text-lg font-bold text-[#0c2444] md:text-xl">
-              Search live hotels
+              Search live TripJack hotels
             </h2>
             <p className="text-xs text-muted-foreground md:text-sm">
               Real-time rates · INR · Nationality default India (106)

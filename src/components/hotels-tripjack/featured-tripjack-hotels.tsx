@@ -6,28 +6,10 @@ import { Building2, MapPin, Star, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/i18n";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
-import type { Locale } from "@/types";
 
-function buildDetailHref(hotel: FeaturedTripJackHotelCard): string {
-  const params = new URLSearchParams();
-  if (hotel.checkIn) params.set("checkIn", hotel.checkIn);
-  if (hotel.checkOut) params.set("checkOut", hotel.checkOut);
-  params.set("adults", "2");
-  if (hotel.cityName) params.set("city", hotel.cityName);
-  const qs = params.toString();
-  return `/hotels/detail/${hotel.tjHotelId}${qs ? `?${qs}` : ""}`;
-}
-
-function FeaturedLiveHotelCard({
-  hotel,
-  locale,
-}: {
-  hotel: FeaturedTripJackHotelCard;
-  locale: Locale;
-}) {
+function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
   const candidates = useMemo(
     () =>
       resolveHotelImageCandidates({
@@ -41,11 +23,11 @@ function FeaturedLiveHotelCard({
   const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-  const detailHref = buildDetailHref(hotel);
+  const searchHref = `/hotels/search?destination=${encodeURIComponent(hotel.cityName || hotel.name)}`;
 
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <Link href={detailHref} className="block">
+      <Link href={searchHref} className="block">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {showImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -65,7 +47,7 @@ function FeaturedLiveHotelCard({
           )}
           <Badge className="absolute left-3 top-3 z-10 gap-1 bg-[#006CE4] hover:bg-[#006CE4]">
             <Zap className="h-3 w-3 fill-current" />
-            Live Rates
+            Live TripJack Hotel
           </Badge>
           {stars > 0 && (
             <Badge variant="secondary" className="absolute right-3 top-3 z-10 bg-white/95">
@@ -76,7 +58,7 @@ function FeaturedLiveHotelCard({
         </div>
       </Link>
       <CardContent className="space-y-2 pt-4">
-        <Link href={detailHref} className="hover:text-primary">
+        <Link href={searchHref} className="hover:text-primary">
           <h3 className="line-clamp-2 font-semibold leading-snug">{hotel.name}</h3>
         </Link>
         <p className="flex items-start gap-1 text-sm text-muted-foreground">
@@ -84,20 +66,11 @@ function FeaturedLiveHotelCard({
           <span className="line-clamp-2">{hotel.location || hotel.cityName}</span>
         </p>
       </CardContent>
-      <CardFooter className="flex items-center justify-between border-t bg-transparent">
-        <div>
-          <p className="text-xs text-muted-foreground">From</p>
-          <p className="text-lg font-bold text-primary">
-            {hotel.cheapestTotalPrice != null
-              ? formatCurrency(hotel.cheapestTotalPrice, locale)
-              : "Check rates"}
-            {hotel.cheapestTotalPrice != null && (
-              <span className="text-xs font-normal text-muted-foreground"> / stay</span>
-            )}
-          </p>
-        </div>
-        <Link href={detailHref}>
-          <Button>View Rooms</Button>
+      <CardFooter className="border-t bg-transparent">
+        <Link href={searchHref} className="w-full">
+          <Button variant="outline" className="w-full">
+            Check live rates
+          </Button>
         </Link>
       </CardFooter>
     </Card>
@@ -106,10 +79,8 @@ function FeaturedLiveHotelCard({
 
 export function FeaturedTripJackHotelsSection({
   hotels,
-  locale,
 }: {
   hotels: FeaturedTripJackHotelCard[];
-  locale: Locale;
 }) {
   if (hotels.length === 0) return null;
 
@@ -120,11 +91,11 @@ export function FeaturedTripJackHotelsSection({
           <div className="mb-1 flex items-center gap-2">
             <Zap className="h-5 w-5 text-[#006CE4]" />
             <h2 className="text-xl font-bold text-[#0c2444] md:text-2xl">
-              Featured live hotels
+              Featured live TripJack hotels
             </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Popular cities with live prices — tap any hotel to view rooms instantly.
+            Browse synced properties with photos — search for live rates and availability.
           </p>
         </div>
         <Link href="/hotels/search">
@@ -132,9 +103,9 @@ export function FeaturedTripJackHotelsSection({
         </Link>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {hotels.map((hotel) => (
-          <FeaturedLiveHotelCard key={hotel.tjHotelId} hotel={hotel} locale={locale} />
+          <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
         ))}
       </div>
     </section>

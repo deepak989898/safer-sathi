@@ -421,7 +421,7 @@ export default function MyBookingsClient() {
             {hotelBookings.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-[#0c2444]">Live Hotel Bookings</h2>
+                  <h2 className="text-lg font-semibold text-[#0c2444]">TripJack Hotel Bookings</h2>
                   <Link href="/account/hotel-bookings" className="text-sm text-primary hover:underline">
                     View all
                   </Link>

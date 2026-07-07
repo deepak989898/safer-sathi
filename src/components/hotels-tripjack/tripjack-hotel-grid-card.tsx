@@ -108,9 +108,7 @@ export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJack
         <div>
           <p className="text-xs text-muted-foreground">From</p>
           <p className="text-lg font-bold text-primary">
-            {hotel.cheapestTotalPrice != null && hotel.cheapestTotalPrice > 0
-              ? formatCurrency(hotel.cheapestTotalPrice, locale)
-              : "Check rates"}
+            {formatCurrency(hotel.cheapestTotalPrice, locale)}
             <span className="text-xs font-normal text-muted-foreground"> / stay</span>
           </p>
         </div>

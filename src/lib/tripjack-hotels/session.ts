@@ -1,6 +1,4 @@
 import { HOTEL_SEARCH_SESSION_MS, HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
-import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
-import { getDefaultHotelSearchDates } from "@/lib/tripjack-hotels/default-search-dates";
 import type {
   HotelListingSearchParams,
   HotelReviewPrepSession,
@@ -95,67 +93,6 @@ export function clearHotelBookingSession(): void {
       sessionStorage.removeItem(key);
     }
   }
-}
-
-export function parseHotelDetailUrlParams(
-  searchParams: URLSearchParams
-): Partial<HotelListingSearchParams> {
-  const defaults = getDefaultHotelSearchDates();
-  const checkIn = searchParams.get("checkIn") || defaults.checkIn;
-  const checkOut = searchParams.get("checkOut") || defaults.checkOut;
-  const adults = Math.max(1, Number(searchParams.get("adults")) || 2);
-
-  return {
-    checkIn,
-    checkOut,
-    rooms: [{ adults }],
-    currency: searchParams.get("currency") || "INR",
-    nationality: searchParams.get("nationality") || "106",
-    destinationLabel: searchParams.get("destination") || searchParams.get("city") || "",
-  };
-}
-
-export function ensureHotelListingSessionForDetail(
-  hid: string,
-  urlParams: Partial<HotelListingSearchParams> = {}
-): { request: HotelListingSearchParams; correlationId: string } {
-  const existing = loadHotelListingSession();
-  const defaults = getDefaultHotelSearchDates();
-
-  const request: HotelListingSearchParams = {
-    checkIn: urlParams.checkIn || existing.request?.checkIn || defaults.checkIn,
-    checkOut: urlParams.checkOut || existing.request?.checkOut || defaults.checkOut,
-    rooms: urlParams.rooms?.length ? urlParams.rooms : existing.request?.rooms ?? [{ adults: 2 }],
-    currency: urlParams.currency || existing.request?.currency || "INR",
-    nationality: urlParams.nationality || existing.request?.nationality || "106",
-    destination: urlParams.destinationLabel || existing.request?.destination,
-    destinationLabel: urlParams.destinationLabel || existing.request?.destinationLabel,
-  };
-
-  const hasFreshUrlDates = Boolean(urlParams.checkIn && urlParams.checkOut);
-  const canReuseSession =
-    !isHotelStorageExpired() &&
-    !isHotelSearchSessionExpired() &&
-    Boolean(existing.correlationId) &&
-    Boolean(existing.request) &&
-    !hasFreshUrlDates;
-
-  const correlationId = canReuseSession ? existing.correlationId : generateHotelCorrelationId();
-  const listingHotel =
-    existing.hotels.find((hotel) => String(hotel.tjHotelId) === String(hid)) ?? null;
-
-  if (!canReuseSession || hasFreshUrlDates) {
-    saveHotelListingSession({
-      request,
-      correlationId,
-      hotels: listingHotel ? [listingHotel] : existing.hotels,
-      totalResults: listingHotel ? 1 : existing.totalResults || 1,
-      currency: request.currency,
-      nationality: request.nationality,
-    });
-  }
-
-  return { request, correlationId };
 }
 
 export function saveHotelListingSession(input: {
