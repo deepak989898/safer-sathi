@@ -58,8 +58,9 @@ export function normalizeHotelBookingDetails(raw: unknown): NormalizedHotelBooki
     pickString(order, ["bookingId", "id"]) || pickString(data, ["bookingId", "id"]);
   if (!bookingId) return null;
 
-  const statusSuccess =
-    statusRec.success === true || data.success === true || root.success === true;
+  const hasExplicitFailure =
+    statusRec.success === false || data.success === false || root.success === false;
+  const statusSuccess = !hasExplicitFailure;
 
   const bookingStatus =
     pickString(order, ["bookingStatus", "status", "orderStatus"]) ||

@@ -85,7 +85,7 @@ export function HotelBookingSuccessClient() {
 
     const startPolling = (b: HotelBookingRecord) => {
       const uiStatus = resolveHotelBookingUiStatus(b);
-      if (uiStatus === "pending" && b.paymentStatus === "paid") {
+      if ((uiStatus === "pending" || uiStatus === "failed") && b.paymentStatus === "paid") {
         void api.pollBookingStatus(b.bookingId, applyBooking);
       }
     };
@@ -182,6 +182,18 @@ export function HotelBookingSuccessClient() {
     (booking.cancellationStatus ?? "").toUpperCase() === "REQUESTED" ||
     tripjackStatus.includes("CANCELLATION_PENDING");
   const hotelReference = getHotelReferenceLabel(booking);
+  const hasConfirmedSignals =
+    booking.paymentStatus === "paid" &&
+    Boolean(
+      booking.confirmedEmailSentAt ||
+        booking.emailSentAt ||
+        booking.voucherUrl ||
+        booking.confirmationNumber ||
+        booking.supplierReference ||
+        booking.hotelReference
+    );
+  const effectiveFailed = failed && !hasConfirmedSignals;
+  const effectiveConfirmed = confirmed || hasConfirmedSignals;
   const guestCount = booking.rooms.reduce(
     (sum, r) => sum + (r.adults ?? 1) + (r.children ?? 0),
     0
@@ -190,22 +202,22 @@ export function HotelBookingSuccessClient() {
   return (
     <HotelBookingLayout maxWidth="md">
       <HotelCard padding="lg" className="text-center">
-        {failed ? (
+        {effectiveFailed ? (
           <AlertCircle className="mx-auto h-16 w-16 text-red-600" />
         ) : (
           <CheckCircle2
             className="mx-auto h-16 w-16"
             style={{
-              color: confirmed ? HOTEL_UI.success : pending ? HOTEL_UI.pending : HOTEL_UI.action,
+              color: effectiveConfirmed ? HOTEL_UI.success : pending ? HOTEL_UI.pending : HOTEL_UI.action,
             }}
           />
         )}
         <h1 className="mt-4 text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
-          {failed
+          {effectiveFailed
             ? "Booking Unsuccessful"
             : showCancellationPending
               ? "Cancellation Pending"
-              : confirmed
+              : effectiveConfirmed
                 ? "Booking Confirmed"
                 : showHold
                   ? "Booking On Hold"
@@ -214,11 +226,11 @@ export function HotelBookingSuccessClient() {
                     : "Booking Status"}
         </h1>
         <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-          {failed
+          {effectiveFailed
             ? "We could not confirm your hotel with the supplier. Our support team will assist with refund/help."
             : showCancellationPending
               ? "Your cancellation request has been submitted and is being processed by the supplier."
-              : confirmed
+              : effectiveConfirmed
                 ? booking.emailSentAt
                   ? "Your hotel reservation is confirmed. A confirmation email with invoice and login details has been sent."
                   : "Your hotel reservation is confirmed."
@@ -231,7 +243,7 @@ export function HotelBookingSuccessClient() {
 
         <div className="mt-2 flex justify-center">
           <HotelStatusBadge
-            status={failed ? "failed" : confirmed ? "confirmed" : pending ? "pending" : "default"}
+            status={effectiveFailed ? "failed" : effectiveConfirmed ? "confirmed" : pending ? "pending" : "default"}
           />
         </div>
 
@@ -261,7 +273,7 @@ export function HotelBookingSuccessClient() {
           <Row label="Amount paid" value={formatCurrency(booking.totalFare, locale)} highlight />
         </div>
 
-        {!failed && (
+        {!effectiveFailed && (
           <HotelGuestLoginDetailsCard booking={booking} loginCredentials={loginCredentials} />
         )}
 
