@@ -129,12 +129,21 @@ function FeaturedHotelsSkeleton() {
   );
 }
 
+export interface FeaturedTripJackCatalogInfo {
+  contentSyncedCount?: number;
+  totalActiveHotels?: number;
+  syncInProgress?: boolean;
+  contentSuccessCount?: number;
+}
+
 export function FeaturedTripJackHotelsSection({
   hotels,
   loading = false,
+  catalogInfo,
 }: {
   hotels: FeaturedTripJackHotelCard[];
   loading?: boolean;
+  catalogInfo?: FeaturedTripJackCatalogInfo | null;
 }) {
   const [activeCity, setActiveCity] = useState<string>("all");
   const cityOptions = useMemo(() => {
@@ -153,7 +162,22 @@ export function FeaturedTripJackHotelsSection({
     return hotels.filter((hotel) => (hotel.cityName || "Other").trim() === activeCity);
   }, [hotels, activeCity]);
 
-  if (!loading && hotels.length === 0) return null;
+  const syncMessage = useMemo(() => {
+    if (loading || hotels.length > 0) return null;
+    const ready = catalogInfo?.contentSyncedCount ?? catalogInfo?.contentSuccessCount ?? 0;
+    const total = catalogInfo?.totalActiveHotels ?? 0;
+    if (catalogInfo?.syncInProgress) {
+      return `Hotel catalog sync is running. ${ready.toLocaleString()} hotel${
+        ready === 1 ? "" : "s"
+      } with photos and details are ready${
+        total > ready ? ` (${total.toLocaleString()} mapping IDs in catalog)` : ""
+      }. Featured hotels appear here as content sync completes.`;
+    }
+    if (ready > 0) {
+      return `${ready.toLocaleString()} synced hotels are in the catalog. Try searching by city for live rates.`;
+    }
+    return "Live TripJack hotels will appear here after catalog content sync completes in admin.";
+  }, [loading, hotels.length, catalogInfo]);
 
   return (
     <section className="mb-10">
@@ -166,14 +190,33 @@ export function FeaturedTripJackHotelsSection({
             </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Browse synced properties with photos — click any hotel to view live rooms and book.
+            {hotels.length > 0
+              ? "Browse synced properties with photos — click any hotel to view live rooms and book."
+              : "Synced hotels with names, cities and photos — search anytime for more destinations."}
           </p>
+          {catalogInfo?.syncInProgress && hotels.length > 0 && (
+            <p className="mt-1 text-xs text-amber-700">
+              Catalog sync in progress — showing{" "}
+              {(catalogInfo.contentSyncedCount ?? catalogInfo.contentSuccessCount ?? hotels.length).toLocaleString()}{" "}
+              ready hotels so far.
+            </p>
+          )}
         </div>
         <Link href="/hotels/search">
           <Button variant="outline">Search more live hotels</Button>
         </Link>
       </div>
 
+      {!loading && hotels.length === 0 ? (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-6 text-sm text-amber-950">
+          <p>{syncMessage}</p>
+          <p className="mt-3">
+            <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
+              Search live hotels by city
+            </Link>
+          </p>
+        </div>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="rounded-2xl border bg-white p-4">
           <p className="mb-3 text-sm font-semibold text-slate-900">Filter by city</p>
@@ -222,6 +265,7 @@ export function FeaturedTripJackHotelsSection({
           </div>
         )}
       </div>
+      )}
     </section>
   );
 }

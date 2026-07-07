@@ -56,18 +56,35 @@ function cardScore(card: FeaturedTripJackHotelCard): number {
   return score;
 }
 
+function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
+  const name = entry.name.trim();
+  return /^hotel\s+\d+$/i.test(name) && !entry.cityName?.trim();
+}
+
+function resolveFeaturedCityName(entry: TripJackHotelCatalogEntry): string {
+  return (
+    entry.cityName?.trim() ||
+    entry.region?.trim() ||
+    entry.stateName?.trim() ||
+    entry.countryName?.trim() ||
+    "India"
+  );
+}
+
 export function mapCatalogEntryToFeaturedCard(
   entry: TripJackHotelCatalogEntry
 ): FeaturedTripJackHotelCard | null {
   const imageUrls = catalogEntryImageUrls(entry);
-  if (entry.websiteVisible === false || entry.isDeleted) return null;
-  if (!entry.name?.trim() || !entry.cityName?.trim()) return null;
+  if (entry.websiteVisible === false || entry.isDeleted || !entry.contentSynced) return null;
+  if (!entry.name?.trim() || isMappingOnlyStub(entry)) return null;
+
+  const cityName = resolveFeaturedCityName(entry);
 
   return {
     tjHotelId: entry.tjHotelId,
     name: entry.name,
-    cityName: entry.cityName,
-    location: [entry.address, entry.cityName, entry.stateName].filter(Boolean).join(", "),
+    cityName,
+    location: [entry.address, cityName, entry.stateName].filter(Boolean).join(", "),
     heroImage: entry.heroImage ?? imageUrls[0],
     imageUrls,
     starRating: entry.starRating ?? entry.rating,
@@ -76,7 +93,7 @@ export function mapCatalogEntryToFeaturedCard(
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
-  const entries = await listFeaturedTripJackHotelsFromFirestore(limit * 4);
+  const entries = await listFeaturedTripJackHotelsFromFirestore(Math.max(limit * 3, 80));
   const cardsByCity = new Map<string, FeaturedTripJackHotelCard[]>();
   const fallback: FeaturedTripJackHotelCard[] = [];
 

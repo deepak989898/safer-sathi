@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalog";
+import {
+  countContentSyncedTripJackHotels,
+  getTripJackHotelCatalogMeta,
+} from "@/lib/tripjack-hotels/catalog-firestore";
 import { getHotelWebsiteSettings, isTripjackHotelsWebsiteEnabled } from "@/lib/hotels/website-settings";
 
 export const dynamic = "force-dynamic";
@@ -8,14 +12,30 @@ export async function GET(request: Request) {
   try {
     const settings = await getHotelWebsiteSettings();
     if (!isTripjackHotelsWebsiteEnabled(settings)) {
-      return NextResponse.json({ success: true, data: { hotels: [] } });
+      return NextResponse.json({ success: true, data: { hotels: [], catalog: null } });
     }
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(30, Math.max(1, Number(searchParams.get("limit") ?? 24) || 24));
-    const hotels = await getFeaturedTripJackHotels(limit);
 
-    return NextResponse.json({ success: true, data: { hotels } });
+    const [hotels, contentSyncedCount, meta] = await Promise.all([
+      getFeaturedTripJackHotels(limit),
+      countContentSyncedTripJackHotels(),
+      getTripJackHotelCatalogMeta(),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        hotels,
+        catalog: {
+          contentSyncedCount,
+          totalActiveHotels: meta.activeHotels ?? meta.totalHotels ?? 0,
+          syncInProgress: Boolean(meta.syncInProgress),
+          contentSuccessCount: meta.contentSuccessCount ?? contentSyncedCount,
+        },
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load featured hotels";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -21,6 +21,7 @@ import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { FeaturedTripJackHotelsSection } from "@/components/hotels-tripjack/featured-tripjack-hotels";
+import type { FeaturedTripJackCatalogInfo } from "@/components/hotels-tripjack/featured-tripjack-hotels";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
 import type { Hotel } from "@/types";
 
@@ -77,9 +78,10 @@ export default function HotelsClient({
 }) {
   const { locale, searchFilters, resetSearchFilters } = useAppStore();
   const [featuredHotels, setFeaturedHotels] = useState(featuredTripJackHotels);
-  const [featuredLoading, setFeaturedLoading] = useState(
-    tripjackHotelsEnabled && featuredTripJackHotels.length === 0
+  const [featuredCatalogInfo, setFeaturedCatalogInfo] = useState<FeaturedTripJackCatalogInfo | null>(
+    null
   );
+  const [featuredLoading, setFeaturedLoading] = useState(tripjackHotelsEnabled);
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [minStars, setMinStars] = useState<string[]>([]);
@@ -98,12 +100,7 @@ export default function HotelsClient({
   useEffect(() => {
     if (!tripjackHotelsEnabled) {
       setFeaturedHotels([]);
-      setFeaturedLoading(false);
-      return;
-    }
-
-    if (featuredTripJackHotels.length > 0) {
-      setFeaturedHotels(featuredTripJackHotels);
+      setFeaturedCatalogInfo(null);
       setFeaturedLoading(false);
       return;
     }
@@ -115,8 +112,13 @@ export default function HotelsClient({
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return;
-        if (json.success && Array.isArray(json.data?.hotels)) {
-          setFeaturedHotels(json.data.hotels);
+        if (json.success) {
+          if (Array.isArray(json.data?.hotels)) {
+            setFeaturedHotels(json.data.hotels);
+          }
+          if (json.data?.catalog) {
+            setFeaturedCatalogInfo(json.data.catalog);
+          }
         }
       })
       .catch(() => undefined)
@@ -127,7 +129,7 @@ export default function HotelsClient({
     return () => {
       cancelled = true;
     };
-  }, [tripjackHotelsEnabled, featuredTripJackHotels]);
+  }, [tripjackHotelsEnabled]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialHotels.map((h) => h.priceFrom), 20000),
@@ -231,11 +233,18 @@ export default function HotelsClient({
 
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
-      {tripjackHotelsEnabled && (featuredLoading || featuredHotels.length > 0) && (
-        <FeaturedTripJackHotelsSection hotels={featuredHotels} loading={featuredLoading} />
+      {tripjackHotelsEnabled && (
+        <FeaturedTripJackHotelsSection
+          hotels={featuredHotels}
+          loading={featuredLoading}
+          catalogInfo={featuredCatalogInfo}
+        />
       )}
 
-      {tripjackHotelsEnabled && !featuredLoading && featuredHotels.length === 0 && (
+      {tripjackHotelsEnabled &&
+        !featuredLoading &&
+        featuredHotels.length === 0 &&
+        !featuredCatalogInfo?.syncInProgress && (
         <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
           Looking for live TripJack hotel rates?{" "}
           <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
