@@ -172,6 +172,15 @@ export function HotelBookingSuccessClient() {
   const confirmed = uiStatus === "confirmed";
   const failed = uiStatus === "failed";
   const pending = uiStatus === "pending";
+  const tripjackStatus = (booking.tripjackStatus ?? "").toUpperCase();
+  const showHold =
+    !failed &&
+    !confirmed &&
+    (tripjackStatus.includes("HOLD") || booking.status === "booking_pending");
+  const showCancellationPending =
+    booking.status === "cancellation_requested" ||
+    (booking.cancellationStatus ?? "").toUpperCase() === "REQUESTED" ||
+    tripjackStatus.includes("CANCELLATION_PENDING");
   const hotelReference = getHotelReferenceLabel(booking);
   const guestCount = booking.rooms.reduce(
     (sum, r) => sum + (r.adults ?? 1) + (r.children ?? 0),
@@ -194,22 +203,30 @@ export function HotelBookingSuccessClient() {
         <h1 className="mt-4 text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
           {failed
             ? "Booking Unsuccessful"
-            : confirmed
-              ? "Booking Confirmed"
-              : pending
-                ? "Booking Pending"
-                : "Booking Status"}
+            : showCancellationPending
+              ? "Cancellation Pending"
+              : confirmed
+                ? "Booking Confirmed"
+                : showHold
+                  ? "Booking On Hold"
+                  : pending
+                    ? "Booking Pending"
+                    : "Booking Status"}
         </h1>
         <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
           {failed
-            ? "We could not confirm your hotel with the supplier. Your payment will be refunded — our team will assist you if needed."
-            : confirmed
-              ? booking.emailSentAt
-                ? "Your hotel reservation is confirmed. A confirmation email with invoice and login details has been sent."
-                : "Your hotel reservation is confirmed."
-              : pending
-                ? "Payment received. Booking confirmation is in progress — we will email you once confirmed."
-                : booking.status.replace(/_/g, " ")}
+            ? "We could not confirm your hotel with the supplier. Our support team will assist with refund/help."
+            : showCancellationPending
+              ? "Your cancellation request has been submitted and is being processed by the supplier."
+              : confirmed
+                ? booking.emailSentAt
+                  ? "Your hotel reservation is confirmed. A confirmation email with invoice and login details has been sent."
+                  : "Your hotel reservation is confirmed."
+                : showHold
+                  ? "Your booking is currently on hold. We are waiting for supplier confirmation."
+                  : pending
+                    ? "Payment received. Booking confirmation is in progress — we will email you once confirmed."
+                    : booking.status.replace(/_/g, " ")}
         </p>
 
         <div className="mt-2 flex justify-center">

@@ -122,6 +122,10 @@ export interface HotelBookingRecord {
   reviewResponse?: unknown;
   bookRequest?: unknown;
   bookResponse?: unknown;
+  rawTripjackBookResponse?: unknown;
+  normalizedTripjackStatus?: string;
+  supplierBookingId?: string;
+  hotelReference?: string;
 
   supplierReference?: string;
   confirmationNumber?: string;

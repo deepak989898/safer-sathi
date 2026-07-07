@@ -26,7 +26,6 @@ import {
   isHotelBookingTerminalFailure,
 } from "@/lib/hotels/booking-status-helpers";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
-import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
@@ -43,7 +42,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const api = useHotelBookingApi();
-  const isStaff = user ? canShowAdminNav(user.role) : false;
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [booking, setBooking] = useState<HotelBookingRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +95,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
       if (!json.success) throw new Error(json.error ?? "Refresh failed");
       applyBooking(json.data.booking);
       toast.success("Booking status updated");
-      if (isStaff && json.data.debug) console.log("[hotel-detail] refresh:", json.data.debug);
+      if (isSuperAdmin && json.data.debug) console.log("[hotel-detail] refresh:", json.data.debug);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not refresh status");
     } finally {
@@ -108,7 +107,12 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
     if (!booking) return;
     setDownloading(true);
     try {
-      const res = await fetch(getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail));
+      let res = await fetch(getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail), {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        res = await customerApiFetch(`/api/hotels/bookings/${booking.bookingId}/invoice`);
+      }
       if (!res.ok) throw new Error("Could not download invoice");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -238,7 +242,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
           <h2 className="font-semibold text-slate-900">Booking details</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-            <Item label="TripJack reference" value={booking.tripjackBookingId} />
+            <Item label="Hotel reference" value={booking.tripjackBookingId} />
             <Item label="Supplier reference" value={booking.supplierReference ?? "—"} />
             <Item label="Confirmation / voucher" value={booking.confirmationNumber ?? booking.voucherNumber ?? "—"} />
             <Item label="Check-in" value={booking.checkIn} />
@@ -311,7 +315,7 @@ export function HotelBookingDetailClient({ bookingId }: { bookingId: string }) {
           )}
         </div>
 
-        {isStaff && booking.bookingDetailsResponse != null && (
+        {isSuperAdmin && booking.bookingDetailsResponse != null && (
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="mb-2 text-sm font-semibold text-slate-700">Admin: TripJack details response</p>
             <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">

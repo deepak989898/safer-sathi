@@ -2,7 +2,7 @@ import { z } from "zod";
 import { canAccessHotelBooking } from "@/lib/hotels/booking-access";
 import { hotelApiError } from "@/lib/hotels/api-helpers";
 import { canCancelHotelBooking, estimateHotelCancellationCharge } from "@/lib/hotels/post-booking-service";
-import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
+import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 export async function GET(
@@ -52,7 +52,7 @@ export async function POST(
     const { submitHotelCancellation } = await import("@/lib/hotels/post-booking-service");
     const booking = await submitHotelCancellation(id, { remarks, requestedBy });
 
-    const includeDebug = Boolean(auth && isStaffUser(auth));
+    const includeDebug = auth?.role === "super_admin";
     return apiSuccess({
       booking,
       message: "Cancellation submitted",

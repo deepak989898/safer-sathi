@@ -91,10 +91,18 @@ export async function refreshHotelBookingDetails(
       bookingDetailsNormalized: normalized,
       lastStatusCheckedAt: new Date().toISOString(),
       supplierReference: normalized.supplierReference || booking.supplierReference,
+      supplierBookingId: normalized.bookingId || booking.supplierBookingId,
+      hotelReference:
+        normalized.supplierReference ||
+        normalized.confirmationNumber ||
+        normalized.bookingId ||
+        booking.hotelReference,
       confirmationNumber: normalized.confirmationNumber || booking.confirmationNumber,
       voucherUrl: normalized.voucherUrl || booking.voucherUrl,
       voucherNumber: normalized.voucherNumber || booking.voucherNumber,
       tripjackStatus: tripjackStatus || booking.tripjackStatus,
+      normalizedTripjackStatus:
+        (normalized.bookingStatus || normalized.orderStatus || tripjackStatus || "").toUpperCase(),
       cancellationAllowed: normalized.cancellationAllowed,
       actionLog: appendLog(booking, {
         action: "refresh_booking_details",
@@ -133,6 +141,8 @@ export async function refreshHotelBookingDetails(
       bookingDetailsNormalized: normalized,
       lastStatusCheckedAt: new Date().toISOString(),
       tripjackStatus,
+      normalizedTripjackStatus:
+        (normalized.bookingStatus || normalized.orderStatus || tripjackStatus || "").toUpperCase(),
       status: "payment_received_booking_failed",
       adminNotes: tripjackStatus || "Supplier rejected the booking",
       actionLog: appendLog(booking, {
@@ -162,10 +172,18 @@ export async function refreshHotelBookingDetails(
     bookingDetailsNormalized: normalized,
     lastStatusCheckedAt: new Date().toISOString(),
     supplierReference: normalized.supplierReference || booking.supplierReference,
+    supplierBookingId: normalized.bookingId || booking.supplierBookingId,
+    hotelReference:
+      normalized.supplierReference ||
+      normalized.confirmationNumber ||
+      normalized.bookingId ||
+      booking.hotelReference,
     confirmationNumber: normalized.confirmationNumber || booking.confirmationNumber,
     voucherUrl: normalized.voucherUrl || booking.voucherUrl,
     voucherNumber: normalized.voucherNumber || booking.voucherNumber,
     tripjackStatus: normalized.bookingStatus || normalized.orderStatus,
+    normalizedTripjackStatus:
+      (normalized.bookingStatus || normalized.orderStatus || "").toUpperCase(),
     cancellationAllowed: normalized.cancellationAllowed,
     status,
     actionLog: appendLog(booking, {
@@ -276,12 +294,17 @@ export async function submitHotelCancellation(
 
   const cancelSuccess =
     normalized?.success !== false &&
-    (normalized?.cancellationStatus?.toUpperCase().includes("CANCEL") ?? true);
+    ["CANCELLED", "SUCCESS", "COMPLETED"].includes(
+      (normalized?.cancellationStatus ?? "").toUpperCase()
+    );
+  const cancelPending = ["CANCELLATION_PENDING", "PENDING", "REQUESTED", "IN_PROGRESS"].includes(
+    (normalized?.cancellationStatus ?? "").toUpperCase()
+  );
 
   const updates: Partial<HotelBookingRecord> = {
     cancellationRequest: request,
     cancellationResponse: response,
-    cancellationStatus: cancelSuccess ? "CANCELLED" : "REQUESTED",
+    cancellationStatus: cancelSuccess ? "CANCELLED" : cancelPending ? "REQUESTED" : "FAILED",
     cancellationRemarks: input.remarks,
     cancellationRequestedBy: input.requestedBy,
     cancellationCharge: charge,
@@ -289,7 +312,11 @@ export async function submitHotelCancellation(
     refundStatus: expectedRefund > 0 ? "PENDING" : "NONE",
     refundAmount: expectedRefund,
     cancelledAt: new Date().toISOString(),
-    status: cancelSuccess ? "cancelled" : "cancellation_requested",
+    status: cancelSuccess
+      ? "cancelled"
+      : cancelPending
+        ? "cancellation_requested"
+        : "booking_failed",
     actionLog: appendLog(booking, {
       action: "cancel_booking",
       by: input.requestedBy,

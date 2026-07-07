@@ -3,7 +3,7 @@ import { canAccessFlightBooking } from "@/lib/flights/booking-access";
 import { flightApiError } from "@/lib/flights/api-helpers";
 import { canCancelBooking } from "@/lib/flights/booking-guards";
 import { getFlightCancellationCharges } from "@/lib/flights/post-booking-service";
-import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
+import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 
 const schema = z.object({
@@ -29,7 +29,7 @@ export async function POST(
 
     const result = await getFlightCancellationCharges(id, remarks);
     const auth = await optionalAuthenticateRequest(request);
-    const includeDebug = Boolean(auth && isStaffUser(auth));
+    const includeDebug = auth?.role === "super_admin";
 
     return apiSuccess({
       booking: result.booking,

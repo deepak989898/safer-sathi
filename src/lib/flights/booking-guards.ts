@@ -21,5 +21,18 @@ export function canCancelBooking(booking: FlightBookingRecord): boolean {
     "payment_failed",
     "booking_failed",
   ]);
-  return !blocked.has(booking.status);
+  if (blocked.has(booking.status)) return false;
+
+  const orderStatus = (booking.orderStatus ?? booking.tripjackStatus ?? "").toUpperCase();
+  const tripjackStatus = (booking.tripjackBookingStatus ?? "").toUpperCase();
+  const hasConfirmedOrder =
+    booking.status === "confirmed" ||
+    booking.passengerTicketStatus === "CONFIRMED" ||
+    orderStatus === "SUCCESS" ||
+    orderStatus === "COMPLETED" ||
+    orderStatus === "CONFIRMED" ||
+    tripjackStatus === "SUCCESS" ||
+    Boolean(booking.pnr || booking.airlinePnr || booking.ticketNumber || booking.ticketNo);
+
+  return hasConfirmedOrder;
 }

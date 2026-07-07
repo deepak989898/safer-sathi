@@ -28,9 +28,8 @@ export async function GET(
     const tokenOk = verifyInvoiceAccessToken(id, booking.customerEmail, token ?? "");
 
     if (!isOwner && !isStaff && !tokenOk) return apiError("Forbidden", 403);
-    if (booking.paymentStatus !== "paid" && !isStaff) {
-      return apiError("Invoice available after payment", 400);
-    }
+    // Keep invoice accessible for customer across booking statuses.
+    // Amount fields are generated from Firestore booking snapshot.
 
     const legacy = hotelBookingToLegacyBooking(booking);
     const pdf = await generateInvoice(legacy);

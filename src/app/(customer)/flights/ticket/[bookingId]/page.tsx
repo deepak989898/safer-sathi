@@ -26,6 +26,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   const { user } = useAuth();
   const api = useFlightBookingApi();
   const isStaff = user ? canShowAdminNav(user.role) : false;
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [booking, setBooking] = useState<FlightBookingRecord | null>(null);
   const [bookingId, setBookingId] = useState("");
@@ -226,7 +227,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
         <FlightTicketView
           booking={booking}
           locale={locale}
-          showDebug={isStaff}
+          showDebug={isSuperAdmin}
           refreshing={refreshing}
           onRefresh={() => void handleRefresh()}
         />
@@ -266,7 +267,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
           </Button>
         </div>
 
-        {isStaff && (
+        {isSuperAdmin && (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 print:hidden">
             <p className="mb-3 text-sm font-semibold text-slate-800">Admin tools</p>
             <div className="flex flex-wrap gap-2">

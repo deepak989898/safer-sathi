@@ -21,7 +21,10 @@ export function canCancelHotelBooking(booking: HotelBookingRecord): boolean {
   ) {
     return false;
   }
-  if (booking.cancellationAllowed === false) return false;
+  const localPolicyAvailable =
+    Boolean(booking.reviewNormalized?.option.penalties?.length) ||
+    booking.reviewNormalized?.option.isRefundable === true;
+  if (booking.cancellationAllowed === false && !localPolicyAvailable) return false;
 
   const checkIn = booking.checkIn ? new Date(`${booking.checkIn}T14:00:00`) : null;
   if (checkIn && checkIn.getTime() < Date.now()) return false;
