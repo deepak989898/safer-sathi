@@ -6,6 +6,8 @@ import {
   getHotelBySlugPublished,
   hydrateHotelsStore,
 } from "@/lib/hotel-store";
+import { getTripJackHotelCatalogEntryByHid } from "@/lib/tripjack-hotels/catalog-firestore";
+import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import {
   getPackageByIdAdmin,
   getPublishedPackageBySlug,
@@ -118,6 +120,21 @@ async function fetchCatalogSlice(booking: Booking): Promise<CatalogSlice | null>
   if (!serviceId || serviceId.startsWith("ai_")) return null;
 
   if (serviceType === "hotel") {
+    // For TripJack hotel bookings, serviceId is usually tjHotelId (numeric).
+    const parsedHid = Number(serviceId);
+    if (Number.isFinite(parsedHid) && parsedHid > 0) {
+      const tripjackHotel = await getTripJackHotelCatalogEntryByHid(parsedHid);
+      if (tripjackHotel) {
+        return {
+          images: resolveHotelImageCandidates({
+            heroImage: tripjackHotel.heroImage,
+            imageUrls: tripjackHotel.imageUrls,
+          }),
+          slug: tripjackHotel.cityName || `tj_${parsedHid}`,
+        };
+      }
+    }
+
     await hydrateHotelsStore();
     let hotel: Hotel | null = getHotelByIdAdmin(serviceId);
     if (!hotel) hotel = await readCatalogItem<Hotel>("hotels", serviceId);

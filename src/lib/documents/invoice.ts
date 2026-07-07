@@ -47,7 +47,10 @@ const FONT_HEADING: FontFamily = "helvetica";
 const MIN_TABLE_ROW_H = 22;
 
 function inr(n: number): string {
-  return "\u20b9" + n.toLocaleString("en-IN");
+  return `INR ${n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function fmtDate(value: string): string {

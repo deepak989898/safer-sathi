@@ -109,12 +109,27 @@ export function isHotelBookingTerminalFailure(booking: HotelBookingRecord): bool
 }
 
 export function resolveHotelBookingUiStatus(booking: HotelBookingRecord): HotelBookingUiStatus {
-  if (isHotelBookingFailedStatus(booking) || isHotelSupplierRejected(booking)) {
+  if (isHotelBookingConfirmedStatus(booking)) {
+    return "confirmed";
+  }
+
+  const supplierRejected = isHotelSupplierRejected(booking);
+  const voucherLikeMetadata = hasHotelVoucherMetadata(booking);
+
+  if (isHotelBookingFailedStatus(booking)) {
+    // If payment is received and supplier reference/voucher metadata exists, avoid showing
+    // a hard failure unless supplier explicitly rejected the booking.
+    if (booking.paymentStatus === "paid" && voucherLikeMetadata && !supplierRejected) {
+      if (isSupplierBookingSuccessStatus(booking.tripjackStatus)) {
+        return "confirmed";
+      }
+      return "pending";
+    }
     return "failed";
   }
 
-  if (isHotelBookingConfirmedStatus(booking)) {
-    return "confirmed";
+  if (supplierRejected) {
+    return "failed";
   }
 
   if (
@@ -127,7 +142,7 @@ export function resolveHotelBookingUiStatus(booking: HotelBookingRecord): HotelB
     return "pending";
   }
 
-  if (booking.paymentStatus === "paid" && hasHotelVoucherMetadata(booking)) {
+  if (booking.paymentStatus === "paid" && voucherLikeMetadata) {
     return "confirmed";
   }
 
