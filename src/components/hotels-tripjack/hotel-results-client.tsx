@@ -8,7 +8,8 @@ import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-l
 import { HotelCard as HotelUiCard, HotelFieldLabel, HotelPrimaryButton } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { useAuth } from "@/contexts/auth-context";
-import { canShowAdminNav } from "@/lib/navigation/role-menus";
+import { canAccessAICenter } from "@/lib/ai-center/permissions";
+import { explainHotelImageResolution } from "@/lib/tripjack-hotels/hotel-images";
 import { loadHotelListingSession } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
@@ -21,7 +22,8 @@ export function HotelResultsClient() {
   const router = useRouter();
   const { locale } = useAppStore();
   const { user } = useAuth();
-  const isStaff = user ? canShowAdminNav(user.role) : false;
+  const isSuperAdmin = user ? canAccessAICenter(user.role) : false;
+  const [debugOpen, setDebugOpen] = useState(false);
 
   const [ready, setReady] = useState(false);
   const [hotels, setHotels] = useState<NormalizedHotel[]>([]);
@@ -229,8 +231,50 @@ export function HotelResultsClient() {
             </div>
           )}
 
-          {isStaff && hotels.length > 0 && (
-            <p className="text-xs text-slate-400">Staff: {hotels.length} raw results loaded</p>
+          {isSuperAdmin && hotels.length > 0 && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
+              <button
+                type="button"
+                className="font-semibold underline"
+                onClick={() => setDebugOpen((open) => !open)}
+              >
+                {debugOpen ? "Hide" : "Show"} image debug (Super Admin)
+              </button>
+              {debugOpen && (() => {
+                const sample = hotels[0];
+                const debug = explainHotelImageResolution(sample);
+                return (
+                  <div className="mt-3 space-y-2 font-mono">
+                    <p>
+                      <strong>Hotel:</strong> {sample.name} (HID {String(sample.tjHotelId)})
+                    </p>
+                    <p>
+                      <strong>heroImage:</strong> {debug.heroImage ?? "—"}
+                    </p>
+                    <p>
+                      <strong>selected URL:</strong> {debug.selectedUrl ?? "NO IMAGE"}
+                    </p>
+                    <p>
+                      <strong>imageUrls:</strong> {debug.imageUrls?.join(", ") || "—"}
+                    </p>
+                    <div>
+                      <strong>resolution steps:</strong>
+                      <ul className="mt-1 list-inside list-disc">
+                        {debug.steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>first raw image object:</strong>
+                      <pre className="mt-1 max-h-48 overflow-auto rounded bg-white p-2 text-[10px]">
+                        {JSON.stringify(debug.firstRawImage ?? null, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           )}
         </div>
       </div>

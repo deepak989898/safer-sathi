@@ -1,5 +1,5 @@
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
-import { extractImageUrlList } from "@/lib/tripjack-hotels/hotel-images";
+import { parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -24,8 +24,8 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string {
   return "";
 }
 
-function pickImages(raw: Record<string, unknown>): string[] {
-  const sources = [
+function pickImages(raw: Record<string, unknown>) {
+  return parseTripJackHotelImages(
     raw.images,
     raw.imageList,
     raw.hotelImages,
@@ -35,16 +35,8 @@ function pickImages(raw: Record<string, unknown>): string[] {
     raw.media,
     asRecord(raw.staticContent)?.images,
     asRecord(raw.hotelInfo)?.images,
-    asRecord(raw.content)?.images,
-  ];
-
-  const urls: string[] = [];
-  for (const source of sources) {
-    for (const url of extractImageUrlList(source)) {
-      if (!urls.includes(url)) urls.push(url);
-    }
-  }
-  return urls;
+    asRecord(raw.content)?.images
+  );
 }
 
 function pickFacilities(raw: Record<string, unknown>): string[] {
@@ -146,6 +138,7 @@ export function normalizeStaticHotelRecord(
     description,
   ]);
 
+  const imageData = pickImages(rec);
   const now = new Date().toISOString();
 
   return {
@@ -163,7 +156,10 @@ export function normalizeStaticHotelRecord(
     address,
     rating,
     starRating,
-    images: pickImages(rec),
+    images: imageData.rawImages.length ? imageData.rawImages : undefined,
+    imageUrls: imageData.imageUrls,
+    heroImage: imageData.heroImage,
+    imageCaption: imageData.imageCaption,
     facilities: pickFacilities(rec),
     policies: policies.length ? policies : undefined,
     geolocation: pickGeo(rec),
@@ -219,6 +215,7 @@ export function mappingRecordToCatalogEntry(
     address: "",
     rating: null,
     images: [],
+    imageUrls: [],
     facilities: [],
     contentSynced: false,
     isActive: true,

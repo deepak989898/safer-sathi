@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Building2, Star } from "lucide-react";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { formatCurrency } from "@/lib/i18n";
-import { resolveHotelCardImageUrl } from "@/lib/tripjack-hotels/hotel-images";
+import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
 
@@ -17,9 +17,21 @@ interface HotelCardProps {
 
 export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
   const stars = hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-  const imageSrc = resolveHotelCardImageUrl(hotel);
-  const [imageFailed, setImageFailed] = useState(false);
-  const showImage = Boolean(imageSrc) && !imageFailed;
+  const candidates = useMemo(
+    () =>
+      resolveHotelImageCandidates({
+        imageUrl: hotel.imageUrl,
+        images: hotel.images,
+        imageUrls: hotel.imageUrls,
+        heroImage: hotel.heroImage,
+        staticContent: hotel.staticContent,
+        options: hotel.options,
+      }),
+    [hotel]
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const imageSrc = candidates[candidateIndex];
+  const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
 
   return (
     <article
@@ -31,10 +43,11 @@ export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageSrc}
-            alt={hotel.name}
+            alt={hotel.imageCaption || hotel.name}
             className="h-full w-full object-cover"
             loading="lazy"
-            onError={() => setImageFailed(true)}
+            referrerPolicy="no-referrer"
+            onError={() => setCandidateIndex((index) => index + 1)}
           />
         ) : (
           <div

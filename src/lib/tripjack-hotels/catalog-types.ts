@@ -13,7 +13,12 @@ export interface TripJackHotelCatalogEntry {
   address: string;
   rating: number | null;
   starRating?: number | null;
-  images: string[];
+  /** TripJack V3 raw `images[]` objects from content API */
+  images?: unknown[];
+  /** Legacy string URLs — prefer imageUrls */
+  imageUrls: string[];
+  heroImage?: string;
+  imageCaption?: string;
   facilities: string[];
   policies?: string[];
   geolocation?: { lat?: number; lng?: number };

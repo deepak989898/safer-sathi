@@ -3,6 +3,7 @@ import "server-only";
 import { getTripJackHotelProxyConfig } from "@/lib/tripjack-hotels/config";
 import { tripJackHotelProxyFetch } from "@/lib/tripjack-hotels/api-logging";
 import { generateHotelCorrelationId } from "@/lib/tripjack-hotels/correlation";
+import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   normalizeTripJackHotelDetail,
   normalizeTripJackHotelListing,
@@ -226,7 +227,9 @@ export async function fetchTripJackHotelPricing(input: {
     cityName?: string;
     countryName?: string;
     rating?: number | null;
-    images?: string[];
+    imageUrls?: string[];
+    heroImage?: string;
+    images?: unknown[];
     facilities?: string[];
   };
 }): Promise<{ detail: NormalizedHotelDetail; elapsedMs?: number; requestBody: HotelPricingRequestBody; rawResponse: unknown }> {
@@ -293,8 +296,17 @@ export async function fetchTripJackHotelPricing(input: {
     if (input.catalogEnrichment.rating != null && detail.starRating == null) {
       detail.starRating = input.catalogEnrichment.rating;
     }
-    if (!detail.images.length && input.catalogEnrichment.images?.length) {
-      detail.images = input.catalogEnrichment.images;
+    if (!detail.images.length && input.catalogEnrichment) {
+      const catalogUrls = input.catalogEnrichment.imageUrls?.length
+        ? input.catalogEnrichment.imageUrls
+        : catalogEntryImageUrls({
+            imageUrls: input.catalogEnrichment.imageUrls,
+            heroImage: input.catalogEnrichment.heroImage,
+            images: input.catalogEnrichment.images,
+          });
+      if (catalogUrls.length) {
+        detail.images = catalogUrls;
+      }
     }
     if (!detail.amenities.length && input.catalogEnrichment.facilities?.length) {
       detail.amenities = input.catalogEnrichment.facilities;

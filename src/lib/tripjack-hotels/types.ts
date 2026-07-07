@@ -85,9 +85,10 @@ export interface NormalizedHotel {
   name: string;
   starRating?: number | null;
   imageUrl?: string;
-  images?: string[];
+  images?: unknown;
   imageUrls?: string[];
   heroImage?: string;
+  imageCaption?: string;
   staticContent?: { images?: unknown };
   location?: string;
   hasBreakfast?: boolean;

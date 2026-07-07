@@ -3,6 +3,7 @@ import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { isStaffUser, optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { getTripJackHotelCatalogEntryByHid } from "@/lib/tripjack-hotels/catalog-firestore";
+import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   buildHotelPricingBody,
   fetchTripJackHotelPricing,
@@ -81,6 +82,8 @@ export async function POST(request: Request) {
             cityName: catalog.cityName,
             countryName: catalog.countryName,
             rating: catalog.rating,
+            imageUrls: catalogEntryImageUrls(catalog),
+            heroImage: catalog.heroImage,
             images: catalog.images,
             facilities: catalog.facilities,
           }

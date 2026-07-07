@@ -4,7 +4,12 @@ import {
   getTripJackHotelCatalogEntryByHid,
   upsertTripJackHotelCatalogEntries,
 } from "@/lib/tripjack-hotels/catalog-firestore";
-import { resolveHotelCardImageUrl } from "@/lib/tripjack-hotels/hotel-images";
+import {
+  applyParsedImagesToHotel,
+  catalogEntryImageUrls,
+  parseTripJackHotelImages,
+  resolveHotelCardImageUrl,
+} from "@/lib/tripjack-hotels/hotel-images";
 import {
   extractHotelContentPayload,
   normalizeStaticHotelRecord,
@@ -12,25 +17,11 @@ import {
 import { fetchTripJackHotelContent } from "@/lib/tripjack-hotels/static-client";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 
-function mergeHotelImages(
-  hotel: NormalizedHotel,
-  images: string[]
-): NormalizedHotel {
-  if (!images.length) return hotel;
-  return {
-    ...hotel,
-    images,
-    imageUrls: images,
-    imageUrl: images[0],
-    staticContent: { images },
-  };
-}
-
 /** Fetch TripJack V3 hotel content for listing cards missing images (max 100 IDs). */
 async function fetchContentImagesForHids(
   hids: number[]
-): Promise<Map<number, string[]>> {
-  const map = new Map<number, string[]>();
+): Promise<Map<number, ReturnType<typeof parseTripJackHotelImages>>> {
+  const map = new Map<number, ReturnType<typeof parseTripJackHotelImages>>();
   if (!hids.length) return map;
 
   const { data } = await fetchTripJackHotelContent({
@@ -42,8 +33,14 @@ async function fetchContentImagesForHids(
 
   for (const raw of contentHotels) {
     const entry = normalizeStaticHotelRecord(raw);
-    if (!entry?.images?.length) continue;
-    map.set(entry.tjHotelId, entry.images);
+    if (!entry?.imageUrls?.length) continue;
+    const parsed = parseTripJackHotelImages(entry.images, entry.imageUrls);
+    map.set(entry.tjHotelId, {
+      rawImages: entry.images ?? parsed.rawImages,
+      imageUrls: entry.imageUrls,
+      heroImage: entry.heroImage ?? parsed.heroImage,
+      imageCaption: entry.imageCaption ?? parsed.imageCaption,
+    });
     if (entry.contentSynced) {
       catalogEntries.push(entry);
     }
@@ -83,8 +80,8 @@ export async function enrichListingHotelsWithImages(
     try {
       const liveImages = await fetchContentImagesForHids(hids);
       enriched = enriched.map((hotel) => {
-        const images = liveImages.get(Number(hotel.tjHotelId));
-        return images?.length ? mergeHotelImages(hotel, images) : hotel;
+        const parsed = liveImages.get(Number(hotel.tjHotelId));
+        return parsed?.imageUrls.length ? applyParsedImagesToHotel(hotel, parsed) : hotel;
       });
     } catch (error) {
       console.warn("[hotel-listing] live content image fetch failed:", error);
@@ -97,18 +94,31 @@ export async function enrichListingHotelsWithImages(
   const catalogResults = await Promise.all(
     stillMissing.map(async (hotel) => {
       const catalog = await getTripJackHotelCatalogEntryByHid(hotel.tjHotelId);
-      return { tjHotelId: Number(hotel.tjHotelId), images: catalog?.images ?? [] };
+      if (!catalog) return { tjHotelId: Number(hotel.tjHotelId), parsed: null };
+      const urls = catalogEntryImageUrls(catalog);
+      const parsed = parseTripJackHotelImages(catalog.images, urls);
+      return {
+        tjHotelId: Number(hotel.tjHotelId),
+        parsed: urls.length
+          ? {
+              rawImages: catalog.images ?? parsed.rawImages,
+              imageUrls: urls,
+              heroImage: catalog.heroImage ?? parsed.heroImage,
+              imageCaption: catalog.imageCaption ?? parsed.imageCaption,
+            }
+          : null,
+      };
     })
   );
 
   const catalogMap = new Map(
     catalogResults
-      .filter((row) => row.images.length > 0)
-      .map((row) => [row.tjHotelId, row.images] as const)
+      .filter((row) => row.parsed?.imageUrls.length)
+      .map((row) => [row.tjHotelId, row.parsed!] as const)
   );
 
   return enriched.map((hotel) => {
-    const images = catalogMap.get(Number(hotel.tjHotelId));
-    return images?.length ? mergeHotelImages(hotel, images) : hotel;
+    const parsed = catalogMap.get(Number(hotel.tjHotelId));
+    return parsed ? applyParsedImagesToHotel(hotel, parsed) : hotel;
   });
 }

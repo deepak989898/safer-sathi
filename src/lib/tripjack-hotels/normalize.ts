@@ -6,7 +6,7 @@ import type {
   NormalizedHotelPricing,
   NormalizedHotelReviewResult,
 } from "@/lib/tripjack-hotels/types";
-import { extractImageUrlList } from "@/lib/tripjack-hotels/hotel-images";
+import { extractImageUrlList, parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -234,7 +234,7 @@ function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHote
   const starRaw = pickNumber(hotel, ["starRating", "stars", "rating"], 0);
   const staticContent = asRecord(hotel.staticContent);
   const hotelInfo = asRecord(hotel.hotelInfo);
-  const images = imageUrlList([
+  const parsedImages = parseTripJackHotelImages(
     hotel.images,
     hotel.photos,
     hotel.imageList,
@@ -244,20 +244,28 @@ function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHote
     hotel.media,
     staticContent?.images,
     staticContent?.imageList,
-    hotelInfo?.images,
-  ]);
-  const heroImage = pickString(hotel, ["heroImage", "thumbnail", "thumbUrl", "mainImage"], "");
+    hotelInfo?.images
+  );
+  const legacyHero = pickString(hotel, ["heroImage", "thumbnail", "thumbUrl", "mainImage"], "");
+  const heroImage = parsedImages.heroImage || legacyHero || undefined;
+  const imageUrls = parsedImages.imageUrls.length ? parsedImages.imageUrls : legacyHero ? [legacyHero] : [];
   const optionImage = cheapest?.roomImages[0];
-  const imageUrl = images[0] || heroImage || optionImage || undefined;
+  const imageUrl = heroImage || imageUrls[0] || optionImage || undefined;
 
   return {
     tjHotelId: typeof tjHotelId === "number" ? tjHotelId : String(tjHotelId),
     name,
     starRating: starRaw > 0 ? starRaw : null,
     imageUrl,
-    images: images.length ? images : heroImage ? [heroImage] : optionImage ? [optionImage] : [],
-    imageUrls: images.length ? images : undefined,
-    heroImage: heroImage || undefined,
+    images: parsedImages.rawImages.length ? parsedImages.rawImages : imageUrls,
+    imageUrls: imageUrls.length ? imageUrls : undefined,
+    heroImage,
+    imageCaption: parsedImages.imageCaption,
+    staticContent: parsedImages.rawImages.length
+      ? { images: parsedImages.rawImages }
+      : staticContent?.images
+        ? { images: staticContent.images }
+        : undefined,
     location: pickString(hotel, ["location", "address", "city", "locality"], ""),
     hasBreakfast: hasBreakfastMeal(cheapest?.mealBasis ?? "—"),
     cheapestTotalPrice: cheapest?.pricing.totalPrice ?? 0,

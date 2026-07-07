@@ -23,7 +23,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "**.travelapi.com",
+      },
+      {
+        protocol: "https",
         hostname: "images.travelapi.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.trvl-media.com",
       },
       {
         protocol: "https",
