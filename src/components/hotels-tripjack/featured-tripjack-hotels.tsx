@@ -192,13 +192,13 @@ export function FeaturedTripJackHotelsSection({
               Featured live TripJack hotels
             </h2>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {showLiveSearch
-              ? "Search by city or hotel name — results show on this page."
-              : hotels.length > 0
+          {!showLiveSearch && (
+            <p className="text-sm text-muted-foreground">
+              {hotels.length > 0
                 ? "Browse India hotels with photos — click any hotel to view live rooms and book."
                 : "India hotels with names, cities and photos — search anytime for more destinations."}
-          </p>
+            </p>
+          )}
           {catalogInfo?.syncInProgress && hotels.length > 0 && !showLiveSearch && (
             <p className="mt-1 text-xs text-amber-700">
               Catalog sync in progress — showing featured hotels from Indian cities (

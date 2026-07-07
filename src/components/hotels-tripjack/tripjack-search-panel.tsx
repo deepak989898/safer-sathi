@@ -86,6 +86,7 @@ export function TripJackSearchPanel({
       )}
       style={{ borderColor: HOTEL_UI.border }}
     >
+      {!destinationOnly && (
       <div className="border-b px-4 py-4 md:px-6">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#006CE4]/10">
@@ -96,15 +97,14 @@ export function TripJackSearchPanel({
               Search live TripJack hotels
             </h2>
             <p className="text-xs text-muted-foreground md:text-sm">
-              {destinationOnly
-                ? "Search by city or hotel name — choose dates when you book a room"
-                : "Real-time rates · INR · Nationality default India (106)"}
+              Real-time rates · INR · Nationality default India (106)
             </p>
           </div>
         </div>
       </div>
+      )}
 
-      <HotelCard padding={compact ? "sm" : "lg"} className="!rounded-none !border-0 !shadow-none">
+      <HotelCard padding={compact ? "sm" : destinationOnly ? "sm" : "lg"} className="!rounded-none !border-0 !shadow-none">
         <div
           className={cn(
             "grid gap-4",
@@ -116,8 +116,10 @@ export function TripJackSearchPanel({
           )}
         >
           <div className={cn(destinationOnly ? "" : compact ? "lg:col-span-4" : "md:col-span-2")}>
-            <HotelFieldLabel>City / destination / hotel name</HotelFieldLabel>
-            <div className="relative mt-1.5">
+            {!destinationOnly && (
+              <HotelFieldLabel>City / destination / hotel name</HotelFieldLabel>
+            )}
+            <div className={cn("relative", destinationOnly ? "" : "mt-1.5")}>
               <MapPin
                 className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2"
                 style={{ color: HOTEL_UI.textMuted }}
@@ -133,6 +135,7 @@ export function TripJackSearchPanel({
                   onFocus={onDestinationFocus}
                   onBlur={onDestinationBlur}
                   error={destinationError}
+                  hideLabel={destinationOnly}
                   inputClassName="h-11 rounded border bg-white pl-0"
                   containerRef={destinationContainerRef}
                   highlightedIndex={highlightedIndex}

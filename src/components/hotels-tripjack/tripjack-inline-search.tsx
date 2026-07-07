@@ -51,14 +51,7 @@ export function TripJackInlineSearchSection() {
   };
 
   return (
-    <div className="space-y-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/30 p-4 md:p-6">
-      <div>
-        <h3 className="text-lg font-bold text-[#0c2444]">Search live hotels</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter a city or hotel name — results appear below without leaving this page.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <TripJackSearchPanel
         {...search}
         variant="full"
