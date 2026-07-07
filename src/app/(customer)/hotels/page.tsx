@@ -20,7 +20,7 @@ export default async function HotelsPage() {
 
   const [hotels, featuredTripJackHotels] = await Promise.all([
     getHotels(),
-    tripjackEnabled ? getFeaturedTripJackHotels(20) : Promise.resolve([]),
+    tripjackEnabled ? getFeaturedTripJackHotels(24) : Promise.resolve([]),
   ]);
 
   return (

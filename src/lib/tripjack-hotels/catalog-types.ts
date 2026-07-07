@@ -65,6 +65,7 @@ export interface TripJackHotelCatalogMeta {
   lastSyncMessage?: string | null;
   contentSyncCursor?: number | null;
   mappingHasMore?: boolean;
+  locationBackfillCursor?: number | null;
 }
 
 export interface DestinationSuggestion {
@@ -109,7 +110,8 @@ export type TripJackHotelSyncMode =
   | "sync_start"
   | "mapping_page"
   | "content_batch"
-  | "sync_finalize";
+  | "sync_finalize"
+  | "location_backfill";
 
 export interface TripJackHotelSyncLog {
   id: string;

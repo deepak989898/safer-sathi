@@ -4,11 +4,16 @@ import {
   countContentSyncedTripJackHotels,
   getAllTripJackActiveHotelsForIndexRebuild,
   getNextContentSyncBatch,
+  getNextLocationBackfillBatch,
   getTripJackHotelCatalogMeta,
   updateTripJackHotelCatalogMeta,
   upsertTripJackHotelCatalogEntries,
   upsertTripJackHotelDestinations,
 } from "@/lib/tripjack-hotels/catalog-firestore";
+import {
+  enrichCatalogEntryLocation,
+  formatFeaturedCardLocation,
+} from "@/lib/tripjack-hotels/catalog-location";
 import {
   MAX_HOTEL_CONTENT_BATCH,
   MAX_HOTEL_MAPPING_PAGE_SIZE,
@@ -440,6 +445,67 @@ export async function syncTripJackHotelContentBatch(options: {
   };
 }
 
+export async function syncCatalogLocationBackfillBatch(options?: {
+  maxRetries?: number;
+}): Promise<{
+  batchSize: number;
+  batchSuccess: number;
+  batchFailed: number;
+  hasMore: boolean;
+  message: string;
+}> {
+  const meta = await getTripJackHotelCatalogMeta();
+  const cursor = meta.locationBackfillCursor ?? null;
+  const { ids, lastTjHotelId, hasMore } = await getNextLocationBackfillBatch(
+    cursor,
+    MAX_HOTEL_CONTENT_BATCH
+  );
+
+  if (!ids.length) {
+    const message = "No hotels need location backfill";
+    await updateTripJackHotelCatalogMeta({
+      locationBackfillCursor: null,
+      lastSyncMessage: message,
+    });
+    return { batchSize: 0, batchSuccess: 0, batchFailed: 0, hasMore: false, message };
+  }
+
+  const batchIds = ids.map(String);
+  let batchSuccess = 0;
+  let batchFailed = 0;
+
+  try {
+    const { data } = await fetchHotelContentWithRetry(batchIds, options?.maxRetries ?? 3);
+    const hotels = extractHotelContentPayload(data);
+    const entries = hotels
+      .map((hotel) => normalizeStaticHotelRecord(hotel))
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+    if (entries.length) {
+      await upsertTripJackHotelCatalogEntries(entries);
+    }
+    batchSuccess = entries.length;
+    batchFailed = Math.max(0, ids.length - entries.length);
+  } catch (error) {
+    batchFailed = ids.length;
+    console.warn("[tripjack-hotel-sync] location backfill batch failed:", error);
+  }
+
+  const message = `Location backfill — ${batchSuccess} updated, ${batchFailed} failed (${ids.length} scanned)`;
+  await updateTripJackHotelCatalogMeta({
+    locationBackfillCursor: lastTjHotelId,
+    lastSyncMessage: message,
+  });
+
+  return {
+    batchSize: ids.length,
+    batchSuccess,
+    batchFailed,
+    hasMore,
+    message,
+  };
+}
+
 export async function finalizeTripJackCatalogSync(options: {
   syncLogId: string;
   rebuildDestinations?: boolean;
@@ -451,7 +517,11 @@ export async function finalizeTripJackCatalogSync(options: {
   if (options.rebuildDestinations !== false) {
     const activeHotels = await getAllTripJackActiveHotelsForIndexRebuild();
     const destinations = buildDestinationIndexFromHotels(
-      activeHotels.filter((hotel) => hotel.contentSynced && hotel.cityName)
+      activeHotels.filter((hotel) => {
+        if (!hotel.contentSynced) return false;
+        const enriched = enrichCatalogEntryLocation(hotel);
+        return Boolean(formatFeaturedCardLocation(enriched));
+      })
     );
     destinationsIndexed = await upsertTripJackHotelDestinations(destinations);
   }

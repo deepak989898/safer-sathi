@@ -52,6 +52,7 @@ const SYNC_MODE_LABELS: Record<string, string> = {
   incremental: "Incremental sync",
   nationalities: "Sync nationalities",
   booking_status: "Sync booking status",
+  location_backfill: "Backfill city/address (100)",
 };
 
 function toApiError(
@@ -519,6 +520,7 @@ export default function TripJackHotelsAdminClient() {
                 ["incremental", "Incremental sync"],
                 ["nationalities", "Sync nationalities"],
                 ["booking_status", "Sync booking status"],
+                ["location_backfill", "Backfill city/address"],
               ].map(([mode, label]) => (
                 <Button
                   key={mode}

@@ -4,6 +4,7 @@ import { syncRecentHotelBookingStatuses } from "@/lib/tripjack-hotels/booking-st
 import {
   finalizeTripJackCatalogSync,
   startTripJackCatalogSyncSession,
+  syncCatalogLocationBackfillBatch,
   syncTripJackHotelCatalog,
   syncTripJackHotelContentBatch,
   syncTripJackHotelMappingPage,
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
       const meta = await getTripJackHotelCatalogMeta();
       const recentLogs = await listTripJackHotelSyncLogs(5);
       return apiSuccess({ ...result, meta, recentLogs, syncLogId });
+    }
+
+    if (mode === "location_backfill") {
+      const result = await syncCatalogLocationBackfillBatch();
+      const meta = await getTripJackHotelCatalogMeta();
+      return apiSuccess({ ...result, meta, mode });
     }
 
     const maxMappingPages = Number(

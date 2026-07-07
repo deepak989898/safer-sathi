@@ -1,113 +1,77 @@
 import "server-only";
 
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
+import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
+import {
+  enrichCatalogEntryLocation,
+  FEATURED_POPULAR_CITIES,
+  formatFeaturedCardLocation,
+  popularCityDisplayName,
+  resolvePopularCityKey,
+} from "@/lib/tripjack-hotels/catalog-location";
 import {
   listBrowsableIndiaHotelsPage,
   listFeaturedTripJackHotelsFromFirestore,
 } from "@/lib/tripjack-hotels/catalog-firestore";
-import {
-  hasFeaturedIndianCity,
-  isIndiaTripJackCatalogHotel,
-  resolveIndianDisplayCity,
-} from "@/lib/tripjack-hotels/india-catalog";
+import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog";
 
-export interface FeaturedTripJackHotelCard {
-  tjHotelId: number;
-  name: string;
-  cityName: string;
-  location: string;
-  heroImage?: string;
-  imageUrls: string[];
-  starRating: number | null;
-  imageCaption?: string;
-}
+export type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 
-const PRIORITY_CITIES = [
-  "mumbai",
-  "delhi",
-  "goa",
-  "jaipur",
-  "bangalore",
-  "hyderabad",
-  "chennai",
-  "kolkata",
-  "pune",
-  "agra",
-  "udaipur",
-  "shimla",
-  "manali",
-];
-
-const CITY_ALIASES: Record<string, string> = {
-  "new delhi": "delhi",
-  "delhi ncr": "delhi",
-  bengaluru: "bangalore",
-  bombay: "mumbai",
-  "greater mumbai": "mumbai",
-};
-
-function normalizeCity(city: string): string {
-  const raw = city.trim().toLowerCase();
-  if (!raw) return "";
-  if (CITY_ALIASES[raw]) return CITY_ALIASES[raw];
-  for (const [alias, key] of Object.entries(CITY_ALIASES)) {
-    if (raw.includes(alias)) return key;
-  }
-  return raw;
-}
-
-function cardScore(card: FeaturedTripJackHotelCard): number {
-  let score = 0;
-  if (card.imageUrls.length > 0) score += 50;
-  if (card.starRating && card.starRating > 0) score += 10;
-  return score;
-}
+const PRIORITY_CITY_KEYS = FEATURED_POPULAR_CITIES.map((city) => city.toLowerCase());
 
 function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
   const name = entry.name.trim();
   return /^hotel\s+\d+$/i.test(name) && !entry.cityName?.trim();
 }
 
-function resolveFeaturedCityName(entry: TripJackHotelCatalogEntry): string | null {
-  return resolveIndianDisplayCity(entry);
+function cardScore(card: FeaturedTripJackHotelCard): number {
+  let score = 0;
+  if (card.imageUrls.length > 0) score += 60;
+  if (card.heroImage) score += 20;
+  if (card.locality) score += 15;
+  if (card.starRating && card.starRating > 0) score += 10;
+  if (card.facilities.length > 0) score += 5;
+  if (PRIORITY_CITY_KEYS.includes(card.cityKey)) score += 25;
+  return score;
 }
 
 export function mapCatalogEntryToFeaturedCard(
   entry: TripJackHotelCatalogEntry
 ): FeaturedTripJackHotelCard | null {
-  const imageUrls = catalogEntryImageUrls(entry);
   if (entry.websiteVisible === false || entry.isDeleted || !entry.contentSynced) return null;
   if (!entry.name?.trim() || isMappingOnlyStub(entry)) return null;
   if (!isIndiaTripJackCatalogHotel(entry)) return null;
 
-  const cityName = resolveFeaturedCityName(entry);
-  if (!cityName && !hasFeaturedIndianCity(entry)) {
-    const blob = entry.searchBlob?.trim();
-    if (!blob) return null;
-  }
+  const enriched = enrichCatalogEntryLocation(entry);
+  const resolved = formatFeaturedCardLocation(enriched);
+  if (!resolved) return null;
 
-  const displayCity = cityName ?? entry.stateName?.trim() ?? "India";
+  const imageUrls = catalogEntryImageUrls(enriched);
+  if (!imageUrls.length && !enriched.heroImage) return null;
 
   return {
-    tjHotelId: entry.tjHotelId,
-    name: entry.name,
-    cityName: displayCity,
-    location: [entry.address, displayCity, entry.stateName, entry.countryName]
-      .filter(Boolean)
-      .join(", "),
-    heroImage: entry.heroImage ?? imageUrls[0],
+    tjHotelId: enriched.tjHotelId,
+    name: enriched.name,
+    cityName: resolved.cityName,
+    cityKey: resolved.cityKey,
+    locality: resolved.locality,
+    location: resolved.displayLocation,
+    heroImage: enriched.heroImage ?? imageUrls[0],
     imageUrls,
-    starRating: entry.starRating ?? entry.rating,
-    imageCaption: entry.imageCaption,
+    starRating: enriched.starRating ?? enriched.rating,
+    imageCaption: enriched.imageCaption,
+    facilities: (enriched.facilities ?? []).slice(0, 6),
   };
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
-  const pickLimit = Math.max(limit * 4, 120);
+  const target = Math.min(30, Math.max(20, limit));
+  const pickLimit = Math.max(target * 8, 200);
+
   let entries = await listFeaturedTripJackHotelsFromFirestore(pickLimit);
 
-  if (entries.length < limit) {
+  if (entries.length < target) {
     const browsePage = await listBrowsableIndiaHotelsPage({ page: 1, pageSize: pickLimit });
     const seen = new Set(entries.map((entry) => entry.tjHotelId));
     for (const entry of browsePage.entries) {
@@ -125,60 +89,64 @@ export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTri
   for (const entry of entries) {
     const card = mapCatalogEntryToFeaturedCard(entry);
     if (!card) continue;
-    const city = normalizeCity(card.cityName || "");
-    if (!city) {
+    const cityKey = card.cityKey || card.cityName.toLowerCase();
+    if (PRIORITY_CITY_KEYS.includes(cityKey)) {
+      const list = cardsByCity.get(cityKey) ?? [];
+      list.push(card);
+      cardsByCity.set(cityKey, list);
+    } else {
       fallback.push(card);
-      continue;
     }
-    const list = cardsByCity.get(city) ?? [];
-    list.push(card);
-    cardsByCity.set(city, list);
   }
 
   for (const [city, hotels] of cardsByCity.entries()) {
     hotels.sort((a, b) => cardScore(b) - cardScore(a));
     cardsByCity.set(city, hotels);
   }
+  fallback.sort((a, b) => cardScore(b) - cardScore(a));
 
   const selected: FeaturedTripJackHotelCard[] = [];
   const selectedIds = new Set<number>();
   const maxPerCity = 3;
 
   const addCard = (card: FeaturedTripJackHotelCard) => {
-    if (selected.length >= limit || selectedIds.has(card.tjHotelId)) return;
+    if (selected.length >= target || selectedIds.has(card.tjHotelId)) return;
     selectedIds.add(card.tjHotelId);
     selected.push(card);
   };
 
-  for (const city of PRIORITY_CITIES) {
-    const cityHotels = cardsByCity.get(city) ?? [];
+  for (const cityLabel of FEATURED_POPULAR_CITIES) {
+    const cityKey = resolvePopularCityKey(cityLabel) ?? cityLabel.toLowerCase();
+    const cityHotels = cardsByCity.get(cityKey) ?? [];
     for (const hotel of cityHotels.slice(0, maxPerCity)) {
       addCard(hotel);
-      if (selected.length >= limit) break;
+      if (selected.length >= target) break;
     }
-    if (selected.length >= limit) break;
+    if (selected.length >= target) break;
   }
 
-  if (selected.length < limit) {
+  if (selected.length < target) {
     const otherCities = [...cardsByCity.entries()]
-      .filter(([city]) => !PRIORITY_CITIES.includes(city))
+      .filter(([city]) => !PRIORITY_CITY_KEYS.includes(city))
       .sort((a, b) => b[1].length - a[1].length);
 
     for (const [, cityHotels] of otherCities) {
       for (const hotel of cityHotels.slice(0, maxPerCity)) {
         addCard(hotel);
-        if (selected.length >= limit) break;
+        if (selected.length >= target) break;
       }
-      if (selected.length >= limit) break;
+      if (selected.length >= target) break;
     }
   }
 
-  if (selected.length < limit) {
-    for (const hotel of fallback.sort((a, b) => cardScore(b) - cardScore(a))) {
+  if (selected.length < target) {
+    for (const hotel of fallback) {
       addCard(hotel);
-      if (selected.length >= limit) break;
+      if (selected.length >= target) break;
     }
   }
 
-  return selected.slice(0, limit);
+  return selected
+    .sort((a, b) => cardScore(b) - cardScore(a))
+    .slice(0, target);
 }

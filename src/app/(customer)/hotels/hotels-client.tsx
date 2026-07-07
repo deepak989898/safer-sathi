@@ -22,7 +22,7 @@ import { useAppStore } from "@/store/app-store";
 import { t } from "@/lib/i18n";
 import { FeaturedTripJackHotelsSection } from "@/components/hotels-tripjack/featured-tripjack-hotels";
 import type { FeaturedTripJackCatalogInfo } from "@/components/hotels-tripjack/featured-tripjack-hotels";
-import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
+import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import type { Hotel } from "@/types";
 
 const STAR_OPTIONS = [
@@ -108,7 +108,7 @@ export default function HotelsClient({
     let cancelled = false;
     setFeaturedLoading(true);
 
-    void fetch("/api/hotels/featured-catalog?limit=20", { cache: "no-store" })
+    void fetch("/api/hotels/featured-catalog?limit=24", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return;

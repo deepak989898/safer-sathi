@@ -1,4 +1,5 @@
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
+import { enrichCatalogEntryLocation } from "@/lib/tripjack-hotels/catalog-location";
 import { parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -96,12 +97,36 @@ export function normalizeStaticHotelRecord(
   const name = pickString(rec, ["name", "hotelName", "propertyName"]);
   if (!name) return null;
 
-  const cityName = pickString(rec, ["cityName", "city", "destinationCity"]);
-  const stateName = pickString(rec, ["stateName", "state", "province"]);
-  const region = pickString(rec, ["region", "regionName", "area"]);
-  const countryName = pickString(rec, ["countryName", "country"]);
-  const countryCode = pickString(rec, ["countryCode", "countryIsoCode"]);
-  const address = pickString(rec, ["address", "fullAddress", "locationAddress"]);
+  const addressObj =
+    asRecord(rec.address) ??
+    asRecord(rec.hotelAddress) ??
+    asRecord(rec.location) ??
+    asRecord(asRecord(rec.hotelInfo)?.address) ??
+    asRecord(asRecord(rec.staticContent)?.address);
+
+  const cityName =
+    pickString(rec, ["cityName", "city", "destinationCity", "town"]) ||
+    pickString(addressObj ?? {}, ["cityName", "city", "town", "destinationCity"]);
+  const stateName =
+    pickString(rec, ["stateName", "state", "province"]) ||
+    pickString(addressObj ?? {}, ["stateName", "state", "province"]);
+  const region =
+    pickString(rec, ["region", "regionName", "area", "locality", "subLocality", "neighbourhood"]) ||
+    pickString(addressObj ?? {}, ["region", "regionName", "area", "locality", "subLocality", "neighbourhood"]);
+  const countryName =
+    pickString(rec, ["countryName", "country"]) ||
+    pickString(addressObj ?? {}, ["countryName", "country"]);
+  const countryCode =
+    pickString(rec, ["countryCode", "countryIsoCode"]) ||
+    pickString(addressObj ?? {}, ["countryCode", "countryIsoCode"]);
+  const address =
+    pickString(rec, ["address", "fullAddress", "locationAddress", "completeAddress"]) ||
+    [
+      pickString(addressObj ?? {}, ["line1", "line2", "addressLine1", "addressLine2", "street"]),
+      pickString(addressObj ?? {}, ["area", "locality", "city", "state", "postalCode", "zip"]),
+    ]
+      .filter(Boolean)
+      .join(", ");
   const propertyType = pickString(rec, ["propertyType", "type", "category"]);
   const rating = asNumber(rec.rating ?? rec.starRating ?? rec.stars);
   const starRating = asNumber(rec.starRating ?? rec.stars ?? rec.rating);
@@ -141,7 +166,7 @@ export function normalizeStaticHotelRecord(
   const imageData = pickImages(rec);
   const now = new Date().toISOString();
 
-  return {
+  const baseEntry: TripJackHotelCatalogEntry = {
     id: `tj_${tjHotelId}`,
     tjHotelId,
     unicaId,
@@ -151,7 +176,7 @@ export function normalizeStaticHotelRecord(
     cityNameLower,
     stateName: stateName || undefined,
     region: region || undefined,
-    countryName,
+    countryName: countryName || "INDIA",
     countryCode: countryCode || undefined,
     address,
     rating,
@@ -173,6 +198,8 @@ export function normalizeStaticHotelRecord(
     searchBlob,
     updatedAt: now,
   };
+
+  return enrichCatalogEntryLocation(baseEntry);
 }
 
 export interface TripJackHotelMappingRecord {

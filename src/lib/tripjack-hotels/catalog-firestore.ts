@@ -2,14 +2,15 @@ import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore"
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
-  hasFeaturedIndianCity,
-  isIndiaTripJackCatalogHotel,
-  resolveIndianDisplayCity,
-} from "@/lib/tripjack-hotels/india-catalog";
+  enrichCatalogEntryLocation,
+  formatFeaturedCardLocation,
+} from "@/lib/tripjack-hotels/catalog-location";
+import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog";
 import {
   TRIPJACK_HOTEL_CATALOG_COLLECTION,
   TRIPJACK_HOTEL_CATALOG_META_DOC,
   TRIPJACK_HOTEL_DESTINATIONS_COLLECTION,
+  MAX_HOTEL_CONTENT_BATCH,
   type TripJackHotelCatalogEntry,
   type TripJackHotelCatalogMeta,
   type TripJackHotelDestinationIndex,
@@ -44,7 +45,9 @@ function isFeaturedCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
   if (isMappingOnlyCatalogStub(entry)) return false;
   if (!entry.name?.trim()) return false;
   if (!isIndiaTripJackCatalogHotel(entry)) return false;
-  return hasFeaturedIndianCity(entry);
+  const enriched = enrichCatalogEntryLocation(entry);
+  if (!formatFeaturedCardLocation(enriched)) return false;
+  return catalogEntryImageUrls(enriched).length > 0 || Boolean(enriched.heroImage);
 }
 
 function isFeaturedCatalogEntryRelaxed(entry: TripJackHotelCatalogEntry): boolean {
@@ -53,9 +56,8 @@ function isFeaturedCatalogEntryRelaxed(entry: TripJackHotelCatalogEntry): boolea
   if (isMappingOnlyCatalogStub(entry)) return false;
   if (!entry.name?.trim()) return false;
   if (!isIndiaTripJackCatalogHotel(entry)) return false;
-  const city = resolveIndianDisplayCity(entry);
-  if (city) return true;
-  return Boolean(entry.searchBlob?.trim());
+  const enriched = enrichCatalogEntryLocation(entry);
+  return Boolean(formatFeaturedCardLocation(enriched) || enriched.searchBlob?.trim());
 }
 
 function featuredEntryScore(entry: TripJackHotelCatalogEntry): number {
@@ -245,7 +247,8 @@ async function fetchBrowsableCatalogBatch(
 function entryCityKey(entry: TripJackHotelCatalogEntry): string {
   const fromField = entry.cityNameLower?.trim() || entry.cityName?.trim().toLowerCase() || "";
   if (fromField) return fromField;
-  return resolveIndianDisplayCity(entry)?.trim().toLowerCase() ?? "";
+  const resolved = formatFeaturedCardLocation(enrichCatalogEntryLocation(entry));
+  return resolved?.cityKey ?? "";
 }
 
 export async function searchTripJackHotelCatalogByCityPrefix(
@@ -475,6 +478,56 @@ export async function getNextContentSyncBatch(
   };
 }
 
+/** Hotels with content synced but missing resolvable city/locality. */
+export async function getNextLocationBackfillBatch(
+  afterTjHotelId: number | null,
+  targetSize = MAX_HOTEL_CONTENT_BATCH
+): Promise<{ ids: number[]; lastTjHotelId: number | null; hasMore: boolean }> {
+  if (!isAdminEnvConfigured()) {
+    return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+
+  const ids: number[] = [];
+  let cursor = afterTjHotelId;
+  let scanHasMore = true;
+
+  while (ids.length < targetSize && scanHasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(300);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) {
+      scanHasMore = false;
+      break;
+    }
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted || !hotel.contentSynced) continue;
+      const enriched = enrichCatalogEntryLocation(hotel);
+      const hasLocation = Boolean(formatFeaturedCardLocation(enriched));
+      const needsAddress = !hotel.address?.trim();
+      if (!hasLocation || !hotel.cityName?.trim() || needsAddress) {
+        ids.push(hotel.tjHotelId);
+        if (ids.length >= targetSize) break;
+      }
+    }
+
+    if (snap.size < 300) scanHasMore = false;
+  }
+
+  return {
+    ids,
+    lastTjHotelId: cursor,
+    hasMore: scanHasMore || ids.length >= targetSize,
+  };
+}
+
 export async function searchTripJackHotelCatalogByNamePrefix(
   query: string,
   limit = 15
@@ -591,7 +644,8 @@ function isBrowsableIndiaHotel(entry: TripJackHotelCatalogEntry): boolean {
   if (!isIndiaTripJackCatalogHotel(entry)) return false;
   if (isMappingOnlyCatalogStub(entry)) return false;
   if (!entry.name?.trim()) return false;
-  return entry.contentSynced || hasFeaturedIndianCity(entry);
+  const enriched = enrichCatalogEntryLocation(entry);
+  return entry.contentSynced || Boolean(formatFeaturedCardLocation(enriched));
 }
 
 export interface BrowsableHotelsPageResult {
