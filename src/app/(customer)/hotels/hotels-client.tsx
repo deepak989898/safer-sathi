@@ -76,6 +76,10 @@ export default function HotelsClient({
   manualHotelsEnabled?: boolean;
 }) {
   const { locale, searchFilters, resetSearchFilters } = useAppStore();
+  const [featuredHotels, setFeaturedHotels] = useState(featuredTripJackHotels);
+  const [featuredLoading, setFeaturedLoading] = useState(
+    tripjackHotelsEnabled && featuredTripJackHotels.length === 0
+  );
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [minStars, setMinStars] = useState<string[]>([]);
@@ -90,6 +94,40 @@ export default function HotelsClient({
       }
     }
   }, [searchFilters]);
+
+  useEffect(() => {
+    if (!tripjackHotelsEnabled) {
+      setFeaturedHotels([]);
+      setFeaturedLoading(false);
+      return;
+    }
+
+    if (featuredTripJackHotels.length > 0) {
+      setFeaturedHotels(featuredTripJackHotels);
+      setFeaturedLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setFeaturedLoading(true);
+
+    void fetch("/api/hotels/featured-catalog?limit=20", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json.success && Array.isArray(json.data?.hotels)) {
+          setFeaturedHotels(json.data.hotels);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setFeaturedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripjackHotelsEnabled, featuredTripJackHotels]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialHotels.map((h) => h.priceFrom), 20000),
@@ -193,11 +231,11 @@ export default function HotelsClient({
 
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
-      {tripjackHotelsEnabled && featuredTripJackHotels.length > 0 && (
-        <FeaturedTripJackHotelsSection hotels={featuredTripJackHotels} />
+      {tripjackHotelsEnabled && (featuredLoading || featuredHotels.length > 0) && (
+        <FeaturedTripJackHotelsSection hotels={featuredHotels} loading={featuredLoading} />
       )}
 
-      {tripjackHotelsEnabled && featuredTripJackHotels.length === 0 && (
+      {tripjackHotelsEnabled && !featuredLoading && featuredHotels.length === 0 && (
         <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
           Looking for live TripJack hotel rates?{" "}
           <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">

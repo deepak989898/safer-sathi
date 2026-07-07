@@ -20,16 +20,40 @@ const PRIORITY_CITIES = [
   "delhi",
   "goa",
   "jaipur",
-  "bengaluru",
   "bangalore",
   "hyderabad",
   "chennai",
   "kolkata",
   "pune",
+  "agra",
+  "udaipur",
+  "shimla",
+  "manali",
 ];
 
+const CITY_ALIASES: Record<string, string> = {
+  "new delhi": "delhi",
+  "delhi ncr": "delhi",
+  bengaluru: "bangalore",
+  bombay: "mumbai",
+  "greater mumbai": "mumbai",
+};
+
 function normalizeCity(city: string): string {
-  return city.trim().toLowerCase();
+  const raw = city.trim().toLowerCase();
+  if (!raw) return "";
+  if (CITY_ALIASES[raw]) return CITY_ALIASES[raw];
+  for (const [alias, key] of Object.entries(CITY_ALIASES)) {
+    if (raw.includes(alias)) return key;
+  }
+  return raw;
+}
+
+function cardScore(card: FeaturedTripJackHotelCard): number {
+  let score = 0;
+  if (card.imageUrls.length > 0) score += 50;
+  if (card.starRating && card.starRating > 0) score += 10;
+  return score;
 }
 
 export function mapCatalogEntryToFeaturedCard(
@@ -37,6 +61,7 @@ export function mapCatalogEntryToFeaturedCard(
 ): FeaturedTripJackHotelCard | null {
   const imageUrls = catalogEntryImageUrls(entry);
   if (entry.websiteVisible === false || entry.isDeleted) return null;
+  if (!entry.name?.trim() || !entry.cityName?.trim()) return null;
 
   return {
     tjHotelId: entry.tjHotelId,
@@ -51,13 +76,13 @@ export function mapCatalogEntryToFeaturedCard(
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
-  const entries = await listFeaturedTripJackHotelsFromFirestore(limit * 3);
+  const entries = await listFeaturedTripJackHotelsFromFirestore(limit * 4);
   const cardsByCity = new Map<string, FeaturedTripJackHotelCard[]>();
   const fallback: FeaturedTripJackHotelCard[] = [];
 
   for (const entry of entries) {
     const card = mapCatalogEntryToFeaturedCard(entry);
-    if (!card || !card.imageUrls.length) continue;
+    if (!card) continue;
     const city = normalizeCity(card.cityName || "");
     if (!city) {
       fallback.push(card);
@@ -68,34 +93,48 @@ export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTri
     cardsByCity.set(city, list);
   }
 
-  const selected: FeaturedTripJackHotelCard[] = [];
-  const maxPerCity = 3;
-  const priorityCities = PRIORITY_CITIES.filter((city) => cardsByCity.has(city));
+  for (const [city, hotels] of cardsByCity.entries()) {
+    hotels.sort((a, b) => cardScore(b) - cardScore(a));
+    cardsByCity.set(city, hotels);
+  }
 
-  for (const city of priorityCities) {
+  const selected: FeaturedTripJackHotelCard[] = [];
+  const selectedIds = new Set<number>();
+  const maxPerCity = 3;
+
+  const addCard = (card: FeaturedTripJackHotelCard) => {
+    if (selected.length >= limit || selectedIds.has(card.tjHotelId)) return;
+    selectedIds.add(card.tjHotelId);
+    selected.push(card);
+  };
+
+  for (const city of PRIORITY_CITIES) {
     const cityHotels = cardsByCity.get(city) ?? [];
     for (const hotel of cityHotels.slice(0, maxPerCity)) {
+      addCard(hotel);
       if (selected.length >= limit) break;
-      selected.push(hotel);
     }
     if (selected.length >= limit) break;
   }
 
   if (selected.length < limit) {
-    for (const [city, cityHotels] of cardsByCity.entries()) {
-      if (priorityCities.includes(city)) continue;
+    const otherCities = [...cardsByCity.entries()]
+      .filter(([city]) => !PRIORITY_CITIES.includes(city))
+      .sort((a, b) => b[1].length - a[1].length);
+
+    for (const [, cityHotels] of otherCities) {
       for (const hotel of cityHotels.slice(0, maxPerCity)) {
+        addCard(hotel);
         if (selected.length >= limit) break;
-        selected.push(hotel);
       }
       if (selected.length >= limit) break;
     }
   }
 
   if (selected.length < limit) {
-    for (const hotel of fallback) {
+    for (const hotel of fallback.sort((a, b) => cardScore(b) - cardScore(a))) {
+      addCard(hotel);
       if (selected.length >= limit) break;
-      selected.push(hotel);
     }
   }
 

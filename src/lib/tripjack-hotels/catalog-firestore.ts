@@ -1,5 +1,6 @@
 import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   TRIPJACK_HOTEL_CATALOG_COLLECTION,
   TRIPJACK_HOTEL_CATALOG_META_DOC,
@@ -8,6 +9,45 @@ import {
   type TripJackHotelCatalogMeta,
   type TripJackHotelDestinationIndex,
 } from "@/lib/tripjack-hotels/catalog-types";
+
+const FEATURED_PRIORITY_CITIES = [
+  "mumbai",
+  "delhi",
+  "new delhi",
+  "goa",
+  "jaipur",
+  "bengaluru",
+  "bangalore",
+  "hyderabad",
+  "chennai",
+  "kolkata",
+  "pune",
+  "agra",
+  "udaipur",
+  "shimla",
+  "manali",
+];
+
+function isMappingOnlyCatalogStub(entry: TripJackHotelCatalogEntry): boolean {
+  const name = entry.name.trim();
+  return /^hotel\s+\d+$/i.test(name) && !entry.cityName?.trim();
+}
+
+function isFeaturedCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
+  if (entry.isDeleted || entry.websiteVisible === false) return false;
+  if (isMappingOnlyCatalogStub(entry)) return false;
+  if (!entry.name?.trim()) return false;
+  return Boolean(entry.cityName?.trim());
+}
+
+function featuredEntryScore(entry: TripJackHotelCatalogEntry): number {
+  let score = 0;
+  if (entry.contentSynced) score += 100;
+  if (catalogEntryImageUrls(entry).length > 0) score += 50;
+  if (entry.starRating || entry.rating) score += 10;
+  if (entry.heroImage) score += 5;
+  return score;
+}
 
 const FIRESTORE_BATCH_SIZE = 400;
 
@@ -136,6 +176,32 @@ export async function searchTripJackHotelCatalogByCityPrefix(
     .slice(0, limit);
 }
 
+export async function getTripJackHotelCatalogEntriesByHids(
+  hids: number[]
+): Promise<TripJackHotelCatalogEntry[]> {
+  if (!hids.length || !isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const unique = [...new Set(hids.filter((hid) => Number.isFinite(hid) && hid > 0))];
+  const entries: TripJackHotelCatalogEntry[] = [];
+
+  for (let i = 0; i < unique.length; i += 10) {
+    const chunk = unique.slice(i, i + 10);
+    const refs = chunk.map((hid) =>
+      db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).doc(`tj_${hid}`)
+    );
+    const snaps = await db.getAll(...refs);
+    for (const snap of snaps) {
+      if (!snap.exists) continue;
+      const entry = snap.data() as TripJackHotelCatalogEntry;
+      if (isFeaturedCatalogEntry(entry)) entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
 export async function listFeaturedTripJackHotelsFromFirestore(
   limit = 72
 ): Promise<TripJackHotelCatalogEntry[]> {
@@ -143,21 +209,71 @@ export async function listFeaturedTripJackHotelsFromFirestore(
   const db = await getSafeAdminDb();
   if (!db) return [];
 
-  const snap = await db
-    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-    .orderBy("updatedAt", "desc")
-    .limit(limit * 4)
-    .get();
+  const merged = new Map<number, TripJackHotelCatalogEntry>();
+  const addEntries = (entries: TripJackHotelCatalogEntry[]) => {
+    for (const entry of entries) {
+      if (!isFeaturedCatalogEntry(entry)) continue;
+      const existing = merged.get(entry.tjHotelId);
+      if (!existing || featuredEntryScore(entry) > featuredEntryScore(existing)) {
+        merged.set(entry.tjHotelId, entry);
+      }
+    }
+  };
 
-  return snap.docs
-    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
-    .filter(
-      (hotel) =>
-        !hotel.isDeleted &&
-        hotel.contentSynced &&
-        hotel.websiteVisible !== false &&
-        (Boolean(hotel.heroImage) || (hotel.imageUrls?.length ?? 0) > 0)
+  const citySnaps = await Promise.all(
+    FEATURED_PRIORITY_CITIES.map((city) =>
+      db
+        .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+        .orderBy("cityNameLower")
+        .startAt(city)
+        .endAt(`${city}\uf8ff`)
+        .limit(12)
+        .get()
+        .catch(() => null)
     )
+  );
+
+  for (const snap of citySnaps) {
+    if (!snap) continue;
+    addEntries(snap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
+  }
+
+  const destinationHids: number[] = [];
+  for (const city of FEATURED_PRIORITY_CITIES) {
+    const dest = await getTripJackDestinationBySearchKey(city);
+    if (!dest?.hids?.length) continue;
+    destinationHids.push(...dest.hids.slice(0, 4));
+  }
+  if (destinationHids.length) {
+    addEntries(await getTripJackHotelCatalogEntriesByHids(destinationHids));
+  }
+
+  const [syncedSnap, recentSnap] = await Promise.all([
+    db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("contentSynced", "==", true)
+      .where("isDeleted", "==", false)
+      .orderBy("updatedAt", "desc")
+      .limit(limit * 2)
+      .get()
+      .catch(() => null),
+    db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .orderBy("updatedAt", "desc")
+      .limit(limit * 3)
+      .get()
+      .catch(() => null),
+  ]);
+
+  if (syncedSnap) {
+    addEntries(syncedSnap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
+  }
+  if (recentSnap) {
+    addEntries(recentSnap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
+  }
+
+  return [...merged.values()]
+    .sort((a, b) => featuredEntryScore(b) - featuredEntryScore(a))
     .slice(0, limit);
 }
 

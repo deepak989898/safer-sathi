@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Building2, MapPin, Star, Zap } from "lucide-react";
+import { Building2, Loader2, MapPin, Star, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
+import { bootstrapFeaturedTripJackHotel } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
+import { toast } from "sonner";
 
 function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
+  const router = useRouter();
+  const [booking, setBooking] = useState(false);
   const candidates = useMemo(
     () =>
       resolveHotelImageCandidates({
@@ -23,11 +28,29 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
   const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-  const searchHref = `/hotels/search?destination=${encodeURIComponent(hotel.cityName || hotel.name)}`;
+
+  const openHotel = async () => {
+    if (booking) return;
+    setBooking(true);
+    try {
+      const result = await bootstrapFeaturedTripJackHotel({
+        tjHotelId: hotel.tjHotelId,
+        hotelName: hotel.name,
+        cityName: hotel.cityName,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      router.push(`/hotels/detail/${encodeURIComponent(String(hotel.tjHotelId))}`);
+    } finally {
+      setBooking(false);
+    }
+  };
 
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
-      <Link href={searchHref} className="block">
+      <button type="button" onClick={() => void openHotel()} className="block w-full text-left">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {showImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -42,7 +65,7 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
               <Building2 className="h-10 w-10 opacity-40" />
-              <span className="text-xs font-medium uppercase tracking-wide">No image</span>
+              <span className="text-xs font-medium uppercase tracking-wide">Live hotel</span>
             </div>
           )}
           <Badge className="absolute left-3 top-3 z-10 gap-1 bg-[#006CE4] hover:bg-[#006CE4]">
@@ -56,34 +79,63 @@ function FeaturedTripJackCard({ hotel }: { hotel: FeaturedTripJackHotelCard }) {
             </Badge>
           )}
         </div>
-      </Link>
+      </button>
       <CardContent className="space-y-2 pt-4">
-        <Link href={searchHref} className="hover:text-primary">
+        <button type="button" onClick={() => void openHotel()} className="text-left hover:text-primary">
           <h3 className="line-clamp-2 font-semibold leading-snug">{hotel.name}</h3>
-        </Link>
+        </button>
         <p className="flex items-start gap-1 text-sm text-muted-foreground">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span className="line-clamp-2">{hotel.location || hotel.cityName}</span>
         </p>
       </CardContent>
       <CardFooter className="border-t bg-transparent">
-        <Link href={searchHref} className="w-full">
-          <Button variant="outline" className="w-full">
-            Check live rates
-          </Button>
-        </Link>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={booking}
+          onClick={() => void openHotel()}
+        >
+          {booking ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading rates…
+            </>
+          ) : (
+            "View rooms & book"
+          )}
+        </Button>
       </CardFooter>
     </Card>
   );
 }
 
+function FeaturedHotelsSkeleton() {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Card key={index} className="overflow-hidden pt-0">
+          <div className="aspect-[4/3] animate-pulse bg-slate-200" />
+          <CardContent className="space-y-3 pt-4">
+            <div className="h-5 w-3/4 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200" />
+          </CardContent>
+          <CardFooter>
+            <div className="h-10 w-full animate-pulse rounded bg-slate-200" />
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function FeaturedTripJackHotelsSection({
   hotels,
+  loading = false,
 }: {
   hotels: FeaturedTripJackHotelCard[];
+  loading?: boolean;
 }) {
-  if (hotels.length === 0) return null;
-
   const [activeCity, setActiveCity] = useState<string>("all");
   const cityOptions = useMemo(() => {
     const map = new Map<string, number>();
@@ -101,6 +153,8 @@ export function FeaturedTripJackHotelsSection({
     return hotels.filter((hotel) => (hotel.cityName || "Other").trim() === activeCity);
   }, [hotels, activeCity]);
 
+  if (!loading && hotels.length === 0) return null;
+
   return (
     <section className="mb-10">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -112,11 +166,11 @@ export function FeaturedTripJackHotelsSection({
             </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Browse synced properties with photos — search for live rates and availability.
+            Browse synced properties with photos — click any hotel to view live rooms and book.
           </p>
         </div>
         <Link href="/hotels/search">
-          <Button variant="outline">View more live hotels</Button>
+          <Button variant="outline">Search more live hotels</Button>
         </Link>
       </div>
 
@@ -127,6 +181,7 @@ export function FeaturedTripJackHotelsSection({
             <button
               type="button"
               onClick={() => setActiveCity("all")}
+              disabled={loading || hotels.length === 0}
               className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                 activeCity === "all"
                   ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
@@ -152,16 +207,20 @@ export function FeaturedTripJackHotelsSection({
           </div>
         </aside>
 
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredHotels.map((hotel) => (
-            <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
-          ))}
-          {filteredHotels.length === 0 && (
-            <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No featured hotels for this city right now.
-            </p>
-          )}
-        </div>
+        {loading ? (
+          <FeaturedHotelsSkeleton />
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredHotels.map((hotel) => (
+              <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
+            ))}
+            {filteredHotels.length === 0 && (
+              <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No featured hotels for this city right now.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
