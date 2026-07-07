@@ -9,6 +9,7 @@ import {
   FlightBookingConfirmationScreen,
   FlightPaymentSuccessScreen,
 } from "@/components/flights/flight-status-screens";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { postFlightPaymentSuccessMessage } from "@/lib/bookings/post-payment-navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightBookingApi } from "@/hooks/use-flight-booking";
@@ -100,6 +101,14 @@ export function FlightPaymentClient() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (phase !== "payment_success") return;
+    const timer = window.setTimeout(() => {
+      setPhase("booking_status");
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
   const continueAfterPayment = (
     result: {
       booking: FlightBookingRecord;
@@ -167,81 +176,96 @@ export function FlightPaymentClient() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
-        <p className="text-slate-600">Preparing payment...</p>
-      </div>
+      <>
+        <HideSiteFooter />
+        <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
+          <p className="text-slate-600">Preparing payment...</p>
+        </div>
+      </>
     );
   }
 
   if (sessionError || !session) {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] py-16">
-        <div className="container mx-auto max-w-lg px-4 text-center">
-          <p className="font-semibold text-slate-900">
-            {sessionError ?? "Booking session expired. Please search again."}
-          </p>
-          <Link href="/flights" className="mt-6 inline-block text-[#1a4fa3] hover:underline">
-            Back to flight search
-          </Link>
+      <>
+        <HideSiteFooter />
+        <div className="min-h-screen bg-[#f4f7fb] py-16">
+          <div className="container mx-auto max-w-lg px-4 text-center">
+            <p className="font-semibold text-slate-900">
+              {sessionError ?? "Booking session expired. Please search again."}
+            </p>
+            <Link href="/flights" className="mt-6 inline-block text-[#1a4fa3] hover:underline">
+              Back to flight search
+            </Link>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (phase === "payment_success" && confirmedBooking) {
     return (
-      <FlightPaymentSuccessScreen
-        booking={confirmedBooking}
-        locale={locale}
-        onContinue={() => setPhase("booking_status")}
-      />
+      <>
+        <HideSiteFooter />
+        <FlightPaymentSuccessScreen
+          booking={confirmedBooking}
+          locale={locale}
+          onContinue={() => setPhase("booking_status")}
+        />
+      </>
     );
   }
 
   if (phase === "booking_status" && confirmedBooking) {
     return (
-      <FlightBookingConfirmationScreen
-        booking={confirmedBooking}
-        locale={locale}
-        onViewTicket={() => router.push(`/flights/ticket/${confirmedBooking.bookingId}`)}
-      />
+      <>
+        <HideSiteFooter />
+        <FlightBookingConfirmationScreen
+          booking={confirmedBooking}
+          locale={locale}
+          onViewTicket={() => router.push(`/flights/ticket/${confirmedBooking.bookingId}`)}
+        />
+      </>
     );
   }
 
   return (
-    <FlightPaymentScreen
-      review={session.review}
-      validated={session.validated}
-      passengers={session.passengers}
-      customerEmail={session.delivery.email}
-      customerMobile={session.delivery.contact}
-      context={
-        session.searchContext
-          ? {
-              params: {
-                fromCode: session.searchContext.fromCode,
-                toCode: session.searchContext.toCode,
-                departureDate: session.searchContext.departureDate,
-                adults: session.passengers.filter((p) => p.pt === "ADULT").length,
-                children: session.passengers.filter((p) => p.pt === "CHILD").length,
-                infants: session.passengers.filter((p) => p.pt === "INFANT").length,
-                cabinClass: "ECONOMY",
-                pft: "REGULAR",
-                isDirectFlight: false,
-                isConnectingFlight: true,
-              },
-              priceId: session.validated.priceId,
-              selectedAt: new Date().toISOString(),
-            }
-          : null
-      }
-      booking={booking}
-      loading={api.loading}
-      error={api.error}
-      locale={locale}
-      testMode={testMode}
-      onPay={() => void handlePay()}
-      onSimulatePaymentSuccess={() => void handleSimulatePaymentSuccess()}
-    />
+    <>
+      <HideSiteFooter />
+      <FlightPaymentScreen
+        review={session.review}
+        validated={session.validated}
+        passengers={session.passengers}
+        customerEmail={session.delivery.email}
+        customerMobile={session.delivery.contact}
+        context={
+          session.searchContext
+            ? {
+                params: {
+                  fromCode: session.searchContext.fromCode,
+                  toCode: session.searchContext.toCode,
+                  departureDate: session.searchContext.departureDate,
+                  adults: session.passengers.filter((p) => p.pt === "ADULT").length,
+                  children: session.passengers.filter((p) => p.pt === "CHILD").length,
+                  infants: session.passengers.filter((p) => p.pt === "INFANT").length,
+                  cabinClass: "ECONOMY",
+                  pft: "REGULAR",
+                  isDirectFlight: false,
+                  isConnectingFlight: true,
+                },
+                priceId: session.validated.priceId,
+                selectedAt: new Date().toISOString(),
+              }
+            : null
+        }
+        booking={booking}
+        loading={api.loading}
+        error={api.error}
+        locale={locale}
+        testMode={testMode}
+        onPay={() => void handlePay()}
+        onSimulatePaymentSuccess={() => void handleSimulatePaymentSuccess()}
+      />
+    </>
   );
 }

@@ -26,7 +26,7 @@ function statusBadgeClass(status: string) {
   if (status === "manual_review_required" || status === "booking_pending" || status === "payment_pending") {
     return "bg-amber-100 text-amber-800";
   }
-  if (status === "cancelled" || status === "payment_failed" || status === "booking_failed") {
+  if (status === "cancelled" || status === "payment_failed" || status === "booking_failed" || status === "payment_received_booking_failed") {
     return "bg-red-100 text-red-800";
   }
   if (status === "refunded" || status === "refund_pending") return "bg-purple-100 text-purple-800";
@@ -200,6 +200,7 @@ export default function HotelBookingsAdminClient() {
                 <SelectItem value="refund_pending">Refund pending</SelectItem>
                 <SelectItem value="refunded">Refunded</SelectItem>
                 <SelectItem value="payment_failed">Payment failed</SelectItem>
+                <SelectItem value="payment_received_booking_failed">Paid — book failed</SelectItem>
                 <SelectItem value="booking_failed">Booking failed</SelectItem>
               </SelectContent>
             </Select>

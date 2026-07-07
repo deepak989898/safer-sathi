@@ -79,7 +79,7 @@ export function computeHotelAdminStats(bookings: HotelBookingRecord[]): HotelAdm
     if (PENDING_STATUSES.has(b.status)) pending += 1;
     if (b.status === "manual_review_required") manualReview += 1;
     if (b.status === "cancelled" || b.status === "refunded") cancelled += 1;
-    if (b.status === "booking_failed" || b.status === "payment_failed") failed += 1;
+    if (b.status === "booking_failed" || b.status === "payment_received_booking_failed" || b.status === "payment_failed") failed += 1;
     if (b.paymentStatus === "pending" && b.status !== "cancelled") paymentPending += 1;
   }
 

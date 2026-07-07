@@ -82,7 +82,7 @@ function HotelBookingsContent() {
     }
     if (tab === "failed") {
       return bookings.filter((b) =>
-        ["booking_failed", "payment_failed", "manual_review_required"].includes(b.status)
+        ["booking_failed", "payment_received_booking_failed", "payment_failed", "manual_review_required"].includes(b.status)
       );
     }
     return bookings;

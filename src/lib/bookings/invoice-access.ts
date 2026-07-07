@@ -35,6 +35,19 @@ export function getInvoiceDownloadUrl(bookingId: string, customerEmail: string):
   return appUrl(`/api/bookings/${bookingId}/invoice?token=${token}`);
 }
 
+export function resolveBookingInvoiceDownloadUrl(booking: {
+  id: string;
+  customerEmail: string;
+  serviceType?: string;
+}): string {
+  if (booking.serviceType === "hotel" || booking.id.startsWith("hotel_")) {
+    return appUrl(
+      `/api/hotels/bookings/${booking.id}/invoice?token=${createInvoiceAccessToken(booking.id, booking.customerEmail)}`
+    );
+  }
+  return getInvoiceDownloadUrl(booking.id, booking.customerEmail);
+}
+
 export function getInvoiceFilename(bookingNumber: string): string {
   const safe = bookingNumber.replace(/[^a-zA-Z0-9-]/g, "");
   return `SafarSathi-Invoice-${safe}.pdf`;

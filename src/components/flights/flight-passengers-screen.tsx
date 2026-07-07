@@ -19,6 +19,7 @@ import {
   FlightSuccessPanel,
   flightPrimaryButtonClass,
 } from "@/components/flights/flight-ui";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { PhoneCountryCodeSelect } from "@/components/flights/phone-country-code-select";
 import { AirlineLogo } from "@/components/flights/airline-logo";
 import { maxDateOfBirthValue } from "@/lib/phone-country-codes";
@@ -97,6 +98,7 @@ export function FlightPassengersScreen({
   if (validated) {
     return (
       <div className="min-h-screen bg-[#f4f7fb]">
+        <HideSiteFooter />
         <FlightStepBar current="passengers" />
         <FlightPageHeader
           title="Fare Validated"
@@ -143,6 +145,7 @@ export function FlightPassengersScreen({
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
+      <HideSiteFooter />
       <FlightStepBar current="passengers" />
       <FlightPageHeader
         title="Passenger Details"
@@ -321,22 +324,6 @@ export function FlightPassengersScreen({
             </FlightSoftCard>
           )}
 
-          {!bookingIdError && (
-            <Button
-              className={cn(flightPrimaryButtonClass())}
-              disabled={loading}
-              onClick={onValidate}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Validating fare...
-                </>
-              ) : (
-                "Validate Fare & Continue"
-              )}
-            </Button>
-          )}
         </div>
 
         <aside>
@@ -378,6 +365,23 @@ export function FlightPassengersScreen({
               </div>
               {bookingId && (
                 <p className="text-[10px] text-slate-400">Booking ref: {bookingId}</p>
+              )}
+
+              {!bookingIdError && (
+                <Button
+                  className={cn(flightPrimaryButtonClass(), "mt-2")}
+                  disabled={loading}
+                  onClick={onValidate}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Validating fare...
+                    </>
+                  ) : (
+                    "Validate Fare & Continue"
+                  )}
+                </Button>
               )}
             </div>
           </FlightSoftCard>

@@ -1,5 +1,5 @@
 import { deliverBookingConfirmationEmail } from "@/lib/email/booking-confirmation-mail";
-import { getInvoiceDownloadUrl } from "@/lib/bookings/invoice-access";
+import { resolveBookingInvoiceDownloadUrl } from "@/lib/bookings/invoice-access";
 import { getBalanceDue } from "@/lib/payments/booking-payment";
 import { sendEmail } from "@/lib/notifications/email";
 import { sendViaResend, isResendConfigured } from "@/lib/email/resend";
@@ -25,7 +25,11 @@ export function buildBookingWhatsAppMessage(input: {
   const travelDate = booking.endDate
     ? `${booking.startDate} to ${booking.endDate}`
     : booking.startDate;
-  const invoiceUrl = getInvoiceDownloadUrl(booking.id, booking.customerEmail);
+  const invoiceUrl = resolveBookingInvoiceDownloadUrl({
+    id: booking.id,
+    customerEmail: booking.customerEmail,
+    serviceType: booking.serviceType,
+  });
 
   const lines = [
     `🎉 *Safar Sathi — Booking ${isFullyPaid ? "Confirmed" : "Update"}*`,
@@ -159,6 +163,8 @@ export async function sendBookingConfirmationNotifications(input: {
   channels?: Array<"email" | "whatsapp" | "sms">;
   loginEmail?: string;
   loginPassword?: string;
+  voucherUrl?: string;
+  hotelReference?: string;
 }): Promise<BookingNotificationResult> {
   const booking = input.booking;
   const balanceDue = getBalanceDue(booking.amount, booking.paidAmount ?? 0);
@@ -177,6 +183,8 @@ export async function sendBookingConfirmationNotifications(input: {
         balanceDue,
         loginEmail: input.loginEmail,
         loginPassword: input.loginPassword,
+        voucherUrl: input.voucherUrl,
+        hotelReference: input.hotelReference,
       });
     } catch (error) {
       result.email = {

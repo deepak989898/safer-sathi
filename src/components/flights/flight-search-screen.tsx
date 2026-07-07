@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { FlightAirportAutocomplete } from "@/components/flights/flight-airport-autocomplete";
 import { flightPrimaryButtonClass } from "@/components/flights/flight-ui";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import {
   formatAirportLabel,
   resolveAirportDisplayLabel,
@@ -58,9 +59,9 @@ interface FlightSearchScreenProps {
   onSearch: (route?: { fromCode: string; toCode: string }) => void;
 }
 
-/** Commercial jet in flight — reference hero style. */
+/** Commercial jet in flight — full-width hero background. */
 const FLIGHT_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=85";
+  "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1920&q=85";
 
 function TravelerStepper({
   label,
@@ -325,31 +326,37 @@ export function FlightSearchScreen({
   );
 
   return (
-    <section className="overflow-hidden bg-gradient-to-b from-[#e8f2fc] via-[#f4f8fd] to-[#f4f7fb]">
-      <div className="container mx-auto flex max-h-[calc(100dvh-4.5rem)] min-h-[calc(100dvh-4.5rem)] max-w-6xl flex-col px-4 py-4 md:max-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-4rem)] md:py-5">
-        <div className="grid shrink-0 grid-cols-1 items-center gap-3 md:grid-cols-[1fr_minmax(0,340px)] md:gap-6">
-          <div className="text-center md:text-left">
-            <h1 className="text-2xl font-bold tracking-tight text-[#1a4fa3] md:text-3xl lg:text-[2rem] lg:leading-tight">
-              Find The Best Flight Deals
-            </h1>
-            <p className="mx-auto mt-1 max-w-md text-sm text-slate-600 md:mx-0">
-              Book your next adventure — enjoy the best offers on domestic and international
-              flights.
-            </p>
-          </div>
+    <section className="bg-[#f4f7fb]">
+      <HideSiteFooter />
 
-          <div className="flex items-center justify-center md:justify-end">
-            <img
-              src={FLIGHT_HERO_IMAGE}
-              alt="Airplane"
-              className="h-28 w-auto max-w-full object-contain drop-shadow-lg sm:h-32 md:h-36 lg:h-40"
-              loading="eager"
-              decoding="async"
-            />
+      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
+        <div className="relative h-44 overflow-hidden sm:h-52 md:h-60 lg:h-64">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={FLIGHT_HERO_IMAGE}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0c2444]/85 via-[#1a4fa3]/55 to-[#1a4fa3]/25" />
+          <div className="container relative z-10 mx-auto flex h-full items-center px-4 py-6">
+            <div className="max-w-2xl text-white">
+              <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm md:text-3xl lg:text-4xl lg:leading-tight">
+                Find The Best Flight Deals
+              </h1>
+              <p className="mt-2 max-w-xl text-sm text-white/90 md:text-base">
+                Book your next adventure — enjoy the best offers on domestic and international
+                flights.
+              </p>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto md:mt-4">{formCard}</div>
+      <div className="container relative z-10 mx-auto max-w-6xl px-4 pb-8 pt-4 md:-mt-2 md:pb-10 md:pt-0">
+        {formCard}
       </div>
     </section>
   );

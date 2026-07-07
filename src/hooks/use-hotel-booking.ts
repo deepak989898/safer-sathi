@@ -153,7 +153,16 @@ export function useHotelBookingApi() {
         });
         const json = await res.json();
         if (!json.success) throw new Error(json.error ?? "Test payment failed");
-        return json.data as { booking: HotelBookingRecord; manualReview?: boolean; message?: string };
+        const payload = json.data as {
+          booking: HotelBookingRecord;
+          manualReview?: boolean;
+          message?: string;
+          loginCredentials?: { loginEmail: string; loginPassword: string } | null;
+        };
+        if (payload.loginCredentials) {
+          await autoLoginHotelGuestAfterPayment(payload.loginCredentials);
+        }
+        return payload;
       });
     },
     [run]

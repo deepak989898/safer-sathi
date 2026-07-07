@@ -8,8 +8,8 @@ import {
 import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
 import { sendHotelBookingProcessingNotification } from "@/lib/hotels/notifications";
 import { pollHotelBookingDetailsAfterBook } from "@/lib/hotels/booking-details-poll";
+import { getHotelReferenceLabel } from "@/lib/hotels/booking-status-helpers";
 import { processHotelBookingFailure } from "@/lib/hotels/failed-booking-service";
-import { refreshHotelBookingDetails } from "@/lib/hotels/post-booking-service";
 import { normalizeGuestDetailsForm } from "@/lib/hotels/guest-validation";
 import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/types";
 import { buildTripJackHotelBookRequest } from "@/lib/tripjack-hotels/build-book";
@@ -77,9 +77,10 @@ export async function prepareHotelBookingFromReview(
 
 export function hotelBookingToLegacyBooking(hotel: HotelBookingRecord): Booking {
   const now = new Date().toISOString();
+  const isConfirmed = hotel.status === "confirmed";
   return {
     id: hotel.bookingId,
-    bookingNumber: hotel.confirmationNumber ?? hotel.bookingId.slice(-8).toUpperCase(),
+    bookingNumber: hotel.bookingId,
     userId: hotel.userId,
     customerName: hotel.customerName,
     customerEmail: hotel.customerEmail,
@@ -97,10 +98,16 @@ export function hotelBookingToLegacyBooking(hotel: HotelBookingRecord): Booking 
     paidAmount: hotel.paymentStatus === "paid" ? hotel.totalFare : 0,
     departure: hotel.hotelName,
     destination: hotel.hotelName,
-    status: hotel.status === "confirmed" ? "confirmed" : "pending",
+    status: isConfirmed ? "confirmed" : "pending",
     paymentStatus: hotel.paymentStatus === "paid" ? "paid" : "pending",
     aiProcessed: false,
-    notes: `TripJack: ${hotel.tripjackBookingId} | Room: ${hotel.roomName} | Ref: ${hotel.confirmationNumber ?? "pending"}`,
+    notes: [
+      `Hotel ref: ${hotel.supplierReference || hotel.confirmationNumber || hotel.tripjackBookingId}`,
+      `Room: ${hotel.roomName}`,
+      hotel.mealBasis ? `Meal: ${hotel.mealBasis}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
     createdAt: hotel.createdAt,
     updatedAt: now,
   };
@@ -239,6 +246,7 @@ async function executeTripJackHotelBook(
       bookRequest,
       bookResponse,
       tripjackStatus: orderStatus || "FAILED",
+      status: "payment_received_booking_failed",
       adminNotes: "TripJack rejected the hotel booking after payment.",
     });
     if (!failed) throw new Error("Booking update failed");
@@ -272,6 +280,13 @@ async function executeTripJackHotelBook(
         isFullyPaid: true,
         loginEmail: loginCredentials?.loginEmail,
         loginPassword: loginCredentials?.loginPassword,
+        voucherUrl: withGuest.voucherUrl,
+        hotelReference: getHotelReferenceLabel(withGuest),
+      });
+      await sendAdminBookingAlert({
+        booking: hotelBookingToLegacyBooking(withGuest),
+        isFullyPaid: true,
+        balanceDue: 0,
       });
       await updateHotelBooking(bookingId, {
         emailSentAt: new Date().toISOString(),
@@ -280,11 +295,6 @@ async function executeTripJackHotelBook(
       });
     } catch (emailError) {
       console.warn("[hotel-booking] confirmation email failed:", emailError);
-    }
-    try {
-      await refreshHotelBookingDetails(bookingId, "system");
-    } catch (refreshError) {
-      console.warn("[hotel-booking] post-book refresh failed:", refreshError);
     }
     return (await getHotelBookingById(bookingId)) ?? withGuest;
   }

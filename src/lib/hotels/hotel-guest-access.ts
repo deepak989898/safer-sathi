@@ -46,11 +46,13 @@ export async function ensureHotelGuestCustomerAccess(
   booking: HotelBookingRecord;
   loginCredentials: { loginEmail: string; loginPassword: string } | null;
 }> {
-  if (!shouldProvisionHotelGuestAccount(booking)) {
-    const credentials = booking.guestAccountProvisioned
+  const fallbackCredentials =
+    booking.customerEmail?.trim() && booking.paymentStatus === "paid"
       ? resolveHotelLoginCredentials(booking)
       : null;
-    return { booking, loginCredentials: credentials };
+
+  if (!shouldProvisionHotelGuestAccount(booking)) {
+    return { booking, loginCredentials: fallbackCredentials };
   }
 
   const provision = await provisionHotelBookingLogin(booking);

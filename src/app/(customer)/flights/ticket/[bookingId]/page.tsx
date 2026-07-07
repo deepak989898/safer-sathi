@@ -8,6 +8,7 @@ import { useFlightBookingApi } from "@/hooks/use-flight-booking";
 import { FlightBookingTimeline } from "@/components/flights/flight-booking-timeline";
 import { FlightCancelDialog } from "@/components/flights/flight-cancel-dialog";
 import { FlightTicketView } from "@/components/flights/flight-ticket-view";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { Button } from "@/components/ui/button";
 import { canCancelBooking, canReleasePnr } from "@/lib/flights/booking-guards";
 import {
@@ -181,6 +182,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   if (loadError && !booking) {
     return (
       <div className="min-h-screen bg-[#f4f7fb]">
+        <HideSiteFooter />
         <section className="container mx-auto max-w-lg px-4 py-16 text-center">
           <p className="font-semibold text-slate-900">Unable to load ticket</p>
           <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
@@ -195,6 +197,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
   if (!booking) {
     return (
       <div className="min-h-screen bg-[#f4f7fb]">
+        <HideSiteFooter />
         <section className="container mx-auto px-4 py-16 text-center text-muted-foreground">
           Loading ticket…
         </section>
@@ -204,6 +207,7 @@ export default function FlightTicketPage({ params }: { params: Promise<{ booking
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] flight-ticket-page">
+      <HideSiteFooter />
       <section className="container mx-auto max-w-3xl space-y-4 px-4 py-8 md:py-10">
         {refreshing && (
           <p className="text-center text-xs text-slate-500 print:hidden">Refreshing latest booking details…</p>

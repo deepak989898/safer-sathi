@@ -43,7 +43,8 @@ export async function processHotelBookingFailure(
   }
 
   const updated = await updateHotelBooking(booking.bookingId, {
-    status: "booking_failed",
+    status:
+      booking.paymentStatus === "paid" ? "payment_received_booking_failed" : "booking_failed",
     tripjackStatus: booking.tripjackStatus ?? "FAILED",
     refundStatus,
     refundAmount,

@@ -1,4 +1,4 @@
-import { getInvoiceDownloadUrl, getInvoiceFilename } from "@/lib/bookings/invoice-access";
+import { resolveBookingInvoiceDownloadUrl, getInvoiceFilename } from "@/lib/bookings/invoice-access";
 import { isResendConfigured, sendViaResend } from "@/lib/email/resend";
 import { getSmtpFromAddress, isSmtpConfigured, sendViaSmtp } from "@/lib/email/smtp";
 import { sendEmail } from "@/lib/notifications/email";
@@ -18,8 +18,19 @@ export function buildBookingConfirmationContent(input: {
   invoiceUrl?: string;
   loginEmail?: string;
   loginPassword?: string;
+  voucherUrl?: string;
+  hotelReference?: string;
 }) {
-  const { booking, isFullyPaid, balanceDue, invoiceUrl, loginEmail, loginPassword } = input;
+  const {
+    booking,
+    isFullyPaid,
+    balanceDue,
+    invoiceUrl,
+    loginEmail,
+    loginPassword,
+    voucherUrl,
+    hotelReference,
+  } = input;
   const credentials = {
     loginEmail: (loginEmail ?? booking.customerEmail).toLowerCase().trim(),
     loginPassword: loginPassword ?? booking.bookingNumber,
@@ -46,6 +57,7 @@ export function buildBookingConfirmationContent(input: {
       : `We received your advance payment for booking ${booking.bookingNumber}.`,
     "",
     `Service: ${serviceName}`,
+    hotelReference ? `Hotel reference: ${hotelReference}` : "",
     `Travel date: ${travelDate}`,
     `Guests: ${booking.guests}`,
     `Total amount: ${formatInr(booking.amount)}`,
@@ -53,6 +65,7 @@ export function buildBookingConfirmationContent(input: {
     "",
     "Your PDF invoice is attached to this email.",
     invoiceUrl ? `Download invoice: ${invoiceUrl}` : "",
+    voucherUrl ? `Hotel voucher: ${voucherUrl}` : "",
     "",
     "--- Your Safar Sathi login ---",
     `Login email: ${credentials.loginEmail}`,
@@ -130,8 +143,14 @@ export async function deliverBookingConfirmationEmail(input: {
   balanceDue: number;
   loginEmail?: string;
   loginPassword?: string;
+  voucherUrl?: string;
+  hotelReference?: string;
 }): Promise<{ delivery: BookingConfirmationDelivery; detail?: string }> {
-  const invoiceUrl = getInvoiceDownloadUrl(input.booking.id, input.booking.customerEmail);
+  const invoiceUrl = resolveBookingInvoiceDownloadUrl({
+    id: input.booking.id,
+    customerEmail: input.booking.customerEmail,
+    serviceType: input.booking.serviceType,
+  });
   const { subject, text, html } = buildBookingConfirmationContent({
     booking: input.booking,
     isFullyPaid: input.isFullyPaid,
@@ -139,6 +158,8 @@ export async function deliverBookingConfirmationEmail(input: {
     invoiceUrl,
     loginEmail: input.loginEmail,
     loginPassword: input.loginPassword,
+    voucherUrl: input.voucherUrl,
+    hotelReference: input.hotelReference,
   });
   const filename = getInvoiceFilename(input.booking.bookingNumber);
   const attachment = {

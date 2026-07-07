@@ -22,6 +22,7 @@ import {
   FlightStepBar,
   flightPrimaryButtonClass,
 } from "@/components/flights/flight-ui";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { formatCurrency } from "@/lib/i18n";
 import type { FlightSearchContext } from "@/lib/flights/flight-session";
 import type { NormalizedFlightReview } from "@/lib/tripjack/types";
@@ -70,6 +71,7 @@ export function FlightReviewScreen({
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
+      <HideSiteFooter />
       <FlightStepBar current="review" />
       <FlightPageHeader
         title="Review Fare"

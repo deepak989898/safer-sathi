@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  AlertCircle,
   CheckCircle2,
   Download,
   ExternalLink,
@@ -20,14 +21,14 @@ import {
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelGuestLoginDetailsCard } from "@/components/hotels-tripjack/hotel-guest-login-details-card";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
+import { customerApiFetch } from "@/lib/admin/api-client";
 import { getHotelInvoiceDownloadUrl } from "@/lib/hotels/invoice-access";
-import type { HotelBookingRecord } from "@/lib/hotels/types";
 import {
-  isHotelBookingConfirmedStatus,
-  isHotelBookingFailedStatus,
-  isHotelBookingPendingStatus,
-  isHotelBookingTerminalFailure,
+  getHotelReferenceLabel,
+  resolveHotelBookingUiStatus,
 } from "@/lib/hotels/booking-status-helpers";
+import { resolveHotelLoginCredentials } from "@/lib/hotels/hotel-login-credentials";
+import type { HotelBookingRecord } from "@/lib/hotels/types";
 import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
@@ -38,6 +39,17 @@ function loadSessionBooking(): HotelBookingRecord | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as HotelBookingRecord;
+  } catch {
+    return null;
+  }
+}
+
+function loadSessionLoginCredentials(): { loginEmail: string; loginPassword: string } | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem("tripjack_hotel_login_credentials");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { loginEmail: string; loginPassword: string };
   } catch {
     return null;
   }
@@ -57,42 +69,48 @@ export function HotelBookingSuccessClient() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    const sessionBooking = loadSessionBooking();
-    const storedLogin = sessionStorage.getItem("tripjack_hotel_login_credentials");
+    const storedLogin = loadSessionLoginCredentials();
     if (storedLogin) {
-      try {
-        setLoginCredentials(JSON.parse(storedLogin) as { loginEmail: string; loginPassword: string });
-      } catch {
-        /* ignore */
-      }
+      setLoginCredentials(storedLogin);
     }
 
     const applyBooking = (b: HotelBookingRecord) => {
       setBooking(b);
+      sessionStorage.setItem("tripjack_hotel_confirmed_booking", JSON.stringify(b));
+      if (!storedLogin && b.paymentStatus === "paid") {
+        setLoginCredentials(resolveHotelLoginCredentials(b));
+      }
       setLoading(false);
     };
 
     const startPolling = (b: HotelBookingRecord) => {
-      const shouldPoll =
-        b.paymentStatus === "paid" &&
-        !isHotelBookingConfirmedStatus(b) &&
-        !isHotelBookingTerminalFailure(b);
-      if (shouldPoll) void api.pollBookingStatus(b.bookingId, applyBooking);
+      const uiStatus = resolveHotelBookingUiStatus(b);
+      if (uiStatus === "pending" && b.paymentStatus === "paid") {
+        void api.pollBookingStatus(b.bookingId, applyBooking);
+      }
     };
 
-    if (sessionBooking && (!bookingId || sessionBooking.bookingId === bookingId)) {
-      applyBooking(sessionBooking);
-      startPolling(sessionBooking);
-      return;
-    }
     if (!bookingId) {
-      setLoading(false);
+      const sessionBooking = loadSessionBooking();
+      if (sessionBooking) {
+        applyBooking(sessionBooking);
+        startPolling(sessionBooking);
+      } else {
+        setLoading(false);
+      }
       return;
     }
-    void api.fetchBooking(bookingId, { publicAccess: true }).then((b) => {
-      if (b) {
-        applyBooking(b);
-        startPolling(b);
+
+    void api.fetchBooking(bookingId, { publicAccess: true }).then((serverBooking) => {
+      if (serverBooking) {
+        applyBooking(serverBooking);
+        startPolling(serverBooking);
+        return;
+      }
+      const sessionBooking = loadSessionBooking();
+      if (sessionBooking?.bookingId === bookingId) {
+        applyBooking(sessionBooking);
+        startPolling(sessionBooking);
       } else {
         setLoading(false);
       }
@@ -103,14 +121,25 @@ export function HotelBookingSuccessClient() {
     if (!booking) return;
     setDownloading(true);
     try {
-      const invoiceUrl = getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail);
-      const res = await fetch(invoiceUrl);
-      if (!res.ok) throw new Error("Could not download invoice");
+      const tokenUrl = getHotelInvoiceDownloadUrl(booking.bookingId, booking.customerEmail);
+      let res = await fetch(tokenUrl, { credentials: "include" });
+
+      if (!res.ok) {
+        res = await customerApiFetch(`/api/hotels/bookings/${booking.bookingId}/invoice`);
+      }
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(
+          (json as { error?: string }).error ?? "Could not download invoice"
+        );
+      }
+
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = `SafarSathi-Hotel-Invoice-${booking.confirmationNumber ?? booking.bookingId.slice(-8)}.pdf`;
+      link.download = `SafarSathi-Hotel-Invoice-${booking.bookingId}.pdf`;
       link.click();
       URL.revokeObjectURL(objectUrl);
       toast.success("Invoice downloaded");
@@ -139,13 +168,11 @@ export function HotelBookingSuccessClient() {
     );
   }
 
-  const confirmed = booking.status === "confirmed";
-  const failed = isHotelBookingFailedStatus(booking) || isHotelBookingTerminalFailure(booking);
-  const pending =
-    !failed &&
-    (booking.status === "manual_review_required" ||
-      booking.status === "booking_pending" ||
-      isHotelBookingPendingStatus(booking));
+  const uiStatus = resolveHotelBookingUiStatus(booking);
+  const confirmed = uiStatus === "confirmed";
+  const failed = uiStatus === "failed";
+  const pending = uiStatus === "pending";
+  const hotelReference = getHotelReferenceLabel(booking);
   const guestCount = booking.rooms.reduce(
     (sum, r) => sum + (r.adults ?? 1) + (r.children ?? 0),
     0
@@ -154,42 +181,40 @@ export function HotelBookingSuccessClient() {
   return (
     <HotelBookingLayout maxWidth="md">
       <HotelCard padding="lg" className="text-center">
-        <CheckCircle2
-          className="mx-auto h-16 w-16"
-          style={{
-            color: failed
-              ? "#dc2626"
-              : confirmed
-                ? HOTEL_UI.success
-                : pending
-                  ? HOTEL_UI.pending
-                  : HOTEL_UI.action,
-          }}
-        />
+        {failed ? (
+          <AlertCircle className="mx-auto h-16 w-16 text-red-600" />
+        ) : (
+          <CheckCircle2
+            className="mx-auto h-16 w-16"
+            style={{
+              color: confirmed ? HOTEL_UI.success : pending ? HOTEL_UI.pending : HOTEL_UI.action,
+            }}
+          />
+        )}
         <h1 className="mt-4 text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
           {failed
             ? "Booking Unsuccessful"
             : confirmed
-              ? "Booking Confirmed!"
+              ? "Booking Confirmed"
               : pending
-                ? "Payment Received"
+                ? "Booking Pending"
                 : "Booking Status"}
         </h1>
         <p className="mt-2 text-sm" style={{ color: HOTEL_UI.textMuted }}>
           {failed
-            ? "We could not confirm your hotel with the supplier. A refund will be processed according to our policy."
+            ? "We could not confirm your hotel with the supplier. Your payment will be refunded — our team will assist you if needed."
             : confirmed
               ? booking.emailSentAt
-                ? "Your hotel reservation is confirmed. A confirmation email has been sent."
+                ? "Your hotel reservation is confirmed. A confirmation email with invoice and login details has been sent."
                 : "Your hotel reservation is confirmed."
               : pending
-                ? "Payment received. Booking confirmation is in progress — we will notify you shortly."
+                ? "Payment received. Booking confirmation is in progress — we will email you once confirmed."
                 : booking.status.replace(/_/g, " ")}
         </p>
 
         <div className="mt-2 flex justify-center">
           <HotelStatusBadge
-            status={failed ? "cancelled" : confirmed ? "confirmed" : pending ? "pending" : "default"}
+            status={failed ? "failed" : confirmed ? "confirmed" : pending ? "pending" : "default"}
           />
         </div>
 
@@ -206,8 +231,10 @@ export function HotelBookingSuccessClient() {
         >
           <Row label="Hotel" value={booking.hotelName} />
           <Row label="Booking ID" value={booking.bookingId} mono />
-          <Row label="TripJack Ref" value={booking.tripjackBookingId} mono />
-          {booking.confirmationNumber && (
+          {hotelReference !== "—" && (
+            <Row label="Hotel Reference" value={hotelReference} mono />
+          )}
+          {booking.confirmationNumber && booking.confirmationNumber !== hotelReference && (
             <Row label="Confirmation" value={booking.confirmationNumber} mono />
           )}
           <Row label="Check-in" value={booking.checkIn} />
@@ -217,13 +244,17 @@ export function HotelBookingSuccessClient() {
           <Row label="Amount paid" value={formatCurrency(booking.totalFare, locale)} highlight />
         </div>
 
-        <HotelGuestLoginDetailsCard booking={booking} loginCredentials={loginCredentials} />
+        {!failed && (
+          <HotelGuestLoginDetailsCard booking={booking} loginCredentials={loginCredentials} />
+        )}
 
         <div className="mt-6 grid gap-2 sm:grid-cols-2">
-          <HotelPrimaryButton variant="outline" onClick={() => void downloadInvoice()} disabled={downloading}>
-            <Download className="mr-2 inline h-4 w-4" />
-            Download Invoice
-          </HotelPrimaryButton>
+          {booking.paymentStatus === "paid" && (
+            <HotelPrimaryButton variant="outline" onClick={() => void downloadInvoice()} disabled={downloading}>
+              <Download className="mr-2 inline h-4 w-4" />
+              Download Invoice
+            </HotelPrimaryButton>
+          )}
           <Link href={`/hotels/booking/${booking.bookingId}`}>
             <HotelPrimaryButton>View Booking Details</HotelPrimaryButton>
           </Link>
@@ -235,7 +266,13 @@ export function HotelBookingSuccessClient() {
               </HotelPrimaryButton>
             </a>
           )}
-          <Link href="/account/hotel-bookings" className="sm:col-span-2">
+          <Link href={`/hotels/voucher/${booking.bookingId}`} className="sm:col-span-2">
+            <HotelPrimaryButton variant="outline">
+              <Printer className="mr-2 inline h-4 w-4" />
+              View Voucher / Ticket
+            </HotelPrimaryButton>
+          </Link>
+          <Link href="/my-bookings" className="sm:col-span-2">
             <HotelPrimaryButton variant="outline">Go to My Bookings</HotelPrimaryButton>
           </Link>
           <Link href="/" className="sm:col-span-2">

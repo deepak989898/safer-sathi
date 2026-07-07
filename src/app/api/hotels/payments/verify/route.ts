@@ -2,6 +2,7 @@ import { z } from "zod";
 import { confirmHotelAfterPayment } from "@/lib/hotels/booking-service";
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
 import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
+import { resolveHotelLoginCredentials } from "@/lib/hotels/hotel-login-credentials";
 import { assertTripJackHotelBookingAllowed, hotelApiError } from "@/lib/hotels/api-helpers";
 import { verifyPayment } from "@/lib/payments/razorpay";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -93,18 +94,26 @@ export async function POST(request: Request) {
       });
     }
 
+    const guestAccess = await ensureHotelGuestCustomerAccess(booking);
+    const loginCredentials =
+      guestAccess.loginCredentials ?? resolveHotelLoginCredentials(guestAccess.booking);
+
     return apiSuccess({
       verified: true,
-      booking,
+      booking: guestAccess.booking,
       manualReview:
-        booking.status === "manual_review_required" || booking.status === "booking_pending",
+        guestAccess.booking.status === "manual_review_required" ||
+        guestAccess.booking.status === "booking_pending",
       message:
-        booking.status === "confirmed"
+        guestAccess.booking.status === "confirmed"
           ? "Hotel booking confirmed"
-          : booking.status === "booking_pending"
+          : guestAccess.booking.status === "booking_pending"
             ? "Payment received. Booking confirmation is in progress."
-            : "Booking in progress",
-      loginCredentials: (await ensureHotelGuestCustomerAccess(booking)).loginCredentials,
+            : guestAccess.booking.status === "payment_received_booking_failed" ||
+                guestAccess.booking.status === "booking_failed"
+              ? "Payment received but hotel booking could not be confirmed. Refund will be processed."
+              : "Booking in progress",
+      loginCredentials,
     });
   } catch (err) {
     return hotelApiError(err, "Payment verification failed");

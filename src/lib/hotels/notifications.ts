@@ -1,6 +1,8 @@
+import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
 import { hotelBookingToLegacyBooking } from "@/lib/hotels/booking-service";
 import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
-import { getInvoiceDownloadUrl } from "@/lib/bookings/invoice-access";
+import { getHotelInvoiceDownloadUrl } from "@/lib/hotels/invoice-access";
+import { resolveHotelLoginCredentials } from "@/lib/hotels/hotel-login-credentials";
 import { sendEmail } from "@/lib/notifications/email";
 import { sendViaResend, isResendConfigured } from "@/lib/email/resend";
 import { getSmtpFromAddress, isSmtpConfigured, sendViaSmtp } from "@/lib/email/smtp";
@@ -64,7 +66,7 @@ export async function sendHotelVoucherReadyNotification(
   if (!booking.customerEmail) return;
 
   const legacy = hotelBookingToLegacyBooking(booking);
-  const invoiceUrl = getInvoiceDownloadUrl(legacy.id, legacy.customerEmail);
+  const invoiceUrl = getHotelInvoiceDownloadUrl(legacy.id, legacy.customerEmail);
   const guest = booking.guestDetails?.primaryGuest;
   const roomGuests = booking.guestDetails?.roomGuests?.flat() ?? [];
   const option = booking.reviewNormalized?.option;
@@ -90,8 +92,9 @@ export async function sendHotelVoucherReadyNotification(
     `Your hotel voucher for ${booking.hotelName} is ready.`,
     "",
     `Booking ID: ${booking.bookingId}`,
-    `TripJack Ref: ${booking.tripjackBookingId}`,
-    booking.supplierReference ? `Supplier ref: ${booking.supplierReference}` : "",
+    booking.supplierReference || booking.confirmationNumber
+      ? `Hotel reference: ${booking.supplierReference || booking.confirmationNumber}`
+      : "",
     `Status: ${booking.tripjackStatus ?? booking.status}`,
     "",
     `Check-in: ${booking.checkIn}`,
@@ -336,11 +339,17 @@ export async function resendHotelBookingEmail(
   booking: HotelBookingRecord,
   type: "confirmation" | "voucher" = "confirmation"
 ): Promise<void> {
+  const { loginCredentials } = await ensureHotelGuestCustomerAccess(booking);
+  const credentials = loginCredentials ?? resolveHotelLoginCredentials(booking);
+
   if (type === "voucher" && (booking.voucherUrl || booking.confirmationNumber)) {
-    await sendHotelVoucherReadyNotification(booking);
+    await sendHotelVoucherReadyNotification(booking, credentials);
     return;
   }
   await sendBookingConfirmationNotifications({
     booking: hotelBookingToLegacyBooking(booking),
+    isFullyPaid: booking.paymentStatus === "paid",
+    loginEmail: credentials.loginEmail,
+    loginPassword: credentials.loginPassword,
   });
 }

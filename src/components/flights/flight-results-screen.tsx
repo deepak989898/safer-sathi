@@ -123,7 +123,7 @@ export function FlightResultsScreen({
     <section className="min-h-screen bg-[#f4f7fb]">
       <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto max-w-6xl px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid items-start gap-3 lg:grid-cols-[auto_1fr_auto] lg:gap-4">
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
                 {params.fromCode} → {params.toCode}
@@ -142,6 +142,18 @@ export function FlightResultsScreen({
                 )}
               </p>
             </div>
+
+          <div className="min-w-0 pt-0.5">
+            <FlightDateFareStrip
+              selectedDate={params.departureDate}
+              locale={locale}
+              loading={loading}
+              dateFareCache={dateFareCache}
+              loadingDates={dateLoadingMap}
+              onSelectDate={onSelectDate}
+            />
+          </div>
+
             <Button
               type="button"
               variant="outline"
@@ -152,17 +164,6 @@ export function FlightResultsScreen({
               <Pencil className="mr-2 h-3.5 w-3.5" />
               Modify Search
             </Button>
-          </div>
-
-          <div className="mt-4">
-            <FlightDateFareStrip
-              selectedDate={params.departureDate}
-              locale={locale}
-              loading={loading}
-              dateFareCache={dateFareCache}
-              loadingDates={dateLoadingMap}
-              onSelectDate={onSelectDate}
-            />
           </div>
         </div>
       </div>

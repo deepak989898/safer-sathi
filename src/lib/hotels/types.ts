@@ -9,6 +9,7 @@ export type HotelBookingStatus =
   | "booking_pending"
   | "confirmed"
   | "booking_failed"
+  | "payment_received_booking_failed"
   | "manual_review_required"
   | "cancellation_requested"
   | "cancelled"

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { confirmHotelAfterPayment } from "@/lib/hotels/booking-service";
 import { getHotelBookingById } from "@/lib/hotels/firestore";
+import { ensureHotelGuestCustomerAccess } from "@/lib/hotels/hotel-guest-access";
+import { resolveHotelLoginCredentials } from "@/lib/hotels/hotel-login-credentials";
 import { hotelApiError } from "@/lib/hotels/api-helpers";
 import { isHotelTestBookingEnabled, buildTestRazorpayIds } from "@/lib/hotels/test-booking";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
@@ -34,15 +36,20 @@ export async function POST(request: Request) {
       razorpayPaymentId: testIds.razorpayPaymentId,
     });
 
+    const guestAccess = await ensureHotelGuestCustomerAccess(confirmed);
+    const loginCredentials =
+      guestAccess.loginCredentials ?? resolveHotelLoginCredentials(guestAccess.booking);
+
     return apiSuccess({
       verified: true,
-      booking: confirmed,
+      booking: guestAccess.booking,
       testMode: true,
-      manualReview: confirmed.status === "manual_review_required",
+      manualReview: guestAccess.booking.status === "manual_review_required",
       message:
-        confirmed.status === "confirmed"
+        guestAccess.booking.status === "confirmed"
           ? "Test payment — hotel booking confirmed"
           : "Test payment received. Confirmation pending.",
+      loginCredentials,
     });
   } catch (err) {
     return hotelApiError(err, "Test payment simulation failed");

@@ -63,7 +63,7 @@ export function Footer() {
   const { locale } = useAppStore();
 
   return (
-    <footer className="border-t bg-slate-50 md:border-0 md:bg-[#0c2444]">
+    <footer className="site-footer border-t bg-slate-50 md:border-0 md:bg-[#0c2444]">
       <div className="container mx-auto px-4 py-10 md:py-14">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div>

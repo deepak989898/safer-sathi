@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FlightDebugPanel } from "@/components/flights/flight-debug-panel";
 import { FlightResultsScreen } from "@/components/flights/flight-results-screen";
 import { FlightSearchScreen } from "@/components/flights/flight-search-screen";
+import { HideSiteFooter } from "@/components/layout/hide-site-footer";
 import { useAuth } from "@/contexts/auth-context";
 import { useFlightSearch, type FlightSearchDebug } from "@/hooks/use-flight-search";
 import {
@@ -271,6 +272,7 @@ export function FlightFlowClient() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb]">
+      <HideSiteFooter />
       {view === "search" && (
         <FlightSearchScreen
           params={params}

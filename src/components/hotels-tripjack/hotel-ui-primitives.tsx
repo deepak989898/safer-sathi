@@ -78,13 +78,14 @@ export function HotelStatusBadge({
   status,
   className,
 }: {
-  status: "confirmed" | "pending" | "cancelled" | "default";
+  status: "confirmed" | "pending" | "cancelled" | "failed" | "default";
   className?: string;
 }) {
   const map = {
     confirmed: { bg: "#E7F6E7", color: HOTEL_UI.success, label: "CONFIRMED" },
     pending: { bg: "#FFF8E6", color: "#9A7200", label: "PENDING" },
     cancelled: { bg: "#FEE2E2", color: "#B91C1C", label: "CANCELLED" },
+    failed: { bg: "#FEE2E2", color: "#B91C1C", label: "UNSUCCESSFUL" },
     default: { bg: "#E8F4FD", color: HOTEL_UI.primary, label: "ACTIVE" },
   };
   const s = map[status];

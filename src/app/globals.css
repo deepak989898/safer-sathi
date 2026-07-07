@@ -338,3 +338,7 @@
     print-color-adjust: exact;
   }
 }
+
+html[data-hide-site-footer="true"] .site-footer {
+  display: none;
+}

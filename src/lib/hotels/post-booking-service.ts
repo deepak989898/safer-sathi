@@ -6,10 +6,14 @@ import {
   normalizeHotelBookingDetails,
   normalizeHotelCancelResponse,
 } from "@/lib/tripjack-hotels/parse-booking-details";
+import { sendBookingConfirmationNotifications } from "@/lib/bookings/booking-notifications";
+import { hotelBookingToLegacyBooking } from "@/lib/hotels/booking-service";
 import { estimateHotelCancellationCharge } from "@/lib/hotels/cancellation-estimate";
 import { canCancelHotelBooking } from "@/lib/hotels/booking-guards";
 import {
-  isHotelBookingTerminalFailure,
+  hasHotelVoucherMetadata,
+  isHotelSupplierRejected,
+  isSupplierBookingSuccessStatus,
 } from "@/lib/hotels/booking-status-helpers";
 import { processHotelBookingFailure } from "@/lib/hotels/failed-booking-service";
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
@@ -39,6 +43,8 @@ export async function refreshHotelBookingDetails(
   const booking = await getHotelBookingById(bookingId);
   if (!booking) throw new Error("Booking not found");
   if (!booking.tripjackBookingId) throw new Error("TripJack booking ID missing");
+
+  const previousStatus = booking.status;
 
   const request = { bookingId: booking.tripjackBookingId };
   let response: unknown;
@@ -71,20 +77,63 @@ export async function refreshHotelBookingDetails(
     normalized.voucherUrl || normalized.voucherNumber || normalized.confirmationNumber
   );
 
-  let status = booking.status;
   const tripjackStatus = normalized.bookingStatus || normalized.orderStatus;
+  const supplierConfirmed =
+    normalized.statusSuccess !== false &&
+    (isSupplierBookingSuccessStatus(tripjackStatus) ||
+      isSupplierBookingSuccessStatus(normalized.bookingStatus) ||
+      isSupplierBookingSuccessStatus(normalized.orderStatus) ||
+      hasVoucherNow);
 
-  if (isHotelBookingTerminalFailure({
+  if (booking.status === "confirmed") {
+    const updated = await updateHotelBooking(bookingId, {
+      bookingDetailsResponse: response,
+      bookingDetailsNormalized: normalized,
+      lastStatusCheckedAt: new Date().toISOString(),
+      supplierReference: normalized.supplierReference || booking.supplierReference,
+      confirmationNumber: normalized.confirmationNumber || booking.confirmationNumber,
+      voucherUrl: normalized.voucherUrl || booking.voucherUrl,
+      voucherNumber: normalized.voucherNumber || booking.voucherNumber,
+      tripjackStatus: tripjackStatus || booking.tripjackStatus,
+      cancellationAllowed: normalized.cancellationAllowed,
+      actionLog: appendLog(booking, {
+        action: "refresh_booking_details",
+        by: actionBy,
+        httpStatus,
+        request,
+        response,
+      }),
+    });
+    if (!updated) throw new Error("Failed to save booking details");
+
+    if (!hadVoucher && hasVoucherNow) {
+      try {
+        const { loginCredentials } = await ensureHotelGuestCustomerAccess(updated);
+        await sendHotelVoucherReadyNotification(updated, loginCredentials);
+        await updateHotelBooking(bookingId, {
+          voucherEmailSentAt: new Date().toISOString(),
+        });
+      } catch (emailError) {
+        console.warn("[hotel-post-booking] voucher email failed:", emailError);
+      }
+    }
+
+    return updated;
+  }
+
+  const supplierRejected = isHotelSupplierRejected({
     ...booking,
     bookingDetailsNormalized: normalized,
     tripjackStatus,
-  })) {
+  });
+
+  if (supplierRejected) {
     const failed = await updateHotelBooking(bookingId, {
       bookingDetailsResponse: response,
       bookingDetailsNormalized: normalized,
       lastStatusCheckedAt: new Date().toISOString(),
       tripjackStatus,
-      status: "booking_failed",
+      status: "payment_received_booking_failed",
       adminNotes: tripjackStatus || "Supplier rejected the booking",
       actionLog: appendLog(booking, {
         action: "refresh_booking_details",
@@ -98,10 +147,9 @@ export async function refreshHotelBookingDetails(
     return processHotelBookingFailure(failed);
   }
 
+  let status: HotelBookingRecord["status"] = booking.status;
   if (
-    (normalized.orderStatus === "SUCCESS" ||
-      normalized.orderStatus === "COMPLETED" ||
-      normalized.bookingStatus === "CONFIRMED") &&
+    supplierConfirmed &&
     !["cancelled", "refund_pending", "refunded", "cancellation_requested"].includes(
       booking.status
     )
@@ -130,6 +178,30 @@ export async function refreshHotelBookingDetails(
   });
 
   if (!updated) throw new Error("Failed to save booking details");
+
+  if (
+    updated.status === "confirmed" &&
+    previousStatus !== "confirmed" &&
+    !updated.confirmedEmailSentAt
+  ) {
+    try {
+      const { booking: withGuest, loginCredentials } =
+        await ensureHotelGuestCustomerAccess(updated);
+      await sendBookingConfirmationNotifications({
+        booking: hotelBookingToLegacyBooking(withGuest),
+        isFullyPaid: true,
+        loginEmail: loginCredentials?.loginEmail,
+        loginPassword: loginCredentials?.loginPassword,
+      });
+      await updateHotelBooking(bookingId, {
+        emailSentAt: new Date().toISOString(),
+        confirmedEmailSentAt: new Date().toISOString(),
+        invoiceSentAt: new Date().toISOString(),
+      });
+    } catch (emailError) {
+      console.warn("[hotel-post-booking] confirmation email failed:", emailError);
+    }
+  }
 
   if (!hadVoucher && hasVoucherNow && updated.status === "confirmed") {
     try {
