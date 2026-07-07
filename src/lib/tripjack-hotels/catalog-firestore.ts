@@ -2,6 +2,10 @@ import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
+  hasFeaturedIndianCity,
+  isIndiaTripJackCatalogHotel,
+} from "@/lib/tripjack-hotels/india-catalog";
+import {
   TRIPJACK_HOTEL_CATALOG_COLLECTION,
   TRIPJACK_HOTEL_CATALOG_META_DOC,
   TRIPJACK_HOTEL_DESTINATIONS_COLLECTION,
@@ -37,7 +41,9 @@ function isFeaturedCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
   if (entry.isDeleted || entry.websiteVisible === false) return false;
   if (!entry.contentSynced) return false;
   if (isMappingOnlyCatalogStub(entry)) return false;
-  return Boolean(entry.name?.trim());
+  if (!entry.name?.trim()) return false;
+  if (!isIndiaTripJackCatalogHotel(entry)) return false;
+  return hasFeaturedIndianCity(entry);
 }
 
 function featuredEntryScore(entry: TripJackHotelCatalogEntry): number {
@@ -177,7 +183,8 @@ export async function searchTripJackHotelCatalogByCityPrefix(
 }
 
 export async function getTripJackHotelCatalogEntriesByHids(
-  hids: number[]
+  hids: number[],
+  options?: { browse?: boolean }
 ): Promise<TripJackHotelCatalogEntry[]> {
   if (!hids.length || !isAdminEnvConfigured()) return [];
   const db = await getSafeAdminDb();
@@ -195,7 +202,11 @@ export async function getTripJackHotelCatalogEntriesByHids(
     for (const snap of snaps) {
       if (!snap.exists) continue;
       const entry = snap.data() as TripJackHotelCatalogEntry;
-      if (isFeaturedCatalogEntry(entry)) entries.push(entry);
+      if (options?.browse) {
+        if (!entry.isDeleted && entry.websiteVisible !== false) entries.push(entry);
+      } else if (isFeaturedCatalogEntry(entry)) {
+        entries.push(entry);
+      }
     }
   }
 
@@ -203,7 +214,7 @@ export async function getTripJackHotelCatalogEntriesByHids(
 }
 
 export async function listFeaturedTripJackHotelsFromFirestore(
-  limit = 72
+  pickLimit = 72
 ): Promise<TripJackHotelCatalogEntry[]> {
   if (!isAdminEnvConfigured()) return [];
   const db = await getSafeAdminDb();
@@ -220,41 +231,76 @@ export async function listFeaturedTripJackHotelsFromFirestore(
     }
   };
 
-  try {
-    // Primary source: content-synced hotels only. Mapping-only stubs (108k+) are excluded.
-    const scanLimit = Math.min(1000, Math.max(limit * 8, 200));
-    const syncedSnap = await db
-      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-      .where("contentSynced", "==", true)
-      .limit(scanLimit)
-      .get();
+  const perCityFetch = 12;
 
-    addEntries(syncedSnap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
-  } catch (error) {
-    console.error("[listFeaturedTripJackHotelsFromFirestore] contentSynced query failed:", error);
+  // Fast path: parallel fetch by popular Indian city prefixes (India hotels only).
+  const citySnaps = await Promise.all(
+    FEATURED_PRIORITY_CITIES.map((city) =>
+      db
+        .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+        .orderBy("cityNameLower")
+        .startAt(city)
+        .endAt(`${city}\uf8ff`)
+        .limit(perCityFetch * 2)
+        .get()
+        .catch(() => null)
+    )
+  );
+
+  for (const snap of citySnaps) {
+    if (!snap) continue;
+    addEntries(snap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
   }
 
-  if (merged.size < limit) {
-    for (const city of FEATURED_PRIORITY_CITIES.slice(0, 8)) {
-      if (merged.size >= limit * 2) break;
+  // Boost from destination index for the same Indian cities.
+  if (merged.size < pickLimit) {
+    const destinationHids: number[] = [];
+    for (const city of FEATURED_PRIORITY_CITIES) {
+      if (destinationHids.length >= pickLimit * 2) break;
+      const dest = await getTripJackDestinationBySearchKey(city);
+      if (!dest?.hids?.length) continue;
+      destinationHids.push(...dest.hids.slice(0, 6));
+    }
+    if (destinationHids.length) {
+      addEntries(await getTripJackHotelCatalogEntriesByHids(destinationHids));
+    }
+  }
+
+  // Fallback: paginate content-synced hotels and keep India + city matches only.
+  if (merged.size < pickLimit) {
+    let cursor: number | undefined;
+    for (let page = 0; page < 8 && merged.size < pickLimit * 2; page += 1) {
       try {
-        const citySnap = await db
+        let query = db
           .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
-          .orderBy("cityNameLower")
-          .startAt(city)
-          .endAt(`${city}\uf8ff`)
-          .limit(10)
-          .get();
-        addEntries(citySnap.docs.map((doc) => doc.data() as TripJackHotelCatalogEntry));
-      } catch {
-        // City prefix query may fail without index — non-fatal.
+          .where("contentSynced", "==", true)
+          .orderBy("tjHotelId")
+          .limit(250);
+        if (cursor != null) {
+          query = query.startAfter(cursor);
+        }
+        const snap = await query.get();
+        if (snap.empty) break;
+
+        for (const doc of snap.docs) {
+          const entry = doc.data() as TripJackHotelCatalogEntry;
+          cursor = entry.tjHotelId;
+          if (isFeaturedCatalogEntry(entry)) {
+            addEntries([entry]);
+          }
+        }
+
+        if (snap.size < 250) break;
+      } catch (error) {
+        console.error("[listFeaturedTripJackHotelsFromFirestore] paginated scan failed:", error);
+        break;
       }
     }
   }
 
   return [...merged.values()]
     .sort((a, b) => featuredEntryScore(b) - featuredEntryScore(a))
-    .slice(0, limit);
+    .slice(0, pickLimit);
 }
 
 /** Fetch next batch of hotel IDs needing content sync (cursor-based scan). */

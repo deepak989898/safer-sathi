@@ -3,6 +3,10 @@ import "server-only";
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
 import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import { listFeaturedTripJackHotelsFromFirestore } from "@/lib/tripjack-hotels/catalog-firestore";
+import {
+  hasFeaturedIndianCity,
+  isIndiaTripJackCatalogHotel,
+} from "@/lib/tripjack-hotels/india-catalog";
 
 export interface FeaturedTripJackHotelCard {
   tjHotelId: number;
@@ -61,14 +65,12 @@ function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
   return /^hotel\s+\d+$/i.test(name) && !entry.cityName?.trim();
 }
 
-function resolveFeaturedCityName(entry: TripJackHotelCatalogEntry): string {
-  return (
-    entry.cityName?.trim() ||
-    entry.region?.trim() ||
-    entry.stateName?.trim() ||
-    entry.countryName?.trim() ||
-    "India"
-  );
+function resolveFeaturedCityName(entry: TripJackHotelCatalogEntry): string | null {
+  const city = entry.cityName?.trim() ?? "";
+  if (city && !/^(india|ind|bharat)$/i.test(city)) return city;
+  if (entry.region?.trim()) return entry.region.trim();
+  if (entry.stateName?.trim()) return entry.stateName.trim();
+  return null;
 }
 
 export function mapCatalogEntryToFeaturedCard(
@@ -77,14 +79,18 @@ export function mapCatalogEntryToFeaturedCard(
   const imageUrls = catalogEntryImageUrls(entry);
   if (entry.websiteVisible === false || entry.isDeleted || !entry.contentSynced) return null;
   if (!entry.name?.trim() || isMappingOnlyStub(entry)) return null;
+  if (!isIndiaTripJackCatalogHotel(entry) || !hasFeaturedIndianCity(entry)) return null;
 
   const cityName = resolveFeaturedCityName(entry);
+  if (!cityName) return null;
 
   return {
     tjHotelId: entry.tjHotelId,
     name: entry.name,
     cityName,
-    location: [entry.address, cityName, entry.stateName].filter(Boolean).join(", "),
+    location: [entry.address, cityName, entry.stateName, entry.countryName]
+      .filter(Boolean)
+      .join(", "),
     heroImage: entry.heroImage ?? imageUrls[0],
     imageUrls,
     starRating: entry.starRating ?? entry.rating,
@@ -93,7 +99,7 @@ export function mapCatalogEntryToFeaturedCard(
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
-  const entries = await listFeaturedTripJackHotelsFromFirestore(Math.max(limit * 3, 80));
+  const entries = await listFeaturedTripJackHotelsFromFirestore(Math.max(limit * 4, 120));
   const cardsByCity = new Map<string, FeaturedTripJackHotelCard[]>();
   const fallback: FeaturedTripJackHotelCard[] = [];
 

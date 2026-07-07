@@ -191,14 +191,17 @@ export function FeaturedTripJackHotelsSection({
           </div>
           <p className="text-sm text-muted-foreground">
             {hotels.length > 0
-              ? "Browse synced properties with photos — click any hotel to view live rooms and book."
-              : "Synced hotels with names, cities and photos — search anytime for more destinations."}
+              ? "Browse India hotels with photos — click any hotel to view live rooms and book."
+              : "India hotels with names, cities and photos — search anytime for more destinations."}
           </p>
           {catalogInfo?.syncInProgress && hotels.length > 0 && (
             <p className="mt-1 text-xs text-amber-700">
-              Catalog sync in progress — showing{" "}
-              {(catalogInfo.contentSyncedCount ?? catalogInfo.contentSuccessCount ?? hotels.length).toLocaleString()}{" "}
-              ready hotels so far.
+              Catalog sync in progress — showing featured hotels from Indian cities (
+              {hotels.length} on this page
+              {(catalogInfo.contentSyncedCount ?? 0) > 0
+                ? ` · ${(catalogInfo.contentSyncedCount ?? 0).toLocaleString()} synced globally`
+                : ""}
+              ).
             </p>
           )}
         </div>

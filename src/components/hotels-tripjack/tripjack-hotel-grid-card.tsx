@@ -106,13 +106,21 @@ export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJack
 
       <CardFooter className="flex items-center justify-between border-t bg-transparent">
         <div>
-          <p className="text-xs text-muted-foreground">From</p>
-          <p className="text-lg font-bold text-primary">
-            {formatCurrency(hotel.cheapestTotalPrice, locale)}
-            <span className="text-xs font-normal text-muted-foreground"> / stay</span>
-          </p>
+          {hotel.browseOnly || hotel.cheapestTotalPrice <= 0 ? (
+            <p className="text-sm text-muted-foreground">Rates on next step</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">From</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(hotel.cheapestTotalPrice, locale)}
+                <span className="text-xs font-normal text-muted-foreground"> / stay</span>
+              </p>
+            </>
+          )}
         </div>
-        <Button onClick={() => onViewDetails(hotel)}>View Rooms</Button>
+        <Button onClick={() => onViewDetails(hotel)}>
+          {hotel.browseOnly ? "View hotel" : "View Rooms"}
+        </Button>
       </CardFooter>
     </Card>
   );

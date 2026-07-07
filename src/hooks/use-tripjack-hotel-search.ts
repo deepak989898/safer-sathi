@@ -33,10 +33,6 @@ function parseHids(input: string): number[] {
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export interface UseTripJackHotelSearchOptions {
   initialDestination?: string;
   initialParams?: Partial<HotelListingSearchParams>;
@@ -271,6 +267,7 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
   const onSearch = useCallback(async () => {
     const adminHids = isSuperAdmin && adminHidsInput.trim() ? parseHids(adminHidsInput) : [];
     const destination = destinationQuery.trim();
+    const destinationLabel = selectedDestination?.label ?? destination;
 
     if (!adminHids.length && destination.length < 2) {
       setDestinationError("Enter a destination, city, or hotel name");
@@ -278,106 +275,103 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
       return;
     }
 
-    if (!params.checkIn || !params.checkOut) {
-      toast.error("Select check-in and check-out dates");
-      return;
-    }
-
-    const today = todayIsoDate();
-    if (params.checkIn < today) {
-      toast.error("Check-in must be today or a future date");
-      return;
-    }
-
-    if (params.checkOut <= params.checkIn) {
-      toast.error("Check-out must be after check-in");
-      return;
-    }
-
-    if (params.rooms.length > MAX_HOTEL_ROOMS) {
-      toast.error(`Maximum ${MAX_HOTEL_ROOMS} rooms allowed`);
-      return;
-    }
-
-    for (const room of params.rooms) {
-      if (room.adults < 1) {
-        toast.error("Each room needs at least 1 adult");
-        return;
-      }
-      const children = room.children ?? 0;
-      if (children > 6) {
-        toast.error("Maximum 6 children per room");
-        return;
-      }
-      if (children > 0 && (!room.childAge || room.childAge.length < children)) {
-        toast.error("Enter age for each child");
-        return;
-      }
-    }
-
-    const correlationId = generateHotelCorrelationId();
-    const requestBody: Record<string, unknown> = {
-      ...params,
-      correlationId,
-      destination: adminHids.length ? undefined : destination,
-      destinationLabel: selectedDestination?.label ?? destination,
-    };
-
-    if (adminHids.length) {
-      requestBody.adminOverrideHids = adminHids;
-    }
-
     setLoading(true);
     setError(null);
     setDestinationError(null);
 
     try {
-      if (isStaff) {
-        console.log("[hotel-search] listing request:", requestBody);
+      if (adminHids.length) {
+        const dates = defaultDates();
+        const correlationId = generateHotelCorrelationId();
+        const requestBody = {
+          checkIn: dates.checkIn,
+          checkOut: dates.checkOut,
+          rooms: [{ adults: 2 }],
+          currency: "INR",
+          nationality: "106",
+          correlationId,
+          adminOverrideHids: adminHids,
+          destinationLabel: destinationLabel || "Admin HID override",
+        };
+
+        const res = await fetch("/api/hotels/listing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.error ?? "Hotel search failed");
+        }
+
+        const data = json.data;
+        const listingRequest: HotelListingSearchParams = {
+          checkIn: dates.checkIn,
+          checkOut: dates.checkOut,
+          rooms: [{ adults: 2 }],
+          currency: "INR",
+          nationality: "106",
+          destination: destinationLabel,
+          destinationLabel: data.destinationLabel ?? destinationLabel,
+          correlationId: data.correlationId,
+        };
+
+        saveHotelListingSession({
+          request: listingRequest,
+          correlationId: data.correlationId,
+          hotels: data.hotels,
+          totalResults: data.totalResults,
+          currency: data.currency,
+          nationality: data.nationality,
+        });
+      } else {
+        const selectedHids =
+          selectedDestination?.hids?.length &&
+          (selectedDestination.type === "hotel" || selectedDestination.hids.length <= 3)
+            ? selectedDestination.hids
+            : undefined;
+
+        const res = await fetch("/api/hotels/catalog-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            destination: selectedHids ? undefined : destination,
+            hids: selectedHids,
+            limit: 100,
+          }),
+        });
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.error ?? "Hotel search failed");
+        }
+
+        const data = json.data;
+        const listingRequest: HotelListingSearchParams = {
+          destination,
+          destinationLabel: data.destinationLabel ?? destinationLabel,
+          browseMode: true,
+          rooms: [{ adults: 2 }],
+          currency: "INR",
+          nationality: "106",
+        };
+
+        saveHotelListingSession({
+          request: listingRequest,
+          correlationId: "",
+          hotels: data.hotels,
+          totalResults: data.totalResults,
+          currency: "INR",
+          nationality: "106",
+          browseMode: true,
+        });
       }
 
-      const res = await fetch("/api/hotels/listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      const json = await res.json();
-      if (!json.success) {
-        const upstream = json.details?.upstreamUrl
-          ? ` Proxy: ${json.details.upstreamUrl}`
-          : "";
-        throw new Error(`${json.error ?? "Hotel search failed"}${isStaff ? upstream : ""}`);
-      }
-
-      const data = json.data;
-      if (isStaff) {
-        console.log("[hotel-search] normalized hotels:", data.hotels);
-        console.log("[hotel-search] debug:", data.debug);
-      }
-
-      const listingRequest: HotelListingSearchParams = {
-        ...params,
-        destination,
-        destinationLabel: data.destinationLabel ?? destination,
-        correlationId: data.correlationId,
-      };
-
-      saveHotelListingSession({
-        request: listingRequest,
-        correlationId: data.correlationId,
-        hotels: data.hotels,
-        totalResults: data.totalResults,
-        currency: data.currency,
-        nationality: data.nationality,
-      });
-
-      if (!data.hotels?.length) {
-        toast.error(data.message ?? "No hotels found for this destination");
-        setError(data.message ?? "No hotels found for this destination");
-        return;
-      }
-
-      toast.success(data.message, { duration: 2500 });
+      toast.success(
+        adminHids.length
+          ? "Live rates loaded"
+          : `Hotels found${destinationLabel ? ` for ${destinationLabel}` : ""}`,
+        { duration: 2500 }
+      );
       onSearchSuccess?.();
       if (redirectToResults) {
         router.push("/hotels/results");
@@ -395,10 +389,8 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
   }, [
     adminHidsInput,
     destinationQuery,
-    isStaff,
     isSuperAdmin,
     onSearchSuccess,
-    params,
     redirectToResults,
     router,
     selectedDestination,

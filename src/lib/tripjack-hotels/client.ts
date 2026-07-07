@@ -50,6 +50,10 @@ export class TripJackHotelApiError extends Error {
 export function buildHotelListingBody(
   params: HotelListingSearchParams
 ): HotelListingRequestBody {
+  if (!params.checkIn || !params.checkOut) {
+    throw new TripJackHotelApiError("Check-in and check-out dates are required for hotel listing", 400);
+  }
+
   const rooms = params.rooms.map((room) => {
     const adults = Math.max(1, Number(room.adults) || 1);
     const children = Math.max(0, Number(room.children) || 0);

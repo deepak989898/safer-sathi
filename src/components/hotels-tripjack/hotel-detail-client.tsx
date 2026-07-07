@@ -20,7 +20,10 @@ import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
+import { HotelStayDetailsForm, type HotelStayDetails } from "@/components/hotels-tripjack/hotel-stay-details-form";
+import { startHotelLivePricing } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import {
+  isHotelBrowseSession,
   isHotelSearchSessionExpired,
   loadHotelDetailCache,
   loadHotelListingSession,
@@ -60,7 +63,22 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   const isStaff = user ? canShowAdminNav(user.role) : false;
   const isSuperAdmin = user ? canAccessAICenter(user.role) : false;
 
-  const [loading, setLoading] = useState(true);
+  const listingSession = useMemo(() => loadHotelListingSession(), []);
+  const listingHotel = useMemo(
+    () => listingSession.hotels.find((h) => String(h.tjHotelId) === String(hid)) ?? null,
+    [listingSession.hotels, hid]
+  );
+  const initialNeedsStayDetails = useMemo(
+    () =>
+      isHotelBrowseSession() ||
+      listingSession.request?.browseMode ||
+      !listingSession.request?.checkIn ||
+      !listingSession.correlationId,
+    [listingSession]
+  );
+
+  const [needsStayDetails, setNeedsStayDetails] = useState(initialNeedsStayDetails);
+  const [loading, setLoading] = useState(!initialNeedsStayDetails);
   const [error, setError] = useState<PricingErrorState | null>(null);
   const [detail, setDetail] = useState<NormalizedHotelDetail | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>("");
@@ -69,12 +87,6 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     requestBody: unknown;
     rawResponse: unknown;
   } | null>(null);
-
-  const listingSession = useMemo(() => loadHotelListingSession(), []);
-  const listingHotel = useMemo(
-    () => listingSession.hotels.find((h) => String(h.tjHotelId) === String(hid)) ?? null,
-    [listingSession.hotels, hid]
-  );
 
   const selectedOption: NormalizedHotelOption | null = useMemo(() => {
     if (!detail) return null;
@@ -96,13 +108,16 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         return;
       }
 
-      const request = listingSession.request;
-      const correlationId = listingSession.correlationId;
-      if (!request || !correlationId) {
-        setError({ message: "Search session expired. Please search hotels again.", backToSearch: true });
+      const session = loadHotelListingSession();
+      const request = session.request;
+      const correlationId = session.correlationId;
+      if (!request?.checkIn || !request.checkOut || !correlationId) {
+        setNeedsStayDetails(true);
         setLoading(false);
         return;
       }
+
+      setNeedsStayDetails(false);
 
       if (!force) {
         const cached = loadHotelDetailCache(hid);
@@ -126,8 +141,8 @@ export function HotelDetailClient({ hid }: { hid: string }) {
           checkIn: request.checkIn,
           checkOut: request.checkOut,
           rooms: request.rooms as HotelRoomRequest[],
-          currency: request.currency || listingSession.currency,
-          nationality: request.nationality || listingSession.nationality,
+          currency: request.currency || session.currency,
+          nationality: request.nationality || session.nationality,
           listingHotelName: listingHotel?.name,
         };
 
@@ -176,12 +191,39 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         setLoading(false);
       }
     },
-    [hid, listingSession, listingHotel?.name, isStaff, isSuperAdmin]
+    [hid, listingHotel?.name, isStaff, isSuperAdmin]
+  );
+
+  const handleStaySubmit = useCallback(
+    async (stay: HotelStayDetails) => {
+      setLoading(true);
+      setError(null);
+      const live = await startHotelLivePricing({
+        hid,
+        checkIn: stay.checkIn,
+        checkOut: stay.checkOut,
+        rooms: stay.rooms,
+        hotelName: listingHotel?.name,
+        currency: listingSession.currency,
+        nationality: listingSession.nationality,
+      });
+      if (!live.ok) {
+        setError({ message: live.message, retryable: true });
+        setLoading(false);
+        toast.error(live.message);
+        return;
+      }
+      setNeedsStayDetails(false);
+      await loadPricing(true);
+    },
+    [hid, listingHotel?.name, listingSession.currency, listingSession.nationality, loadPricing]
   );
 
   useEffect(() => {
-    void loadPricing(false);
-  }, [loadPricing]);
+    if (!needsStayDetails) {
+      void loadPricing(false);
+    }
+  }, [needsStayDetails, loadPricing]);
 
   const onSelectRoom = (optionId: string) => {
     setSelectedOptionId(optionId);
@@ -204,6 +246,11 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     if (!request) {
       toast.error("Search session expired. Please search again.");
       router.push("/hotels/search");
+      return;
+    }
+
+    if (!request.checkIn || !request.checkOut) {
+      toast.error("Please enter check-in and check-out dates first.");
       return;
     }
 
@@ -280,8 +327,14 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
   return (
     <HotelBookingLayout
-      title={detail?.name ?? "Hotel details"}
-      subtitle={detail ? `${detail.checkIn} → ${detail.checkOut} · ${detail.guestSummary}` : undefined}
+      title={detail?.name ?? listingHotel?.name ?? "Hotel details"}
+      subtitle={
+        detail
+          ? `${detail.checkIn} → ${detail.checkOut} · ${detail.guestSummary}`
+          : needsStayDetails
+            ? "Choose stay dates and guests to view live room rates"
+            : undefined
+      }
       backHref="/hotels/results"
       backLabel="Back to results"
       showCountdown
@@ -293,9 +346,35 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         current={1}
       />
 
-      {loading && <DetailSkeleton />}
+      {loading && !needsStayDetails && <DetailSkeleton />}
 
-        {error && !loading && (
+      {needsStayDetails && !detail && listingHotel && (
+        <div className="space-y-6">
+          <HotelCard padding="sm" className="overflow-hidden">
+            {galleryImages.length > 0 && (
+              <PackageImageGallery images={galleryImages} alt={listingHotel.name} className="px-4 pt-4" />
+            )}
+            <div className="space-y-3 p-5 md:p-6">
+              <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
+                {listingHotel.name}
+              </h1>
+              {listingHotel.location && (
+                <p className="inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
+                  <MapPin className="h-4 w-4" style={{ color: HOTEL_UI.action }} />
+                  {listingHotel.location}
+                </p>
+              )}
+            </div>
+          </HotelCard>
+          <HotelStayDetailsForm
+            hotelName={listingHotel.name}
+            loading={loading}
+            onSubmit={(stay) => void handleStaySubmit(stay)}
+          />
+        </div>
+      )}
+
+        {error && !loading && !needsStayDetails && (
           <HotelCard className="py-12 text-center">
             <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
             <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>

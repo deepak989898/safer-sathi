@@ -5,8 +5,8 @@ export interface HotelRoomRequest {
 }
 
 export interface HotelListingSearchParams {
-  checkIn: string;
-  checkOut: string;
+  checkIn?: string;
+  checkOut?: string;
   rooms: HotelRoomRequest[];
   currency: string;
   nationality: string;
@@ -17,6 +17,8 @@ export interface HotelListingSearchParams {
   /** Customer-facing destination query (city / hotel name). */
   destination?: string;
   destinationLabel?: string;
+  /** Browse catalog without dates — pricing loaded on hotel detail page. */
+  browseMode?: boolean;
   /** Super-admin manual override for TripJack test hids. */
   adminOverrideHids?: number[];
 }
@@ -105,6 +107,8 @@ export interface NormalizedHotel {
   passportRequired: boolean;
   options: NormalizedHotelOption[];
   cheapestOption: NormalizedHotelOption | null;
+  /** Catalog browse card — live rates loaded on detail page. */
+  browseOnly?: boolean;
 }
 
 export interface HotelListingResult {

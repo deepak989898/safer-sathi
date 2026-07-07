@@ -16,12 +16,13 @@ export function HotelSearchScreen(props: HotelSearchScreenProps) {
     <HotelBookingLayout
       hero
       title="Search live TripJack hotels"
-      subtitle="Search by city, destination, or hotel name. Live rates powered by TripJack."
+      subtitle="Search by city or hotel name. Select dates and guests when you choose a room to book."
       maxWidth="xl"
     >
       <TripJackSearchPanel
         {...props}
         variant="full"
+        destinationOnly
         className="-mt-4 md:-mt-6"
         onSearch={() => void props.onSearch()}
       />

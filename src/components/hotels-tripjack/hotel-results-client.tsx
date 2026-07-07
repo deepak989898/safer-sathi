@@ -64,6 +64,7 @@ function ResultsSearchBar({
     <TripJackSearchPanel
       {...search}
       variant="compact"
+      destinationOnly
       onSearch={() => void search.onSearch()}
     />
   );
@@ -95,7 +96,7 @@ export function HotelResultsClient() {
 
   const reloadFromSession = useCallback(() => {
     const session = loadHotelListingSession();
-    if (!session.hotels.length || !session.correlationId) {
+    if (!session.hotels.length) {
       router.replace("/hotels/search");
       return false;
     }
@@ -109,11 +110,16 @@ export function HotelResultsClient() {
       destination?: string;
       checkIn?: string;
       checkOut?: string;
+      browseMode?: boolean;
     } | null;
     if (ctx) {
       const parts = [
         ctx.destinationLabel || ctx.destination,
-        ctx.checkIn && ctx.checkOut ? `${ctx.checkIn} → ${ctx.checkOut}` : "",
+        ctx.browseMode
+          ? "Select a hotel to choose dates"
+          : ctx.checkIn && ctx.checkOut
+            ? `${ctx.checkIn} → ${ctx.checkOut}`
+            : "",
       ].filter(Boolean);
       setContextLabel(parts.join(" · "));
     }
@@ -126,10 +132,10 @@ export function HotelResultsClient() {
     }
   }, [reloadFromSession]);
 
-  const maxPrice = useMemo(
-    () => Math.max(...hotels.map((h) => h.cheapestTotalPrice), 1000),
-    [hotels]
-  );
+  const maxPrice = useMemo(() => {
+    const prices = hotels.map((h) => h.cheapestTotalPrice).filter((p) => p > 0);
+    return prices.length ? Math.max(...prices) : 50000;
+  }, [hotels]);
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, priceRange: [0, maxPrice] }));
@@ -194,8 +200,10 @@ export function HotelResultsClient() {
       const matchCity =
         filters.selectedCities.length === 0 || filters.selectedCities.includes(city);
       const matchPrice =
-        hotel.cheapestTotalPrice >= filters.priceRange[0] &&
-        hotel.cheapestTotalPrice <= filters.priceRange[1];
+        hotel.browseOnly ||
+        hotel.cheapestTotalPrice <= 0 ||
+        (hotel.cheapestTotalPrice >= filters.priceRange[0] &&
+          hotel.cheapestTotalPrice <= filters.priceRange[1]);
       const matchStars = starMin === 0 || (hotel.starRating ?? 0) >= starMin;
       const matchRefundable = !filters.refundableOnly || hotel.isRefundable;
       const matchBreakfast = !filters.breakfastOnly || hotel.hasBreakfast;
@@ -222,7 +230,7 @@ export function HotelResultsClient() {
 
   return (
     <HotelBookingLayout
-      title={`${destinationTitle} — ${totalResults} live hotels`}
+      title={`${destinationTitle} — ${totalResults} hotel${totalResults === 1 ? "" : "s"}`}
       subtitle={contextLabel}
       backHref="/hotels"
       backLabel="All hotels"

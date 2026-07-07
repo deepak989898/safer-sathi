@@ -73,10 +73,16 @@ function isHotelStorageExpired(): boolean {
 }
 
 export function isHotelSearchSessionExpired(): boolean {
-  const ctx = loadJson<{ searchedAt?: string; correlationId?: string }>(
-    HOTEL_SESSION_KEYS.searchContext
-  );
-  if (!ctx?.searchedAt || !ctx.correlationId) return true;
+  const ctx = loadJson<{
+    searchedAt?: string;
+    correlationId?: string;
+    browseMode?: boolean;
+  }>(HOTEL_SESSION_KEYS.searchContext);
+  if (!ctx?.searchedAt) return true;
+  if (ctx.browseMode && !ctx.correlationId) {
+    return getHotelSearchSessionRemainingMs() <= 0;
+  }
+  if (!ctx.correlationId) return true;
   return getHotelSearchSessionRemainingMs() <= 0;
 }
 
@@ -102,6 +108,7 @@ export function saveHotelListingSession(input: {
   totalResults: number;
   currency: string;
   nationality: string;
+  browseMode?: boolean;
 }): void {
   saveJson(HOTEL_SESSION_KEYS.searchRequest, input.request);
   saveJson(HOTEL_SESSION_KEYS.correlationId, input.correlationId);
@@ -114,6 +121,7 @@ export function saveHotelListingSession(input: {
     hids: input.request.hids,
     destinationLabel: input.request.destinationLabel ?? "",
     correlationId: input.correlationId,
+    browseMode: input.browseMode ?? input.request.browseMode ?? false,
     searchedAt: new Date().toISOString(),
   });
   saveJson(HOTEL_SESSION_KEYS.listingResponse, {
@@ -124,6 +132,52 @@ export function saveHotelListingSession(input: {
     hotels: input.hotels,
   });
   touchSessionMeta();
+}
+
+export function updateHotelListingStayDetails(input: {
+  checkIn: string;
+  checkOut: string;
+  rooms: HotelListingSearchParams["rooms"];
+  correlationId: string;
+  currency?: string;
+  nationality?: string;
+}): void {
+  const request =
+    loadJson<HotelListingSearchParams>(HOTEL_SESSION_KEYS.searchRequest) ?? {
+      rooms: input.rooms,
+      currency: input.currency ?? "INR",
+      nationality: input.nationality ?? "106",
+      browseMode: true,
+    };
+
+  const nextRequest: HotelListingSearchParams = {
+    ...request,
+    checkIn: input.checkIn,
+    checkOut: input.checkOut,
+    rooms: input.rooms,
+    browseMode: false,
+  };
+
+  saveJson(HOTEL_SESSION_KEYS.searchRequest, nextRequest);
+  saveJson(HOTEL_SESSION_KEYS.correlationId, input.correlationId);
+
+  const ctx = loadJson<Record<string, unknown>>(HOTEL_SESSION_KEYS.searchContext) ?? {};
+  saveJson(HOTEL_SESSION_KEYS.searchContext, {
+    ...ctx,
+    checkIn: input.checkIn,
+    checkOut: input.checkOut,
+    rooms: input.rooms,
+    correlationId: input.correlationId,
+    browseMode: false,
+    searchedAt: new Date().toISOString(),
+  });
+  touchSessionMeta();
+}
+
+export function isHotelBrowseSession(): boolean {
+  const ctx = loadJson<{ browseMode?: boolean }>(HOTEL_SESSION_KEYS.searchContext);
+  const request = loadJson<HotelListingSearchParams>(HOTEL_SESSION_KEYS.searchRequest);
+  return Boolean(ctx?.browseMode ?? request?.browseMode);
 }
 
 export function loadHotelListingSession(): {
