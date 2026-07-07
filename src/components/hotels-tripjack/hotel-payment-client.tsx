@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useHotelBookingApi } from "@/hooks/use-hotel-booking";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/types";
+import { normalizeGuestDetailsForm } from "@/lib/hotels/guest-validation";
 import { isHotelTestBookingEnabled } from "@/lib/hotels/test-booking";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { formatCurrency } from "@/lib/i18n";
@@ -149,6 +150,11 @@ export function HotelPaymentClient() {
         return;
       }
 
+      const normalizedGuests = normalizeGuestDetailsForm(loadedGuests, {
+        panRequired: loadedReview.option.panRequired,
+        passportRequired: loadedReview.option.passportRequired,
+      });
+
       try {
         loadedReview = await refreshReviewIfNeeded(loadedReview);
       } catch (error) {
@@ -160,7 +166,7 @@ export function HotelPaymentClient() {
       setMissingFields(missing);
 
       setReview(loadedReview);
-      setGuestDetails(loadedGuests);
+      setGuestDetails(normalizedGuests);
 
       if (missing.length) {
         setSessionError(
@@ -173,7 +179,7 @@ export function HotelPaymentClient() {
       const reviewPrep = loadHotelReviewPrep();
       const prepared = await api.prepareBooking({
         review: loadedReview,
-        guestDetails: loadedGuests,
+        guestDetails: normalizedGuests,
         reviewHash: loadedReview.reviewHash ?? reviewPrep?.reviewHash,
       });
 

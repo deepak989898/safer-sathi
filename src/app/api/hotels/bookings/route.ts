@@ -11,6 +11,13 @@ import { optionalAuthenticateRequest } from "@/lib/auth/server-auth";
 import { isHotelReviewSearchSessionExpired } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import type { HotelGuestDetailsForm } from "@/lib/hotels/types";
+import {
+  normalizeGuestDetailsForm,
+  validateGuestDetailsForm,
+  validatePan,
+  validatePassportExpiry,
+  validatePassportNumber,
+} from "@/lib/hotels/guest-validation";
 
 const primaryGuestSchema = z.object({
   firstName: z.string().min(1),
@@ -64,7 +71,24 @@ export async function POST(request: Request) {
     }
 
     const review = parsed.data.review as unknown as NormalizedHotelReviewResult;
-    const guestDetails = parsed.data.guestDetails as HotelGuestDetailsForm;
+    let guestDetails = parsed.data.guestDetails as HotelGuestDetailsForm;
+
+    guestDetails = normalizeGuestDetailsForm(guestDetails, {
+      panRequired: review.option.panRequired,
+      passportRequired: review.option.passportRequired,
+    });
+
+    const validationErrors = validateGuestDetailsForm(guestDetails, {
+      panRequired: review.option.panRequired,
+      passportRequired: review.option.passportRequired,
+    });
+    if (Object.keys(validationErrors).length > 0) {
+      const firstError = Object.values(validationErrors)[0];
+      return apiError(firstError ?? "Guest details are invalid", 400, {
+        code: "GUEST_VALIDATION_FAILED",
+        fieldErrors: validationErrors,
+      });
+    }
 
     if (isHotelReviewSearchSessionExpired(review)) {
       return apiError("Session expired. Please search hotels again.", 400, {
@@ -73,13 +97,18 @@ export async function POST(request: Request) {
       });
     }
 
-    if (review.option.panRequired && !guestDetails.primaryGuest.pan?.trim()) {
-      return apiError("PAN number is required for this hotel", 400, { code: "PAN_MISSING" });
+    if (review.option.panRequired) {
+      const panError = validatePan(guestDetails.primaryGuest.pan ?? "", true);
+      if (panError) {
+        return apiError(panError, 400, { code: "PAN_MISSING" });
+      }
     }
     if (review.option.passportRequired) {
       const pg = guestDetails.primaryGuest;
-      if (!pg.passportNumber?.trim() || !pg.passportExpiry?.trim()) {
-        return apiError("Passport details are required for this hotel", 400, {
+      const passportNumberError = validatePassportNumber(pg.passportNumber ?? "", true);
+      const passportExpiryError = validatePassportExpiry(pg.passportExpiry ?? "", true);
+      if (passportNumberError || passportExpiryError) {
+        return apiError(passportNumberError ?? passportExpiryError ?? "Passport details are required", 400, {
           code: "PASSPORT_MISSING",
         });
       }

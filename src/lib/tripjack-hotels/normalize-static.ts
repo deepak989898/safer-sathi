@@ -25,8 +25,26 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string {
 }
 
 function pickImages(raw: Record<string, unknown>): string[] {
-  const images = raw.images ?? raw.imageList ?? raw.hotelImages ?? raw.imageUrls;
-  return extractImageUrlList(images);
+  const sources = [
+    raw.images,
+    raw.imageList,
+    raw.hotelImages,
+    raw.imageUrls,
+    raw.propertyImages,
+    raw.gallery,
+    raw.media,
+    asRecord(raw.staticContent)?.images,
+    asRecord(raw.hotelInfo)?.images,
+    asRecord(raw.content)?.images,
+  ];
+
+  const urls: string[] = [];
+  for (const source of sources) {
+    for (const url of extractImageUrlList(source)) {
+      if (!urls.includes(url)) urls.push(url);
+    }
+  }
+  return urls;
 }
 
 function pickFacilities(raw: Record<string, unknown>): string[] {

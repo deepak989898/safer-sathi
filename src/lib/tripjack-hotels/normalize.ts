@@ -232,9 +232,20 @@ function parseHotel(hotelRaw: unknown, currencyFallback: string): NormalizedHote
   const cheapest = options[0] ?? null;
 
   const starRaw = pickNumber(hotel, ["starRating", "stars", "rating"], 0);
-  const images = imageUrlList(
-    hotel.images ?? hotel.photos ?? hotel.imageList ?? hotel.imageUrls ?? hotel.hotelImages
-  );
+  const staticContent = asRecord(hotel.staticContent);
+  const hotelInfo = asRecord(hotel.hotelInfo);
+  const images = imageUrlList([
+    hotel.images,
+    hotel.photos,
+    hotel.imageList,
+    hotel.imageUrls,
+    hotel.hotelImages,
+    hotel.gallery,
+    hotel.media,
+    staticContent?.images,
+    staticContent?.imageList,
+    hotelInfo?.images,
+  ]);
   const heroImage = pickString(hotel, ["heroImage", "thumbnail", "thumbUrl", "mainImage"], "");
   const optionImage = cheapest?.roomImages[0];
   const imageUrl = images[0] || heroImage || optionImage || undefined;

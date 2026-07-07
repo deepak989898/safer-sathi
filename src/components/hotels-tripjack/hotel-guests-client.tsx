@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import {
   HotelCard,
@@ -13,6 +13,19 @@ import {
 } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  firstGuestValidationError,
+  guestDigitsOnly,
+  guestNameOnly,
+  guestPanInput,
+  normalizeIndianMobile,
+  normalizeGuestDetailsForm,
+  type GuestFieldErrors,
+  validateGuestDetailsForm,
+  validatePrimaryGuestField,
+  validateChildAge,
+  validateGuestName,
+} from "@/lib/hotels/guest-validation";
 import { formatCurrency } from "@/lib/i18n";
 import type { HotelGuestDetailsForm, HotelPrimaryGuestForm, HotelRoomGuestForm } from "@/lib/hotels/types";
 import {
@@ -73,6 +86,49 @@ export function HotelGuestsClient() {
   });
   const [roomGuests, setRoomGuests] = useState<HotelRoomGuestForm[][]>([]);
   const [specialRequests, setSpecialRequests] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<GuestFieldErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validationOptions = useMemo(
+    () => ({
+      panRequired: Boolean(review?.option.panRequired),
+      passportRequired: Boolean(review?.option.passportRequired),
+    }),
+    [review]
+  );
+
+  const markTouched = useCallback((key: string) => {
+    setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
+
+  const setPrimaryFieldError = useCallback(
+    (field: keyof HotelPrimaryGuestForm, value: string) => {
+      const key = `primary.${field}`;
+      const message = validatePrimaryGuestField(field, value, validationOptions);
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        if (message) next[key] = message;
+        else delete next[key];
+        return next;
+      });
+    },
+    [validationOptions]
+  );
+
+  const updatePrimaryGuest = useCallback(
+    (patch: Partial<HotelPrimaryGuestForm>, validateFields?: Array<keyof HotelPrimaryGuestForm>) => {
+      setPrimaryGuest((prev) => {
+        const next = { ...prev, ...patch };
+        for (const field of validateFields ?? (Object.keys(patch) as Array<keyof HotelPrimaryGuestForm>)) {
+          if (touched[`primary.${field}`] || fieldErrors[`primary.${field}`]) {
+            setPrimaryFieldError(field, String(next[field] ?? ""));
+          }
+        }
+        return next;
+      });
+    },
+    [fieldErrors, setPrimaryFieldError, touched]
+  );
 
   useEffect(() => {
     if (isHotelSearchSessionExpired()) {
@@ -90,7 +146,10 @@ export function HotelGuestsClient() {
     setRoomGuests(buildEmptyRoomGuests(loaded));
     if (user?.email) setPrimaryGuest((p) => ({ ...p, email: user.email }));
     if (user?.phone) {
-      setPrimaryGuest((p) => ({ ...p, mobile: user.phone!.replace(/\D/g, "").slice(-10) }));
+      setPrimaryGuest((p) => ({
+        ...p,
+        mobile: normalizeIndianMobile(user.phone!),
+      }));
     }
     if (user?.name) {
       const parts = user.name.split(" ");
@@ -112,10 +171,42 @@ export function HotelGuestsClient() {
     guestIndex: number,
     patch: Partial<HotelRoomGuestForm>
   ) => {
+    const prefix = `room.${roomIndex}.${guestIndex}`;
     setRoomGuests((rows) =>
       rows.map((room, ri) =>
         ri === roomIndex
-          ? room.map((guest, gi) => (gi === guestIndex ? { ...guest, ...patch } : guest))
+          ? room.map((guest, gi) => {
+              if (gi !== guestIndex) return guest;
+              const next = { ...guest, ...patch };
+              if (touched[`${prefix}.firstName`] || fieldErrors[`${prefix}.firstName`]) {
+                const message = validateGuestName(next.firstName, "First name");
+                setFieldErrors((prev) => {
+                  const updated = { ...prev };
+                  if (message) updated[`${prefix}.firstName`] = message;
+                  else delete updated[`${prefix}.firstName`];
+                  return updated;
+                });
+              }
+              if (touched[`${prefix}.lastName`] || fieldErrors[`${prefix}.lastName`]) {
+                const message = validateGuestName(next.lastName, "Last name");
+                setFieldErrors((prev) => {
+                  const updated = { ...prev };
+                  if (message) updated[`${prefix}.lastName`] = message;
+                  else delete updated[`${prefix}.lastName`];
+                  return updated;
+                });
+              }
+              if (next.type === "CHILD" && (touched[`${prefix}.age`] || fieldErrors[`${prefix}.age`])) {
+                const message = validateChildAge(next.age);
+                setFieldErrors((prev) => {
+                  const updated = { ...prev };
+                  if (message) updated[`${prefix}.age`] = message;
+                  else delete updated[`${prefix}.age`];
+                  return updated;
+                });
+              }
+              return next;
+            })
           : room
       )
     );
@@ -123,46 +214,6 @@ export function HotelGuestsClient() {
 
   const onSubmit = async () => {
     if (!review) return;
-    if (!primaryGuest.firstName.trim() || !primaryGuest.lastName.trim()) {
-      toast.error("Enter primary guest name");
-      return;
-    }
-    if (!primaryGuest.email.includes("@") || primaryGuest.mobile.length < 10) {
-      toast.error("Enter valid email and mobile");
-      return;
-    }
-    if (
-      !primaryGuest.address.trim() ||
-      !primaryGuest.city.trim() ||
-      !primaryGuest.state.trim() ||
-      !primaryGuest.zipCode.trim()
-    ) {
-      toast.error("Enter complete address, city, state and PIN code");
-      return;
-    }
-    if (review.option.panRequired && !primaryGuest.pan?.trim()) {
-      toast.error("PAN is required");
-      return;
-    }
-    if (review.option.passportRequired) {
-      if (!primaryGuest.passportNumber?.trim() || !primaryGuest.passportExpiry?.trim()) {
-        toast.error("Passport details are required");
-        return;
-      }
-    }
-
-    for (let ri = 0; ri < roomGuests.length; ri += 1) {
-      for (const guest of roomGuests[ri]) {
-        if (!guest.firstName.trim() || !guest.lastName.trim()) {
-          toast.error(`Enter names for all guests in room ${ri + 1}`);
-          return;
-        }
-        if (guest.type === "CHILD" && guest.age == null) {
-          toast.error(`Enter age for child in room ${ri + 1}`);
-          return;
-        }
-      }
-    }
 
     const guestDetails: HotelGuestDetailsForm = {
       primaryGuest,
@@ -170,9 +221,31 @@ export function HotelGuestsClient() {
       specialRequests: specialRequests.trim() || undefined,
     };
 
+    const errors = validateGuestDetailsForm(guestDetails, {
+      panRequired: review.option.panRequired,
+      passportRequired: review.option.passportRequired,
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setTouched(
+        Object.keys(errors).reduce<Record<string, boolean>>((acc, key) => {
+          acc[key] = true;
+          return acc;
+        }, {})
+      );
+      toast.error(firstGuestValidationError(errors) ?? "Please fix the highlighted fields");
+      return;
+    }
+
+    const normalized = normalizeGuestDetailsForm(guestDetails, {
+      panRequired: review.option.panRequired,
+      passportRequired: review.option.passportRequired,
+    });
+
     setSubmitting(true);
     try {
-      sessionStorage.setItem("tripjack_hotel_guest_details", JSON.stringify(guestDetails));
+      sessionStorage.setItem("tripjack_hotel_guest_details", JSON.stringify(normalized));
       sessionStorage.setItem("tripjack_hotel_review_for_payment", JSON.stringify(review));
       router.push("/hotels/payment");
     } finally {
@@ -208,22 +281,139 @@ export function HotelGuestsClient() {
               Primary Guest &amp; Contact
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="First name *" value={primaryGuest.firstName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, firstName: v }))} />
-              <Field label="Last name *" value={primaryGuest.lastName} onChange={(v) => setPrimaryGuest((p) => ({ ...p, lastName: v }))} />
-              <Field label="Email *" type="email" value={primaryGuest.email} onChange={(v) => setPrimaryGuest((p) => ({ ...p, email: v }))} />
-              <Field label="Phone *" value={primaryGuest.mobile} onChange={(v) => setPrimaryGuest((p) => ({ ...p, mobile: v.replace(/\D/g, "").slice(0, 10) }))} />
-              <Field label="Address *" className="sm:col-span-2" value={primaryGuest.address} onChange={(v) => setPrimaryGuest((p) => ({ ...p, address: v }))} />
-              <Field label="City *" value={primaryGuest.city} onChange={(v) => setPrimaryGuest((p) => ({ ...p, city: v }))} />
-              <Field label="State *" value={primaryGuest.state} onChange={(v) => setPrimaryGuest((p) => ({ ...p, state: v }))} />
-              <Field label="Country *" value={primaryGuest.country} onChange={(v) => setPrimaryGuest((p) => ({ ...p, country: v }))} />
-              <Field label="Zip code *" value={primaryGuest.zipCode} onChange={(v) => setPrimaryGuest((p) => ({ ...p, zipCode: v }))} />
+              <Field
+                label="First name *"
+                value={primaryGuest.firstName}
+                error={fieldErrors["primary.firstName"]}
+                onBlur={() => {
+                  markTouched("primary.firstName");
+                  setPrimaryFieldError("firstName", primaryGuest.firstName);
+                }}
+                onChange={(v) => updatePrimaryGuest({ firstName: guestNameOnly(v) }, ["firstName"])}
+              />
+              <Field
+                label="Last name *"
+                value={primaryGuest.lastName}
+                error={fieldErrors["primary.lastName"]}
+                onBlur={() => {
+                  markTouched("primary.lastName");
+                  setPrimaryFieldError("lastName", primaryGuest.lastName);
+                }}
+                onChange={(v) => updatePrimaryGuest({ lastName: guestNameOnly(v) }, ["lastName"])}
+              />
+              <Field
+                label="Email *"
+                type="email"
+                value={primaryGuest.email}
+                error={fieldErrors["primary.email"]}
+                onBlur={() => {
+                  markTouched("primary.email");
+                  setPrimaryFieldError("email", primaryGuest.email);
+                }}
+                onChange={(v) => updatePrimaryGuest({ email: v }, ["email"])}
+              />
+              <PhoneField
+                label="Phone *"
+                value={primaryGuest.mobile}
+                error={fieldErrors["primary.mobile"]}
+                onBlur={() => {
+                  markTouched("primary.mobile");
+                  setPrimaryFieldError("mobile", primaryGuest.mobile);
+                }}
+                onChange={(v) => updatePrimaryGuest({ mobile: v }, ["mobile"])}
+              />
+              <Field
+                label="Address *"
+                className="sm:col-span-2"
+                value={primaryGuest.address}
+                error={fieldErrors["primary.address"]}
+                onBlur={() => {
+                  markTouched("primary.address");
+                  setPrimaryFieldError("address", primaryGuest.address);
+                }}
+                onChange={(v) => updatePrimaryGuest({ address: v }, ["address"])}
+              />
+              <Field
+                label="City *"
+                value={primaryGuest.city}
+                error={fieldErrors["primary.city"]}
+                onBlur={() => {
+                  markTouched("primary.city");
+                  setPrimaryFieldError("city", primaryGuest.city);
+                }}
+                onChange={(v) => updatePrimaryGuest({ city: guestNameOnly(v, 80) }, ["city"])}
+              />
+              <Field
+                label="State *"
+                value={primaryGuest.state}
+                error={fieldErrors["primary.state"]}
+                onBlur={() => {
+                  markTouched("primary.state");
+                  setPrimaryFieldError("state", primaryGuest.state);
+                }}
+                onChange={(v) => updatePrimaryGuest({ state: guestNameOnly(v, 80) }, ["state"])}
+              />
+              <Field
+                label="Country *"
+                value={primaryGuest.country}
+                error={fieldErrors["primary.country"]}
+                onBlur={() => {
+                  markTouched("primary.country");
+                  setPrimaryFieldError("country", primaryGuest.country);
+                }}
+                onChange={(v) => updatePrimaryGuest({ country: v }, ["country"])}
+              />
+              <Field
+                label="PIN code *"
+                value={primaryGuest.zipCode}
+                inputMode="numeric"
+                maxLength={6}
+                hint="6-digit PIN"
+                error={fieldErrors["primary.zipCode"]}
+                onBlur={() => {
+                  markTouched("primary.zipCode");
+                  setPrimaryFieldError("zipCode", primaryGuest.zipCode);
+                }}
+                onChange={(v) => updatePrimaryGuest({ zipCode: guestDigitsOnly(v, 6) }, ["zipCode"])}
+              />
               {review.option.panRequired && (
-                <Field label="PAN number *" value={primaryGuest.pan ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, pan: v.toUpperCase() }))} />
+                <Field
+                  label="PAN number *"
+                  value={primaryGuest.pan ?? ""}
+                  hint="10 characters, e.g. ABCDE1234F"
+                  error={fieldErrors["primary.pan"]}
+                  onBlur={() => {
+                    markTouched("primary.pan");
+                    setPrimaryFieldError("pan", primaryGuest.pan ?? "");
+                  }}
+                  onChange={(v) => updatePrimaryGuest({ pan: guestPanInput(v) }, ["pan"])}
+                />
               )}
               {review.option.passportRequired && (
                 <>
-                  <Field label="Passport number *" value={primaryGuest.passportNumber ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportNumber: v }))} />
-                  <Field label="Passport expiry *" type="date" value={primaryGuest.passportExpiry ?? ""} onChange={(v) => setPrimaryGuest((p) => ({ ...p, passportExpiry: v }))} />
+                  <Field
+                    label="Passport number *"
+                    value={primaryGuest.passportNumber ?? ""}
+                    error={fieldErrors["primary.passportNumber"]}
+                    onBlur={() => {
+                      markTouched("primary.passportNumber");
+                      setPrimaryFieldError("passportNumber", primaryGuest.passportNumber ?? "");
+                    }}
+                    onChange={(v) =>
+                      updatePrimaryGuest({ passportNumber: v.toUpperCase() }, ["passportNumber"])
+                    }
+                  />
+                  <Field
+                    label="Passport expiry *"
+                    type="date"
+                    value={primaryGuest.passportExpiry ?? ""}
+                    error={fieldErrors["primary.passportExpiry"]}
+                    onBlur={() => {
+                      markTouched("primary.passportExpiry");
+                      setPrimaryFieldError("passportExpiry", primaryGuest.passportExpiry ?? "");
+                    }}
+                    onChange={(v) => updatePrimaryGuest({ passportExpiry: v }, ["passportExpiry"])}
+                  />
                 </>
               )}
             </div>
@@ -235,20 +425,86 @@ export function HotelGuestsClient() {
                 Room {roomIndex + 1} — Guest names
               </h2>
               <div className="mt-4 space-y-4">
-                {room.map((guest, guestIndex) => (
-                  <div key={guestIndex} className="grid gap-3 sm:grid-cols-4">
-                    <Field label="Title" value={guest.title} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { title: v as HotelRoomGuestForm["title"] })} />
-                    <Field label="First name *" value={guest.firstName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { firstName: v })} />
-                    <Field label="Last name *" value={guest.lastName} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { lastName: v })} />
-                    {guest.type === "CHILD" ? (
-                      <Field label="Age *" type="number" value={String(guest.age ?? "")} onChange={(v) => updateRoomGuest(roomIndex, guestIndex, { age: Number(v) || 0 })} />
-                    ) : (
-                      <div className="flex items-end pb-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
-                        Adult
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {room.map((guest, guestIndex) => {
+                  const prefix = `room.${roomIndex}.${guestIndex}`;
+                  return (
+                    <div key={guestIndex} className="grid gap-3 sm:grid-cols-4">
+                      <Field
+                        label="Title"
+                        value={guest.title}
+                        onChange={(v) =>
+                          updateRoomGuest(roomIndex, guestIndex, {
+                            title: v as HotelRoomGuestForm["title"],
+                          })
+                        }
+                      />
+                      <Field
+                        label="First name *"
+                        value={guest.firstName}
+                        error={fieldErrors[`${prefix}.firstName`]}
+                        onBlur={() => {
+                          markTouched(`${prefix}.firstName`);
+                          const message = validateGuestName(guest.firstName, "First name");
+                          setFieldErrors((prev) => {
+                            const next = { ...prev };
+                            if (message) next[`${prefix}.firstName`] = message;
+                            else delete next[`${prefix}.firstName`];
+                            return next;
+                          });
+                        }}
+                        onChange={(v) =>
+                          updateRoomGuest(roomIndex, guestIndex, { firstName: guestNameOnly(v) })
+                        }
+                      />
+                      <Field
+                        label="Last name *"
+                        value={guest.lastName}
+                        error={fieldErrors[`${prefix}.lastName`]}
+                        onBlur={() => {
+                          markTouched(`${prefix}.lastName`);
+                          const message = validateGuestName(guest.lastName, "Last name");
+                          setFieldErrors((prev) => {
+                            const next = { ...prev };
+                            if (message) next[`${prefix}.lastName`] = message;
+                            else delete next[`${prefix}.lastName`];
+                            return next;
+                          });
+                        }}
+                        onChange={(v) =>
+                          updateRoomGuest(roomIndex, guestIndex, { lastName: guestNameOnly(v) })
+                        }
+                      />
+                      {guest.type === "CHILD" ? (
+                        <Field
+                          label="Age *"
+                          type="number"
+                          value={String(guest.age ?? "")}
+                          error={fieldErrors[`${prefix}.age`]}
+                          onBlur={() => {
+                            markTouched(`${prefix}.age`);
+                            const message = validateChildAge(guest.age);
+                            setFieldErrors((prev) => {
+                              const next = { ...prev };
+                              if (message) next[`${prefix}.age`] = message;
+                              else delete next[`${prefix}.age`];
+                              return next;
+                            });
+                          }}
+                          onChange={(v) => {
+                            const age = Number(v);
+                            updateRoomGuest(roomIndex, guestIndex, {
+                              age: Number.isFinite(age) ? age : undefined,
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-end pb-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+                          Adult
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </HotelCard>
           ))}
@@ -301,25 +557,93 @@ function Field({
   label,
   value,
   onChange,
+  onBlur,
   type = "text",
   className,
+  error,
+  hint,
+  inputMode,
+  maxLength,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   type?: string;
   className?: string;
+  error?: string;
+  hint?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
 }) {
+  const hasError = Boolean(error);
   return (
     <div className={className}>
       <HotelFieldLabel>{label}</HotelFieldLabel>
       <input
         className="mt-1.5 h-11 w-full rounded border bg-white px-3 text-sm"
-        style={{ borderColor: HOTEL_UI.border }}
+        style={{
+          borderColor: hasError ? "#dc2626" : HOTEL_UI.border,
+        }}
         type={type}
         value={value}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        onBlur={onBlur}
         onChange={(e) => onChange(e.target.value)}
       />
+      {hint && !hasError ? (
+        <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+          {hint}
+        </p>
+      ) : null}
+      {hasError ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function PhoneField({
+  label,
+  value,
+  onChange,
+  onBlur,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  error?: string;
+}) {
+  const hasError = Boolean(error);
+  return (
+    <div>
+      <HotelFieldLabel>{label}</HotelFieldLabel>
+      <div className="mt-1.5 flex overflow-hidden rounded border" style={{ borderColor: hasError ? "#dc2626" : HOTEL_UI.border }}>
+        <span
+          className="flex h-11 items-center border-r bg-slate-50 px-3 text-sm font-medium text-slate-600"
+          style={{ borderColor: hasError ? "#dc2626" : HOTEL_UI.border }}
+        >
+          +91
+        </span>
+        <input
+          className="h-11 min-w-0 flex-1 bg-white px-3 text-sm"
+          type="tel"
+          inputMode="numeric"
+          maxLength={10}
+          value={value}
+          placeholder="10-digit mobile"
+          onBlur={onBlur}
+          onChange={(e) => onChange(normalizeIndianMobile(e.target.value))}
+        />
+      </div>
+      {!hasError ? (
+        <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+          Do not include +91 or a leading 0
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-red-600">{error}</p>
+      )}
     </div>
   );
 }

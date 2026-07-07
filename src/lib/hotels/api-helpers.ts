@@ -42,8 +42,8 @@ export function sanitizeHotelCustomerError(message: string): string {
   if (lower.includes("timeout") || lower.includes("supplier_unavailable")) {
     return "Hotel supplier is busy. Please retry in a moment.";
   }
-  if (lower.includes("session expired") || lower.includes("bookingid")) {
-    return message;
+  if (lower.includes("invalid nested entity") || lower.includes("guestdetails")) {
+    return "Guest details could not be saved. Please go back to Guests, check all fields, and try again.";
   }
   return message.length > 180 ? "Something went wrong. Our team has been notified." : message;
 }

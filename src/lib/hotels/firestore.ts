@@ -1,10 +1,31 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
+import {
+  normalizeStoredGuestDetails,
+  serializeGuestDetailsForFirestore,
+} from "@/lib/hotels/guest-firestore";
 import type { HotelBookingRecord, HotelBookingStatus } from "@/lib/hotels/types";
 
 const COLLECTION = "hotelBookings";
 
-function sanitize<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+function sanitizeBookingForFirestore(record: HotelBookingRecord): Record<string, unknown> {
+  const guestDetails = serializeGuestDetailsForFirestore(record.guestDetails, {
+    panRequired: record.panRequired,
+    passportRequired: record.passportRequired,
+  });
+
+  return JSON.parse(
+    JSON.stringify({
+      ...record,
+      guestDetails,
+    })
+  ) as Record<string, unknown>;
+}
+
+function hydrateBookingFromFirestore(data: HotelBookingRecord): HotelBookingRecord {
+  return {
+    ...data,
+    guestDetails: normalizeStoredGuestDetails(data.guestDetails),
+  };
 }
 
 export function generateHotelBookingId(): string {
@@ -15,7 +36,7 @@ export async function createHotelBooking(record: HotelBookingRecord): Promise<Ho
   if (!isAdminEnvConfigured()) return record;
   const db = await getSafeAdminDb();
   if (!db) return record;
-  await db.collection(COLLECTION).doc(record.bookingId).set(sanitize(record));
+  await db.collection(COLLECTION).doc(record.bookingId).set(sanitizeBookingForFirestore(record));
   return record;
 }
 
@@ -25,7 +46,7 @@ export async function getHotelBookingById(bookingId: string): Promise<HotelBooki
   if (!db) return null;
   const doc = await db.collection(COLLECTION).doc(bookingId).get();
   if (!doc.exists) return null;
-  return doc.data() as HotelBookingRecord;
+  return hydrateBookingFromFirestore(doc.data() as HotelBookingRecord);
 }
 
 export async function updateHotelBooking(
@@ -43,7 +64,9 @@ export async function updateHotelBooking(
   if (!isAdminEnvConfigured()) return updated;
   const db = await getSafeAdminDb();
   if (!db) return updated;
-  await db.collection(COLLECTION).doc(bookingId).set(sanitize(updated), { merge: true });
+  await db.collection(COLLECTION).doc(bookingId).set(sanitizeBookingForFirestore(updated), {
+    merge: true,
+  });
   return updated;
 }
 
@@ -62,7 +85,7 @@ export async function listHotelBookings(filters?: {
     query = query.where("status", "==", filters.status) as typeof query;
   }
   const snap = await query.limit(filters?.limit ?? 50).get();
-  let bookings = snap.docs.map((d) => d.data() as HotelBookingRecord);
+  let bookings = snap.docs.map((d) => hydrateBookingFromFirestore(d.data() as HotelBookingRecord));
 
   if (filters?.userId) {
     bookings = bookings.filter((b) => b.userId === filters.userId);

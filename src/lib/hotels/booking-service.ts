@@ -10,6 +10,7 @@ import { sendHotelBookingProcessingNotification } from "@/lib/hotels/notificatio
 import { pollHotelBookingDetailsAfterBook } from "@/lib/hotels/booking-details-poll";
 import { processHotelBookingFailure } from "@/lib/hotels/failed-booking-service";
 import { refreshHotelBookingDetails } from "@/lib/hotels/post-booking-service";
+import { normalizeGuestDetailsForm } from "@/lib/hotels/guest-validation";
 import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/types";
 import { buildTripJackHotelBookRequest } from "@/lib/tripjack-hotels/build-book";
 import { bookTripJackHotel } from "@/lib/tripjack-hotels/client";
@@ -27,10 +28,14 @@ export interface PrepareHotelBookingInput {
 export async function prepareHotelBookingFromReview(
   input: PrepareHotelBookingInput
 ): Promise<HotelBookingRecord> {
-  const pg = input.guestDetails.primaryGuest;
   const option = input.review.option;
   const pricing = option.pricing;
   const now = new Date().toISOString();
+  const guestDetails = normalizeGuestDetailsForm(input.guestDetails, {
+    panRequired: option.panRequired,
+    passportRequired: option.passportRequired,
+  });
+  const pg = guestDetails.primaryGuest;
 
   const record: HotelBookingRecord = {
     bookingId: generateHotelBookingId(),
@@ -56,7 +61,7 @@ export async function prepareHotelBookingFromReview(
     mft: pricing.mft,
     discount: pricing.discount,
     currency: pricing.currency,
-    guestDetails: input.guestDetails,
+    guestDetails,
     panRequired: option.panRequired,
     passportRequired: option.passportRequired,
     gstType: option.gstType,
