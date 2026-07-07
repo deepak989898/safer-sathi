@@ -112,7 +112,7 @@ function HotelBookingsContent() {
     <HotelBookingLayout
       hero
       title="My Hotel Bookings"
-      subtitle="TripJack hotel reservations"
+      subtitle="Live hotel reservations"
       maxWidth="xl"
     >
       <div className="mb-6">

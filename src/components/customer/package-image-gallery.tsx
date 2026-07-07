@@ -11,12 +11,14 @@ interface PackageImageGalleryProps {
   images: string[];
   alt: string;
   className?: string;
+  /** Smaller hero for hotel detail pages */
+  compact?: boolean;
 }
 
 const hideScrollbarClass =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
-export function PackageImageGallery({ images, alt, className }: PackageImageGalleryProps) {
+export function PackageImageGallery({ images, alt, className, compact = false }: PackageImageGalleryProps) {
   const slides = useMemo(
     () => (images.length > 0 ? images : [PLACEHOLDER_TRAVEL_IMAGE]),
     [images]
@@ -71,7 +73,12 @@ export function PackageImageGallery({ images, alt, className }: PackageImageGall
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-muted shadow-sm">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-2xl bg-muted shadow-sm",
+          compact ? "aspect-[2/1] max-h-56 sm:max-h-64" : "aspect-[16/10]"
+        )}
+      >
         <div
           ref={scrollRef}
           onScroll={handleScroll}

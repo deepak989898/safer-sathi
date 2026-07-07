@@ -2,7 +2,7 @@ import { HotelResultsClient } from "@/components/hotels-tripjack/hotel-results-c
 
 export const metadata = {
   title: "Hotel Results | Safar Sathi",
-  description: "TripJack hotel listing results",
+  description: "Live hotel search results",
 };
 
 export default function HotelResultsPage() {
