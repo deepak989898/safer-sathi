@@ -15,8 +15,8 @@ export function HotelSearchScreen(props: HotelSearchScreenProps) {
   return (
     <HotelBookingLayout
       hero
-      title="Search live hotels"
-      subtitle="Search by city, destination, or hotel name. Live room rates updated in real time."
+      title="Search live TripJack hotels"
+      subtitle="Search by city, destination, or hotel name. Live rates powered by TripJack."
       maxWidth="xl"
     >
       <TripJackSearchPanel

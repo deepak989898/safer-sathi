@@ -26,19 +26,17 @@ export function HotelRoomOptionCard({
 
   return (
     <div
-      className={cn(
-        "border bg-white p-3 shadow-sm transition sm:p-4",
-        selected && "ring-2 ring-[#006CE4]/20"
-      )}
+      className={cn("border bg-white p-4 shadow-sm transition md:p-5")}
       style={{
         borderRadius: HOTEL_UI.cardRadius,
         borderColor: selected ? HOTEL_UI.action : HOTEL_UI.border,
+        boxShadow: selected ? `0 0 0 2px ${HOTEL_UI.action}33` : undefined,
       }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-bold sm:text-base" style={{ color: HOTEL_UI.primary }}>
+            <h3 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
               {roomTitle}
             </h3>
             {selected && (
@@ -51,26 +49,29 @@ export function HotelRoomOptionCard({
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs sm:text-sm" style={{ color: HOTEL_UI.textMuted }}>
+          <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
             {option.mealBasisLabel} · {option.isRefundable ? "Free cancellation" : "Non-refundable"}
           </p>
           {option.inclusions.length > 0 && (
-            <p className="mt-1 line-clamp-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
-              {option.inclusions.slice(0, 3).join(" · ")}
+            <p className="mt-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+              {option.inclusions.slice(0, 4).join(" · ")}
             </p>
           )}
         </div>
 
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-bold sm:text-xl" style={{ color: HOTEL_UI.primary }}>
+        <div
+          className="shrink-0 p-4 lg:w-52"
+          style={{ backgroundColor: "#FAFBFC", borderRadius: HOTEL_UI.cardRadius }}
+        >
+          <p className="text-2xl font-bold" style={{ color: HOTEL_UI.primary }}>
             {formatCurrency(p.totalPrice, locale)}
           </p>
           <p className="text-[10px]" style={{ color: HOTEL_UI.textMuted }}>
             incl. taxes · {p.currency}
           </p>
-          <div className="mt-2">
+          <div className="mt-3">
             <HotelPrimaryButton
-              className="!h-9 !w-auto min-w-[88px] px-3 text-xs"
+              className="!h-10 text-xs"
               variant={selected ? "primary" : "outline"}
               onClick={() => onSelect(option.optionId)}
             >

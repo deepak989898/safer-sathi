@@ -386,7 +386,7 @@ export function HotelPaymentClient() {
               Lead guest: {guestDetails.primaryGuest.firstName} {guestDetails.primaryGuest.lastName}
             </p>
             <p className="mt-1 text-xs font-mono" style={{ color: HOTEL_UI.textMuted }}>
-              Booking reference: {review.bookingId}
+              TripJack bookingId: {review.bookingId}
             </p>
           </HotelCard>
 
