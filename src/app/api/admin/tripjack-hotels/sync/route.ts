@@ -85,7 +85,10 @@ export async function POST(request: Request) {
       );
     }
     const message = error instanceof Error ? error.message : "Sync failed";
-    return apiError(message, 500);
+    return apiError(message, 500, {
+      adminMessage: message,
+      rawPreview: message.slice(0, 500),
+    });
   }
 }
 

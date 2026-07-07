@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import {
+  TripJackApiErrorPanel,
+  type TripJackApiErrorDetails,
+} from "@/components/admin/tripjack-api-error-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { adminApiFetch } from "@/lib/admin/api-client";
+import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import { TRIPJACK_STATIC_CATALOGUE_403_ADMIN_MESSAGE } from "@/lib/tripjack-hotels/messages";
 import { toast } from "sonner";
 
@@ -15,26 +19,46 @@ export default function TripJackHotelsTestPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
 
   const run = async (test: string, payload?: Record<string, unknown>) => {
     setLoading(test);
     setResult(null);
+    setApiError(null);
     try {
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ test, payload }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      setResult(json.data);
-      if (json.data?.warning) {
-        toast.warning(String(json.data.warning));
+      const apiResult = await tripjackAdminApiCall(
+        "/api/admin/tripjack-hotels/test",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ test, payload }),
+        },
+        `Test: ${test}`
+      );
+
+      if (!apiResult.ok) {
+        setApiError({
+          context: `Test: ${test}`,
+          message: apiResult.error ?? "Test failed",
+          status: apiResult.status,
+          contentType: apiResult.contentType,
+          rawPreview: apiResult.rawPreview,
+        });
+        toast.error(apiResult.error?.split("\n")[0] ?? "Test failed");
+        return;
+      }
+
+      setResult(apiResult.data);
+      const data = apiResult.data as { warning?: string } | undefined;
+      if (data?.warning) {
+        toast.warning(String(data.warning));
       } else {
         toast.success(`${test} OK`);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Test failed");
+      const message = e instanceof Error ? e.message : "Test failed";
+      setApiError({ context: `Test: ${test}`, message });
+      toast.error(message);
     } finally {
       setLoading(null);
     }
@@ -43,14 +67,29 @@ export default function TripJackHotelsTestPage() {
   const runProxy = async (name: string) => {
     setLoading(`proxy-${name}`);
     setResult(null);
+    setApiError(null);
     try {
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/proxy-test", { method: "POST" });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Proxy test failed");
-      const row = (json.data.results as Array<Record<string, unknown>> | undefined)?.find(
+      const apiResult = await tripjackAdminApiCall<{
+        results: Array<Record<string, unknown>>;
+        message?: string;
+      }>("/api/admin/tripjack-hotels/proxy-test", { method: "POST" }, `Proxy test: ${name}`);
+
+      if (!apiResult.ok) {
+        setApiError({
+          context: `Proxy test: ${name}`,
+          message: apiResult.error ?? "Proxy test failed",
+          status: apiResult.status,
+          contentType: apiResult.contentType,
+          rawPreview: apiResult.rawPreview,
+        });
+        toast.error(apiResult.error?.split("\n")[0] ?? "Proxy test failed");
+        return;
+      }
+
+      const row = apiResult.data?.results?.find(
         (item) => item.name === name || (name === "health" && (item.name === "health" || item.name === "root"))
       );
-      setResult(row ?? json.data);
+      setResult(row ?? apiResult.data);
       if (row?.warning) {
         toast.warning(String(row.warning));
       } else if (row?.ok) {
@@ -59,7 +98,9 @@ export default function TripJackHotelsTestPage() {
         toast.error(`${name} proxy failed`);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Proxy test failed");
+      const message = e instanceof Error ? e.message : "Proxy test failed";
+      setApiError({ context: `Proxy test: ${name}`, message });
+      toast.error(message);
     } finally {
       setLoading(null);
     }
@@ -86,6 +127,8 @@ export default function TripJackHotelsTestPage() {
         <Link href="/admin/tripjack-hotels" className="text-sm text-primary hover:underline">
           ← Operations dashboard
         </Link>
+
+        <TripJackApiErrorPanel error={apiError} onDismiss={() => setApiError(null)} />
 
         <p className="text-sm text-muted-foreground">
           Tests call server → VPS proxy → TripJack HMS V3 static content APIs (mapping + content).

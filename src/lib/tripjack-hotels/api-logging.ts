@@ -74,6 +74,23 @@ export async function tripJackHotelProxyFetch(
     ? undefined
     : String(record.error ?? record.message ?? `HTTP ${response.status}`);
 
+  const headerEntries: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    headerEntries[key] = value;
+  });
+
+  console.log("[tripjack-hotel-proxy]", {
+    endpoint: input.endpoint,
+    method,
+    status: response.status,
+    contentType: response.headers.get("content-type") ?? "",
+    headers: headerEntries,
+    url: input.url,
+    success,
+    errorMessage,
+    bodyPreview: rawText.slice(0, 500),
+  });
+
   void logTripJackHotelApiCall({
     endpoint: input.endpoint,
     method,

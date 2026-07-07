@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import {
+  TripJackApiErrorPanel,
+  type TripJackApiErrorDetails,
+} from "@/components/admin/tripjack-api-error-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { adminApiFetch } from "@/lib/admin/api-client";
+import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import type { TripJackHotelApiLog } from "@/lib/tripjack-hotels/catalog-types";
 import { toast } from "sonner";
 
@@ -16,19 +20,39 @@ export default function TripJackHotelApiLogsClient() {
   const [endpoint, setEndpoint] = useState("");
   const [bookingId, setBookingId] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const params = new URLSearchParams({ limit: "50" });
       if (endpoint.trim()) params.set("endpoint", endpoint.trim());
       if (bookingId.trim()) params.set("bookingId", bookingId.trim());
-      const res = await adminApiFetch(`/api/admin/tripjack-hotels/api-logs?${params}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      setLogs(json.data.logs ?? []);
+
+      const result = await tripjackAdminApiCall<{ logs: TripJackHotelApiLog[] }>(
+        `/api/admin/tripjack-hotels/api-logs?${params}`,
+        undefined,
+        "Load API logs"
+      );
+
+      if (!result.ok) {
+        setApiError({
+          context: "Load API logs",
+          message: result.error ?? "Failed to load logs",
+          status: result.status,
+          contentType: result.contentType,
+          rawPreview: result.rawPreview,
+        });
+        toast.error(result.error?.split("\n")[0] ?? "Failed to load logs");
+        return;
+      }
+
+      setLogs(result.data?.logs ?? []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load logs");
+      const message = e instanceof Error ? e.message : "Failed to load logs";
+      setApiError({ context: "Load API logs", message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -45,6 +69,9 @@ export default function TripJackHotelApiLogsClient() {
         <p className="text-sm text-muted-foreground">
           Super Admin only. Raw request/response bodies are sanitized — API keys are never stored.
         </p>
+
+        <TripJackApiErrorPanel error={apiError} onDismiss={() => setApiError(null)} />
+
         <div className="flex flex-wrap gap-2">
           <Input
             placeholder="Filter endpoint (e.g. hotels/book)"

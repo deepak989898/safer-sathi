@@ -40,9 +40,19 @@ export function parseTripJackProxyJson(
       parsed: null,
       parseError: isMissingRoute
         ? `TripJack hotel proxy route missing on VPS (${proxyUrl}). Paste docs/tripjack-vps-hotel-all-routes.js into server.js and run: pm2 restart tripjack-proxy --update-env`
-        : `Proxy returned non-JSON (HTTP ${proxyHttpStatus})`,
+        : formatNonJsonProxyError(proxyHttpStatus, rawText),
     };
   }
+}
+
+function formatNonJsonProxyError(status: number, rawText: string): string {
+  const contentType = rawText.trim().startsWith("<") ? "text/html" : "text/plain";
+  return [
+    "TripJack returned non JSON response.",
+    `Status: ${status}`,
+    `Content-Type: ${contentType}`,
+    `Body preview:\n${rawText.slice(0, 500) || "(empty)"}`,
+  ].join("\n");
 }
 
 export function unwrapTripJackProxyEnvelope<T = unknown>(

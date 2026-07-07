@@ -13,11 +13,15 @@ import {
   Wifi,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
+import {
+  TripJackApiErrorPanel,
+  type TripJackApiErrorDetails,
+} from "@/components/admin/tripjack-api-error-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { adminApiFetch } from "@/lib/admin/api-client";
+import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
@@ -35,6 +39,28 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       </CardContent>
     </Card>
   );
+}
+
+const SYNC_MODE_LABELS: Record<string, string> = {
+  full: "Sync mapping + content",
+  mapping_only: "Sync mapping only",
+  content_only: "Sync content only",
+  incremental: "Incremental sync",
+  nationalities: "Sync nationalities",
+  booking_status: "Sync booking status",
+};
+
+function toApiError(
+  context: string,
+  result: { error?: string; status?: number; contentType?: string; rawPreview?: string }
+): TripJackApiErrorDetails {
+  return {
+    context,
+    message: result.error ?? "Request failed",
+    status: result.status,
+    contentType: result.contentType,
+    rawPreview: result.rawPreview,
+  };
 }
 
 export default function TripJackHotelsAdminClient() {
@@ -56,31 +82,55 @@ export default function TripJackHotelsAdminClient() {
     Array<{ id: string; label: string; hids: number[]; searchKeys: string[] }>
   >([]);
   const [manualSaving, setManualSaving] = useState(false);
+  const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [dashRes, syncRes, checkRes] = await Promise.all([
-        adminApiFetch("/api/admin/tripjack-hotels/dashboard"),
-        adminApiFetch("/api/admin/tripjack-hotels/sync"),
-        adminApiFetch("/api/admin/tripjack-hotels/checklist"),
+      const [dashResult, syncResult, checkResult] = await Promise.all([
+        tripjackAdminApiCall<{ dashboard: TripJackHotelOpsDashboard }>(
+          "/api/admin/tripjack-hotels/dashboard",
+          undefined,
+          "Load dashboard"
+        ),
+        tripjackAdminApiCall<{ logs: TripJackHotelSyncLog[] }>(
+          "/api/admin/tripjack-hotels/sync",
+          undefined,
+          "Load sync logs"
+        ),
+        tripjackAdminApiCall<{ items: ProductionChecklistItem[] }>(
+          "/api/admin/tripjack-hotels/checklist",
+          undefined,
+          "Load checklist"
+        ),
       ]);
-      const dashJson = await dashRes.json();
-      const syncJson = await syncRes.json();
-      const checkJson = await checkRes.json();
-      if (dashJson.success) {
-        setDashboard(dashJson.data.dashboard);
-        setLiveEnabled(Boolean(dashJson.data.dashboard?.environment?.liveBookingEnabled));
+
+      if (dashResult.ok && dashResult.data) {
+        setDashboard(dashResult.data.dashboard);
+        setLiveEnabled(Boolean(dashResult.data.dashboard?.environment?.liveBookingEnabled));
+      } else if (!dashResult.ok) {
+        setApiError(toApiError("Load dashboard", dashResult));
       }
-      if (syncJson.success) setLogs(syncJson.data.logs ?? []);
-      if (checkJson.success) setChecklist(checkJson.data.items ?? []);
-      const manualRes = await adminApiFetch("/api/admin/tripjack-hotels/manual-destinations");
-      const manualJson = await manualRes.json();
-      if (manualJson.success) {
-        setManualDestinations(manualJson.data.destinations ?? []);
+
+      if (syncResult.ok && syncResult.data) {
+        setLogs(syncResult.data.logs ?? []);
+      }
+
+      if (checkResult.ok && checkResult.data) {
+        setChecklist(checkResult.data.items ?? []);
+      }
+
+      const manualResult = await tripjackAdminApiCall<{
+        destinations: Array<{ id: string; label: string; hids: number[]; searchKeys: string[] }>;
+      }>("/api/admin/tripjack-hotels/manual-destinations", undefined, "Load manual destinations");
+
+      if (manualResult.ok && manualResult.data) {
+        setManualDestinations(manualResult.data.destinations ?? []);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load");
+      const message = e instanceof Error ? e.message : "Failed to load";
+      setApiError({ context: "Load dashboard", message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -92,38 +142,29 @@ export default function TripJackHotelsAdminClient() {
 
   const runSync = async (mode: string) => {
     setSyncing(mode);
+    setApiError(null);
+    const label = SYNC_MODE_LABELS[mode] ?? mode;
+
     try {
-      const res = await adminApiFetch(`/api/admin/tripjack-hotels/sync?mode=${mode}`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!json.success) {
-        const details = json.details as
-          | {
-              upstreamUrl?: string;
-              upstreamStatus?: number;
-              rawPreview?: string;
-              adminMessage?: string;
-              proxyRouteOk?: boolean;
-              bookingFlowUnblocked?: boolean;
-            }
-          | undefined;
-        const parts = [details?.adminMessage ?? json.error ?? "Sync failed"];
-        if (details?.bookingFlowUnblocked) {
-          parts.push("VPS proxy is OK — hotel search/booking can still work with manual HID override");
-        }
-        if (details?.upstreamUrl) {
-          parts.push(`upstream ${details.upstreamStatus ?? "?"} @ ${details.upstreamUrl}`);
-        }
-        if (details?.rawPreview) {
-          parts.push(details.rawPreview.slice(0, 200));
-        }
-        throw new Error(parts.join(" — "));
+      const result = await tripjackAdminApiCall<{ message?: string }>(
+        `/api/admin/tripjack-hotels/sync?mode=${mode}`,
+        { method: "POST" },
+        label
+      );
+
+      if (!result.ok) {
+        const errorDetails = toApiError(label, result);
+        setApiError(errorDetails);
+        toast.error(label, { description: result.error?.split("\n")[0] ?? "Sync failed" });
+        return;
       }
-      toast.success(json.data.message ?? "Sync completed");
+
+      toast.success(result.data?.message ?? "Sync completed");
       void load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sync failed");
+      const message = e instanceof Error ? e.message : "Sync failed";
+      setApiError({ context: label, message });
+      toast.error(message);
     } finally {
       setSyncing(null);
     }
@@ -131,21 +172,38 @@ export default function TripJackHotelsAdminClient() {
 
   const runProxyTests = async () => {
     setProxyTesting(true);
+    setApiError(null);
     try {
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/proxy-test", { method: "POST" });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Proxy test failed");
-      setProxyTests(json.data.results ?? []);
-      setProxyBaseUrl(json.data.proxyBaseUrl ?? null);
-      setProxyMessage(json.data.message ?? null);
-      setStaticCatalogueBlocked(Boolean(json.data.staticCatalogueBlocked));
-      if (json.data.allOk) {
-        toast.success(json.data.message ?? "VPS proxy route tests passed");
+      const result = await tripjackAdminApiCall<{
+        results: ProxyRouteTestResult[];
+        proxyBaseUrl?: string;
+        message?: string;
+        staticCatalogueBlocked?: boolean;
+        allOk?: boolean;
+      }>("/api/admin/tripjack-hotels/proxy-test", { method: "POST" }, "Run proxy tests");
+
+      if (!result.ok) {
+        const errorDetails = toApiError("Run proxy tests", result);
+        setApiError(errorDetails);
+        toast.error(result.error?.split("\n")[0] ?? "Proxy test failed");
+        return;
+      }
+
+      const data = result.data!;
+      setProxyTests(data.results ?? []);
+      setProxyBaseUrl(data.proxyBaseUrl ?? null);
+      setProxyMessage(data.message ?? null);
+      setStaticCatalogueBlocked(Boolean(data.staticCatalogueBlocked));
+
+      if (data.allOk) {
+        toast.success(data.message ?? "VPS proxy route tests passed");
       } else {
-        toast.error(json.data.message ?? "Some VPS proxy routes failed — see results below");
+        toast.error(data.message ?? "Some VPS proxy routes failed — see results below");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Proxy test failed");
+      const message = e instanceof Error ? e.message : "Proxy test failed";
+      setApiError({ context: "Run proxy tests", message });
+      toast.error(message);
     } finally {
       setProxyTesting(false);
     }
@@ -153,6 +211,7 @@ export default function TripJackHotelsAdminClient() {
 
   const saveManualDestination = async () => {
     setManualSaving(true);
+    setApiError(null);
     try {
       const hids = manualHids
         .split(/[,\s]+/)
@@ -162,20 +221,32 @@ export default function TripJackHotelsAdminClient() {
         .split(/[,\n]+/)
         .map((value) => value.trim())
         .filter(Boolean);
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/manual-destinations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: manualLabel.trim(), hids, searchKeys }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Save failed");
+
+      const result = await tripjackAdminApiCall(
+        "/api/admin/tripjack-hotels/manual-destinations",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: manualLabel.trim(), hids, searchKeys }),
+        },
+        "Save manual destination"
+      );
+
+      if (!result.ok) {
+        setApiError(toApiError("Save manual destination", result));
+        toast.error(result.error?.split("\n")[0] ?? "Save failed");
+        return;
+      }
+
       toast.success(`Saved ${manualLabel.trim()}`);
       setManualLabel("");
       setManualHids("");
       setManualAliases("");
       void load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      const message = e instanceof Error ? e.message : "Save failed";
+      setApiError({ context: "Save manual destination", message });
+      toast.error(message);
     } finally {
       setManualSaving(false);
     }
@@ -194,19 +265,31 @@ export default function TripJackHotelsAdminClient() {
   ] as const;
 
   const toggleLive = async () => {
+    setApiError(null);
     try {
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/env", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ liveBookingEnabled: !liveEnabled }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      setLiveEnabled(Boolean(json.data.ops?.liveBookingEnabled));
-      toast.success(json.data.ops?.liveBookingEnabled ? "Live booking enabled" : "Live booking disabled");
+      const result = await tripjackAdminApiCall<{ ops?: { liveBookingEnabled?: boolean } }>(
+        "/api/admin/tripjack-hotels/env",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ liveBookingEnabled: !liveEnabled }),
+        },
+        "Toggle live booking"
+      );
+
+      if (!result.ok) {
+        setApiError(toApiError("Toggle live booking", result));
+        toast.error(result.error?.split("\n")[0] ?? "Update failed");
+        return;
+      }
+
+      setLiveEnabled(Boolean(result.data?.ops?.liveBookingEnabled));
+      toast.success(result.data?.ops?.liveBookingEnabled ? "Live booking enabled" : "Live booking disabled");
       void load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Update failed");
+      const message = e instanceof Error ? e.message : "Update failed";
+      setApiError({ context: "Toggle live booking", message });
+      toast.error(message);
     }
   };
 
@@ -243,6 +326,8 @@ export default function TripJackHotelsAdminClient() {
             API logs →
           </Link>
         </div>
+
+        <TripJackApiErrorPanel error={apiError} onDismiss={() => setApiError(null)} />
 
         {loading && (
           <div className="flex items-center gap-2 text-muted-foreground">

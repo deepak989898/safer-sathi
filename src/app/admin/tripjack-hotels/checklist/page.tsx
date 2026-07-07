@@ -4,18 +4,38 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { adminApiFetch } from "@/lib/admin/api-client";
+import {
+  TripJackApiErrorPanel,
+  type TripJackApiErrorDetails,
+} from "@/components/admin/tripjack-api-error-panel";
+import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 
 export default function TripJackHotelsChecklistPage() {
   const [items, setItems] = useState<ProductionChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<TripJackApiErrorDetails | null>(null);
 
   useEffect(() => {
     void (async () => {
-      const res = await adminApiFetch("/api/admin/tripjack-hotels/checklist");
-      const json = await res.json();
-      if (json.success) setItems(json.data.items ?? []);
+      const result = await tripjackAdminApiCall<{ items: ProductionChecklistItem[] }>(
+        "/api/admin/tripjack-hotels/checklist",
+        undefined,
+        "Load production checklist"
+      );
+
+      if (result.ok && result.data) {
+        setItems(result.data.items ?? []);
+      } else if (!result.ok) {
+        setApiError({
+          context: "Load production checklist",
+          message: result.error ?? "Failed to load checklist",
+          status: result.status,
+          contentType: result.contentType,
+          rawPreview: result.rawPreview,
+        });
+      }
+
       setLoading(false);
     })();
   }, []);
@@ -27,6 +47,11 @@ export default function TripJackHotelsChecklistPage() {
         <Link href="/admin/tripjack-hotels" className="text-sm text-primary hover:underline">
           ← Operations dashboard
         </Link>
+
+        <div className="mt-4">
+          <TripJackApiErrorPanel error={apiError} onDismiss={() => setApiError(null)} />
+        </div>
+
         {loading ? (
           <Loader2 className="mt-8 h-6 w-6 animate-spin" />
         ) : (
