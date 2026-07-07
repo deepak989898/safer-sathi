@@ -234,11 +234,13 @@ export default function HotelsClient({
   return (
     <section className="container mx-auto px-4 py-6 md:py-10">
       {tripjackHotelsEnabled && (
-        <FeaturedTripJackHotelsSection
-          hotels={featuredHotels}
-          loading={featuredLoading}
-          catalogInfo={featuredCatalogInfo}
-        />
+        <div id="tripjack-featured-hotels">
+          <FeaturedTripJackHotelsSection
+            hotels={featuredHotels}
+            loading={featuredLoading}
+            catalogInfo={featuredCatalogInfo}
+          />
+        </div>
       )}
 
       {tripjackHotelsEnabled &&
@@ -246,18 +248,27 @@ export default function HotelsClient({
         featuredHotels.length === 0 &&
         !featuredCatalogInfo?.syncInProgress && (
         <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-700">
-          Looking for live TripJack hotel rates?{" "}
-          <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
-            Search live hotels
+          Looking for live TripJack hotel rates? Use{" "}
+          <button
+            type="button"
+            className="font-semibold text-[#1a4fa3] hover:underline"
+            onClick={() => document.getElementById("tripjack-featured-hotels")?.scrollIntoView({ behavior: "smooth" })}
+          >
+            Search more live hotels
+          </button>{" "}
+          on this page or{" "}
+          <Link href="/hotels/browse" className="font-semibold text-[#1a4fa3] hover:underline">
+            view all hotels
           </Link>
+          .
         </div>
       )}
       {!manualHotelsEnabled ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           Our curated hotel catalog is temporarily unavailable.{" "}
           {tripjackHotelsEnabled ? (
-            <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
-              Search live hotels instead
+            <Link href="/hotels/browse" className="font-semibold text-[#1a4fa3] hover:underline">
+              browse all live hotels
             </Link>
           ) : null}
         </div>

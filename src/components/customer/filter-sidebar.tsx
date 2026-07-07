@@ -34,6 +34,8 @@ interface FilterSidebarProps {
   onClear: () => void;
   hasActiveFilters?: boolean;
   extraFilters?: React.ReactNode;
+  /** Hide price range slider (browse-only hotel lists). */
+  hidePriceFilter?: boolean;
   /** Hide header row (used inside mobile collapse panel) */
   embedded?: boolean;
   className?: string;
@@ -91,6 +93,7 @@ export function FilterSidebar({
   onClear,
   hasActiveFilters = false,
   extraFilters,
+  hidePriceFilter = false,
   embedded = false,
   className,
 }: FilterSidebarProps) {
@@ -121,6 +124,7 @@ export function FilterSidebar({
     >
       {header}
 
+      {!hidePriceFilter && (
       <div className="space-y-3">
         <Label>{t(locale, "common", "priceRange")}</Label>
         <Slider
@@ -135,6 +139,7 @@ export function FilterSidebar({
           <span>₹{priceRange[1].toLocaleString("en-IN")}</span>
         </div>
       </div>
+      )}
 
       {budgetOptions && budgetOptions.length > 0 && onBudgetToggle && (
         <FilterCheckboxGroup

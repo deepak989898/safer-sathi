@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Building2, Loader2, MapPin, Star, Zap } from "lucide-react";
+import { Building2, Loader2, MapPin, Search, Star, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { TripJackInlineSearchSection } from "@/components/hotels-tripjack/tripjack-inline-search";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog";
 import { bootstrapFeaturedTripJackHotel } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
@@ -146,6 +147,8 @@ export function FeaturedTripJackHotelsSection({
   catalogInfo?: FeaturedTripJackCatalogInfo | null;
 }) {
   const [activeCity, setActiveCity] = useState<string>("all");
+  const [showLiveSearch, setShowLiveSearch] = useState(false);
+
   const cityOptions = useMemo(() => {
     const map = new Map<string, number>();
     for (const hotel of hotels) {
@@ -174,7 +177,7 @@ export function FeaturedTripJackHotelsSection({
       }. Featured hotels appear here as content sync completes.`;
     }
     if (ready > 0) {
-      return `${ready.toLocaleString()} synced hotels are in the catalog. Try searching by city for live rates.`;
+      return `${ready.toLocaleString()} synced hotels are in the catalog. Search by city or hotel name below.`;
     }
     return "Live TripJack hotels will appear here after catalog content sync completes in admin.";
   }, [loading, hotels.length, catalogInfo]);
@@ -190,11 +193,13 @@ export function FeaturedTripJackHotelsSection({
             </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            {hotels.length > 0
-              ? "Browse India hotels with photos — click any hotel to view live rooms and book."
-              : "India hotels with names, cities and photos — search anytime for more destinations."}
+            {showLiveSearch
+              ? "Search by city or hotel name — results show on this page."
+              : hotels.length > 0
+                ? "Browse India hotels with photos — click any hotel to view live rooms and book."
+                : "India hotels with names, cities and photos — search anytime for more destinations."}
           </p>
-          {catalogInfo?.syncInProgress && hotels.length > 0 && (
+          {catalogInfo?.syncInProgress && hotels.length > 0 && !showLiveSearch && (
             <p className="mt-1 text-xs text-amber-700">
               Catalog sync in progress — showing featured hotels from Indian cities (
               {hotels.length} on this page
@@ -205,70 +210,96 @@ export function FeaturedTripJackHotelsSection({
             </p>
           )}
         </div>
-        <Link href="/hotels/search">
-          <Button variant="outline">Search more live hotels</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={showLiveSearch ? "default" : "outline"}
+            className={showLiveSearch ? "bg-[#1a4fa3] hover:bg-[#16408a]" : ""}
+            onClick={() => setShowLiveSearch((prev) => !prev)}
+          >
+            <Search className="mr-2 h-4 w-4" />
+            {showLiveSearch ? "Hide search" : "Search more live hotels"}
+          </Button>
+          <Link href="/hotels/browse">
+            <Button variant="outline">View all hotels</Button>
+          </Link>
+        </div>
       </div>
 
-      {!loading && hotels.length === 0 ? (
+      {showLiveSearch && (
+        <div className="mb-8">
+          <TripJackInlineSearchSection />
+        </div>
+      )}
+
+      {!showLiveSearch && !loading && hotels.length === 0 ? (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-6 text-sm text-amber-950">
           <p>{syncMessage}</p>
-          <p className="mt-3">
-            <Link href="/hotels/search" className="font-semibold text-[#1a4fa3] hover:underline">
-              Search live hotels by city
-            </Link>
-          </p>
-        </div>
-      ) : (
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border bg-white p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-900">Filter by city</p>
-          <div className="space-y-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveCity("all")}
-              disabled={loading || hotels.length === 0}
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                activeCity === "all"
-                  ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
-                  : "hover:bg-slate-50"
-              }`}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              className="bg-[#1a4fa3] hover:bg-[#16408a]"
+              onClick={() => setShowLiveSearch(true)}
             >
-              All cities ({hotels.length})
-            </button>
-            {cityOptions.map((item) => (
+              <Search className="mr-2 h-4 w-4" />
+              Search live hotels by city
+            </Button>
+            <Link href="/hotels/browse">
+              <Button size="sm" variant="outline">
+                View all hotels
+              </Button>
+            </Link>
+          </div>
+        </div>
+      ) : !showLiveSearch ? (
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="rounded-2xl border bg-white p-4">
+            <p className="mb-3 text-sm font-semibold text-slate-900">Filter by city</p>
+            <div className="space-y-1.5">
               <button
-                key={item.city}
                 type="button"
-                onClick={() => setActiveCity(item.city)}
+                onClick={() => setActiveCity("all")}
+                disabled={loading || hotels.length === 0}
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                  activeCity === item.city
+                  activeCity === "all"
                     ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
                     : "hover:bg-slate-50"
                 }`}
               >
-                {item.city} ({item.count})
+                All cities ({hotels.length})
               </button>
-            ))}
-          </div>
-        </aside>
+              {cityOptions.map((item) => (
+                <button
+                  key={item.city}
+                  type="button"
+                  onClick={() => setActiveCity(item.city)}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                    activeCity === item.city
+                      ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  {item.city} ({item.count})
+                </button>
+              ))}
+            </div>
+          </aside>
 
-        {loading ? (
-          <FeaturedHotelsSkeleton />
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredHotels.map((hotel) => (
-              <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
-            ))}
-            {filteredHotels.length === 0 && (
-              <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No featured hotels for this city right now.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-      )}
+          {loading ? (
+            <FeaturedHotelsSkeleton />
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredHotels.map((hotel) => (
+                <FeaturedTripJackCard key={hotel.tjHotelId} hotel={hotel} />
+              ))}
+              {filteredHotels.length === 0 && (
+                <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  No featured hotels for this city right now.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -462,6 +462,140 @@ export async function findTripJackHotelsBySearchBlob(
   return hotels.filter((hotel) => !hotel.isDeleted && hotel.searchBlob.includes(q)).slice(0, limit);
 }
 
+function isBrowsableIndiaHotel(entry: TripJackHotelCatalogEntry): boolean {
+  if (entry.isDeleted || entry.websiteVisible === false) return false;
+  if (!isIndiaTripJackCatalogHotel(entry)) return false;
+  if (isMappingOnlyCatalogStub(entry)) return false;
+  if (!entry.name?.trim()) return false;
+  return entry.contentSynced || hasFeaturedIndianCity(entry);
+}
+
+export interface BrowsableHotelsPageResult {
+  entries: TripJackHotelCatalogEntry[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export async function listBrowsableIndiaHotelsPage(input: {
+  page: number;
+  pageSize: number;
+  query?: string;
+  city?: string;
+  minStars?: number;
+}): Promise<BrowsableHotelsPageResult> {
+  const page = Math.max(1, input.page);
+  const pageSize = Math.min(50, Math.max(1, input.pageSize));
+  const query = input.query?.trim().toLowerCase() ?? "";
+  const city = input.city?.trim().toLowerCase() ?? "";
+  const minStars = input.minStars ?? 0;
+
+  const matchesFilters = (entry: TripJackHotelCatalogEntry) => {
+    if (!isBrowsableIndiaHotel(entry)) return false;
+    if (city && entry.cityNameLower !== city && !entry.cityNameLower.startsWith(city)) return false;
+    if (query) {
+      const haystack = entry.searchBlob || buildSearchBlobFromEntry(entry);
+      if (!haystack.includes(query) && !entry.nameLower.includes(query) && !entry.cityNameLower.includes(query)) {
+        return false;
+      }
+    }
+    const stars = entry.starRating ?? entry.rating ?? 0;
+    if (minStars > 0 && stars < minStars) return false;
+    return true;
+  };
+
+  if (query.length >= 2) {
+    const [byCity, byName, byBlob] = await Promise.all([
+      searchTripJackHotelCatalogByCityPrefix(query, 300),
+      searchTripJackHotelCatalogByNamePrefix(query, 120),
+      findTripJackHotelsBySearchBlob(query, 300),
+    ]);
+    const merged = new Map<number, TripJackHotelCatalogEntry>();
+    for (const entry of [...byCity, ...byName, ...byBlob]) {
+      if (!merged.has(entry.tjHotelId)) merged.set(entry.tjHotelId, entry);
+    }
+    const filtered = [...merged.values()].filter(matchesFilters).sort((a, b) => a.nameLower.localeCompare(b.nameLower));
+    const totalCount = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    return {
+      entries: filtered.slice(start, start + pageSize),
+      page,
+      pageSize,
+      totalCount,
+      totalPages,
+    };
+  }
+
+  if (!isAdminEnvConfigured()) {
+    return { entries: [], page, pageSize, totalCount: 0, totalPages: 1 };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) {
+    return { entries: [], page, pageSize, totalCount: 0, totalPages: 1 };
+  }
+
+  const skip = (page - 1) * pageSize;
+  const matched: TripJackHotelCatalogEntry[] = [];
+  let lastNameLower: string | undefined;
+  let scanComplete = false;
+
+  while (matched.length < skip + pageSize && !scanComplete) {
+    let firestoreQuery = db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("contentSynced", "==", true)
+      .where("isDeleted", "==", false)
+      .orderBy("nameLower")
+      .limit(200);
+    if (lastNameLower) {
+      firestoreQuery = firestoreQuery.startAfter(lastNameLower);
+    }
+
+    const snap = await firestoreQuery.get();
+    if (snap.empty) {
+      scanComplete = true;
+      break;
+    }
+
+    for (const doc of snap.docs) {
+      const entry = doc.data() as TripJackHotelCatalogEntry;
+      lastNameLower = entry.nameLower;
+      if (!matchesFilters(entry)) continue;
+      matched.push(entry);
+    }
+
+    if (snap.size < 200) scanComplete = true;
+    if (matched.length >= skip + pageSize + pageSize) scanComplete = true;
+  }
+
+  const totalEstimate = await countContentSyncedTripJackHotels();
+  const totalCount = Math.max(matched.length, totalEstimate);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  return {
+    entries: matched.slice(skip, skip + pageSize),
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+  };
+}
+
+function buildSearchBlobFromEntry(entry: TripJackHotelCatalogEntry): string {
+  return [
+    entry.name,
+    entry.cityName,
+    entry.stateName,
+    entry.countryName,
+    entry.address,
+    entry.propertyType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 export async function getTripJackHotelCatalogEntryByHid(
   hid: number | string
 ): Promise<TripJackHotelCatalogEntry | null> {
