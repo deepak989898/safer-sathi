@@ -47,6 +47,18 @@ function pickFacilities(raw: Record<string, unknown>): string[] {
     .filter(Boolean);
 }
 
+function pickPolicies(raw: Record<string, unknown>): string[] {
+  const policies = raw.policies ?? raw.policyList ?? raw.hotelPolicies;
+  if (!Array.isArray(policies)) return [];
+  return policies
+    .map((item) => {
+      if (typeof item === "string") return item;
+      const rec = asRecord(item);
+      return rec ? pickString(rec, ["name", "label", "policy", "description", "title"]) : "";
+    })
+    .filter(Boolean);
+}
+
 function pickGeo(raw: Record<string, unknown>): TripJackHotelCatalogEntry["geolocation"] {
   const geo = asRecord(raw.geolocation) ?? asRecord(raw.geoLocation) ?? asRecord(raw.location);
   if (!geo) return undefined;
@@ -81,11 +93,14 @@ export function normalizeStaticHotelRecord(
   if (!name) return null;
 
   const cityName = pickString(rec, ["cityName", "city", "destinationCity"]);
+  const stateName = pickString(rec, ["stateName", "state", "province"]);
+  const region = pickString(rec, ["region", "regionName", "area"]);
   const countryName = pickString(rec, ["countryName", "country"]);
   const countryCode = pickString(rec, ["countryCode", "countryIsoCode"]);
   const address = pickString(rec, ["address", "fullAddress", "locationAddress"]);
   const propertyType = pickString(rec, ["propertyType", "type", "category"]);
   const rating = asNumber(rec.rating ?? rec.starRating ?? rec.stars);
+  const starRating = asNumber(rec.starRating ?? rec.stars ?? rec.rating);
   const description = pickString(rec, [
     "description",
     "hotelDescription",
@@ -106,9 +121,13 @@ export function normalizeStaticHotelRecord(
 
   const nameLower = name.toLowerCase();
   const cityNameLower = cityName.toLowerCase();
+  const isDeleted = options?.isDeleted ?? Boolean(rec.isDeleted ?? rec.deleted);
+  const policies = pickPolicies(rec);
   const searchBlob = buildSearchBlob([
     name,
     cityName,
+    stateName,
+    region,
     countryName,
     address,
     propertyType,
@@ -125,18 +144,23 @@ export function normalizeStaticHotelRecord(
     nameLower,
     cityName,
     cityNameLower,
+    stateName: stateName || undefined,
+    region: region || undefined,
     countryName,
     countryCode: countryCode || undefined,
     address,
     rating,
+    starRating,
     images: pickImages(rec),
     facilities: pickFacilities(rec),
+    policies: policies.length ? policies : undefined,
     geolocation: pickGeo(rec),
     propertyType: propertyType || undefined,
     description: description || undefined,
     contact: contact || undefined,
     contentSynced: true,
-    isDeleted: options?.isDeleted ?? Boolean(rec.isDeleted ?? rec.deleted),
+    isActive: !isDeleted,
+    isDeleted,
     searchBlob,
     updatedAt: now,
   };
@@ -185,6 +209,7 @@ export function mappingRecordToCatalogEntry(
     images: [],
     facilities: [],
     contentSynced: false,
+    isActive: true,
     isDeleted: false,
     searchBlob: buildSearchBlob([label, String(mapping.unicaId ?? "")]),
     updatedAt: now,

@@ -84,6 +84,106 @@ export async function upsertTripJackHotelDestinations(
   );
 }
 
+export async function searchTripJackHotelCatalogByCityPrefix(
+  query: string,
+  limit = 120
+): Promise<TripJackHotelCatalogEntry[]> {
+  if (!isAdminEnvConfigured()) return [];
+  const db = await getSafeAdminDb();
+  if (!db) return [];
+
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+
+  const snap = await db
+    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+    .orderBy("cityNameLower")
+    .startAt(q)
+    .endAt(`${q}\uf8ff`)
+    .limit(limit * 2)
+    .get();
+
+  return snap.docs
+    .map((doc) => doc.data() as TripJackHotelCatalogEntry)
+    .filter((hotel) => !hotel.isDeleted && hotel.cityNameLower && hotel.contentSynced)
+    .slice(0, limit);
+}
+
+export async function countActiveTripJackHotels(): Promise<number> {
+  if (!isAdminEnvConfigured()) return 0;
+  const db = await getSafeAdminDb();
+  if (!db) return 0;
+
+  const snap = await db
+    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+    .where("isDeleted", "==", false)
+    .count()
+    .get();
+  return snap.data().count;
+}
+
+export async function countContentSyncedTripJackHotels(): Promise<number> {
+  if (!isAdminEnvConfigured()) return 0;
+  const db = await getSafeAdminDb();
+  if (!db) return 0;
+
+  const snap = await db
+    .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+    .where("contentSynced", "==", true)
+    .where("isDeleted", "==", false)
+    .count()
+    .get();
+  return snap.data().count;
+}
+
+/** Fetch next batch of hotel IDs needing content sync (cursor-based scan). */
+export async function getNextContentSyncBatch(
+  afterTjHotelId: number | null,
+  targetSize = 100
+): Promise<{ ids: number[]; lastTjHotelId: number | null; hasMore: boolean }> {
+  if (!isAdminEnvConfigured()) {
+    return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+
+  const ids: number[] = [];
+  let cursor = afterTjHotelId;
+  let scanHasMore = true;
+
+  while (ids.length < targetSize && scanHasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(250);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) {
+      scanHasMore = false;
+      break;
+    }
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted) continue;
+      if (hotel.contentSynced) continue;
+      ids.push(hotel.tjHotelId);
+      if (ids.length >= targetSize) break;
+    }
+
+    if (snap.size < 250) {
+      scanHasMore = false;
+    }
+  }
+
+  return {
+    ids,
+    lastTjHotelId: cursor,
+    hasMore: scanHasMore || ids.length >= targetSize,
+  };
+}
+
 export async function searchTripJackHotelCatalogByNamePrefix(
   query: string,
   limit = 15
@@ -254,25 +354,24 @@ export function buildDestinationIndexFromHotels(
 
   for (const hotel of hotels) {
     if (hotel.isDeleted) continue;
+    if (!hotel.cityName) continue;
 
-    if (hotel.cityName) {
-      const cityKey = slugifyDestination(`${hotel.cityName}_${hotel.countryCode || hotel.countryName}`);
-      const existing = cityMap.get(cityKey);
-      if (existing) {
-        existing.hids.push(hotel.tjHotelId);
-        existing.hotelCount += 1;
-      } else {
-        cityMap.set(cityKey, {
-          id: `city_${cityKey}`,
-          type: "city",
-          label: hotel.cityName,
-          searchKey: hotel.cityName.toLowerCase(),
-          countryName: hotel.countryName,
-          hotelCount: 1,
-          hids: [hotel.tjHotelId],
-          updatedAt: now,
-        });
-      }
+    const cityKey = slugifyDestination(`${hotel.cityName}_${hotel.countryCode || hotel.countryName}`);
+    const existing = cityMap.get(cityKey);
+    if (existing) {
+      existing.hids.push(hotel.tjHotelId);
+      existing.hotelCount += 1;
+    } else {
+      cityMap.set(cityKey, {
+        id: `city_${cityKey}`,
+        type: "city",
+        label: hotel.cityName,
+        searchKey: hotel.cityName.toLowerCase(),
+        countryName: hotel.countryName,
+        hotelCount: 1,
+        hids: [hotel.tjHotelId],
+        updatedAt: now,
+      });
     }
 
     if (hotel.countryName) {

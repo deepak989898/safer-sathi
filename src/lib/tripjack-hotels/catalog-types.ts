@@ -6,17 +6,22 @@ export interface TripJackHotelCatalogEntry {
   nameLower: string;
   cityName: string;
   cityNameLower: string;
+  stateName?: string;
+  region?: string;
   countryName: string;
   countryCode?: string;
   address: string;
   rating: number | null;
+  starRating?: number | null;
   images: string[];
   facilities: string[];
+  policies?: string[];
   geolocation?: { lat?: number; lng?: number };
   propertyType?: string;
   description?: string;
   contact?: string;
   contentSynced?: boolean;
+  isActive?: boolean;
   isDeleted: boolean;
   searchBlob: string;
   updatedAt: string;
@@ -51,6 +56,8 @@ export interface TripJackHotelCatalogMeta {
   contentFailedCount?: number;
   failedHotelIds?: string[];
   lastSyncMessage?: string | null;
+  contentSyncCursor?: number | null;
+  mappingHasMore?: boolean;
 }
 
 export interface DestinationSuggestion {
@@ -91,7 +98,11 @@ export type TripJackHotelSyncMode =
   | "content_only"
   | "nationalities"
   | "destinations_only"
-  | "booking_status";
+  | "booking_status"
+  | "sync_start"
+  | "mapping_page"
+  | "content_batch"
+  | "sync_finalize";
 
 export interface TripJackHotelSyncLog {
   id: string;
