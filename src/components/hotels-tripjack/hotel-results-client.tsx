@@ -7,6 +7,7 @@ import { ListingLayout } from "@/components/customer/listing-filter-sort";
 import { HOTEL_SORT_KEYS, type CatalogSortKey } from "@/lib/catalog/sort";
 import { TripJackHotelGridCard } from "@/components/hotels-tripjack/tripjack-hotel-grid-card";
 import { TripJackResultsGridSkeleton } from "@/components/hotels-tripjack/tripjack-hotel-grid-skeleton";
+import { TripJackDatePriceStrip } from "@/components/hotels-tripjack/tripjack-date-price-strip";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import { TripJackSearchPanel } from "@/components/hotels-tripjack/tripjack-search-panel";
 import {
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { useTripJackHotelSearch } from "@/hooks/use-tripjack-hotel-search";
+import { useHotelLiveDatePrices } from "@/hooks/use-hotel-live-date-prices";
 import { explainHotelImageResolution } from "@/lib/tripjack-hotels/hotel-images";
 import { loadHotelListingSession } from "@/lib/tripjack-hotels/session";
 import type { HotelListingSearchParams, NormalizedHotel } from "@/lib/tripjack-hotels/types";
@@ -84,6 +86,19 @@ export function HotelResultsClient() {
   const [totalResults, setTotalResults] = useState(0);
   const [contextLabel, setContextLabel] = useState("");
   const [sortBy, setSortBy] = useState<CatalogSortKey>("price_asc");
+
+  const hotelHids = useMemo(
+    () => hotels.map((hotel) => Number(hotel.tjHotelId)).filter((id) => id > 0),
+    [hotels]
+  );
+
+  const {
+    stayDates,
+    selectedCheckIn,
+    setSelectedCheckIn,
+    selectedPrices,
+    selectedLoading,
+  } = useHotelLiveDatePrices(hotelHids, ready && hotels.length > 0 && !searchLoading);
 
   const [filters, setFilters] = useState<TripJackResultsFilterState>({
     nameQuery: "",
@@ -236,7 +251,7 @@ export function HotelResultsClient() {
       backLabel="All hotels"
       maxWidth="full"
     >
-      <div className="mb-8">
+      <div className="mb-8 space-y-4">
         {sessionRequest && (
           <ResultsSearchBar
             request={sessionRequest}
@@ -244,6 +259,14 @@ export function HotelResultsClient() {
             onLoadingChange={setSearchLoading}
           />
         )}
+        {!searchLoading && hotels.length > 0 ? (
+          <TripJackDatePriceStrip
+            dates={stayDates}
+            selectedCheckIn={selectedCheckIn}
+            onSelect={setSelectedCheckIn}
+            locale={locale}
+          />
+        ) : null}
       </div>
 
       {searchLoading && (
@@ -352,6 +375,10 @@ export function HotelResultsClient() {
                   hotel={hotel}
                   locale={locale}
                   onViewDetails={onViewDetails}
+                  livePrice={selectedPrices[String(hotel.tjHotelId)]}
+                    priceLoading={
+                      selectedLoading && !(String(hotel.tjHotelId) in selectedPrices)
+                    }
                 />
               ))}
             </div>

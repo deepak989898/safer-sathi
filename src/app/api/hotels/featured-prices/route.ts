@@ -21,7 +21,15 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const priceCache = new Map<string, { price: number; currency: string; expiresAt: number }>();
 
 const schema = z.object({
-  hids: z.array(z.number().int().positive()).min(1).max(30),
+  hids: z.array(z.number().int().positive()).min(1).max(100),
+  checkIn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  checkOut: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 function cacheKey(hid: number, checkIn: string, checkOut: string): string {
@@ -43,7 +51,9 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
-    const { checkIn, checkOut } = getDefaultHotelStayDates();
+    const defaults = getDefaultHotelStayDates();
+    const checkIn = parsed.data.checkIn ?? defaults.checkIn;
+    const checkOut = parsed.data.checkOut ?? defaults.checkOut;
     const now = Date.now();
     const prices: Record<string, { price: number; currency: string } | null> = {};
     const missing: number[] = [];

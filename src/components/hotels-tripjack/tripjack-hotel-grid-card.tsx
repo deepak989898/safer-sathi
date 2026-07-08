@@ -16,9 +16,17 @@ interface TripJackHotelGridCardProps {
   hotel: NormalizedHotel;
   locale: Locale;
   onViewDetails: (hotel: NormalizedHotel) => void;
+  livePrice?: { price: number; currency: string } | null;
+  priceLoading?: boolean;
 }
 
-export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJackHotelGridCardProps) {
+export function TripJackHotelGridCard({
+  hotel,
+  locale,
+  onViewDetails,
+  livePrice,
+  priceLoading = false,
+}: TripJackHotelGridCardProps) {
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
 
@@ -79,7 +87,17 @@ export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJack
 
       <CardFooter className="flex items-center justify-between border-t bg-transparent">
         <div>
-          {hotel.browseOnly || hotel.cheapestTotalPrice <= 0 ? (
+          {priceLoading ? (
+            <p className="text-sm text-muted-foreground">Loading price…</p>
+          ) : livePrice && livePrice.price > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground">From</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(livePrice.price, locale)}
+                <span className="text-xs font-normal text-muted-foreground"> / stay</span>
+              </p>
+            </>
+          ) : hotel.browseOnly || hotel.cheapestTotalPrice <= 0 ? (
             <p className="text-sm text-muted-foreground">Rates on next step</p>
           ) : (
             <>

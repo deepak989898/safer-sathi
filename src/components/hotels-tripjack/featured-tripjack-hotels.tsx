@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, MapPin, Star } from "lucide-react";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { TripJackHotelCardMedia } from "@/components/hotels-tripjack/tripjack-hotel-card-media";
+import { TripJackDatePriceStrip } from "@/components/hotels-tripjack/tripjack-date-price-strip";
 import { TripJackQuickSearchBar } from "@/components/hotels-tripjack/tripjack-quick-search-bar";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import { FEATURED_POPULAR_CITIES } from "@/lib/tripjack-hotels/catalog-location";
 import { bootstrapFeaturedTripJackHotel } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
+import { useHotelLiveDatePrices } from "@/hooks/use-hotel-live-date-prices";
 import { formatCurrency, t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import type { Locale } from "@/types";
 import { toast } from "sonner";
-
-type FeaturedPriceMap = Record<string, { price: number; currency: string } | null>;
 
 function FeaturedTripJackCard({
   hotel,
@@ -172,8 +172,22 @@ export function FeaturedTripJackHotelsSection({
 }) {
   const { locale } = useAppStore();
   const [activeCity, setActiveCity] = useState<string>("all");
-  const [priceMap, setPriceMap] = useState<FeaturedPriceMap>({});
-  const [priceLoading, setPriceLoading] = useState(false);
+
+  const visibleHotels = useMemo(() => {
+    if (activeCity === "all") return hotels;
+    return hotels.filter((hotel) => (hotel.cityKey || hotel.cityName.toLowerCase()) === activeCity);
+  }, [hotels, activeCity]);
+
+  const {
+    stayDates,
+    selectedCheckIn,
+    setSelectedCheckIn,
+    selectedPrices,
+    selectedLoading,
+  } = useHotelLiveDatePrices(
+    hotels.map((hotel) => hotel.tjHotelId),
+    !loading && hotels.length > 0
+  );
 
   const cityCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -191,35 +205,7 @@ export function FeaturedTripJackHotelsSection({
     }).filter((item) => item.count > 0);
   }, [cityCounts]);
 
-  const filteredHotels = useMemo(() => {
-    if (activeCity === "all") return hotels;
-    return hotels.filter((hotel) => (hotel.cityKey || hotel.cityName.toLowerCase()) === activeCity);
-  }, [hotels, activeCity]);
-
-  const fetchPrices = useCallback(async (list: FeaturedTripJackHotelCard[]) => {
-    if (!list.length) return;
-    setPriceLoading(true);
-    try {
-      const res = await fetch("/api/hotels/featured-prices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hids: list.map((hotel) => hotel.tjHotelId) }),
-      });
-      const json = await res.json();
-      if (json.success && json.data?.prices) {
-        setPriceMap((prev) => ({ ...prev, ...json.data.prices }));
-      }
-    } catch {
-      // prices are optional on cards
-    } finally {
-      setPriceLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hotels.length || loading) return;
-    void fetchPrices(hotels);
-  }, [hotels, loading, fetchPrices]);
+  const filteredHotels = visibleHotels;
 
   const syncMessage = useMemo(() => {
     if (loading || hotels.length > 0) return null;
@@ -254,6 +240,15 @@ export function FeaturedTripJackHotelsSection({
         </div>
 
         <TripJackQuickSearchBar />
+
+        {!loading && hotels.length > 0 ? (
+          <TripJackDatePriceStrip
+            dates={stayDates}
+            selectedCheckIn={selectedCheckIn}
+            onSelect={setSelectedCheckIn}
+            locale={locale}
+          />
+        ) : null}
       </div>
 
       {!loading && hotels.length === 0 ? (
@@ -304,8 +299,8 @@ export function FeaturedTripJackHotelsSection({
                     key={hotel.tjHotelId}
                     hotel={hotel}
                     locale={locale}
-                    livePrice={priceMap[String(hotel.tjHotelId)]}
-                    priceLoading={priceLoading && priceMap[String(hotel.tjHotelId)] === undefined}
+                    livePrice={selectedPrices[String(hotel.tjHotelId)]}
+                    priceLoading={selectedLoading && !(String(hotel.tjHotelId) in selectedPrices)}
                   />
                 ))}
                 {filteredHotels.length === 0 && (
