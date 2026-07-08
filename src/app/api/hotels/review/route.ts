@@ -8,7 +8,9 @@ import {
   TripJackHotelApiError,
 } from "@/lib/tripjack-hotels/client";
 import { isTripJackHotelProviderEnabled } from "@/lib/tripjack-hotels/config";
+import { applyHotelMarkupToReview } from "@/lib/tripjack-hotels/pricing-display";
 import { mapHotelReviewError } from "@/lib/tripjack-hotels/review-errors";
+import { getHotelWebsiteSettings } from "@/lib/hotels/website-settings";
 import type { HotelReviewPrepSession } from "@/lib/tripjack-hotels/types";
 
 const roomSchema = z.object({
@@ -52,6 +54,9 @@ export async function POST(request: Request) {
       return apiError("Validation failed", 400, parsed.error.flatten());
     }
 
+    const websiteSettings = await getHotelWebsiteSettings();
+    const markupPercent = Math.max(0, websiteSettings.hotelMarkupPercent ?? 0);
+
     const started = Date.now();
     const result = await fetchTripJackHotelReview({
       correlationId: parsed.data.correlationId,
@@ -62,19 +67,22 @@ export async function POST(request: Request) {
       searchContext: parsed.data.searchContext as HotelReviewPrepSession["searchContext"],
     });
 
+    const review = applyHotelMarkupToReview(result.review, markupPercent);
     const requestBody = buildHotelReviewBody(parsed.data);
 
     return apiSuccess({
-      review: result.review,
+      review,
+      markupPercent,
       elapsedMs: result.elapsedMs ?? Date.now() - started,
       requestBody,
       proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/review`,
       ...(includeDebug
         ? {
             debug: {
-              bookingId: result.review.bookingId,
-              statusSuccess: result.review.statusSuccess,
+              bookingId: review.bookingId,
+              statusSuccess: review.statusSuccess,
               elapsedMs: result.elapsedMs,
+              markupPercent,
             },
           }
         : {}),

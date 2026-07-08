@@ -23,11 +23,13 @@ export async function PATCH(request: Request) {
   const payload = (body ?? {}) as {
     manualHotelsWebsiteEnabled?: boolean;
     tripjackHotelsWebsiteEnabled?: boolean;
+    hotelMarkupPercent?: number;
   };
 
   const patch: {
     manualHotelsWebsiteEnabled?: boolean;
     tripjackHotelsWebsiteEnabled?: boolean;
+    hotelMarkupPercent?: number;
   } = {};
 
   if (typeof payload.manualHotelsWebsiteEnabled === "boolean") {
@@ -35,6 +37,9 @@ export async function PATCH(request: Request) {
   }
   if (typeof payload.tripjackHotelsWebsiteEnabled === "boolean") {
     patch.tripjackHotelsWebsiteEnabled = payload.tripjackHotelsWebsiteEnabled;
+  }
+  if (typeof payload.hotelMarkupPercent === "number" && Number.isFinite(payload.hotelMarkupPercent)) {
+    patch.hotelMarkupPercent = Math.max(0, Math.min(50, payload.hotelMarkupPercent));
   }
 
   if (!Object.keys(patch).length) {

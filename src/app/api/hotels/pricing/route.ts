@@ -19,6 +19,7 @@ import {
   getHotelWebsiteSettings,
   isTripjackHotelsWebsiteEnabled,
 } from "@/lib/hotels/website-settings";
+import { applyHotelMarkupToDetail } from "@/lib/tripjack-hotels/pricing-display";
 import { mapHotelPricingError } from "@/lib/tripjack-hotels/pricing-errors";
 
 const roomSchema = z.object({
@@ -99,21 +100,26 @@ export async function POST(request: Request) {
           : undefined),
     });
 
+    const markupPercent = Math.max(0, websiteSettings.hotelMarkupPercent ?? 0);
+    const detail = applyHotelMarkupToDetail(result.detail, markupPercent);
+
     const requestBody = buildHotelPricingBody(parsed.data);
 
     return apiSuccess({
-      detail: result.detail,
+      detail,
+      markupPercent,
       elapsedMs: result.elapsedMs ?? Date.now() - started,
       requestBody,
       proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/pricing`,
       ...(includeDebug
         ? {
             debug: {
-              optionCount: result.detail.options.length,
-              reviewHashPresent: Boolean(result.detail.reviewHash),
+              optionCount: detail.options.length,
+              reviewHashPresent: Boolean(detail.reviewHash),
               elapsedMs: result.elapsedMs,
               catalogFound: Boolean(catalog),
               staticSource,
+              markupPercent,
             },
           }
         : {}),

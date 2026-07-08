@@ -16,7 +16,7 @@ import {
   HotelOverviewPanel,
   HotelSelectedRoomCard,
 } from "@/components/hotels-tripjack/hotel-detail-panels";
-import { HotelRoomOptionCard } from "@/components/hotels-tripjack/hotel-room-option-card";
+import { HotelRoomOptionsList } from "@/components/hotels-tripjack/hotel-room-options-list";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import { HotelCard, HotelPrimaryButton, HotelStepBar } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { canAccessAICenter } from "@/lib/ai-center/permissions";
 import { HOTEL_SESSION_TTL_MS } from "@/lib/tripjack-hotels/config";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
+import { findCheapestOptionId } from "@/lib/tripjack-hotels/group-room-options";
 import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import { startHotelLivePricing } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import {
@@ -40,6 +41,7 @@ import type {
   NormalizedHotelDetail,
   NormalizedHotelOption,
 } from "@/lib/tripjack-hotels/types";
+import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
 
@@ -118,6 +120,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
     requestBody: unknown;
     rawResponse: unknown;
   } | null>(null);
+  const [markupPercent, setMarkupPercent] = useState(0);
 
   const selectedOption: NormalizedHotelOption | null = useMemo(() => {
     if (!detail) return null;
@@ -212,7 +215,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         const cached = loadHotelDetailCache(hid);
         if (cached) {
           setDetail(cached);
-          setSelectedOptionId(cached.options[0]?.optionId ?? "");
+          setSelectedOptionId(findCheapestOptionId(cached.options));
           setLoading(false);
           if (isStaff) console.log("[hotel-pricing] cache hit", cached.hotelId);
           return;
@@ -258,7 +261,8 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         const next = json.data.detail as NormalizedHotelDetail;
         saveHotelDetailCache(next);
         setDetail(next);
-        setSelectedOptionId(next.options[0]?.optionId ?? "");
+        setMarkupPercent(Number(json.data.markupPercent ?? 0));
+        setSelectedOptionId(findCheapestOptionId(next.options));
 
         if (isSuperAdmin && json.data.adminDebug) {
           setAdminDebug(json.data.adminDebug);
@@ -516,6 +520,10 @@ export function HotelDetailClient({ hid }: { hid: string }) {
             <HotelPricingDebugPanel
               requestBody={adminDebug.requestBody}
               rawResponse={adminDebug.rawResponse}
+              adminMessage={undefined}
+              options={detail.options}
+              selectedOptionId={selectedOptionId}
+              markupPercent={markupPercent}
             />
           )}
 
@@ -568,15 +576,12 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                       Available rooms
                     </h2>
                     <div className="space-y-3">
-                      {detail.options.map((option) => (
-                        <HotelRoomOptionCard
-                          key={option.optionId}
-                          option={option}
-                          selected={option.optionId === selectedOptionId}
-                          locale={locale}
-                          onSelect={onSelectRoom}
-                        />
-                      ))}
+                      <HotelRoomOptionsList
+                        options={detail.options}
+                        selectedOptionId={selectedOptionId}
+                        locale={locale}
+                        onSelect={onSelectRoom}
+                      />
                     </div>
                   </div>
                 </TabsContent>
@@ -600,7 +605,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                   </p>
                   <p className="text-xl font-bold" style={{ color: HOTEL_UI.primary }}>
                     {selectedOption
-                      ? `${selectedOption.pricing.currency} ${selectedOption.pricing.totalPrice.toLocaleString("en-IN")}`
+                      ? formatCurrency(selectedOption.pricing.totalPrice, locale)
                       : "Select a room"}
                   </p>
                 </div>

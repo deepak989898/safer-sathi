@@ -9,12 +9,15 @@ export interface HotelWebsiteSettings {
   manualHotelsWebsiteEnabled: boolean;
   /** Show TripJack live search/booking flow on website */
   tripjackHotelsWebsiteEnabled: boolean;
+  /** Optional % markup on TripJack hotel room totals (0 = show API price only) */
+  hotelMarkupPercent: number;
   updatedAt: string;
 }
 
 export const DEFAULT_HOTEL_WEBSITE_SETTINGS: HotelWebsiteSettings = {
   manualHotelsWebsiteEnabled: true,
   tripjackHotelsWebsiteEnabled: true,
+  hotelMarkupPercent: 0,
   updatedAt: new Date().toISOString(),
 };
 
@@ -29,7 +32,12 @@ export async function getHotelWebsiteSettings(): Promise<HotelWebsiteSettings> {
 }
 
 export async function updateHotelWebsiteSettings(
-  patch: Partial<Pick<HotelWebsiteSettings, "manualHotelsWebsiteEnabled" | "tripjackHotelsWebsiteEnabled">>
+  patch: Partial<
+    Pick<
+      HotelWebsiteSettings,
+      "manualHotelsWebsiteEnabled" | "tripjackHotelsWebsiteEnabled" | "hotelMarkupPercent"
+    >
+  >
 ): Promise<HotelWebsiteSettings> {
   const current = await getHotelWebsiteSettings();
   const next: HotelWebsiteSettings = {

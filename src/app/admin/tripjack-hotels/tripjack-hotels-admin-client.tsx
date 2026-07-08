@@ -82,6 +82,7 @@ export default function TripJackHotelsAdminClient() {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [liveEnabled, setLiveEnabled] = useState(false);
   const [tripjackWebsiteEnabled, setTripjackWebsiteEnabled] = useState(true);
+  const [hotelMarkupPercent, setHotelMarkupPercent] = useState(0);
   const [websiteSettingsSaving, setWebsiteSettingsSaving] = useState(false);
   const [visibilityHid, setVisibilityHid] = useState("");
   const [visibilitySaving, setVisibilitySaving] = useState(false);
@@ -123,7 +124,7 @@ export default function TripJackHotelsAdminClient() {
           undefined,
           "Load checklist"
         ),
-        tripjackAdminApiCall<{ settings: { tripjackHotelsWebsiteEnabled?: boolean } }>(
+        tripjackAdminApiCall<{ settings: { tripjackHotelsWebsiteEnabled?: boolean; hotelMarkupPercent?: number } }>(
           "/api/admin/hotel-website-settings",
           undefined,
           "Load website settings"
@@ -147,6 +148,7 @@ export default function TripJackHotelsAdminClient() {
 
       if (settingsResult.ok && settingsResult.data?.settings) {
         setTripjackWebsiteEnabled(settingsResult.data.settings.tripjackHotelsWebsiteEnabled !== false);
+        setHotelMarkupPercent(Number(settingsResult.data.settings.hotelMarkupPercent ?? 0));
       }
 
       const manualResult = await tripjackAdminApiCall<{
@@ -359,6 +361,35 @@ export default function TripJackHotelsAdminClient() {
     { key: "static-mapping", label: "Hotel mapping", names: ["hotel-mapping"] },
     { key: "static-content", label: "Hotel content", names: ["hotel-content"] },
   ] as const;
+
+  const saveHotelMarkupPercent = async () => {
+    setWebsiteSettingsSaving(true);
+    try {
+      const result = await tripjackAdminApiCall<{
+        settings: { hotelMarkupPercent?: number };
+      }>(
+        "/api/admin/hotel-website-settings",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hotelMarkupPercent }),
+        },
+        "Update hotel markup"
+      );
+      if (!result.ok) {
+        setApiError(toApiError("Update hotel markup", result));
+        return;
+      }
+      setHotelMarkupPercent(Number(result.data?.settings?.hotelMarkupPercent ?? 0));
+      toast.success("Hotel markup updated");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Update failed";
+      setApiError({ context: "Update hotel markup", message });
+      toast.error(message);
+    } finally {
+      setWebsiteSettingsSaving(false);
+    }
+  };
 
   const toggleTripjackWebsite = async () => {
     setWebsiteSettingsSaving(true);
@@ -790,6 +821,35 @@ export default function TripJackHotelsAdminClient() {
               ) : null}
               {tripjackWebsiteEnabled ? "Hide TripJack hotels on website" : "Show TripJack hotels on website"}
             </Button>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium">Customer room price markup</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Default is 0% — room cards show TripJack API total only. Any markup is shown separately
+                in super-admin pricing debug.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Markup %</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={50}
+                    step={0.5}
+                    value={hotelMarkupPercent}
+                    onChange={(e) => setHotelMarkupPercent(Number(e.target.value) || 0)}
+                    className="mt-1 w-28"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={websiteSettingsSaving}
+                  onClick={() => void saveHotelMarkupPercent()}
+                >
+                  Save markup
+                </Button>
+              </div>
+            </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium">Hide/show individual TripJack hotel</p>
               <p className="mt-1 text-xs text-muted-foreground">

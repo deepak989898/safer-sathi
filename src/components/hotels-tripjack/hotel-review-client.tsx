@@ -71,6 +71,7 @@ export function HotelReviewClient() {
   const [adminDebug, setAdminDebug] = useState<{ requestBody: unknown; rawResponse: unknown } | null>(
     null
   );
+  const [markupPercent, setMarkupPercent] = useState(0);
 
   const detailHref = prep?.hotelId
     ? `/hotels/detail/${encodeURIComponent(String(prep.hotelId))}`
@@ -145,6 +146,7 @@ export function HotelReviewClient() {
       };
       saveHotelReviewResult(reviewed);
       setReview(reviewed);
+      setMarkupPercent(Number(json.data.markupPercent ?? 0));
 
       if (isSuperAdmin && json.data.adminDebug) {
         setAdminDebug(json.data.adminDebug);
@@ -231,6 +233,9 @@ export function HotelReviewClient() {
               <HotelPricingDebugPanel
                 requestBody={adminDebug.requestBody}
                 rawResponse={adminDebug.rawResponse}
+                options={review ? [review.option] : []}
+                selectedOptionId={review?.option.optionId}
+                markupPercent={markupPercent}
               />
             )}
 

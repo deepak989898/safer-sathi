@@ -36,6 +36,10 @@ export interface HotelListingRequestBody {
 
 export interface NormalizedHotelPricing {
   totalPrice: number;
+  /** TripJack API total before optional customer markup */
+  apiTotalPrice?: number;
+  /** Safar Sathi markup added on top of apiTotalPrice (0 when disabled) */
+  customerMarkup?: number;
   basePrice: number;
   discount: number;
   taxes: number;

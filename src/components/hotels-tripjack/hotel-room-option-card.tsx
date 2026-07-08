@@ -67,7 +67,7 @@ export function HotelRoomOptionCard({
             {formatCurrency(p.totalPrice, locale)}
           </p>
           <p className="text-[10px]" style={{ color: HOTEL_UI.textMuted }}>
-            incl. taxes · {p.currency}
+            Total price for 1 room · incl. taxes · {p.currency}
           </p>
           <div className="mt-3">
             <HotelPrimaryButton

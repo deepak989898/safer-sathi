@@ -1,7 +1,9 @@
 import "server-only";
 
 import { getHotelBookingById, updateHotelBooking } from "@/lib/hotels/firestore";
+import { applyHotelMarkupToReview } from "@/lib/tripjack-hotels/pricing-display";
 import { fetchTripJackHotelReview } from "@/lib/tripjack-hotels/client";
+import { getHotelWebsiteSettings } from "@/lib/hotels/website-settings";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
 
 export interface HotelPriceRevalidationResult {
@@ -29,8 +31,8 @@ export async function revalidateHotelPriceBeforePayment(
     };
   }
 
-  const review = booking.reviewNormalized;
-  if (!review?.correlationId || !review.option?.optionId) {
+  const reviewSession = booking.reviewNormalized;
+  if (!reviewSession?.correlationId || !reviewSession.option?.optionId) {
     return {
       ok: false,
       priceChanged: false,
@@ -42,7 +44,7 @@ export async function revalidateHotelPriceBeforePayment(
     };
   }
 
-  const prep = review.option;
+  const prep = reviewSession.option;
   const previousPrice = booking.totalFare;
   const reviewHash = booking.reviewHash?.trim() ?? "";
 
@@ -59,31 +61,35 @@ export async function revalidateHotelPriceBeforePayment(
   }
 
   try {
+    const settings = await getHotelWebsiteSettings();
+    const markupPercent = Math.max(0, settings.hotelMarkupPercent ?? 0);
+
     const result = await fetchTripJackHotelReview({
-      correlationId: review.correlationId,
+      correlationId: reviewSession.correlationId,
       optionId: prep.optionId,
       reviewHash,
-      hid: review.tjHotelId,
-      hotelName: review.hotelName,
-      searchContext: review.searchContext,
+      hid: reviewSession.tjHotelId,
+      hotelName: reviewSession.hotelName,
+      searchContext: reviewSession.searchContext,
     });
 
-    const currentPrice = result.review.option.pricing.totalPrice;
+    const freshReview = applyHotelMarkupToReview(result.review, markupPercent);
+    const currentPrice = freshReview.option.pricing.totalPrice;
     const priceChanged = Math.abs(currentPrice - previousPrice) >= 1;
 
     const updated = await updateHotelBooking(bookingId, {
-      reviewNormalized: result.review,
-      tripjackBookingId: result.review.bookingId || booking.tripjackBookingId,
+      reviewNormalized: freshReview,
+      tripjackBookingId: freshReview.bookingId || booking.tripjackBookingId,
       totalFare: currentPrice,
-      baseFare: result.review.option.pricing.basePrice,
-      taxesAndFees: result.review.option.pricing.taxes,
-      mf: result.review.option.pricing.mf,
-      mft: result.review.option.pricing.mft,
-      discount: result.review.option.pricing.discount,
-      currency: result.review.option.pricing.currency,
-      roomName: result.review.option.roomInfo[0] || result.review.option.roomName,
+      baseFare: freshReview.option.pricing.basePrice,
+      taxesAndFees: freshReview.option.pricing.taxes,
+      mf: freshReview.option.pricing.mf,
+      mft: freshReview.option.pricing.mft,
+      discount: freshReview.option.pricing.discount,
+      currency: freshReview.option.pricing.currency,
+      roomName: freshReview.option.roomInfo[0] || freshReview.option.roomName,
       mealBasis:
-        result.review.option.mealBasisLabel || result.review.option.mealBasis,
+        freshReview.option.mealBasisLabel || freshReview.option.mealBasis,
       priceRevalidatedAt: new Date().toISOString(),
     });
 
@@ -92,7 +98,7 @@ export async function revalidateHotelPriceBeforePayment(
       priceChanged,
       previousPrice,
       currentPrice,
-      currency: result.review.option.pricing.currency,
+      currency: freshReview.option.pricing.currency,
       booking: updated ?? booking,
       message: priceChanged
         ? "Hotel price has changed. Please confirm the updated amount before paying."

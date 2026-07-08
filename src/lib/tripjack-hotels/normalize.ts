@@ -83,14 +83,17 @@ function parsePricing(pricingRaw: unknown, currencyFallback: string): Normalized
   const discount = pickNumber(pricing, ["discount"], 0);
   const currency = pickString(pricing, ["currency"], currencyFallback) || "INR";
   const totalFromApi = pickNumber(pricing, ["totalPrice", "total", "TF"], 0);
-  const computed = basePrice + taxes + mf + mft;
+  const computed = basePrice + taxes + mf + mft - discount;
   const strikethroughRaw = pickNumber(
     pricing,
     ["strikethroughPrice", "listPrice", "rackRate", "publishedPrice", "originalPrice"],
     0
   );
+  const apiTotal = totalFromApi > 0 ? totalFromApi : computed > 0 ? computed : 0;
   const result: NormalizedHotelPricing = {
-    totalPrice: totalFromApi > 0 ? totalFromApi : computed,
+    apiTotalPrice: apiTotal,
+    customerMarkup: 0,
+    totalPrice: apiTotal,
     basePrice,
     discount,
     taxes,
