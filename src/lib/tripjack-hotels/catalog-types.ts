@@ -26,6 +26,8 @@ export interface TripJackHotelCatalogEntry {
   description?: string;
   contact?: string;
   contentSynced?: boolean;
+  /** Set during content sync — true when heroImage or imageUrls resolve to a valid URL */
+  hasDisplayImage?: boolean;
   /** Admin can hide individual TripJack hotels from website search/results */
   websiteVisible?: boolean;
   isActive?: boolean;
@@ -67,6 +69,14 @@ export interface TripJackHotelCatalogMeta {
   mappingHasMore?: boolean;
   locationBackfillCursor?: number | null;
   locationEnrichCursor?: number | null;
+  imageBackfillCursor?: number | null;
+  imageStats?: {
+    totalHotels: number;
+    hotelsWithImage: number;
+    hotelsWithoutImage: number;
+    contentSynced: number;
+    computedAt: string;
+  };
 }
 
 export interface DestinationSuggestion {
@@ -102,6 +112,8 @@ export const MAX_HOTEL_MAPPING_PAGE_SIZE = 2000;
 export const LOCATION_BACKFILL_MAX_PER_RUN = 50_000;
 /** Hotels processed per backfill API request (enrich + content API batches). */
 export const LOCATION_BACKFILL_CHUNK_SIZE = 5_000;
+/** Max hotels refreshed via content API per admin image-backfill click. */
+export const IMAGE_BACKFILL_MAX_PER_RUN = 1_000;
 export const MAX_HOTEL_ROOMS = 9;
 
 export type TripJackHotelSyncMode =
@@ -116,7 +128,8 @@ export type TripJackHotelSyncMode =
   | "mapping_page"
   | "content_batch"
   | "sync_finalize"
-  | "location_backfill";
+  | "location_backfill"
+  | "image_backfill";
 
 export interface TripJackHotelSyncLog {
   id: string;

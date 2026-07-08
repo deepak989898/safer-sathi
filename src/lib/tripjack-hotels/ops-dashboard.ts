@@ -1,6 +1,7 @@
 import { listAllHotelBookingsForAdmin } from "@/lib/hotels/firestore";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
-import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
+import { getTripJackHotelCatalogMeta, getTripJackHotelCatalogImageStats } from "@/lib/tripjack-hotels/catalog-firestore";
+import type { TripJackHotelCatalogImageStats } from "@/lib/tripjack-hotels/catalog-firestore";
 import {
   countRecentTripJackHotelApiErrors,
   getTripJackHotelOpsMeta,
@@ -14,6 +15,7 @@ import {
 export interface TripJackHotelOpsDashboard {
   environment: ReturnType<typeof getTripJackHotelEnvironmentSummary>;
   catalogMeta: Awaited<ReturnType<typeof getTripJackHotelCatalogMeta>>;
+  catalogImageStats: TripJackHotelCatalogImageStats;
   todayBookings: number;
   todayRevenue: number;
   totalRevenue: number;
@@ -35,7 +37,10 @@ function startOfTodayIso(): string {
 
 export async function loadTripJackHotelOpsDashboard(): Promise<TripJackHotelOpsDashboard> {
   const opsMeta = await getTripJackHotelOpsMeta();
-  const catalogMeta = await getTripJackHotelCatalogMeta();
+  const [catalogMeta, catalogImageStats] = await Promise.all([
+    getTripJackHotelCatalogMeta(),
+    getTripJackHotelCatalogImageStats(),
+  ]);
   const environment = getTripJackHotelEnvironmentSummary(opsMeta.liveBookingEnabled);
   const todayStart = startOfTodayIso();
 
@@ -85,6 +90,7 @@ export async function loadTripJackHotelOpsDashboard(): Promise<TripJackHotelOpsD
       liveBookingAllowed: isTripJackHotelLiveBookingAllowed(opsMeta.liveBookingEnabled),
     },
     catalogMeta,
+    catalogImageStats,
     todayBookings,
     todayRevenue,
     totalRevenue,

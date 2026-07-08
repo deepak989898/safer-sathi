@@ -3,15 +3,22 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { syncRecentHotelBookingStatuses } from "@/lib/tripjack-hotels/booking-status-sync";
 import {
   finalizeTripJackCatalogSync,
+  runCatalogImageBackfillRun,
   runCatalogLocationBackfillRun,
   startTripJackCatalogSyncSession,
+  syncCatalogImageBackfillBatch,
   syncCatalogLocationBackfillBatch,
   syncTripJackHotelCatalog,
   syncTripJackHotelContentBatch,
   syncTripJackHotelMappingPage,
 } from "@/lib/tripjack-hotels/catalog-sync";
 import type { TripJackHotelSyncMode } from "@/lib/tripjack-hotels/catalog-types";
-import { LOCATION_BACKFILL_CHUNK_SIZE, LOCATION_BACKFILL_MAX_PER_RUN } from "@/lib/tripjack-hotels/catalog-types";
+import {
+  IMAGE_BACKFILL_MAX_PER_RUN,
+  LOCATION_BACKFILL_CHUNK_SIZE,
+  LOCATION_BACKFILL_MAX_PER_RUN,
+  MAX_HOTEL_CONTENT_BATCH,
+} from "@/lib/tripjack-hotels/catalog-types";
 import { getTripJackHotelCatalogMeta } from "@/lib/tripjack-hotels/catalog-firestore";
 import { syncTripJackHotelNationalities } from "@/lib/tripjack-hotels/nationalities-sync";
 import { listTripJackHotelSyncLogs } from "@/lib/tripjack-hotels/ops-firestore";
@@ -131,6 +138,23 @@ export async function POST(request: Request) {
             maxHotels: Math.min(LOCATION_BACKFILL_CHUNK_SIZE, maxHotels),
           })
         : await runCatalogLocationBackfillRun({ maxHotels });
+
+      const meta = await getTripJackHotelCatalogMeta();
+      return apiSuccess({ ...result, meta, mode });
+    }
+
+    if (mode === "image_backfill") {
+      const maxHotelsParam = Number(url.searchParams.get("maxHotels") ?? "0");
+      const chunked = url.searchParams.get("chunked") === "1";
+      const maxHotels = Number.isFinite(maxHotelsParam) && maxHotelsParam > 0
+        ? Math.min(IMAGE_BACKFILL_MAX_PER_RUN, maxHotelsParam)
+        : IMAGE_BACKFILL_MAX_PER_RUN;
+
+      const result = chunked
+        ? await syncCatalogImageBackfillBatch({
+            maxHotels: Math.min(MAX_HOTEL_CONTENT_BATCH, maxHotels),
+          })
+        : await runCatalogImageBackfillRun({ maxHotels });
 
       const meta = await getTripJackHotelCatalogMeta();
       return apiSuccess({ ...result, meta, mode });

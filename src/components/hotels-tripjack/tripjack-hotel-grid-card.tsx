@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Building2, MapPin, Star, Zap } from "lucide-react";
+import { MapPin, Star, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  TripJackHotelCardMedia,
+  tripJackHotelCardMediaProps,
+} from "@/components/hotels-tripjack/tripjack-hotel-card-media";
 import { formatCurrency } from "@/lib/i18n";
-import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
 
@@ -19,23 +21,6 @@ interface TripJackHotelGridCardProps {
 export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJackHotelGridCardProps) {
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-
-  const candidates = useMemo(
-    () =>
-      resolveHotelImageCandidates({
-        imageUrl: hotel.imageUrl,
-        images: hotel.images,
-        imageUrls: hotel.imageUrls,
-        heroImage: hotel.heroImage,
-        staticContent: hotel.staticContent,
-        options: hotel.options,
-      }),
-    [hotel]
-  );
-
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const imageSrc = candidates[candidateIndex];
-  const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
 
   const chips: string[] = [];
   if (hotel.mealBasis) chips.push(hotel.mealBasis);
@@ -50,22 +35,10 @@ export function TripJackHotelGridCard({ hotel, locale, onViewDetails }: TripJack
         onClick={() => onViewDetails(hotel)}
       >
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt={hotel.imageCaption || hotel.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setCandidateIndex((index) => index + 1)}
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground">
-              <Building2 className="h-10 w-10 opacity-40" />
-              <span className="text-xs font-medium uppercase tracking-wide">No image</span>
-            </div>
-          )}
+          <TripJackHotelCardMedia
+            {...tripJackHotelCardMediaProps(hotel)}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+          />
           <Badge className="absolute left-3 top-3 z-10 gap-1 bg-[#006CE4] hover:bg-[#006CE4]">
             <Zap className="h-3 w-3 fill-current" />
             Live Rates

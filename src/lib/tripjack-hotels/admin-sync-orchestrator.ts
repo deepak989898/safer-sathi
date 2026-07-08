@@ -1,7 +1,9 @@
 import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import {
+  IMAGE_BACKFILL_MAX_PER_RUN,
   LOCATION_BACKFILL_CHUNK_SIZE,
   LOCATION_BACKFILL_MAX_PER_RUN,
+  MAX_HOTEL_CONTENT_BATCH,
 } from "@/lib/tripjack-hotels/catalog-types";
 
 export interface TripJackSyncProgress {
@@ -220,6 +222,110 @@ export async function orchestrateTripJackSync(
     savedHotels: finalize.data?.meta?.contentSuccessCount ?? progress.savedHotels,
     failedHotels: finalize.data?.meta?.contentFailedCount ?? progress.failedHotels,
     totalMappingIds: finalize.data?.meta?.totalMappingIds ?? progress.totalMappingIds,
+    message,
+  };
+  onProgress(progress);
+
+  return { ok: true, message };
+}
+
+export interface ImageBackfillProgress {
+  phase: "running" | "done" | "error";
+  totalUpdated: number;
+  totalProcessed: number;
+  totalFailed: number;
+  batches: number;
+  target: number;
+  hasMore: boolean;
+  message: string;
+}
+
+export async function orchestrateImageBackfill(
+  onProgress: (progress: ImageBackfillProgress) => void
+): Promise<TripJackOrchestratedSyncResult> {
+  const target = IMAGE_BACKFILL_MAX_PER_RUN;
+  let totalUpdated = 0;
+  let totalProcessed = 0;
+  let totalFailed = 0;
+  let batches = 0;
+  let hasMore = true;
+
+  let progress: ImageBackfillProgress = {
+    phase: "running",
+    totalUpdated: 0,
+    totalProcessed: 0,
+    totalFailed: 0,
+    batches: 0,
+    target,
+    hasMore: true,
+    message: `Starting image backfill (up to ${target.toLocaleString()} hotels, ${MAX_HOTEL_CONTENT_BATCH} per API batch)…`,
+  };
+  onProgress(progress);
+
+  while (totalUpdated < target && hasMore) {
+    const step = await syncStep(
+      "image_backfill",
+      {
+        maxHotels: MAX_HOTEL_CONTENT_BATCH,
+        chunked: "1",
+      },
+      `Image backfill batch ${batches + 1}`
+    );
+
+    if (!step.ok) {
+      progress = {
+        ...progress,
+        phase: "error",
+        message: step.error ?? "Image backfill failed",
+      };
+      onProgress(progress);
+      return { ok: false, message: progress.message, error: step.error };
+    }
+
+    const batchSuccess = step.data?.batchSuccess ?? step.data?.totalUpdated ?? 0;
+    const batchSize = step.data?.batchSize ?? step.data?.totalProcessed ?? 0;
+    const batchFailed = step.data?.batchFailed ?? step.data?.totalFailed ?? 0;
+    hasMore = Boolean(step.data?.hasMore);
+
+    totalUpdated += batchSuccess;
+    totalProcessed += batchSize;
+    totalFailed += batchFailed;
+    batches += 1;
+
+    progress = {
+      phase: "running",
+      totalUpdated,
+      totalProcessed,
+      totalFailed,
+      batches,
+      target,
+      hasMore,
+      message:
+        step.data?.message ??
+        `${totalUpdated.toLocaleString()} updated · batch ${batches}`,
+    };
+    onProgress(progress);
+
+    if (batchSuccess === 0 && batchSize === 0) {
+      hasMore = false;
+      break;
+    }
+
+    await sleep(250);
+  }
+
+  const message = `Image backfill complete — ${totalUpdated.toLocaleString()} hotel${
+    totalUpdated === 1 ? "" : "s"
+  } updated${hasMore ? " (more may remain — click again to continue)" : ""}`;
+
+  progress = {
+    ...progress,
+    phase: "done",
+    totalUpdated,
+    totalProcessed,
+    totalFailed,
+    batches,
+    hasMore,
     message,
   };
   onProgress(progress);

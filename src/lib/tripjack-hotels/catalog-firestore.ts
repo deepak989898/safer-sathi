@@ -1,6 +1,6 @@
 import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
-import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
+import { catalogEntryHasDisplayImage, catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
   enrichCatalogEntryLocation,
   formatFeaturedCardLocation,
@@ -526,6 +526,181 @@ export async function getNextLocationBackfillBatch(
     lastTjHotelId: cursor,
     hasMore: scanHasMore || ids.length >= targetSize,
   };
+}
+
+/** Hotels with content synced but no resolvable display image. */
+export async function getNextMissingImageBackfillBatch(
+  afterTjHotelId: number | null,
+  targetSize = MAX_HOTEL_CONTENT_BATCH
+): Promise<{ ids: number[]; lastTjHotelId: number | null; hasMore: boolean }> {
+  if (!isAdminEnvConfigured()) {
+    return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) return { ids: [], lastTjHotelId: afterTjHotelId, hasMore: false };
+
+  const ids: number[] = [];
+  let cursor = afterTjHotelId;
+  let scanHasMore = true;
+
+  while (ids.length < targetSize && scanHasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(300);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) {
+      scanHasMore = false;
+      break;
+    }
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted || !hotel.contentSynced) continue;
+      if (hotel.hasDisplayImage === true) continue;
+      if (catalogEntryHasDisplayImage(hotel)) continue;
+      ids.push(hotel.tjHotelId);
+      if (ids.length >= targetSize) break;
+    }
+
+    if (snap.size < 300) scanHasMore = false;
+  }
+
+  return {
+    ids,
+    lastTjHotelId: cursor,
+    hasMore: scanHasMore || ids.length >= targetSize,
+  };
+}
+
+export interface TripJackHotelCatalogImageStats {
+  totalHotels: number;
+  hotelsWithImage: number;
+  hotelsWithoutImage: number;
+  contentSynced: number;
+  computedAt: string;
+}
+
+const IMAGE_STATS_CACHE_MS = 60 * 60 * 1000;
+
+async function countCatalogHotelsByDisplayImage(hasImage: boolean): Promise<number | null> {
+  if (!isAdminEnvConfigured()) return 0;
+  const db = await getSafeAdminDb();
+  if (!db) return 0;
+
+  try {
+    const snap = await db
+      .collection(TRIPJACK_HOTEL_CATALOG_COLLECTION)
+      .where("isDeleted", "==", false)
+      .where("hasDisplayImage", "==", hasImage)
+      .count()
+      .get();
+    return snap.data().count;
+  } catch (error) {
+    if (!isFirestoreIndexError(error)) throw error;
+    return null;
+  }
+}
+
+async function scanCatalogImageStats(): Promise<TripJackHotelCatalogImageStats> {
+  if (!isAdminEnvConfigured()) {
+    return {
+      totalHotels: 0,
+      hotelsWithImage: 0,
+      hotelsWithoutImage: 0,
+      contentSynced: 0,
+      computedAt: new Date().toISOString(),
+    };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) {
+    return {
+      totalHotels: 0,
+      hotelsWithImage: 0,
+      hotelsWithoutImage: 0,
+      contentSynced: 0,
+      computedAt: new Date().toISOString(),
+    };
+  }
+
+  let totalHotels = 0;
+  let hotelsWithImage = 0;
+  let hotelsWithoutImage = 0;
+  let contentSynced = 0;
+  let cursor: number | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(500);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted) continue;
+      totalHotels += 1;
+      if (hotel.contentSynced) contentSynced += 1;
+      if (catalogEntryHasDisplayImage(hotel)) {
+        hotelsWithImage += 1;
+      } else {
+        hotelsWithoutImage += 1;
+      }
+    }
+
+    hasMore = snap.size >= 500;
+  }
+
+  return {
+    totalHotels,
+    hotelsWithImage,
+    hotelsWithoutImage,
+    contentSynced,
+    computedAt: new Date().toISOString(),
+  };
+}
+
+export async function getTripJackHotelCatalogImageStats(options?: {
+  force?: boolean;
+}): Promise<TripJackHotelCatalogImageStats> {
+  const meta = await getTripJackHotelCatalogMeta();
+  const cached = meta.imageStats;
+  if (
+    !options?.force &&
+    cached?.computedAt &&
+    Date.now() - new Date(cached.computedAt).getTime() < IMAGE_STATS_CACHE_MS
+  ) {
+    return cached;
+  }
+
+  const [totalHotels, contentSynced, withIndexed, withoutIndexed] = await Promise.all([
+    countActiveTripJackHotels(),
+    countContentSyncedTripJackHotels(),
+    countCatalogHotelsByDisplayImage(true),
+    countCatalogHotelsByDisplayImage(false),
+  ]);
+
+  let stats: TripJackHotelCatalogImageStats;
+  if (withIndexed != null && withoutIndexed != null && withIndexed + withoutIndexed >= totalHotels * 0.5) {
+    stats = {
+      totalHotels,
+      hotelsWithImage: withIndexed,
+      hotelsWithoutImage: withoutIndexed,
+      contentSynced,
+      computedAt: new Date().toISOString(),
+    };
+  } else {
+    stats = await scanCatalogImageStats();
+  }
+
+  await updateTripJackHotelCatalogMeta({ imageStats: stats });
+  return stats;
 }
 
 /** Fast pass: derive city/locality from existing name/address without TripJack API. */

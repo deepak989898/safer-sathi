@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Loader2, MapPin, Search, Star } from "lucide-react";
+import { Loader2, MapPin, Star } from "lucide-react";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { TripJackInlineSearchSection } from "@/components/hotels-tripjack/tripjack-inline-search";
+import { TripJackHotelCardMedia } from "@/components/hotels-tripjack/tripjack-hotel-card-media";
+import { TripJackQuickSearchBar } from "@/components/hotels-tripjack/tripjack-quick-search-bar";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import { FEATURED_POPULAR_CITIES } from "@/lib/tripjack-hotels/catalog-location";
 import { bootstrapFeaturedTripJackHotel } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
-import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import { formatCurrency, t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import type { Locale } from "@/types";
@@ -33,17 +33,6 @@ function FeaturedTripJackCard({
 }) {
   const router = useRouter();
   const [booking, setBooking] = useState(false);
-  const candidates = useMemo(
-    () =>
-      resolveHotelImageCandidates({
-        heroImage: hotel.heroImage,
-        imageUrls: hotel.imageUrls,
-      }),
-    [hotel]
-  );
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const imageSrc = candidates[candidateIndex];
-  const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
   const stars =
     hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
 
@@ -75,22 +64,12 @@ function FeaturedTripJackCard({
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <button type="button" onClick={() => void openHotel()} className="block w-full text-left">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt={hotel.imageCaption || hotel.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setCandidateIndex((index) => index + 1)}
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Building2 className="h-10 w-10 opacity-40" />
-              <span className="text-xs font-medium uppercase tracking-wide">Hotel</span>
-            </div>
-          )}
+          <TripJackHotelCardMedia
+            alt={hotel.imageCaption || hotel.name}
+            heroImage={hotel.heroImage}
+            imageUrls={hotel.imageUrls}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+          />
           {stars > 0 && (
             <Badge className="absolute left-3 top-3 z-10 bg-white/95 text-slate-900 hover:bg-white/95">
               <Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" />
@@ -193,7 +172,6 @@ export function FeaturedTripJackHotelsSection({
 }) {
   const { locale } = useAppStore();
   const [activeCity, setActiveCity] = useState<string>("all");
-  const [showLiveSearch, setShowLiveSearch] = useState(false);
   const [priceMap, setPriceMap] = useState<FeaturedPriceMap>({});
   const [priceLoading, setPriceLoading] = useState(false);
 
@@ -260,43 +238,29 @@ export function FeaturedTripJackHotelsSection({
 
   return (
     <section className="mb-10">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-[#0c2444] md:text-2xl">Featured hotels in India</h2>
-          {!showLiveSearch && (
+      <div className="mb-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-[#0c2444] md:text-2xl">Featured hotels in India</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {hotels.length > 0
                 ? "Handpicked stays with photos and live rates — open any hotel to view rooms and book."
-                : "Popular Indian destinations with live availability — search anytime for more."}
+                : "Popular Indian destinations with live availability — search below for more."}
             </p>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={showLiveSearch ? "default" : "outline"}
-            className={showLiveSearch ? "bg-[#1a4fa3] hover:bg-[#16408a]" : ""}
-            onClick={() => setShowLiveSearch((prev) => !prev)}
-          >
-            <Search className="mr-2 h-4 w-4" />
-            {showLiveSearch ? "Hide search" : "Search more live hotels"}
-          </Button>
+          </div>
           <Link href="/hotels/browse">
             <Button variant="outline">View all hotels</Button>
           </Link>
         </div>
+
+        <TripJackQuickSearchBar />
       </div>
 
-      {showLiveSearch && (
-        <div className="mb-8">
-          <TripJackInlineSearchSection />
-        </div>
-      )}
-
-      {!showLiveSearch && !loading && hotels.length === 0 ? (
+      {!loading && hotels.length === 0 ? (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-6 text-sm text-amber-950">
           <p>{syncMessage}</p>
         </div>
-      ) : !showLiveSearch ? (
+      ) : (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="rounded-2xl border bg-white p-4">
             <p className="mb-3 text-sm font-semibold text-slate-900">Filter by city</p>
@@ -360,7 +324,7 @@ export function FeaturedTripJackHotelsSection({
             </div>
           )}
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

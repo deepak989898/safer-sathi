@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
-import { catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
+import { resolveCatalogEntryImages } from "@/lib/tripjack-hotels/hotel-images";
 import {
   getTripJackHotelCatalogEntriesByHids,
   searchTripJackHotelCatalogByCityPrefix,
@@ -28,7 +28,7 @@ function isBrowsableCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
 }
 
 export function catalogEntryToBrowseHotel(entry: TripJackHotelCatalogEntry): NormalizedHotel {
-  const imageUrls = catalogEntryImageUrls(entry);
+  const images = resolveCatalogEntryImages(entry);
   const location = [entry.address, entry.cityName, entry.stateName, entry.countryName]
     .filter(Boolean)
     .join(", ");
@@ -37,12 +37,12 @@ export function catalogEntryToBrowseHotel(entry: TripJackHotelCatalogEntry): Nor
     tjHotelId: entry.tjHotelId,
     name: entry.name,
     starRating: entry.starRating ?? entry.rating,
-    imageUrl: entry.heroImage ?? imageUrls[0],
-    imageUrls,
-    heroImage: entry.heroImage ?? imageUrls[0],
-    imageCaption: entry.imageCaption,
-    images: entry.images,
-    staticContent: entry.images ? { images: entry.images } : undefined,
+    imageUrl: images.heroImage,
+    imageUrls: images.imageUrls,
+    heroImage: images.heroImage,
+    imageCaption: images.imageCaption,
+    images: images.rawImages.length ? images.rawImages : undefined,
+    staticContent: images.rawImages.length ? { images: images.rawImages } : undefined,
     location,
     hasBreakfast: false,
     cheapestTotalPrice: 0,

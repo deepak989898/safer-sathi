@@ -1,6 +1,6 @@
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
 import { enrichCatalogEntryLocation } from "@/lib/tripjack-hotels/catalog-location";
-import { parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
+import { catalogEntryHasDisplayImage, parseTripJackHotelImages } from "@/lib/tripjack-hotels/hotel-images";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -192,6 +192,7 @@ export function normalizeStaticHotelRecord(
     description: description || undefined,
     contact: contact || undefined,
     contentSynced: true,
+    hasDisplayImage: imageData.imageUrls.length > 0,
     websiteVisible: true,
     isActive: !isDeleted,
     isDeleted,
@@ -199,7 +200,11 @@ export function normalizeStaticHotelRecord(
     updatedAt: now,
   };
 
-  return enrichCatalogEntryLocation(baseEntry);
+  const enriched = enrichCatalogEntryLocation(baseEntry);
+  return {
+    ...enriched,
+    hasDisplayImage: catalogEntryHasDisplayImage(enriched),
+  };
 }
 
 export interface TripJackHotelMappingRecord {

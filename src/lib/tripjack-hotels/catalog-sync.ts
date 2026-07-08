@@ -5,6 +5,8 @@ import {
   getAllTripJackActiveHotelsForIndexRebuild,
   getNextContentSyncBatch,
   getNextLocationBackfillBatch,
+  getNextMissingImageBackfillBatch,
+  getTripJackHotelCatalogImageStats,
   getTripJackHotelCatalogMeta,
   enrichCatalogLocationBulkChunk,
   updateTripJackHotelCatalogMeta,
@@ -21,6 +23,7 @@ import {
   MAX_LISTING_HIDS,
   LOCATION_BACKFILL_CHUNK_SIZE,
   LOCATION_BACKFILL_MAX_PER_RUN,
+  IMAGE_BACKFILL_MAX_PER_RUN,
 } from "@/lib/tripjack-hotels/catalog-types";
 import type { TripJackHotelSyncMode } from "@/lib/tripjack-hotels/catalog-types";
 import {
@@ -596,6 +599,156 @@ export async function runCatalogLocationBackfillRun(options?: {
   const message = `Location backfill run — ${totalUpdated.toLocaleString()} hotel${
     totalUpdated === 1 ? "" : "s"
   } updated (${chunks} chunk${chunks === 1 ? "" : "s"})${
+    hasMore ? " · more hotels remaining" : " · finished for this run"
+  }`;
+
+  await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
+
+  return {
+    totalProcessed,
+    totalUpdated,
+    totalFailed,
+    chunks,
+    hasMore,
+    message,
+  };
+}
+
+export async function syncCatalogImageBackfillBatch(options?: {
+  maxRetries?: number;
+  maxHotels?: number;
+}): Promise<{
+  batchSize: number;
+  batchSuccess: number;
+  batchFailed: number;
+  apiBatches: number;
+  hasMore: boolean;
+  message: string;
+}> {
+  const budget = Math.min(
+    IMAGE_BACKFILL_MAX_PER_RUN,
+    Math.max(MAX_HOTEL_CONTENT_BATCH, options?.maxHotels ?? MAX_HOTEL_CONTENT_BATCH)
+  );
+
+  let apiProcessed = 0;
+  let apiSuccess = 0;
+  let apiFailed = 0;
+  let apiBatches = 0;
+  let apiHasMore = true;
+
+  while (apiProcessed < budget && apiHasMore) {
+    const meta = await getTripJackHotelCatalogMeta();
+    const cursor = meta.imageBackfillCursor ?? null;
+    const remaining = budget - apiProcessed;
+    const fetchSize = Math.min(MAX_HOTEL_CONTENT_BATCH, remaining);
+
+    const { ids, lastTjHotelId, hasMore: scanHasMore } = await getNextMissingImageBackfillBatch(
+      cursor,
+      fetchSize
+    );
+
+    if (!ids.length) {
+      apiHasMore = false;
+      await updateTripJackHotelCatalogMeta({ imageBackfillCursor: null });
+      break;
+    }
+
+    const batchIds = ids.map(String);
+    try {
+      const { data } = await fetchHotelContentWithRetry(batchIds, options?.maxRetries ?? 3);
+      const hotels = extractHotelContentPayload(data);
+      const entries = hotels
+        .map((hotel) => normalizeStaticHotelRecord(hotel))
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+      if (entries.length) {
+        await upsertTripJackHotelCatalogEntries(entries);
+      }
+      apiSuccess += entries.length;
+      apiFailed += Math.max(0, ids.length - entries.length);
+    } catch (error) {
+      apiFailed += ids.length;
+      console.warn("[tripjack-hotel-sync] image backfill API batch failed:", error);
+    }
+
+    apiProcessed += ids.length;
+    apiBatches += 1;
+    apiHasMore = scanHasMore;
+
+    await updateTripJackHotelCatalogMeta({
+      imageBackfillCursor: lastTjHotelId,
+    });
+
+    if (!scanHasMore) {
+      await updateTripJackHotelCatalogMeta({ imageBackfillCursor: null });
+      apiHasMore = false;
+    }
+  }
+
+  const hasMore = apiHasMore;
+  const message = [
+    `Image backfill chunk`,
+    `${apiSuccess.toLocaleString()} refreshed via content API`,
+    apiFailed > 0 ? `${apiFailed.toLocaleString()} API failed` : null,
+    hasMore ? "more remaining — run again" : "no missing-image hotels found in scan",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
+  await getTripJackHotelCatalogImageStats({ force: true });
+
+  return {
+    batchSize: apiProcessed,
+    batchSuccess: apiSuccess,
+    batchFailed: apiFailed,
+    apiBatches,
+    hasMore,
+    message,
+  };
+}
+
+export async function runCatalogImageBackfillRun(options?: {
+  maxHotels?: number;
+  maxRetries?: number;
+}): Promise<{
+  totalProcessed: number;
+  totalUpdated: number;
+  totalFailed: number;
+  chunks: number;
+  hasMore: boolean;
+  message: string;
+}> {
+  const target = Math.min(
+    IMAGE_BACKFILL_MAX_PER_RUN,
+    Math.max(MAX_HOTEL_CONTENT_BATCH, options?.maxHotels ?? IMAGE_BACKFILL_MAX_PER_RUN)
+  );
+
+  let totalProcessed = 0;
+  let totalUpdated = 0;
+  let totalFailed = 0;
+  let chunks = 0;
+  let hasMore = true;
+
+  while (totalUpdated < target && hasMore) {
+    const remaining = target - totalUpdated;
+    const chunk = await syncCatalogImageBackfillBatch({
+      maxRetries: options?.maxRetries,
+      maxHotels: Math.min(MAX_HOTEL_CONTENT_BATCH, remaining),
+    });
+
+    chunks += 1;
+    totalProcessed += chunk.batchSize;
+    totalUpdated += chunk.batchSuccess;
+    totalFailed += chunk.batchFailed;
+    hasMore = chunk.hasMore;
+
+    if (chunk.batchSuccess === 0 && chunk.batchSize === 0) break;
+  }
+
+  const message = `Image backfill run — ${totalUpdated.toLocaleString()} hotel${
+    totalUpdated === 1 ? "" : "s"
+  } updated (${chunks} batch${chunks === 1 ? "" : "es"})${
     hasMore ? " · more hotels remaining" : " · finished for this run"
   }`;
 

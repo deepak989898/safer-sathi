@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Building2, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
+import {
+  TripJackHotelCardMedia,
+  tripJackHotelCardMediaProps,
+} from "@/components/hotels-tripjack/tripjack-hotel-card-media";
 import { formatCurrency } from "@/lib/i18n";
-import { resolveHotelImageCandidates } from "@/lib/tripjack-hotels/hotel-images";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
 
@@ -17,21 +19,6 @@ interface HotelCardProps {
 
 export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
   const stars = hotel.starRating && hotel.starRating > 0 ? Math.min(5, Math.round(hotel.starRating)) : 0;
-  const candidates = useMemo(
-    () =>
-      resolveHotelImageCandidates({
-        imageUrl: hotel.imageUrl,
-        images: hotel.images,
-        imageUrls: hotel.imageUrls,
-        heroImage: hotel.heroImage,
-        staticContent: hotel.staticContent,
-        options: hotel.options,
-      }),
-    [hotel]
-  );
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const imageSrc = candidates[candidateIndex];
-  const showImage = Boolean(imageSrc) && candidateIndex < candidates.length;
 
   return (
     <article
@@ -39,25 +26,10 @@ export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
       style={{ borderRadius: HOTEL_UI.cardRadius, borderColor: HOTEL_UI.border }}
     >
       <div className="relative h-48 w-full shrink-0 overflow-hidden bg-slate-100 md:h-auto md:min-h-[12rem] md:w-56 lg:w-64">
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageSrc}
-            alt={hotel.imageCaption || hotel.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            onError={() => setCandidateIndex((index) => index + 1)}
-          />
-        ) : (
-          <div
-            className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center"
-            style={{ color: HOTEL_UI.textMuted }}
-          >
-            <Building2 className="h-8 w-8 opacity-40" />
-            <span className="text-xs font-medium uppercase tracking-wide">No image</span>
-          </div>
-        )}
+        <TripJackHotelCardMedia
+          {...tripJackHotelCardMediaProps(hotel)}
+          className="h-full w-full object-cover"
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">

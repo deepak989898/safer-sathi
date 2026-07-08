@@ -1,4 +1,8 @@
+import { PLACEHOLDER_TRAVEL_IMAGE } from "@/lib/media/travel-images";
 import type { NormalizedHotel, NormalizedHotelOption } from "@/lib/tripjack-hotels/types";
+
+/** Safar Sathi fallback when TripJack has no usable hotel photo. */
+export const HOTEL_CARD_PLACEHOLDER = PLACEHOLDER_TRAVEL_IMAGE;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -251,7 +255,7 @@ export function explainHotelImageResolution(hotel: NormalizedHotel): {
   }
 
   if (hotel.imageUrl) steps.push(`legacy imageUrl: ${hotel.imageUrl}`);
-  if (!candidates.length) steps.push("fallback: NO IMAGE placeholder");
+  if (!candidates.length) steps.push("fallback: Safar Sathi hotel placeholder");
 
   const rawFirst = parsed.rawImages[0];
   return {
@@ -263,18 +267,69 @@ export function explainHotelImageResolution(hotel: NormalizedHotel): {
   };
 }
 
+function pushValidUrl(candidates: string[], url?: string): void {
+  if (!url) return;
+  const normalized = normalizeHref(url);
+  if (!normalized || !isValidHttpUrl(normalized) || candidates.includes(normalized)) return;
+  candidates.push(normalized);
+}
+
+/** Resolve display images from a Firestore catalog entry (hero → imageUrls → images[]). */
+export function resolveCatalogEntryImages(entry: {
+  heroImage?: string;
+  imageUrls?: string[];
+  images?: unknown;
+  imageCaption?: string;
+}): ParsedTripJackHotelImages {
+  const candidates: string[] = [];
+
+  pushValidUrl(candidates, entry.heroImage);
+  for (const url of entry.imageUrls ?? []) pushValidUrl(candidates, url);
+
+  const parsed = parseTripJackHotelImages(entry.images);
+  pushValidUrl(candidates, parsed.heroImage);
+  for (const url of parsed.imageUrls) pushValidUrl(candidates, url);
+
+  return {
+    rawImages: parsed.rawImages,
+    imageUrls: candidates,
+    heroImage: candidates[0],
+    imageCaption: entry.imageCaption ?? parsed.imageCaption,
+  };
+}
+
+export function catalogEntryHasDisplayImage(entry: {
+  heroImage?: string;
+  imageUrls?: string[];
+  images?: unknown;
+}): boolean {
+  return resolveCatalogEntryImages(entry).imageUrls.length > 0;
+}
+
 export function catalogEntryImageUrls(entry: {
   imageUrls?: string[];
   heroImage?: string;
   images?: unknown;
   rawImages?: unknown;
 }): string[] {
-  if (entry.imageUrls?.length) return entry.imageUrls;
-  if (Array.isArray(entry.images) && entry.images.length && typeof entry.images[0] === "string") {
-    return entry.images as string[];
-  }
-  const parsed = parseTripJackHotelImages(entry.rawImages ?? entry.images);
-  return parsed.imageUrls;
+  return resolveCatalogEntryImages({
+    heroImage: entry.heroImage,
+    imageUrls: entry.imageUrls,
+    images: entry.rawImages ?? entry.images,
+  }).imageUrls;
+}
+
+export function resolveHotelImageCandidatesWithPlaceholder(input: {
+  imageUrl?: string;
+  images?: unknown;
+  imageUrls?: string[];
+  heroImage?: string;
+  staticContent?: { images?: unknown };
+  options?: NormalizedHotelOption[];
+}): string[] {
+  const urls = resolveHotelImageCandidates(input);
+  if (!urls.length) return [HOTEL_CARD_PLACEHOLDER];
+  return [...urls, HOTEL_CARD_PLACEHOLDER];
 }
 
 export function applyParsedImagesToHotel(

@@ -23,12 +23,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { tripjackAdminApiCall } from "@/lib/tripjack-hotels/admin-response";
 import {
+  orchestrateImageBackfill,
   orchestrateLocationBackfill,
   orchestrateTripJackSync,
+  type ImageBackfillProgress,
   type LocationBackfillProgress,
   type TripJackSyncProgress,
 } from "@/lib/tripjack-hotels/admin-sync-orchestrator";
-import { LOCATION_BACKFILL_MAX_PER_RUN } from "@/lib/tripjack-hotels/catalog-types";
+import { IMAGE_BACKFILL_MAX_PER_RUN, LOCATION_BACKFILL_MAX_PER_RUN } from "@/lib/tripjack-hotels/catalog-types";
 import type { TripJackHotelOpsDashboard } from "@/lib/tripjack-hotels/ops-dashboard";
 import type { ProductionChecklistItem } from "@/lib/tripjack-hotels/production-checklist";
 import type { TripJackHotelSyncLog } from "@/lib/tripjack-hotels/catalog-types";
@@ -56,6 +58,7 @@ const SYNC_MODE_LABELS: Record<string, string> = {
   nationalities: "Sync nationalities",
   booking_status: "Sync booking status",
   location_backfill: `Backfill city/address (up to ${LOCATION_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
+  image_backfill: `Backfill missing images (up to ${IMAGE_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
 };
 
 function toApiError(
@@ -98,6 +101,8 @@ export default function TripJackHotelsAdminClient() {
   const [syncProgress, setSyncProgress] = useState<TripJackSyncProgress | null>(null);
   const [locationBackfillProgress, setLocationBackfillProgress] =
     useState<LocationBackfillProgress | null>(null);
+  const [imageBackfillProgress, setImageBackfillProgress] =
+    useState<ImageBackfillProgress | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,6 +198,26 @@ export default function TripJackHotelsAdminClient() {
         return;
       }
 
+      if (mode === "image_backfill") {
+        setImageBackfillProgress(null);
+        const result = await orchestrateImageBackfill((progress) =>
+          setImageBackfillProgress(progress)
+        );
+
+        if (!result.ok) {
+          setApiError({ context: label, message: result.error ?? result.message });
+          toast.error(result.message);
+          return;
+        }
+
+        toast.success(result.message);
+        setImageBackfillProgress((prev) =>
+          prev ? { ...prev, phase: "done", message: result.message } : null
+        );
+        void load();
+        return;
+      }
+
       if (orchestratedModes.has(mode)) {
         const result = await orchestrateTripJackSync(
           mode as "full" | "mapping_only" | "content_only" | "incremental",
@@ -234,8 +259,9 @@ export default function TripJackHotelsAdminClient() {
       toast.error(message);
     } finally {
       setSyncing(null);
-      if (mode !== "location_backfill") {
+      if (mode !== "location_backfill" && mode !== "image_backfill") {
         setLocationBackfillProgress(null);
+        setImageBackfillProgress(null);
       }
     }
   };
@@ -476,6 +502,58 @@ export default function TripJackHotelsAdminClient() {
           </div>
         )}
 
+        {dashboard?.catalogImageStats ? (
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold">Catalog image coverage</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Debug counts for TripJack hotel photos in Firestore. Stats refresh hourly or after
+                image backfill.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Stat label="Total hotels" value={dashboard.catalogImageStats.totalHotels} />
+                <Stat label="Hotels with image" value={dashboard.catalogImageStats.hotelsWithImage} />
+                <Stat
+                  label="Hotels without image"
+                  value={dashboard.catalogImageStats.hotelsWithoutImage}
+                />
+                <Stat label="Content synced" value={dashboard.catalogImageStats.contentSynced} />
+              </div>
+              {imageBackfillProgress && syncing === "image_backfill" ? (
+                <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+                  <p className="font-semibold capitalize">
+                    Image backfill — {imageBackfillProgress.phase}
+                  </p>
+                  <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+                    <span>
+                      Updated: {imageBackfillProgress.totalUpdated.toLocaleString()} /{" "}
+                      {imageBackfillProgress.target.toLocaleString()}
+                    </span>
+                    <span>Batches: {imageBackfillProgress.batches}</span>
+                    <span>Processed: {imageBackfillProgress.totalProcessed.toLocaleString()}</span>
+                    <span>Failed: {imageBackfillProgress.totalFailed.toLocaleString()}</span>
+                  </div>
+                  <p className="mt-2 text-xs">{imageBackfillProgress.message}</p>
+                </div>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(syncing)}
+                onClick={() => void runSync("image_backfill")}
+              >
+                {syncing === "image_backfill" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Backfill missing images
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center gap-2">
@@ -508,7 +586,7 @@ export default function TripJackHotelsAdminClient() {
                 <p className="mt-2 text-xs">{locationBackfillProgress.message}</p>
               </div>
             ) : null}
-            {syncProgress && syncing && syncing !== "location_backfill" ? (
+            {syncProgress && syncing && syncing !== "location_backfill" && syncing !== "image_backfill" ? (
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
                 <p className="font-semibold capitalize">Sync in progress — {syncProgress.phase}</p>
                 <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">

@@ -22,6 +22,7 @@ interface HotelDestinationAutocompleteProps {
   containerRef?: React.RefObject<HTMLDivElement | null>;
   highlightedIndex?: number;
   onHighlightedIndexChange?: (index: number) => void;
+  onSubmit?: () => void;
 }
 
 function suggestionIcon(type: DestinationSuggestion["type"]) {
@@ -45,11 +46,23 @@ export function HotelDestinationAutocomplete({
   containerRef,
   highlightedIndex = -1,
   onHighlightedIndexChange,
+  onSubmit,
 }: HotelDestinationAutocompleteProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const rootRef = containerRef ?? internalRef;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      if (showDropdown && highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+        event.preventDefault();
+        onSelect(suggestions[highlightedIndex]);
+        return;
+      }
+      event.preventDefault();
+      onSubmit?.();
+      return;
+    }
+
     if (!showDropdown || !suggestions.length) return;
 
     if (event.key === "ArrowDown") {
@@ -60,10 +73,6 @@ export function HotelDestinationAutocomplete({
       event.preventDefault();
       const next = Math.max(highlightedIndex - 1, 0);
       onHighlightedIndexChange?.(next);
-    } else if (event.key === "Enter" && highlightedIndex >= 0) {
-      event.preventDefault();
-      const item = suggestions[highlightedIndex];
-      if (item) onSelect(item);
     } else if (event.key === "Escape") {
       onHighlightedIndexChange?.(-1);
     }

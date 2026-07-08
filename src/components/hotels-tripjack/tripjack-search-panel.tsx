@@ -140,6 +140,7 @@ export function TripJackSearchPanel({
                   containerRef={destinationContainerRef}
                   highlightedIndex={highlightedIndex}
                   onHighlightedIndexChange={onHighlightedIndexChange}
+                  onSubmit={onSearch}
                 />
               </div>
             </div>
