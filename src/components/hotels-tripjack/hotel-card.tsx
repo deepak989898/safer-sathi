@@ -2,6 +2,7 @@
 
 import { Star } from "lucide-react";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
+import { HotelCardLocation } from "@/components/hotels-tripjack/hotel-card-location";
 import { HotelPrimaryButton, HotelStatusBadge } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import {
   TripJackHotelCardMedia,
@@ -45,11 +46,12 @@ export function HotelCard({ hotel, locale, onViewDetails }: HotelCardProps) {
                 ))}
               </div>
             )}
-            {hotel.location && (
-              <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-                {hotel.location}
-              </p>
-            )}
+            <div className="mt-1" style={{ color: HOTEL_UI.textMuted }}>
+              <HotelCardLocation
+                location={hotel.displayLocation ?? hotel.location}
+                className="!text-inherit"
+              />
+            </div>
             <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
               {hotel.mealBasis || "Hotel"}
             </p>

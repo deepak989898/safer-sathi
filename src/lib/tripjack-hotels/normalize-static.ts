@@ -107,12 +107,41 @@ export function normalizeStaticHotelRecord(
   const cityName =
     pickString(rec, ["cityName", "city", "destinationCity", "town"]) ||
     pickString(addressObj ?? {}, ["cityName", "city", "town", "destinationCity"]);
+  const cityCode =
+    pickString(rec, ["cityCode", "cityId", "destinationCityCode"]) ||
+    pickString(addressObj ?? {}, ["cityCode", "cityId", "destinationCityCode"]);
   const stateName =
     pickString(rec, ["stateName", "state", "province"]) ||
     pickString(addressObj ?? {}, ["stateName", "state", "province"]);
+  const locality =
+    pickString(rec, [
+      "locality",
+      "subLocality",
+      "neighbourhood",
+      "neighborhood",
+      "micromarket",
+      "microMarket",
+      "location",
+    ]) ||
+    pickString(addressObj ?? {}, [
+      "locality",
+      "subLocality",
+      "neighbourhood",
+      "neighborhood",
+      "micromarket",
+      "microMarket",
+    ]);
+  const area =
+    pickString(rec, ["area", "zone", "regionName", "district", "microlocation"]) ||
+    pickString(addressObj ?? {}, ["area", "zone", "regionName", "district"]);
+  const landmark =
+    pickString(rec, ["landmark", "landmarkName", "nearLandmark", "landmarkString"]) ||
+    pickString(addressObj ?? {}, ["landmark", "landmarkName", "nearLandmark"]);
   const region =
-    pickString(rec, ["region", "regionName", "area", "locality", "subLocality", "neighbourhood"]) ||
-    pickString(addressObj ?? {}, ["region", "regionName", "area", "locality", "subLocality", "neighbourhood"]);
+    locality ||
+    area ||
+    pickString(rec, ["region", "regionName"]) ||
+    pickString(addressObj ?? {}, ["region", "regionName"]);
   const countryName =
     pickString(rec, ["countryName", "country"]) ||
     pickString(addressObj ?? {}, ["countryName", "country"]);
@@ -120,9 +149,16 @@ export function normalizeStaticHotelRecord(
     pickString(rec, ["countryCode", "countryIsoCode"]) ||
     pickString(addressObj ?? {}, ["countryCode", "countryIsoCode"]);
   const address =
-    pickString(rec, ["address", "fullAddress", "locationAddress", "completeAddress"]) ||
+    pickString(rec, ["address", "fullAddress", "locationAddress", "completeAddress", "hotelAddress"]) ||
     [
-      pickString(addressObj ?? {}, ["line1", "line2", "addressLine1", "addressLine2", "street"]),
+      pickString(addressObj ?? {}, [
+        "line1",
+        "line2",
+        "addressLine1",
+        "addressLine2",
+        "addressLine",
+        "street",
+      ]),
       pickString(addressObj ?? {}, ["area", "locality", "city", "state", "postalCode", "zip"]),
     ]
       .filter(Boolean)
@@ -155,7 +191,11 @@ export function normalizeStaticHotelRecord(
   const searchBlob = buildSearchBlob([
     name,
     cityName,
+    cityCode,
     stateName,
+    locality,
+    area,
+    landmark,
     region,
     countryName,
     address,
@@ -174,7 +214,11 @@ export function normalizeStaticHotelRecord(
     nameLower,
     cityName,
     cityNameLower,
+    cityCode: cityCode || undefined,
     stateName: stateName || undefined,
+    locality: locality || undefined,
+    area: area || undefined,
+    landmark: landmark || undefined,
     region: region || undefined,
     countryName: countryName || "INDIA",
     countryCode: countryCode || undefined,

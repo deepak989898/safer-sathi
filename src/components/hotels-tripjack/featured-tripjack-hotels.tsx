@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Loader2, MapPin, Star } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { TripJackHotelCardMedia } from "@/components/hotels-tripjack/tripjack-hotel-card-media";
+import { HotelCardLocation } from "@/components/hotels-tripjack/hotel-card-location";
 import { TripJackDatePriceStrip } from "@/components/hotels-tripjack/tripjack-date-price-strip";
 import { TripJackQuickSearchBar } from "@/components/hotels-tripjack/tripjack-quick-search-bar";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
@@ -87,10 +88,7 @@ function FeaturedTripJackCard({
             <RatingStars rating={hotel.starRating} />
           ) : null}
         </div>
-        <p className="flex items-start gap-1 text-sm text-muted-foreground">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span className="line-clamp-2">{hotel.location}</span>
-        </p>
+        <HotelCardLocation location={hotel.location} />
         {hotel.facilities.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {hotel.facilities.slice(0, 3).map((facility) => (

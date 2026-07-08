@@ -7,6 +7,7 @@ import {
   getNextLocationBackfillBatch,
   getNextMissingImageBackfillBatch,
   getTripJackHotelCatalogImageStats,
+  getTripJackHotelCatalogLocationStats,
   getTripJackHotelCatalogMeta,
   enrichCatalogLocationBulkChunk,
   updateTripJackHotelCatalogMeta,
@@ -537,6 +538,9 @@ export async function syncCatalogLocationBackfillBatch(options?: {
     `Location backfill chunk`,
     `${enrichResult.updated.toLocaleString()} enriched from catalog`,
     `${apiSuccess.toLocaleString()} refreshed via content API`,
+    `${enrichResult.withLocality.toLocaleString()} with locality`,
+    `${enrichResult.usingAddressParser.toLocaleString()} via address parser`,
+    `${enrichResult.stillMissingLocality.toLocaleString()} still missing locality`,
     apiFailed > 0 ? `${apiFailed.toLocaleString()} API failed` : null,
     hasMore ? "more remaining — run again or wait for orchestrator" : "catalog pass complete",
   ]
@@ -544,6 +548,12 @@ export async function syncCatalogLocationBackfillBatch(options?: {
     .join(" · ");
 
   await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
+  if (!hasMore) {
+    await getTripJackHotelCatalogLocationStats({
+      force: true,
+      hotelsUpdated: enrichResult.updated + apiSuccess,
+    });
+  }
 
   return {
     batchSize: enrichResult.scanned + apiProcessed,
@@ -603,6 +613,10 @@ export async function runCatalogLocationBackfillRun(options?: {
   }`;
 
   await updateTripJackHotelCatalogMeta({ lastSyncMessage: message });
+  await getTripJackHotelCatalogLocationStats({
+    force: true,
+    hotelsUpdated: totalUpdated,
+  });
 
   return {
     totalProcessed,

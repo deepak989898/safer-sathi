@@ -57,7 +57,7 @@ const SYNC_MODE_LABELS: Record<string, string> = {
   incremental: "Incremental sync",
   nationalities: "Sync nationalities",
   booking_status: "Sync booking status",
-  location_backfill: `Backfill city/address (up to ${LOCATION_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
+  location_backfill: `Backfill locality display (up to ${LOCATION_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
   image_backfill: `Backfill missing images (up to ${IMAGE_BACKFILL_MAX_PER_RUN.toLocaleString()})`,
 };
 
@@ -585,6 +585,40 @@ export default function TripJackHotelsAdminClient() {
           </Card>
         ) : null}
 
+        {dashboard?.catalogLocationStats ? (
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold">Catalog location coverage</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Locality labels for hotel cards (e.g. Candolim, Goa). Stats refresh hourly or after
+                location backfill.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Stat label="Content synced" value={dashboard.catalogLocationStats.contentSynced} />
+                <Stat
+                  label="Hotels with locality"
+                  value={dashboard.catalogLocationStats.hotelsWithLocality}
+                />
+                <Stat
+                  label="Via address parser"
+                  value={dashboard.catalogLocationStats.hotelsUsingAddressParser}
+                />
+                <Stat
+                  label="Still missing locality"
+                  value={dashboard.catalogLocationStats.hotelsMissingLocality}
+                />
+                <Stat
+                  label="Hotels updated (backfill)"
+                  value={dashboard.catalogLocationStats.hotelsUpdated}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center gap-2">
@@ -674,7 +708,7 @@ export default function TripJackHotelsAdminClient() {
                 ["incremental", "Incremental sync"],
                 ["nationalities", "Sync nationalities"],
                 ["booking_status", "Sync booking status"],
-                ["location_backfill", "Backfill city/address"],
+                ["location_backfill", "Backfill locality display"],
               ].map(([mode, label]) => (
                 <Button
                   key={mode}

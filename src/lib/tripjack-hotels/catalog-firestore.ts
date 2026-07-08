@@ -2,8 +2,12 @@ import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore"
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { catalogEntryHasDisplayImage, catalogEntryImageUrls } from "@/lib/tripjack-hotels/hotel-images";
 import {
+  catalogEntryHasCardLocality,
+  catalogEntryNeedsLocationBackfill,
   enrichCatalogEntryLocation,
+  extractLocalityFromAddress,
   formatFeaturedCardLocation,
+  resolveHotelDisplayLocation,
 } from "@/lib/tripjack-hotels/catalog-location";
 import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog";
 import {
@@ -509,13 +513,9 @@ export async function getNextLocationBackfillBatch(
       const hotel = doc.data() as TripJackHotelCatalogEntry;
       cursor = hotel.tjHotelId;
       if (hotel.isDeleted || !hotel.contentSynced) continue;
-      const enriched = enrichCatalogEntryLocation(hotel);
-      const hasLocation = Boolean(formatFeaturedCardLocation(enriched));
-      const needsAddress = !hotel.address?.trim();
-      if (!hasLocation || !hotel.cityName?.trim() || needsAddress) {
-        ids.push(hotel.tjHotelId);
-        if (ids.length >= targetSize) break;
-      }
+      if (!catalogEntryNeedsLocationBackfill(hotel)) continue;
+      ids.push(hotel.tjHotelId);
+      if (ids.length >= targetSize) break;
     }
 
     if (snap.size < 300) scanHasMore = false;
@@ -703,6 +703,148 @@ export async function getTripJackHotelCatalogImageStats(options?: {
   return stats;
 }
 
+export interface TripJackHotelCatalogLocationStats {
+  totalHotels: number;
+  contentSynced: number;
+  hotelsUpdated: number;
+  hotelsWithLocality: number;
+  hotelsUsingAddressParser: number;
+  hotelsMissingLocality: number;
+  computedAt: string;
+}
+
+const LOCATION_STATS_CACHE_MS = 60 * 60 * 1000;
+
+function locationFieldsChanged(
+  before: TripJackHotelCatalogEntry,
+  after: TripJackHotelCatalogEntry
+): boolean {
+  return (
+    after.cityName !== before.cityName ||
+    after.locality !== before.locality ||
+    after.area !== before.area ||
+    after.landmark !== before.landmark ||
+    after.address !== before.address ||
+    after.displayLocation !== before.displayLocation
+  );
+}
+
+async function scanCatalogLocationStats(): Promise<TripJackHotelCatalogLocationStats> {
+  if (!isAdminEnvConfigured()) {
+    return {
+      totalHotels: 0,
+      contentSynced: 0,
+      hotelsUpdated: 0,
+      hotelsWithLocality: 0,
+      hotelsUsingAddressParser: 0,
+      hotelsMissingLocality: 0,
+      computedAt: new Date().toISOString(),
+    };
+  }
+  const db = await getSafeAdminDb();
+  if (!db) {
+    return {
+      totalHotels: 0,
+      contentSynced: 0,
+      hotelsUpdated: 0,
+      hotelsWithLocality: 0,
+      hotelsUsingAddressParser: 0,
+      hotelsMissingLocality: 0,
+      computedAt: new Date().toISOString(),
+    };
+  }
+
+  let totalHotels = 0;
+  let contentSynced = 0;
+  let hotelsWithLocality = 0;
+  let hotelsUsingAddressParser = 0;
+  let hotelsMissingLocality = 0;
+  let cursor: number | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(500);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (hotel.isDeleted) continue;
+      totalHotels += 1;
+      if (!hotel.contentSynced) continue;
+      contentSynced += 1;
+
+      const enriched = enrichCatalogEntryLocation(hotel);
+      const hasLocality = catalogEntryHasCardLocality(enriched);
+      if (hasLocality) {
+        hotelsWithLocality += 1;
+      } else {
+        hotelsMissingLocality += 1;
+      }
+
+      if (
+        !hotel.locality?.trim() &&
+        !hotel.area?.trim() &&
+        !hotel.landmark?.trim() &&
+        hotel.address?.trim() &&
+        extractLocalityFromAddress(hotel.address, enriched.cityName, enriched.stateName)
+      ) {
+        hotelsUsingAddressParser += 1;
+      }
+    }
+
+    hasMore = snap.size >= 500;
+  }
+
+  return {
+    totalHotels,
+    contentSynced,
+    hotelsUpdated: 0,
+    hotelsWithLocality,
+    hotelsUsingAddressParser,
+    hotelsMissingLocality,
+    computedAt: new Date().toISOString(),
+  };
+}
+
+export async function getTripJackHotelCatalogLocationStats(options?: {
+  force?: boolean;
+  hotelsUpdated?: number;
+}): Promise<TripJackHotelCatalogLocationStats> {
+  const meta = await getTripJackHotelCatalogMeta();
+  const cached = meta.locationStats;
+  if (
+    !options?.force &&
+    !options?.hotelsUpdated &&
+    cached?.computedAt &&
+    Date.now() - new Date(cached.computedAt).getTime() < LOCATION_STATS_CACHE_MS
+  ) {
+    return cached;
+  }
+
+  const [totalHotels, contentSynced] = await Promise.all([
+    countActiveTripJackHotels(),
+    countContentSyncedTripJackHotels(),
+  ]);
+
+  const scanned = await scanCatalogLocationStats();
+  const stats: TripJackHotelCatalogLocationStats = {
+    ...scanned,
+    totalHotels: totalHotels || scanned.totalHotels,
+    contentSynced: contentSynced || scanned.contentSynced,
+    hotelsUpdated: options?.hotelsUpdated ?? cached?.hotelsUpdated ?? 0,
+    computedAt: new Date().toISOString(),
+  };
+
+  await updateTripJackHotelCatalogMeta({ locationStats: stats });
+  return stats;
+}
+
 /** Fast pass: derive city/locality from existing name/address without TripJack API. */
 export async function enrichCatalogLocationBulkChunk(
   maxRecords = 5000
@@ -710,17 +852,39 @@ export async function enrichCatalogLocationBulkChunk(
   scanned: number;
   updated: number;
   hasMore: boolean;
+  withLocality: number;
+  usingAddressParser: number;
+  stillMissingLocality: number;
 }> {
   if (!isAdminEnvConfigured()) {
-    return { scanned: 0, updated: 0, hasMore: false };
+    return {
+      scanned: 0,
+      updated: 0,
+      hasMore: false,
+      withLocality: 0,
+      usingAddressParser: 0,
+      stillMissingLocality: 0,
+    };
   }
   const db = await getSafeAdminDb();
-  if (!db) return { scanned: 0, updated: 0, hasMore: false };
+  if (!db) {
+    return {
+      scanned: 0,
+      updated: 0,
+      hasMore: false,
+      withLocality: 0,
+      usingAddressParser: 0,
+      stillMissingLocality: 0,
+    };
+  }
 
   const meta = await getTripJackHotelCatalogMeta();
   let cursor = meta.locationEnrichCursor ?? null;
   let scanned = 0;
   let updated = 0;
+  let withLocality = 0;
+  let usingAddressParser = 0;
+  let stillMissingLocality = 0;
   let scanHasMore = true;
   const pending: TripJackHotelCatalogEntry[] = [];
 
@@ -747,18 +911,40 @@ export async function enrichCatalogLocationBulkChunk(
       if (hotel.isDeleted || !hotel.contentSynced) continue;
 
       scanned += 1;
+      const needsBackfill = catalogEntryNeedsLocationBackfill(hotel);
       const enriched = enrichCatalogEntryLocation(hotel);
-      const locationNow = formatFeaturedCardLocation(enriched);
-      const locationBefore = formatFeaturedCardLocation(hotel);
-      const changed =
-        enriched.cityName !== hotel.cityName ||
-        enriched.cityNameLower !== hotel.cityNameLower ||
-        enriched.region !== hotel.region ||
-        enriched.searchBlob !== hotel.searchBlob ||
-        Boolean(locationNow && !locationBefore);
+      const hasLocality = catalogEntryHasCardLocality(enriched);
 
+      if (hasLocality) {
+        withLocality += 1;
+      } else {
+        stillMissingLocality += 1;
+      }
+
+      if (
+        !hotel.locality?.trim() &&
+        enriched.locality?.trim() &&
+        hotel.address?.trim() &&
+        extractLocalityFromAddress(hotel.address, enriched.cityName, enriched.stateName)
+      ) {
+        usingAddressParser += 1;
+      }
+
+      const changed = needsBackfill && locationFieldsChanged(hotel, enriched);
       if (changed) {
-        pending.push(enriched);
+        pending.push({
+          ...hotel,
+          cityName: enriched.cityName,
+          cityNameLower: enriched.cityNameLower,
+          locality: enriched.locality,
+          area: enriched.area,
+          landmark: enriched.landmark,
+          address: enriched.address || hotel.address,
+          displayLocation: resolveHotelDisplayLocation(enriched),
+          region: enriched.region,
+          searchBlob: enriched.searchBlob,
+          updatedAt: new Date().toISOString(),
+        });
         updated += 1;
       }
 
@@ -776,10 +962,21 @@ export async function enrichCatalogLocationBulkChunk(
     locationEnrichCursor: scanHasMore ? cursor : null,
   });
 
+  if (updated > 0) {
+    const prior = meta.locationStats?.hotelsUpdated ?? 0;
+    await getTripJackHotelCatalogLocationStats({
+      force: true,
+      hotelsUpdated: prior + updated,
+    });
+  }
+
   return {
     scanned,
     updated,
     hasMore: scanHasMore,
+    withLocality,
+    usingAddressParser,
+    stillMissingLocality,
   };
 }
 

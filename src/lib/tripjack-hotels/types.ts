@@ -97,6 +97,9 @@ export interface NormalizedHotel {
   imageCaption?: string;
   staticContent?: { images?: unknown };
   location?: string;
+  /** Card label from TripJack content — "Locality, City" */
+  displayLocation?: string;
+  locality?: string;
   hasBreakfast?: boolean;
   cheapestTotalPrice: number;
   cheapestBasePrice: number;

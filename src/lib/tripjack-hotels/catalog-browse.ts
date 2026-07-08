@@ -12,6 +12,7 @@ import {
   hasFeaturedIndianCity,
   isIndiaTripJackCatalogHotel,
 } from "@/lib/tripjack-hotels/india-catalog";
+import { resolveHotelDisplayLocation } from "@/lib/tripjack-hotels/catalog-location";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 
 function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
@@ -29,9 +30,7 @@ function isBrowsableCatalogEntry(entry: TripJackHotelCatalogEntry): boolean {
 
 export function catalogEntryToBrowseHotel(entry: TripJackHotelCatalogEntry): NormalizedHotel {
   const images = resolveCatalogEntryImages(entry);
-  const location = [entry.address, entry.cityName, entry.stateName, entry.countryName]
-    .filter(Boolean)
-    .join(", ");
+  const displayLocation = resolveHotelDisplayLocation(entry);
 
   return {
     tjHotelId: entry.tjHotelId,
@@ -43,7 +42,9 @@ export function catalogEntryToBrowseHotel(entry: TripJackHotelCatalogEntry): Nor
     imageCaption: images.imageCaption,
     images: images.rawImages.length ? images.rawImages : undefined,
     staticContent: images.rawImages.length ? { images: images.rawImages } : undefined,
-    location,
+    location: displayLocation,
+    displayLocation,
+    locality: entry.locality,
     hasBreakfast: false,
     cheapestTotalPrice: 0,
     cheapestBasePrice: 0,

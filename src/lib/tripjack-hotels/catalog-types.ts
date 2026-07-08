@@ -6,8 +6,16 @@ export interface TripJackHotelCatalogEntry {
   nameLower: string;
   cityName: string;
   cityNameLower: string;
+  cityCode?: string;
   stateName?: string;
   region?: string;
+  /** TripJack locality / neighbourhood (e.g. Candolim, Baga) */
+  locality?: string;
+  /** TripJack area / zone / micromarket */
+  area?: string;
+  landmark?: string;
+  /** Precomputed card label: "Locality, City" */
+  displayLocation?: string;
   countryName: string;
   countryCode?: string;
   address: string;
@@ -75,6 +83,15 @@ export interface TripJackHotelCatalogMeta {
     hotelsWithImage: number;
     hotelsWithoutImage: number;
     contentSynced: number;
+    computedAt: string;
+  };
+  locationStats?: {
+    totalHotels: number;
+    contentSynced: number;
+    hotelsUpdated: number;
+    hotelsWithLocality: number;
+    hotelsUsingAddressParser: number;
+    hotelsMissingLocality: number;
     computedAt: string;
   };
 }

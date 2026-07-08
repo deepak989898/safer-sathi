@@ -1,6 +1,8 @@
 import type { TripJackHotelCatalogEntry } from "@/lib/tripjack-hotels/catalog-types";
 
 const INDIA_PATTERN = /\b(india|ind|bharat)\b/i;
+const NEAR_PREFIX_PATTERN =
+  /^(near|opp\.?|opposite|behind|in front of|close to|next to|adjacent to)\s+/i;
 
 export const FEATURED_POPULAR_CITIES = [
   "Goa",
@@ -80,6 +82,35 @@ export function popularCityDisplayName(key: string): string {
   return def?.display ?? titleCaseWords(key);
 }
 
+function normalizeComparable(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function isSamePlace(a: string, b: string): boolean {
+  const left = normalizeComparable(a);
+  const right = normalizeComparable(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const leftKey = resolvePopularCityKey(left);
+  const rightKey = resolvePopularCityKey(right);
+  return Boolean(leftKey && rightKey && leftKey === rightKey);
+}
+
+export function combineLocalityAndCity(locality: string, cityName: string): string {
+  const localityTrimmed = locality.trim();
+  const cityTrimmed = cityName.trim();
+  if (!cityTrimmed) return localityTrimmed;
+  if (!localityTrimmed || isSamePlace(localityTrimmed, cityTrimmed)) return cityTrimmed;
+  return `${titleCaseWords(localityTrimmed)}, ${titleCaseWords(cityTrimmed)}`;
+}
+
+export function isCityOnlyDisplayLocation(displayLocation: string, cityName: string): boolean {
+  const display = displayLocation.trim();
+  const city = cityName.trim();
+  if (!display || !city) return false;
+  return isSamePlace(display, city);
+}
+
 function extractCityFromHotelName(name: string): string | null {
   const patterns = [
     /\bin\s+([A-Za-z][A-Za-z\s'-]{1,40}?)(?:\s*[–\-|,]|$)/i,
@@ -104,6 +135,15 @@ function parseAddressParts(address: string): string[] {
     .filter((part) => part.length > 0 && !isGenericIndiaLabel(part));
 }
 
+function cleanLocalityCandidate(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed || isGenericIndiaLabel(trimmed)) return undefined;
+  if (resolvePopularCityKey(trimmed)) return undefined;
+  if (/^\d{4,8}$/.test(trimmed)) return undefined;
+  if (NEAR_PREFIX_PATTERN.test(trimmed)) return undefined;
+  return titleCaseWords(trimmed);
+}
+
 function matchCityInParts(parts: string[]): { city: string; cityKey: string; locality?: string } | null {
   for (let index = parts.length - 1; index >= 0; index -= 1) {
     const part = parts[index];
@@ -113,10 +153,57 @@ function matchCityInParts(parts: string[]): { city: string; cityKey: string; loc
     return {
       city: popularCityDisplayName(key),
       cityKey: key,
-      locality: locality && !resolvePopularCityKey(locality) ? titleCaseWords(locality) : undefined,
+      locality: locality ? cleanLocalityCandidate(locality) : undefined,
     };
   }
   return null;
+}
+
+export function extractLocalityFromAddress(
+  address: string,
+  cityName: string,
+  stateName?: string
+): string | undefined {
+  const parts = parseAddressParts(address);
+  if (!parts.length) return undefined;
+
+  const cityKey = resolvePopularCityKey(cityName) ?? cityName.toLowerCase();
+  const stateLower = stateName?.trim().toLowerCase();
+
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index];
+    const partKey = resolvePopularCityKey(part);
+    const matchesCity =
+      partKey === cityKey ||
+      normalizeComparable(part) === normalizeComparable(cityName);
+    if (!matchesCity) continue;
+
+    for (let localityIndex = index - 1; localityIndex >= 0; localityIndex -= 1) {
+      const candidate = cleanLocalityCandidate(parts[localityIndex]);
+      if (candidate) return candidate;
+    }
+    break;
+  }
+
+  const fromMatch = matchCityInParts(parts);
+  if (fromMatch?.locality && !isSamePlace(fromMatch.locality, cityName)) {
+    return fromMatch.locality;
+  }
+
+  if (stateLower) {
+    const withoutState = parts.filter((part) => normalizeComparable(part) !== stateLower);
+    if (withoutState.length >= 2) {
+      const candidate = cleanLocalityCandidate(withoutState[withoutState.length - 2]);
+      if (candidate) return candidate;
+    }
+  }
+
+  if (parts.length >= 2) {
+    const candidate = cleanLocalityCandidate(parts[parts.length - 2]);
+    if (candidate && !isSamePlace(candidate, cityName)) return candidate;
+  }
+
+  return undefined;
 }
 
 export interface ResolvedCatalogLocation {
@@ -124,14 +211,26 @@ export interface ResolvedCatalogLocation {
   cityKey: string;
   locality?: string;
   displayLocation: string;
+  usedAddressParser?: boolean;
 }
 
-export function resolveCatalogLocation(
-  entry: Pick<
-    TripJackHotelCatalogEntry,
-    "name" | "cityName" | "region" | "stateName" | "address" | "countryName" | "searchBlob"
-  >
-): ResolvedCatalogLocation | null {
+type LocationSourceEntry = Pick<
+  TripJackHotelCatalogEntry,
+  | "name"
+  | "cityName"
+  | "cityCode"
+  | "stateName"
+  | "region"
+  | "locality"
+  | "area"
+  | "landmark"
+  | "address"
+  | "countryName"
+  | "displayLocation"
+  | "searchBlob"
+>;
+
+function resolveCityName(entry: LocationSourceEntry): { cityName: string; cityKey: string } | null {
   const candidates: string[] = [
     entry.cityName,
     entry.region,
@@ -142,7 +241,6 @@ export function resolveCatalogLocation(
 
   let cityName = "";
   let cityKey = "";
-  let locality = entry.region?.trim() || undefined;
 
   for (const candidate of [entry.cityName, entry.region, entry.stateName]) {
     if (!candidate?.trim() || isGenericIndiaLabel(candidate)) continue;
@@ -163,7 +261,6 @@ export function resolveCatalogLocation(
     if (fromAddress) {
       cityName = fromAddress.city;
       cityKey = fromAddress.cityKey;
-      locality = locality || fromAddress.locality;
     }
   }
 
@@ -188,39 +285,98 @@ export function resolveCatalogLocation(
   }
 
   if (!cityName || isGenericIndiaLabel(cityName)) return null;
+  return { cityName, cityKey: cityKey || cityName.toLowerCase() };
+}
+
+function pickLocalityCandidate(
+  value: string | undefined,
+  cityName: string
+): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || isGenericIndiaLabel(trimmed)) return undefined;
+  if (isSamePlace(trimmed, cityName)) return undefined;
+  if (resolvePopularCityKey(trimmed)) return undefined;
+  return titleCaseWords(trimmed);
+}
+
+export function resolveCatalogLocation(entry: LocationSourceEntry): ResolvedCatalogLocation | null {
+  const city = resolveCityName(entry);
+  if (!city) return null;
+
+  const { cityName, cityKey } = city;
+  let usedAddressParser = false;
+
+  let locality =
+    pickLocalityCandidate(entry.locality, cityName) ||
+    pickLocalityCandidate(entry.region, cityName) ||
+    pickLocalityCandidate(entry.area, cityName) ||
+    pickLocalityCandidate(entry.landmark, cityName);
 
   if (!locality && entry.address?.trim()) {
-    const parts = parseAddressParts(entry.address);
-    const match = matchCityInParts(parts);
-    if (match?.locality) locality = match.locality;
-    else if (parts.length >= 2) {
-      const last = parts[parts.length - 1];
-      const key = resolvePopularCityKey(last);
-      if (key && parts.length >= 2) {
-        const maybeLocality = parts[parts.length - 2];
-        if (maybeLocality && !resolvePopularCityKey(maybeLocality)) {
-          locality = titleCaseWords(maybeLocality);
-        }
-      }
+    const parsed = extractLocalityFromAddress(entry.address, cityName, entry.stateName);
+    if (parsed) {
+      locality = parsed;
+      usedAddressParser = true;
     }
   }
 
-  if (locality && resolvePopularCityKey(locality) === cityKey) {
-    locality = undefined;
-  }
-
-  const displayLocation = locality && locality.toLowerCase() !== cityName.toLowerCase()
-    ? `${locality}, ${cityName}`
-    : cityName;
-
+  const displayLocation = combineLocalityAndCity(locality ?? "", cityName);
   if (isGenericIndiaLabel(displayLocation)) return null;
 
   return {
     cityName,
-    cityKey: cityKey || cityName.toLowerCase(),
+    cityKey,
     locality,
     displayLocation,
+    usedAddressParser,
   };
+}
+
+export function resolveHotelDisplayLocation(entry: LocationSourceEntry): string {
+  const stored = entry.displayLocation?.trim();
+  if (stored && !isGenericIndiaLabel(stored)) {
+    return stored;
+  }
+
+  const city = resolveCityName(entry);
+  if (!city) return stored || entry.cityName?.trim() || "";
+
+  const { cityName } = city;
+
+  const locality =
+    pickLocalityCandidate(entry.locality, cityName) ||
+    pickLocalityCandidate(entry.region, cityName);
+  if (locality) return combineLocalityAndCity(locality, cityName);
+
+  const area = pickLocalityCandidate(entry.area, cityName);
+  if (area) return combineLocalityAndCity(area, cityName);
+
+  const landmark = pickLocalityCandidate(entry.landmark, cityName);
+  if (landmark) return combineLocalityAndCity(landmark, cityName);
+
+  if (entry.address?.trim()) {
+    const parsed = extractLocalityFromAddress(entry.address, cityName, entry.stateName);
+    if (parsed) return combineLocalityAndCity(parsed, cityName);
+  }
+
+  return cityName;
+}
+
+export function catalogEntryHasCardLocality(entry: LocationSourceEntry): boolean {
+  const display = resolveHotelDisplayLocation(entry);
+  const city = entry.cityName?.trim() || resolveCityName(entry)?.cityName || "";
+  if (!display || !city) return false;
+  return !isCityOnlyDisplayLocation(display, city);
+}
+
+export function catalogEntryNeedsLocationBackfill(entry: TripJackHotelCatalogEntry): boolean {
+  if (entry.isDeleted || !entry.contentSynced) return false;
+  if (!entry.displayLocation?.trim()) return true;
+  if (isCityOnlyDisplayLocation(entry.displayLocation, entry.cityName)) return true;
+  if (!catalogEntryHasCardLocality(entry) && Boolean(entry.address?.trim() || entry.region?.trim())) {
+    return true;
+  }
+  return false;
 }
 
 export function enrichCatalogEntryLocation(
@@ -229,15 +385,31 @@ export function enrichCatalogEntryLocation(
   const resolved = resolveCatalogLocation(entry);
   if (!resolved) return entry;
 
-  const cityName = resolved.cityName;
-  const region = resolved.locality || entry.region;
+  const locality =
+    pickLocalityCandidate(entry.locality, resolved.cityName) ||
+    pickLocalityCandidate(entry.region, resolved.cityName) ||
+    resolved.locality;
+  const area = pickLocalityCandidate(entry.area, resolved.cityName);
+  const landmark = pickLocalityCandidate(entry.landmark, resolved.cityName);
+  const displayLocation = resolveHotelDisplayLocation({
+    ...entry,
+    cityName: resolved.cityName,
+    locality,
+    area,
+    landmark,
+    displayLocation: resolved.displayLocation,
+  });
+
   const searchBlob = [
     entry.name,
-    cityName,
-    region ?? "",
+    resolved.cityName,
+    locality ?? "",
+    area ?? "",
+    landmark ?? "",
     entry.stateName ?? "",
     entry.countryName,
     entry.address,
+    displayLocation,
     entry.propertyType ?? "",
     entry.description ?? "",
   ]
@@ -247,14 +419,26 @@ export function enrichCatalogEntryLocation(
 
   return {
     ...entry,
-    cityName,
-    cityNameLower: cityName.toLowerCase(),
-    region: region || entry.region,
+    cityName: resolved.cityName,
+    cityNameLower: resolved.cityName.toLowerCase(),
+    locality: locality || entry.locality,
+    area: area || entry.area,
+    landmark: landmark || entry.landmark,
+    displayLocation,
+    region: locality || entry.region,
     searchBlob,
   };
 }
 
 export function formatFeaturedCardLocation(entry: TripJackHotelCatalogEntry): ResolvedCatalogLocation | null {
   const enriched = enrichCatalogEntryLocation(entry);
-  return resolveCatalogLocation(enriched);
+  const resolved = resolveCatalogLocation(enriched);
+  if (!resolved) return null;
+
+  const displayLocation = resolveHotelDisplayLocation(enriched);
+  return {
+    ...resolved,
+    displayLocation,
+    locality: resolved.locality || pickLocalityCandidate(enriched.locality, resolved.cityName),
+  };
 }

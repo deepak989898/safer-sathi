@@ -8,6 +8,7 @@ import {
   FEATURED_POPULAR_CITIES,
   formatFeaturedCardLocation,
   popularCityDisplayName,
+  resolveHotelDisplayLocation,
   resolvePopularCityKey,
 } from "@/lib/tripjack-hotels/catalog-location";
 import {
@@ -50,13 +51,15 @@ export function mapCatalogEntryToFeaturedCard(
   const imageUrls = catalogEntryImageUrls(enriched);
   if (!imageUrls.length && !enriched.heroImage) return null;
 
+  const displayLocation = resolveHotelDisplayLocation(enriched);
+
   return {
     tjHotelId: enriched.tjHotelId,
     name: enriched.name,
     cityName: resolved.cityName,
     cityKey: resolved.cityKey,
     locality: resolved.locality,
-    location: resolved.displayLocation,
+    location: displayLocation,
     heroImage: enriched.heroImage ?? imageUrls[0],
     imageUrls,
     starRating: enriched.starRating ?? enriched.rating,

@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Star, Zap } from "lucide-react";
+import { Star, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import {
   TripJackHotelCardMedia,
   tripJackHotelCardMediaProps,
 } from "@/components/hotels-tripjack/tripjack-hotel-card-media";
+import { HotelCardLocation } from "@/components/hotels-tripjack/hotel-card-location";
 import { formatCurrency } from "@/lib/i18n";
 import type { NormalizedHotel } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
@@ -68,12 +69,7 @@ export function TripJackHotelGridCard({
         >
           <h3 className="line-clamp-2 font-semibold leading-snug">{hotel.name}</h3>
         </button>
-        {hotel.location && (
-          <p className="flex items-start gap-1 text-sm text-muted-foreground">
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="line-clamp-2">{hotel.location}</span>
-          </p>
-        )}
+        <HotelCardLocation location={hotel.displayLocation ?? hotel.location} />
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {chips.slice(0, 3).map((chip) => (
