@@ -430,6 +430,17 @@ export function enrichCatalogEntryLocation(
   };
 }
 
+/** Canonical popular-city key for browse filters and counts (e.g. panaji → goa). */
+export function entryBrowseCityKey(
+  entry: Pick<TripJackHotelCatalogEntry, "cityName" | "cityNameLower" | "name" | "region" | "stateName" | "address" | "countryName" | "searchBlob" | "locality" | "area" | "landmark" | "displayLocation">
+): string {
+  const resolved = resolveCatalogLocation(entry);
+  if (resolved?.cityKey) return resolved.cityKey;
+  const raw = entry.cityNameLower?.trim() || entry.cityName?.trim().toLowerCase() || "";
+  if (!raw) return "";
+  return resolvePopularCityKey(raw) ?? raw;
+}
+
 export function formatFeaturedCardLocation(entry: TripJackHotelCatalogEntry): ResolvedCatalogLocation | null {
   const enriched = enrichCatalogEntryLocation(entry);
   const resolved = resolveCatalogLocation(enriched);

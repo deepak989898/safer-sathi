@@ -94,6 +94,11 @@ export interface TripJackHotelCatalogMeta {
     hotelsMissingLocality: number;
     computedAt: string;
   };
+  cityFilterStats?: {
+    totalHotels: number;
+    cities: Array<{ city: string; key: string; count: number }>;
+    computedAt: string;
+  };
 }
 
 export interface DestinationSuggestion {

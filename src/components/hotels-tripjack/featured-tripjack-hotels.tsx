@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Star } from "lucide-react";
+import { CatalogPagination } from "@/components/customer/catalog-pagination";
 import { RatingStars } from "@/components/customer/rating-stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -152,11 +153,17 @@ function FeaturedHotelsSkeleton() {
   );
 }
 
+export interface FeaturedCityFilterCounts {
+  totalHotels: number;
+  cities: Array<{ city: string; key: string; count: number }>;
+}
+
 export interface FeaturedTripJackCatalogInfo {
   contentSyncedCount?: number;
   totalActiveHotels?: number;
   syncInProgress?: boolean;
   contentSuccessCount?: number;
+  filterCounts?: FeaturedCityFilterCounts | null;
 }
 
 export function FeaturedTripJackHotelsSection({
@@ -170,11 +177,68 @@ export function FeaturedTripJackHotelsSection({
 }) {
   const { locale } = useAppStore();
   const [activeCity, setActiveCity] = useState<string>("all");
+  const [cityPage, setCityPage] = useState(1);
+  const [cityHotels, setCityHotels] = useState<FeaturedTripJackHotelCard[]>([]);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [cityTotalCount, setCityTotalCount] = useState(0);
+  const [cityTotalPages, setCityTotalPages] = useState(1);
 
-  const visibleHotels = useMemo(() => {
-    if (activeCity === "all") return hotels;
-    return hotels.filter((hotel) => (hotel.cityKey || hotel.cityName.toLowerCase()) === activeCity);
-  }, [hotels, activeCity]);
+  const filterCounts = catalogInfo?.filterCounts ?? null;
+  const isCityFilter = activeCity !== "all";
+  const pageSize = 20;
+
+  const fetchCityHotels = useCallback(async (cityKey: string, page: number) => {
+    setCityLoading(true);
+    try {
+      const params = new URLSearchParams({
+        city: cityKey,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const res = await fetch(`/api/hotels/featured-city-hotels?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setCityHotels([]);
+        setCityTotalCount(0);
+        setCityTotalPages(1);
+        return;
+      }
+      setCityHotels(json.data?.hotels ?? []);
+      setCityTotalCount(json.data?.totalCount ?? 0);
+      setCityTotalPages(json.data?.totalPages ?? 1);
+    } catch {
+      setCityHotels([]);
+      setCityTotalCount(0);
+      setCityTotalPages(1);
+    } finally {
+      setCityLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isCityFilter) {
+      setCityHotels([]);
+      setCityTotalCount(0);
+      setCityTotalPages(1);
+      return;
+    }
+    void fetchCityHotels(activeCity, cityPage);
+  }, [activeCity, cityPage, isCityFilter, fetchCityHotels]);
+
+  const handleCitySelect = (cityKey: string) => {
+    setActiveCity(cityKey);
+    setCityPage(1);
+  };
+
+  const displayedHotels = isCityFilter ? cityHotels : hotels;
+  const gridLoading = isCityFilter ? cityLoading : loading;
+
+  const priceHotelIds = useMemo(
+    () => displayedHotels.map((hotel) => hotel.tjHotelId),
+    [displayedHotels]
+  );
 
   const {
     stayDates,
@@ -183,27 +247,25 @@ export function FeaturedTripJackHotelsSection({
     selectedPrices,
     selectedLoading,
   } = useHotelLiveDatePrices(
-    hotels.map((hotel) => hotel.tjHotelId),
-    !loading && hotels.length > 0
+    priceHotelIds,
+    !gridLoading && displayedHotels.length > 0
   );
 
-  const cityCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const hotel of hotels) {
-      const key = hotel.cityKey || hotel.cityName.toLowerCase();
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return map;
-  }, [hotels]);
+  const allCitiesCount = filterCounts?.totalHotels ?? catalogInfo?.contentSyncedCount ?? hotels.length;
 
   const sidebarCities = useMemo(() => {
-    return FEATURED_POPULAR_CITIES.map((city) => {
-      const key = city.toLowerCase();
-      return { city, key, count: cityCounts.get(key) ?? 0 };
-    }).filter((item) => item.count > 0);
-  }, [cityCounts]);
+    if (filterCounts?.cities?.length) {
+      return filterCounts.cities;
+    }
+    return FEATURED_POPULAR_CITIES.map((city) => ({
+      city,
+      key: city.toLowerCase(),
+      count: 0,
+    })).filter((item) => item.count > 0);
+  }, [filterCounts]);
 
-  const filteredHotels = visibleHotels;
+  const cityStartIndex = cityTotalCount === 0 ? 0 : (cityPage - 1) * pageSize + 1;
+  const cityEndIndex = Math.min(cityPage * pageSize, cityTotalCount);
 
   const syncMessage = useMemo(() => {
     if (loading || hotels.length > 0) return null;
@@ -260,7 +322,7 @@ export function FeaturedTripJackHotelsSection({
             <div className="space-y-1.5">
               <button
                 type="button"
-                onClick={() => setActiveCity("all")}
+                onClick={() => handleCitySelect("all")}
                 disabled={loading || hotels.length === 0}
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                   activeCity === "all"
@@ -268,31 +330,37 @@ export function FeaturedTripJackHotelsSection({
                     : "hover:bg-slate-50"
                 }`}
               >
-                All cities ({hotels.length})
+                All cities ({allCitiesCount.toLocaleString()})
               </button>
               {sidebarCities.map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setActiveCity(item.key)}
+                  onClick={() => handleCitySelect(item.key)}
                   className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                     activeCity === item.key
                       ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
                       : "hover:bg-slate-50"
                   }`}
                 >
-                  {item.city} ({item.count})
+                  {item.city} ({item.count.toLocaleString()})
                 </button>
               ))}
             </div>
           </aside>
 
-          {loading ? (
+          {gridLoading ? (
             <FeaturedHotelsSkeleton />
           ) : (
             <div>
+              {isCityFilter ? (
+                <p className="mb-4 text-sm text-muted-foreground">
+                  {cityTotalCount.toLocaleString()} hotel{cityTotalCount === 1 ? "" : "s"} in{" "}
+                  {sidebarCities.find((c) => c.key === activeCity)?.city ?? activeCity}
+                </p>
+              ) : null}
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {filteredHotels.map((hotel) => (
+                {displayedHotels.map((hotel) => (
                   <FeaturedTripJackCard
                     key={hotel.tjHotelId}
                     hotel={hotel}
@@ -301,13 +369,27 @@ export function FeaturedTripJackHotelsSection({
                     priceLoading={selectedLoading && !(String(hotel.tjHotelId) in selectedPrices)}
                   />
                 ))}
-                {filteredHotels.length === 0 && (
+                {displayedHotels.length === 0 && (
                   <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                    No featured hotels for this city right now.
+                    {isCityFilter
+                      ? "No hotels found for this city right now."
+                      : "No featured hotels for this city right now."}
                   </p>
                 )}
               </div>
-              {hotels.length > 0 && (
+              {isCityFilter && cityTotalCount > 0 ? (
+                <div className="mt-8">
+                  <CatalogPagination
+                    page={cityPage}
+                    totalPages={cityTotalPages}
+                    total={cityTotalCount}
+                    startIndex={cityStartIndex}
+                    endIndex={cityEndIndex}
+                    onPageChange={setCityPage}
+                  />
+                </div>
+              ) : null}
+              {!isCityFilter && hotels.length > 0 && (
                 <div className="mt-8 flex justify-center">
                   <Link href="/hotels/browse">
                     <Button className="bg-[#1a4fa3] hover:bg-[#16408a]">View more live hotels</Button>

@@ -115,8 +115,11 @@ export default function HotelsClient({
           if (Array.isArray(json.data?.hotels)) {
             setFeaturedHotels(json.data.hotels);
           }
-          if (json.data?.catalog) {
-            setFeaturedCatalogInfo(json.data.catalog);
+          if (json.data?.catalog || json.data?.filterCounts) {
+            setFeaturedCatalogInfo({
+              ...json.data.catalog,
+              filterCounts: json.data.filterCounts ?? null,
+            });
           }
         }
       })

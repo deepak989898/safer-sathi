@@ -5,9 +5,13 @@ import {
   catalogEntryHasCardLocality,
   catalogEntryNeedsLocationBackfill,
   enrichCatalogEntryLocation,
+  entryBrowseCityKey,
   extractLocalityFromAddress,
+  FEATURED_POPULAR_CITIES,
   formatFeaturedCardLocation,
+  popularCityDisplayName,
   resolveHotelDisplayLocation,
+  resolvePopularCityKey,
 } from "@/lib/tripjack-hotels/catalog-location";
 import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog";
 import {
@@ -249,10 +253,7 @@ async function fetchBrowsableCatalogBatch(
 }
 
 function entryCityKey(entry: TripJackHotelCatalogEntry): string {
-  const fromField = entry.cityNameLower?.trim() || entry.cityName?.trim().toLowerCase() || "";
-  if (fromField) return fromField;
-  const resolved = formatFeaturedCardLocation(enrichCatalogEntryLocation(entry));
-  return resolved?.cityKey ?? "";
+  return entryBrowseCityKey(entry);
 }
 
 export async function searchTripJackHotelCatalogByCityPrefix(
@@ -845,6 +846,94 @@ export async function getTripJackHotelCatalogLocationStats(options?: {
   return stats;
 }
 
+export interface TripJackHotelCityFilterStats {
+  totalHotels: number;
+  cities: Array<{ city: string; key: string; count: number }>;
+  computedAt: string;
+}
+
+const CITY_FILTER_STATS_CACHE_MS = 60 * 60 * 1000;
+
+async function scanBrowsableCityFilterStats(): Promise<TripJackHotelCityFilterStats> {
+  const empty: TripJackHotelCityFilterStats = {
+    totalHotels: 0,
+    cities: [],
+    computedAt: new Date().toISOString(),
+  };
+
+  if (!isAdminEnvConfigured()) return empty;
+  const db = await getSafeAdminDb();
+  if (!db) return empty;
+
+  const popularKeys = new Map<string, string>();
+  for (const city of FEATURED_POPULAR_CITIES) {
+    const key = resolvePopularCityKey(city) ?? city.toLowerCase();
+    popularKeys.set(key, city);
+  }
+
+  const cityCounts = new Map<string, number>();
+  for (const key of popularKeys.keys()) {
+    cityCounts.set(key, 0);
+  }
+
+  let totalHotels = 0;
+  let cursor: number | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(500);
+    if (cursor != null) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const hotel = doc.data() as TripJackHotelCatalogEntry;
+      cursor = hotel.tjHotelId;
+      if (!isBrowsableIndiaHotel(hotel)) continue;
+
+      totalHotels += 1;
+      const key = entryCityKey(hotel);
+      if (cityCounts.has(key)) {
+        cityCounts.set(key, (cityCounts.get(key) ?? 0) + 1);
+      }
+    }
+
+    hasMore = snap.size >= 500;
+  }
+
+  const cities = FEATURED_POPULAR_CITIES.map((city) => {
+    const key = resolvePopularCityKey(city) ?? city.toLowerCase();
+    return { city, key, count: cityCounts.get(key) ?? 0 };
+  }).filter((item) => item.count > 0);
+
+  return {
+    totalHotels,
+    cities,
+    computedAt: new Date().toISOString(),
+  };
+}
+
+export async function getTripJackHotelCityFilterStats(options?: {
+  force?: boolean;
+}): Promise<TripJackHotelCityFilterStats> {
+  const meta = await getTripJackHotelCatalogMeta();
+  const cached = meta.cityFilterStats;
+  if (
+    !options?.force &&
+    cached?.computedAt &&
+    Date.now() - new Date(cached.computedAt).getTime() < CITY_FILTER_STATS_CACHE_MS
+  ) {
+    return cached;
+  }
+
+  const stats = await scanBrowsableCityFilterStats();
+  await updateTripJackHotelCatalogMeta({ cityFilterStats: stats });
+  return stats;
+}
+
 /** Fast pass: derive city/locality from existing name/address without TripJack API. */
 export async function enrichCatalogLocationBulkChunk(
   maxRecords = 5000
@@ -1125,7 +1214,8 @@ export async function listBrowsableIndiaHotelsPage(input: {
     if (!isBrowsableIndiaHotel(entry)) return false;
     if (city) {
       const entryCity = entryCityKey(entry);
-      if (entryCity !== city && !entryCity.startsWith(city)) return false;
+      const filterKey = resolvePopularCityKey(city) ?? city.toLowerCase();
+      if (entryCity !== filterKey) return false;
     }
     if (query) {
       const haystack = entry.searchBlob || buildSearchBlobFromEntry(entry);
@@ -1162,7 +1252,7 @@ export async function listBrowsableIndiaHotelsPage(input: {
   }
 
   if (city && query.length < 2) {
-    const fetchLimit = Math.min(3000, Math.max(400, page * pageSize * 4));
+    const fetchLimit = Math.min(10_000, Math.max(500, page * pageSize + 200));
     const [byCity, byBlob] = await Promise.all([
       searchTripJackHotelCatalogByCityPrefix(city, fetchLimit),
       findTripJackHotelsBySearchBlob(city, fetchLimit),

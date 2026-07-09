@@ -14,6 +14,7 @@ import {
 import {
   listBrowsableIndiaHotelsPage,
   listFeaturedTripJackHotelsFromFirestore,
+  getTripJackHotelCityFilterStats,
 } from "@/lib/tripjack-hotels/catalog-firestore";
 import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog";
 
@@ -40,6 +41,14 @@ function cardScore(card: FeaturedTripJackHotelCard): number {
 export function mapCatalogEntryToFeaturedCard(
   entry: TripJackHotelCatalogEntry
 ): FeaturedTripJackHotelCard | null {
+  return mapCatalogEntryToListCard(entry, { requireImage: true });
+}
+
+/** Browse / city-filter card — same shape as featured, allows placeholder image. */
+export function mapCatalogEntryToListCard(
+  entry: TripJackHotelCatalogEntry,
+  options?: { requireImage?: boolean }
+): FeaturedTripJackHotelCard | null {
   if (entry.websiteVisible === false || entry.isDeleted || !entry.contentSynced) return null;
   if (!entry.name?.trim() || isMappingOnlyStub(entry)) return null;
   if (!isIndiaTripJackCatalogHotel(entry)) return null;
@@ -49,7 +58,7 @@ export function mapCatalogEntryToFeaturedCard(
   if (!resolved) return null;
 
   const imageUrls = catalogEntryImageUrls(enriched);
-  if (!imageUrls.length && !enriched.heroImage) return null;
+  if (options?.requireImage && !imageUrls.length && !enriched.heroImage) return null;
 
   const displayLocation = resolveHotelDisplayLocation(enriched);
 
@@ -65,6 +74,56 @@ export function mapCatalogEntryToFeaturedCard(
     starRating: enriched.starRating ?? enriched.rating,
     imageCaption: enriched.imageCaption,
     facilities: (enriched.facilities ?? []).slice(0, 6),
+  };
+}
+
+export interface FeaturedCityHotelsPageResult {
+  hotels: FeaturedTripJackHotelCard[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  cityKey: string;
+  cityName: string;
+}
+
+export async function getFeaturedCityHotelsPaged(input: {
+  cityKey: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<FeaturedCityHotelsPageResult> {
+  const cityKey = resolvePopularCityKey(input.cityKey) ?? input.cityKey.toLowerCase().trim();
+  const page = Math.max(1, input.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, input.pageSize ?? 20));
+
+  const browse = await listBrowsableIndiaHotelsPage({
+    page,
+    pageSize,
+    city: cityKey,
+  });
+
+  const filterStats = await getTripJackHotelCityFilterStats();
+  const catalogCityCount = filterStats.cities.find((item) => item.key === cityKey)?.count;
+  const totalCount = catalogCityCount ?? browse.totalCount;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const hotels = browse.entries
+    .map((entry) => mapCatalogEntryToListCard(entry))
+    .filter((card): card is FeaturedTripJackHotelCard => Boolean(card));
+
+  const cityLabel =
+    FEATURED_POPULAR_CITIES.find(
+      (city) => (resolvePopularCityKey(city) ?? city.toLowerCase()) === cityKey
+    ) ?? popularCityDisplayName(cityKey);
+
+  return {
+    hotels,
+    page: browse.page,
+    pageSize: browse.pageSize,
+    totalCount,
+    totalPages,
+    cityKey,
+    cityName: cityLabel,
   };
 }
 

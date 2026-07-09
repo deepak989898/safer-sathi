@@ -3,6 +3,7 @@ import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalo
 import {
   countContentSyncedTripJackHotels,
   getTripJackHotelCatalogMeta,
+  getTripJackHotelCityFilterStats,
 } from "@/lib/tripjack-hotels/catalog-firestore";
 import { getHotelWebsiteSettings, isTripjackHotelsWebsiteEnabled } from "@/lib/hotels/website-settings";
 
@@ -27,10 +28,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(30, Math.max(1, Number(searchParams.get("limit") ?? 24) || 24));
 
-    const [hotels, contentSyncedCount, meta] = await Promise.all([
+    const [hotels, contentSyncedCount, meta, filterCounts] = await Promise.all([
       getFeaturedTripJackHotels(limit),
       countContentSyncedTripJackHotels(),
       getTripJackHotelCatalogMeta(),
+      getTripJackHotelCityFilterStats(),
     ]);
 
     return NextResponse.json({
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
           syncInProgress: Boolean(meta.syncInProgress) && !isStaleCatalogSync(meta),
           contentSuccessCount: meta.contentSuccessCount ?? contentSyncedCount,
         },
+        filterCounts,
       },
     });
   } catch (error) {
