@@ -312,6 +312,14 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
     }
   }, [destinationQuery, onSearchSuccess, redirectToResults, router, selectedDestination]);
 
+  const focusDestination = useCallback(() => {
+    const input = destinationContainerRef.current?.querySelector<HTMLInputElement>("input");
+    input?.focus();
+    input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    skipDropdownRef.current = false;
+    setShowDestinationDropdown(true);
+  }, []);
+
   return {
     params,
     destinationQuery,
@@ -339,5 +347,6 @@ export function useTripJackHotelSearch(options: UseTripJackHotelSearchOptions = 
     onRemoveRoom,
     onChildAgeChange,
     onSearch,
+    focusDestination,
   };
 }

@@ -49,6 +49,14 @@ async function fetchPricesForStay(
   return merged;
 }
 
+export function hotelHasLivePrice(
+  prices: HotelLivePriceMap,
+  tjHotelId: number | string
+): boolean {
+  const entry = prices[String(tjHotelId)];
+  return Boolean(entry && entry.price > 0);
+}
+
 export function useHotelLiveDatePrices(hids: number[], enabled = true) {
   const stayDates = useMemo(() => buildNextStayDates(7), []);
   const hidsKey = useMemo(() => [...new Set(hids.filter((id) => id > 0))].sort((a, b) => a - b).join(","), [hids]);
@@ -110,6 +118,7 @@ export function useHotelLiveDatePrices(hids: number[], enabled = true) {
   }, [stayDates, pricesByCheckIn, loadingDates]);
 
   const selectedPrices = pricesByCheckIn[selectedCheckIn] ?? {};
+  const selectedPricesReady = pricesByCheckIn[selectedCheckIn] !== undefined;
   const selectedLoading =
     loadingDates.has(selectedCheckIn) && pricesByCheckIn[selectedCheckIn] === undefined;
 
@@ -118,6 +127,7 @@ export function useHotelLiveDatePrices(hids: number[], enabled = true) {
     selectedCheckIn,
     setSelectedCheckIn,
     selectedPrices,
+    selectedPricesReady,
     selectedLoading,
   };
 }

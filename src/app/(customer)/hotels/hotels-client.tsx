@@ -80,7 +80,9 @@ export default function HotelsClient({
   const [featuredCatalogInfo, setFeaturedCatalogInfo] = useState<FeaturedTripJackCatalogInfo | null>(
     null
   );
-  const [featuredLoading, setFeaturedLoading] = useState(tripjackHotelsEnabled);
+  const [featuredLoading, setFeaturedLoading] = useState(
+    tripjackHotelsEnabled && featuredTripJackHotels.length === 0
+  );
   const [query, setQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [minStars, setMinStars] = useState<string[]>([]);
@@ -105,21 +107,22 @@ export default function HotelsClient({
     }
 
     let cancelled = false;
-    setFeaturedLoading(true);
+    const hasInitialHotels = featuredTripJackHotels.length > 0;
+    if (!hasInitialHotels) setFeaturedLoading(true);
 
     void fetch("/api/hotels/featured-catalog?limit=24", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return;
         if (json.success) {
-          if (Array.isArray(json.data?.hotels)) {
+          if (Array.isArray(json.data?.hotels) && json.data.hotels.length > 0) {
             setFeaturedHotels(json.data.hotels);
           }
-          if (json.data?.catalog || json.data?.filterCounts) {
-            setFeaturedCatalogInfo({
+          if (json.data?.catalog) {
+            setFeaturedCatalogInfo((prev) => ({
+              ...prev,
               ...json.data.catalog,
-              filterCounts: json.data.filterCounts ?? null,
-            });
+            }));
           }
         }
       })
@@ -128,10 +131,21 @@ export default function HotelsClient({
         if (!cancelled) setFeaturedLoading(false);
       });
 
+    void fetch("/api/hotels/featured-city-counts", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !json.success) return;
+        setFeaturedCatalogInfo((prev) => ({
+          ...prev,
+          filterCounts: json.data ?? null,
+        }));
+      })
+      .catch(() => undefined);
+
     return () => {
       cancelled = true;
     };
-  }, [tripjackHotelsEnabled]);
+  }, [tripjackHotelsEnabled, featuredTripJackHotels.length]);
 
   const maxPrice = useMemo(
     () => Math.max(...initialHotels.map((h) => h.priceFrom), 20000),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Star } from "lucide-react";
 import { CatalogPagination } from "@/components/customer/catalog-pagination";
 import { RatingStars } from "@/components/customer/rating-stars";
@@ -12,11 +12,11 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { TripJackHotelCardMedia } from "@/components/hotels-tripjack/tripjack-hotel-card-media";
 import { HotelCardLocation } from "@/components/hotels-tripjack/hotel-card-location";
 import { TripJackDatePriceStrip } from "@/components/hotels-tripjack/tripjack-date-price-strip";
-import { TripJackQuickSearchBar } from "@/components/hotels-tripjack/tripjack-quick-search-bar";
+import { TripJackQuickSearchBar, type TripJackQuickSearchBarHandle } from "@/components/hotels-tripjack/tripjack-quick-search-bar";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import { FEATURED_POPULAR_CITIES } from "@/lib/tripjack-hotels/catalog-location";
 import { bootstrapFeaturedTripJackHotel } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
-import { useHotelLiveDatePrices } from "@/hooks/use-hotel-live-date-prices";
+import { useHotelLiveDatePrices, hotelHasLivePrice } from "@/hooks/use-hotel-live-date-prices";
 import { formatCurrency, t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import type { Locale } from "@/types";
@@ -134,10 +134,10 @@ function FeaturedTripJackCard({
   );
 }
 
-function FeaturedHotelsSkeleton() {
+function FeaturedHotelsSkeleton({ count = 9 }: { count?: number }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 9 }).map((_, index) => (
+      {Array.from({ length: count }).map((_, index) => (
         <Card key={index} className="overflow-hidden pt-0">
           <div className="aspect-[4/3] animate-pulse bg-slate-200" />
           <CardContent className="space-y-3 pt-4">
@@ -158,6 +158,8 @@ export interface FeaturedCityFilterCounts {
   cities: Array<{ city: string; key: string; count: number }>;
 }
 
+const OTHER_CITIES_KEY = "other";
+
 export interface FeaturedTripJackCatalogInfo {
   contentSyncedCount?: number;
   totalActiveHotels?: number;
@@ -176,15 +178,46 @@ export function FeaturedTripJackHotelsSection({
   catalogInfo?: FeaturedTripJackCatalogInfo | null;
 }) {
   const { locale } = useAppStore();
+  const searchBarRef = useRef<TripJackQuickSearchBarHandle>(null);
   const [activeCity, setActiveCity] = useState<string>("all");
   const [cityPage, setCityPage] = useState(1);
   const [cityHotels, setCityHotels] = useState<FeaturedTripJackHotelCard[]>([]);
   const [cityLoading, setCityLoading] = useState(false);
   const [cityTotalCount, setCityTotalCount] = useState(0);
   const [cityTotalPages, setCityTotalPages] = useState(1);
+  const [filterCounts, setFilterCounts] = useState<FeaturedCityFilterCounts | null>(
+    catalogInfo?.filterCounts ?? null
+  );
+  const [filterCountsLoading, setFilterCountsLoading] = useState(!catalogInfo?.filterCounts);
 
-  const filterCounts = catalogInfo?.filterCounts ?? null;
-  const isCityFilter = activeCity !== "all";
+  useEffect(() => {
+    if (catalogInfo?.filterCounts) {
+      setFilterCounts(catalogInfo.filterCounts);
+      setFilterCountsLoading(false);
+    }
+  }, [catalogInfo?.filterCounts]);
+
+  useEffect(() => {
+    if (filterCounts || !hotels.length) return;
+    let cancelled = false;
+    setFilterCountsLoading(true);
+    void fetch("/api/hotels/featured-city-counts", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !json.success) return;
+        setFilterCounts(json.data ?? null);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setFilterCountsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterCounts, hotels.length]);
+
+  const isOtherCities = activeCity === OTHER_CITIES_KEY;
+  const isCityFilter = activeCity !== "all" && !isOtherCities;
   const pageSize = 20;
 
   const fetchCityHotels = useCallback(async (cityKey: string, page: number) => {
@@ -222,18 +255,28 @@ export function FeaturedTripJackHotelsSection({
       setCityHotels([]);
       setCityTotalCount(0);
       setCityTotalPages(1);
+      setCityLoading(false);
       return;
     }
     void fetchCityHotels(activeCity, cityPage);
   }, [activeCity, cityPage, isCityFilter, fetchCityHotels]);
 
   const handleCitySelect = (cityKey: string) => {
+    if (cityKey === OTHER_CITIES_KEY) {
+      setActiveCity(OTHER_CITIES_KEY);
+      setCityPage(1);
+      window.requestAnimationFrame(() => {
+        searchBarRef.current?.focusDestination();
+      });
+      return;
+    }
     setActiveCity(cityKey);
     setCityPage(1);
   };
 
-  const displayedHotels = isCityFilter ? cityHotels : hotels;
-  const gridLoading = isCityFilter ? cityLoading : loading;
+  const displayedHotels = isCityFilter ? cityHotels : isOtherCities ? [] : hotels;
+  const showFullGridSkeleton = (isCityFilter ? cityLoading : loading) && displayedHotels.length === 0;
+  const showPartialGridSkeleton = isCityFilter && cityLoading && displayedHotels.length > 0;
 
   const priceHotelIds = useMemo(
     () => displayedHotels.map((hotel) => hotel.tjHotelId),
@@ -245,13 +288,29 @@ export function FeaturedTripJackHotelsSection({
     selectedCheckIn,
     setSelectedCheckIn,
     selectedPrices,
+    selectedPricesReady,
     selectedLoading,
   } = useHotelLiveDatePrices(
     priceHotelIds,
-    !gridLoading && displayedHotels.length > 0
+    displayedHotels.length > 0 && !showFullGridSkeleton
   );
 
-  const allCitiesCount = filterCounts?.totalHotels ?? catalogInfo?.contentSyncedCount ?? hotels.length;
+  const pricedHotels = useMemo(() => {
+    if (isOtherCities || !displayedHotels.length) return [];
+    if (!selectedPricesReady) return [];
+    return displayedHotels.filter((hotel) => hotelHasLivePrice(selectedPrices, hotel.tjHotelId));
+  }, [displayedHotels, isOtherCities, selectedPrices, selectedPricesReady]);
+
+  const awaitingLivePrices =
+    !isOtherCities && displayedHotels.length > 0 && !selectedPricesReady;
+  const showPriceLoadingSkeleton = awaitingLivePrices || selectedLoading;
+  const gridShowsSkeleton = showFullGridSkeleton || showPriceLoadingSkeleton;
+
+  const allCitiesCount =
+    filterCounts?.totalHotels ?? catalogInfo?.contentSyncedCount ?? hotels.length;
+  const allCitiesLabel = filterCountsLoading
+    ? `All cities (${hotels.length > 0 ? `${hotels.length}+` : "…"})`
+    : `All cities (${allCitiesCount.toLocaleString()})`;
 
   const sidebarCities = useMemo(() => {
     if (filterCounts?.cities?.length) {
@@ -268,7 +327,7 @@ export function FeaturedTripJackHotelsSection({
   const cityEndIndex = Math.min(cityPage * pageSize, cityTotalCount);
 
   const syncMessage = useMemo(() => {
-    if (loading || hotels.length > 0) return null;
+    if ((loading && hotels.length === 0) || hotels.length > 0) return null;
     const ready = catalogInfo?.contentSyncedCount ?? catalogInfo?.contentSuccessCount ?? 0;
     const total = catalogInfo?.totalActiveHotels ?? 0;
     if (ready > 0) {
@@ -299,9 +358,9 @@ export function FeaturedTripJackHotelsSection({
           </Link>
         </div>
 
-        <TripJackQuickSearchBar />
+        <TripJackQuickSearchBar ref={searchBarRef} />
 
-        {!loading && hotels.length > 0 ? (
+        {hotels.length > 0 ? (
           <TripJackDatePriceStrip
             dates={stayDates}
             selectedCheckIn={selectedCheckIn}
@@ -323,14 +382,14 @@ export function FeaturedTripJackHotelsSection({
               <button
                 type="button"
                 onClick={() => handleCitySelect("all")}
-                disabled={loading || hotels.length === 0}
+                disabled={loading && hotels.length === 0}
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                   activeCity === "all"
                     ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
                     : "hover:bg-slate-50"
                 }`}
               >
-                All cities ({allCitiesCount.toLocaleString()})
+                {allCitiesLabel}
               </button>
               {sidebarCities.map((item) => (
                 <button
@@ -346,37 +405,72 @@ export function FeaturedTripJackHotelsSection({
                   {item.city} ({item.count.toLocaleString()})
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => handleCitySelect(OTHER_CITIES_KEY)}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                  isOtherCities
+                    ? "bg-[#eaf2ff] font-semibold text-[#0f4aa8]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                Other cities
+              </button>
             </div>
           </aside>
 
-          {gridLoading ? (
+          {gridShowsSkeleton ? (
             <FeaturedHotelsSkeleton />
           ) : (
             <div>
               {isCityFilter ? (
                 <p className="mb-4 text-sm text-muted-foreground">
-                  {cityTotalCount.toLocaleString()} hotel{cityTotalCount === 1 ? "" : "s"} in{" "}
+                  {pricedHotels.length.toLocaleString()} hotel{pricedHotels.length === 1 ? "" : "s"}{" "}
+                  with live rates in{" "}
                   {sidebarCities.find((c) => c.key === activeCity)?.city ?? activeCity}
                 </p>
               ) : null}
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {displayedHotels.map((hotel) => (
-                  <FeaturedTripJackCard
-                    key={hotel.tjHotelId}
-                    hotel={hotel}
-                    locale={locale}
-                    livePrice={selectedPrices[String(hotel.tjHotelId)]}
-                    priceLoading={selectedLoading && !(String(hotel.tjHotelId) in selectedPrices)}
-                  />
-                ))}
-                {displayedHotels.length === 0 && (
-                  <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                    {isCityFilter
-                      ? "No hotels found for this city right now."
-                      : "No featured hotels for this city right now."}
+              {isOtherCities ? (
+                <div className="rounded-xl border border-dashed bg-slate-50/80 px-6 py-10 text-center">
+                  <p className="text-sm font-medium text-slate-900">Search any city or hotel</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Use the search box above to find stays in other destinations across India.
                   </p>
-                )}
-              </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => searchBarRef.current?.focusDestination()}
+                  >
+                    Go to search
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                    {pricedHotels.map((hotel) => (
+                      <FeaturedTripJackCard
+                        key={hotel.tjHotelId}
+                        hotel={hotel}
+                        locale={locale}
+                        livePrice={selectedPrices[String(hotel.tjHotelId)]}
+                        priceLoading={false}
+                      />
+                    ))}
+                    {pricedHotels.length === 0 && selectedPricesReady && (
+                      <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        No hotels with live rates for the selected date. Try another date above or
+                        search for more stays.
+                      </p>
+                    )}
+                  </div>
+                  {showPartialGridSkeleton ? (
+                    <div className="mt-6">
+                      <FeaturedHotelsSkeleton count={3} />
+                    </div>
+                  ) : null}
+                </>
+              )}
               {isCityFilter && cityTotalCount > 0 ? (
                 <div className="mt-8">
                   <CatalogPagination
@@ -389,7 +483,7 @@ export function FeaturedTripJackHotelsSection({
                   />
                 </div>
               ) : null}
-              {!isCityFilter && hotels.length > 0 && (
+              {!isCityFilter && !isOtherCities && hotels.length > 0 && (
                 <div className="mt-8 flex justify-center">
                   <Link href="/hotels/browse">
                     <Button className="bg-[#1a4fa3] hover:bg-[#16408a]">View more live hotels</Button>
