@@ -14,7 +14,6 @@ import { HotelPricingDebugPanel } from "@/components/hotels-tripjack/hotel-prici
 import {
   HotelAmenitiesPanel,
   HotelOverviewPanel,
-  HotelSelectedRoomCard,
 } from "@/components/hotels-tripjack/hotel-detail-panels";
 import { HotelRoomOptionsList } from "@/components/hotels-tripjack/hotel-room-options-list";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
@@ -563,18 +562,13 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                 </CatalogDetailTabsList>
 
                 <TabsContent value="rooms" className="mt-4 space-y-4">
-                  {selectedOption && (
-                    <HotelSelectedRoomCard
-                      option={selectedOption}
-                      detail={detail}
-                      locale={locale}
-                    />
-                  )}
-
                   <div>
-                    <h2 className="mb-3 text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+                    <h2 className="mb-1 text-base font-bold" style={{ color: HOTEL_UI.primary }}>
                       Available rooms
                     </h2>
+                    <p className="mb-3 text-xs text-slate-500">
+                      Cancellation times are shown in IST (GMT+5:30).
+                    </p>
                     <div className="space-y-3">
                       <HotelRoomOptionsList
                         options={detail.options}

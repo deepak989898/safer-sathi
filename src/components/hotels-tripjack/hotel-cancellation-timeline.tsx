@@ -2,6 +2,11 @@
 
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  buildCancellationRuleLines,
+  formatCancellationDateRange,
+  formatCancellationDateTime,
+} from "@/lib/tripjack-hotels/cancellation-display";
 import { formatCurrency } from "@/lib/i18n";
 import type { CancellationPenalty } from "@/lib/tripjack-hotels/types";
 import type { Locale } from "@/types";
@@ -13,11 +18,6 @@ interface HotelCancellationTimelineProps {
   locale: Locale;
 }
 
-function formatPenaltyDate(value?: string): string {
-  if (!value) return "—";
-  return value;
-}
-
 export function HotelCancellationTimeline({
   isRefundable,
   freeCancellationUntil,
@@ -27,6 +27,12 @@ export function HotelCancellationTimeline({
   const freePenalty = penalties.find((p) => p.amount === 0);
   const chargePenalties = penalties.filter((p) => p.amount > 0);
   const freeUntil = freeCancellationUntil || freePenalty?.to || freePenalty?.from || "";
+  const compactLines = buildCancellationRuleLines({
+    isRefundable,
+    freeCancellationUntil: freeUntil,
+    penalties,
+    locale,
+  });
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5">
@@ -43,10 +49,6 @@ export function HotelCancellationTimeline({
         </Badge>
       </div>
 
-      <p className="mb-3 text-xs text-slate-500">
-        All cancellation dates/times are in GMT+5:30 (Asia/Kolkata).
-      </p>
-
       {isRefundable && freeUntil ? (
         <div className="space-y-0">
           <div className="flex gap-3">
@@ -60,7 +62,7 @@ export function HotelCancellationTimeline({
             </div>
             <div className="pb-4">
               <p className="text-sm font-medium text-emerald-700">Free cancellation until</p>
-              <p className="text-sm text-slate-700">{formatPenaltyDate(freeUntil)}</p>
+              <p className="text-sm text-slate-700">{formatCancellationDateTime(freeUntil, locale)}</p>
             </div>
           </div>
 
@@ -77,7 +79,7 @@ export function HotelCancellationTimeline({
               <div className={index < chargePenalties.length - 1 ? "pb-4" : ""}>
                 <p className="text-sm font-medium text-slate-800">
                   {penalty.from || penalty.to
-                    ? `${formatPenaltyDate(penalty.from)} → ${formatPenaltyDate(penalty.to)}`
+                    ? formatCancellationDateRange(penalty.from, penalty.to, locale)
                     : "Penalty slab"}
                 </p>
                 <p className="text-sm text-slate-700">
@@ -87,6 +89,12 @@ export function HotelCancellationTimeline({
             </div>
           ))}
         </div>
+      ) : compactLines.length > 0 ? (
+        <ul className="space-y-2 text-sm text-slate-700">
+          {compactLines.map((line) => (
+            <li key={line.key}>{line.text}</li>
+          ))}
+        </ul>
       ) : penalties.length > 0 ? (
         <ul className="space-y-2 text-sm text-slate-700">
           {penalties.map((p, i) => (
@@ -100,6 +108,8 @@ export function HotelCancellationTimeline({
             : "This rate is non-refundable."}
         </p>
       )}
+
+      <p className="mt-3 text-xs text-slate-500">All times are in IST (GMT+5:30).</p>
     </div>
   );
 }

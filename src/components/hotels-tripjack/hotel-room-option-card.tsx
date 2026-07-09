@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { HotelRoomCancellationRules } from "@/components/hotels-tripjack/hotel-room-cancellation-rules";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { HotelPrimaryButton } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { formatCurrency } from "@/lib/i18n";
@@ -50,8 +51,10 @@ export function HotelRoomOptionCard({
             )}
           </div>
           <p className="mt-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
-            {option.mealBasisLabel} · {option.isRefundable ? "Free cancellation" : "Non-refundable"}
+            {option.mealBasisLabel}
+            {option.isRefundable ? "" : " · Non-refundable"}
           </p>
+          <HotelRoomCancellationRules option={option} locale={locale} />
           {option.inclusions.length > 0 && (
             <p className="mt-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
               {option.inclusions.slice(0, 4).join(" · ")}

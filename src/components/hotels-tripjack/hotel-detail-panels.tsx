@@ -1,7 +1,6 @@
 "use client";
 
 import { Clock, MapPin, Phone, ShieldCheck, Utensils } from "lucide-react";
-import { HotelCancellationTimeline } from "@/components/hotels-tripjack/hotel-cancellation-timeline";
 import { HotelCard } from "@/components/hotels-tripjack/hotel-ui-primitives";
 import { HOTEL_UI } from "@/components/hotels-tripjack/hotel-ui-theme";
 import { formatCurrency } from "@/lib/i18n";
@@ -253,13 +252,6 @@ export function HotelSelectedRoomCard({
           )}
         </div>
       </HotelCard>
-
-      <HotelCancellationTimeline
-        isRefundable={option.isRefundable}
-        freeCancellationUntil={option.freeCancellationUntil}
-        penalties={option.penalties}
-        locale={locale}
-      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Calendar, Loader2, MapPin, Plus, Search, Trash2, Users, Zap } from "lucide-react";
+import { Building2, Calendar, MapPin, Plus, Search, Trash2, Users, Zap } from "lucide-react";
 import {
   HotelDestinationAutocomplete,
 } from "@/components/hotels-tripjack/hotel-destination-autocomplete";
@@ -327,17 +327,8 @@ export function TripJackSearchPanel({
               onClick={onSearch}
               className={cn((compact || destinationOnly) && "!w-auto px-8")}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Searching…
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Search
-                </>
-              )}
+              {!loading ? <Search className="mr-2 h-4 w-4" /> : null}
+              {loading ? "Searching…" : "Search"}
             </HotelPrimaryButton>
           </div>
         </div>
