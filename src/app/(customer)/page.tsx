@@ -22,11 +22,25 @@ import { MobileTravelersSlider } from "@/components/customer/mobile-travelers-sl
 export const revalidate = 300;
 
 export default async function HomePage() {
+  // Homepage catalog content is optional during prerendering. Firestore's free
+  // quota can be temporarily exhausted, but that must not abort a deployment.
   const [packages, hotels, vehicles, reviews] = await Promise.all([
-    getPackages(),
-    getHotels(),
-    getVehicles(),
-    getReviews(),
+    getPackages().catch((error) => {
+      console.warn("[home-page] packages unavailable; using empty catalog:", error);
+      return [];
+    }),
+    getHotels().catch((error) => {
+      console.warn("[home-page] hotels unavailable; using empty catalog:", error);
+      return [];
+    }),
+    getVehicles().catch((error) => {
+      console.warn("[home-page] vehicles unavailable; using empty catalog:", error);
+      return [];
+    }),
+    getReviews().catch((error) => {
+      console.warn("[home-page] reviews unavailable; using empty catalog:", error);
+      return [];
+    }),
   ]);
 
   const featuredPackages = buildHomepagePackages(packages);
