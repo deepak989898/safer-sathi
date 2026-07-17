@@ -976,7 +976,7 @@ export async function syncTripJackHotelCatalog(options?: {
       destinationsIndexed = await upsertTripJackHotelDestinations(destinations);
     }
 
-    const activeHotels = await getAllTripJackActiveHotelsForIndexRebuild();
+    const activeCount = await countActiveTripJackHotels();
     const now = new Date().toISOString();
     const message = [
       `Mapping: ${mappingIdsFound} IDs across ${mappingPagesFetched} page(s)`,
@@ -988,8 +988,8 @@ export async function syncTripJackHotelCatalog(options?: {
 
     await updateTripJackHotelCatalogMeta({
       lastSyncedAt: now,
-      totalHotels: activeHotels.length,
-      activeHotels: activeHotels.length,
+      totalHotels: activeCount,
+      activeHotels: activeCount,
       deletedHotels: 0,
       lastSyncNext: null,
       syncInProgress: false,

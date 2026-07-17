@@ -852,7 +852,7 @@ export interface TripJackHotelCityFilterStats {
   computedAt: string;
 }
 
-const CITY_FILTER_STATS_CACHE_MS = 60 * 60 * 1000;
+const CITY_FILTER_STATS_CACHE_MS = 6 * 60 * 60 * 1000;
 
 async function scanBrowsableCityFilterStats(): Promise<TripJackHotelCityFilterStats> {
   const empty: TripJackHotelCityFilterStats = {
@@ -865,43 +865,30 @@ async function scanBrowsableCityFilterStats(): Promise<TripJackHotelCityFilterSt
   const db = await getSafeAdminDb();
   if (!db) return empty;
 
-  const popularKeys = new Map<string, string>();
+  const cityCounts = new Map<string, number>();
   for (const city of FEATURED_POPULAR_CITIES) {
     const key = resolvePopularCityKey(city) ?? city.toLowerCase();
-    popularKeys.set(key, city);
-  }
-
-  const cityCounts = new Map<string, number>();
-  for (const key of popularKeys.keys()) {
     cityCounts.set(key, 0);
   }
 
-  let totalHotels = 0;
-  let cursor: number | null = null;
-  let hasMore = true;
+  // Destination documents are precomputed during catalog sync. Reading this
+  // small index avoids scanning and parsing 100k+ hotel documents per request.
+  const [destinationsSnap, totalHotels] = await Promise.all([
+    db
+      .collection(TRIPJACK_HOTEL_DESTINATIONS_COLLECTION)
+      .where("type", "==", "city")
+      .get(),
+    countContentSyncedTripJackHotels(),
+  ]);
 
-  while (hasMore) {
-    let query = db.collection(TRIPJACK_HOTEL_CATALOG_COLLECTION).orderBy("tjHotelId").limit(500);
-    if (cursor != null) {
-      query = query.startAfter(cursor);
+  for (const doc of destinationsSnap.docs) {
+    const destination = doc.data() as TripJackHotelDestinationIndex;
+    const key =
+      resolvePopularCityKey(destination.label) ??
+      resolvePopularCityKey(destination.searchKey);
+    if (key && cityCounts.has(key)) {
+      cityCounts.set(key, (cityCounts.get(key) ?? 0) + destination.hotelCount);
     }
-
-    const snap = await query.get();
-    if (snap.empty) break;
-
-    for (const doc of snap.docs) {
-      const hotel = doc.data() as TripJackHotelCatalogEntry;
-      cursor = hotel.tjHotelId;
-      if (!isBrowsableIndiaHotel(hotel)) continue;
-
-      totalHotels += 1;
-      const key = entryCityKey(hotel);
-      if (cityCounts.has(key)) {
-        cityCounts.set(key, (cityCounts.get(key) ?? 0) + 1);
-      }
-    }
-
-    hasMore = snap.size >= 500;
   }
 
   const cities = FEATURED_POPULAR_CITIES.map((city) => {

@@ -108,30 +108,33 @@ export default function HotelsClient({
 
     let cancelled = false;
     const hasInitialHotels = featuredTripJackHotels.length > 0;
-    if (!hasInitialHotels) setFeaturedLoading(true);
-
-    void fetch("/api/hotels/featured-catalog?limit=24", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled) return;
-        if (json.success) {
-          if (Array.isArray(json.data?.hotels) && json.data.hotels.length > 0) {
-            setFeaturedHotels(json.data.hotels);
+    if (hasInitialHotels) {
+      setFeaturedLoading(false);
+    } else {
+      setFeaturedLoading(true);
+      void fetch("/api/hotels/featured-catalog?limit=24")
+        .then((res) => res.json())
+        .then((json) => {
+          if (cancelled) return;
+          if (json.success) {
+            if (Array.isArray(json.data?.hotels) && json.data.hotels.length > 0) {
+              setFeaturedHotels(json.data.hotels);
+            }
+            if (json.data?.catalog) {
+              setFeaturedCatalogInfo((prev) => ({
+                ...prev,
+                ...json.data.catalog,
+              }));
+            }
           }
-          if (json.data?.catalog) {
-            setFeaturedCatalogInfo((prev) => ({
-              ...prev,
-              ...json.data.catalog,
-            }));
-          }
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setFeaturedLoading(false);
-      });
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setFeaturedLoading(false);
+        });
+    }
 
-    void fetch("/api/hotels/featured-city-counts", { cache: "no-store" })
+    void fetch("/api/hotels/featured-city-counts")
       .then((res) => res.json())
       .then((json) => {
         if (cancelled || !json.success) return;

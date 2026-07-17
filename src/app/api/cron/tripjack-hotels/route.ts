@@ -27,6 +27,9 @@ export async function GET(request: Request) {
         mode: "incremental",
         maxMappingPages: Number(url.searchParams.get("maxMappingPages") ?? "5"),
         maxContentBatches: Number(url.searchParams.get("maxContentBatches") ?? "20"),
+        // Destination rebuilding scans the complete 100k+ hotel catalog.
+        // Run that explicitly from admin after a full sync, not in the daily cron.
+        rebuildDestinations: false,
         actorId: "cron",
         actorEmail: "cron@system",
       });

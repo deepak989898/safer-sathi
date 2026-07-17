@@ -17,7 +17,9 @@ import { HERO_IMAGES } from "@/lib/media/travel-images";
 import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
 import { MobileTravelersSlider } from "@/components/customer/mobile-travelers-slider";
 
-export const dynamic = "force-dynamic";
+// Public homepage content changes infrequently. ISR keeps it available from
+// Vercel's cache instead of running four Firestore reads on every page view.
+export const revalidate = 300;
 
 export default async function HomePage() {
   const [packages, hotels, vehicles, reviews] = await Promise.all([

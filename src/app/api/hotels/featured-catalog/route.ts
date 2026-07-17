@@ -6,7 +6,7 @@ import {
 } from "@/lib/tripjack-hotels/catalog-firestore";
 import { getHotelWebsiteSettings, isTripjackHotelsWebsiteEnabled } from "@/lib/hotels/website-settings";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 const STALE_SYNC_MS = 20 * 60 * 1000;
 

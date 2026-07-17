@@ -4,7 +4,9 @@ import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalo
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import HotelsClient from "./hotels-client";
 
-export const dynamic = "force-dynamic";
+// Cache the catalog shell and featured cards briefly. Live availability and
+// prices still load through their APIs for the dates selected by the user.
+export const revalidate = 300;
 
 export const metadata = buildPageMetadata({
   title: "Hotels in India | Book Stays | Safar Sathi",
