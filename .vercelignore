@@ -1,0 +1,13 @@
+.git
+.next
+.vercel
+node_modules
+.env*
+
+# Separate Firebase Functions project; not part of the Next.js deployment.
+safar-sathi-functions
+
+# Local-only source material and generated diagnostics.
+docs
+coverage
+*.log
