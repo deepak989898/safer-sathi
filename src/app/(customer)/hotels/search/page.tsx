@@ -1,5 +1,9 @@
 import { HotelSearchClient } from "@/components/hotels-tripjack/hotel-search-client";
-import { getHotelWebsiteSettings, isTripjackHotelsWebsiteEnabled } from "@/lib/hotels/website-settings";
+import {
+  DEFAULT_HOTEL_WEBSITE_SETTINGS,
+  getHotelWebsiteSettings,
+  isTripjackHotelsWebsiteEnabled,
+} from "@/lib/hotels/website-settings";
 import Link from "next/link";
 
 export const metadata = {
@@ -8,7 +12,12 @@ export const metadata = {
 };
 
 export default async function HotelSearchPage() {
-  const settings = await getHotelWebsiteSettings();
+  // Do not let a temporary Firestore quota outage abort static generation.
+  // The default keeps live search visible; its APIs handle runtime failures.
+  const settings = await getHotelWebsiteSettings().catch((error) => {
+    console.warn("[hotel-search-page] settings unavailable; using defaults:", error);
+    return DEFAULT_HOTEL_WEBSITE_SETTINGS;
+  });
   const enabled = isTripjackHotelsWebsiteEnabled(settings);
 
   if (!enabled) {
