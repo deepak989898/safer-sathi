@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { getHotelSearchSessionRemainingMs } from "@/lib/tripjack-hotels/session";
 
@@ -13,20 +13,29 @@ function formatRemaining(ms: number): string {
 
 export function HotelSessionCountdown({ onExpired }: { onExpired?: () => void }) {
   const [remainingMs, setRemainingMs] = useState(() => getHotelSearchSessionRemainingMs());
+  const expiredNotifiedRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       const next = getHotelSearchSessionRemainingMs();
       setRemainingMs(next);
-      if (next <= 0) onExpired?.();
+      if (next <= 0) {
+        if (!expiredNotifiedRef.current) {
+          expiredNotifiedRef.current = true;
+          onExpired?.();
+        }
+      } else {
+        expiredNotifiedRef.current = false;
+      }
     }, 1000);
     return () => window.clearInterval(timer);
   }, [onExpired]);
 
   if (remainingMs <= 0) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-        Session expired. Please search hotels again to get fresh rates.
+      <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+        <Clock className="h-3.5 w-3.5 text-red-600" />
+        Rates expired — refreshing…
       </div>
     );
   }

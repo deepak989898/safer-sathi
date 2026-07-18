@@ -62,25 +62,25 @@ export function HotelBookingLayout({
         </header>
       ) : (
         <header className="border-b bg-white shadow-sm">
-          <div className="container mx-auto flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="container mx-auto flex flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               {backHref && (
                 <Link
                   href={backHref}
-                  className="mb-1 inline-flex items-center text-sm font-medium hover:underline"
+                  className="mb-0.5 inline-flex items-center text-xs font-medium hover:underline"
                   style={{ color: HOTEL_UI.action }}
                 >
-                  <ArrowLeft className="mr-1 h-4 w-4" />
+                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                   {backLabel}
                 </Link>
               )}
               {title && (
-                <h1 className="text-xl font-bold md:text-2xl" style={{ color: HOTEL_UI.primary }}>
+                <h1 className="text-lg font-bold md:text-xl" style={{ color: HOTEL_UI.primary }}>
                   {title}
                 </h1>
               )}
               {subtitle && (
-                <p className="text-sm" style={{ color: HOTEL_UI.textMuted }}>
+                <p className="text-xs" style={{ color: HOTEL_UI.textMuted }}>
                   {subtitle}
                 </p>
               )}

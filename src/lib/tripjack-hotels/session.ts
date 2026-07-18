@@ -66,12 +66,36 @@ export function getHotelSearchSessionRemainingMs(): number {
   return Math.max(0, new Date(expiresAt).getTime() - Date.now());
 }
 
+/** True when a search/browse context exists in sessionStorage. */
+export function hasHotelSearchContext(): boolean {
+  const ctx = loadJson<{ searchedAt?: string }>(HOTEL_SESSION_KEYS.searchContext);
+  return Boolean(ctx?.searchedAt);
+}
+
+/**
+ * Extend the visible 15-minute rate window after a successful pricing/review
+ * refresh so customers are not forced back to search mid-booking.
+ */
+export function refreshHotelSearchSessionClock(): void {
+  const ctx = loadJson<Record<string, unknown>>(HOTEL_SESSION_KEYS.searchContext);
+  if (!ctx) return;
+  saveJson(HOTEL_SESSION_KEYS.searchContext, {
+    ...ctx,
+    searchedAt: new Date().toISOString(),
+  });
+  touchSessionMeta();
+}
+
 function isHotelStorageExpired(): boolean {
   const meta = loadJson<{ expiresAt?: string }>(HOTEL_SESSION_KEYS.sessionMeta);
   if (!meta?.expiresAt) return false;
   return new Date(meta.expiresAt).getTime() < Date.now();
 }
 
+/**
+ * Rate window expired (or missing). Prefer recovering via a fresh listing call
+ * over wiping the booking flow.
+ */
 export function isHotelSearchSessionExpired(): boolean {
   const ctx = loadJson<{
     searchedAt?: string;
@@ -79,11 +103,13 @@ export function isHotelSearchSessionExpired(): boolean {
     browseMode?: boolean;
   }>(HOTEL_SESSION_KEYS.searchContext);
   if (!ctx?.searchedAt) return true;
-  if (ctx.browseMode && !ctx.correlationId) {
-    return getHotelSearchSessionRemainingMs() <= 0;
-  }
+  if (getHotelSearchSessionRemainingMs() <= 0) return true;
+  // Browse stubs without a live correlation still count as expired for pricing
+  // once the timer elapses (handled above). While the timer is active, allow
+  // browse mode without correlationId so stay-details can start live rates.
+  if (ctx.browseMode && !ctx.correlationId) return false;
   if (!ctx.correlationId) return true;
-  return getHotelSearchSessionRemainingMs() <= 0;
+  return false;
 }
 
 export function clearHotelBookingSession(): void {

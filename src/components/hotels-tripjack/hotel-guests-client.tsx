@@ -11,7 +11,6 @@ import {
 import {
   HotelCard,
   HotelFieldLabel,
-  HotelInfoBanner,
   HotelPrimaryButton,
   HotelPriceSummary,
   HotelStepBar,
@@ -33,13 +32,14 @@ import {
 } from "@/lib/hotels/guest-validation";
 import { formatCurrency } from "@/lib/i18n";
 import type { HotelGuestDetailsForm, HotelPrimaryGuestForm, HotelRoomGuestForm } from "@/lib/hotels/types";
+import { startHotelLivePricing } from "@/lib/tripjack-hotels/featured-hotel-bootstrap";
 import {
   isHotelSearchSessionExpired,
   loadHotelReviewPrep,
   loadHotelReviewResult,
   saveHotelReviewResult,
 } from "@/lib/tripjack-hotels/session";
-import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
+import type { HotelRoomRequest, NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -91,6 +91,7 @@ export function HotelGuestsClient() {
   const [roomGuests, setRoomGuests] = useState<HotelRoomGuestForm[][]>([]);
   const [fieldErrors, setFieldErrors] = useState<GuestFieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [editOccupancyLoading, setEditOccupancyLoading] = useState(false);
 
   const validationOptions = useMemo(
     () => ({
@@ -276,6 +277,32 @@ export function HotelGuestsClient() {
     );
   };
 
+  const onEditOccupancy = async (rooms: HotelRoomRequest[]) => {
+    if (!review) return;
+    setEditOccupancyLoading(true);
+    try {
+      const live = await startHotelLivePricing({
+        hid: review.tjHotelId,
+        checkIn: review.searchContext.checkIn,
+        checkOut: review.searchContext.checkOut,
+        rooms,
+        hotelName: review.hotelName,
+        currency: review.searchContext.currency,
+        nationality: review.searchContext.nationality,
+      });
+      if (!live.ok) {
+        toast.error(live.message);
+        return;
+      }
+      sessionStorage.removeItem("tripjack_hotel_guest_details");
+      sessionStorage.removeItem("tripjack_hotel_review_for_payment");
+      toast.success("Guest count updated. Select a room again.");
+      router.push(`/hotels/detail/${encodeURIComponent(String(review.tjHotelId))}`);
+    } finally {
+      setEditOccupancyLoading(false);
+    }
+  };
+
   const onSubmit = async () => {
     if (!review) return;
 
@@ -365,24 +392,31 @@ export function HotelGuestsClient() {
   return (
     <HotelBookingLayout
       title="Guest Details"
-      subtitle={review.hotelName}
       backHref={detailHref}
       backLabel="Back to hotel details"
       showCountdown
-      maxWidth="xl"
+      maxWidth="lg"
+      className="!py-2 md:!py-3"
     >
-      <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} />
+      <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} className="!mb-2" />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
-          <HotelLockedBookingSummary review={review} locale={locale} />
+      <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_260px]">
+        <div className="space-y-2">
+          <HotelLockedBookingSummary
+            review={review}
+            locale={locale}
+            compact
+            editLoading={editOccupancyLoading}
+            onEditOccupancy={onEditOccupancy}
+          />
 
-          <HotelCard>
-            <h2 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+          <HotelCard padding="sm" className="!p-2.5">
+            <h2 className="text-sm font-bold" style={{ color: HOTEL_UI.primary }}>
               Primary Guest &amp; Contact
             </h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
               <Field
+                compact
                 label="First name *"
                 value={primaryGuest.firstName}
                 error={fieldErrors["primary.firstName"]}
@@ -393,6 +427,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ firstName: guestNameOnly(v) }, ["firstName"])}
               />
               <Field
+                compact
                 label="Last name *"
                 value={primaryGuest.lastName}
                 error={fieldErrors["primary.lastName"]}
@@ -403,6 +438,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ lastName: guestNameOnly(v) }, ["lastName"])}
               />
               <Field
+                compact
                 label="Email *"
                 type="email"
                 value={primaryGuest.email}
@@ -414,6 +450,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ email: v }, ["email"])}
               />
               <PhoneField
+                compact
                 label="Phone *"
                 value={primaryGuest.mobile}
                 error={fieldErrors["primary.mobile"]}
@@ -424,6 +461,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ mobile: v }, ["mobile"])}
               />
               <Field
+                compact
                 label="Address *"
                 className="sm:col-span-2"
                 value={primaryGuest.address}
@@ -435,6 +473,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ address: v }, ["address"])}
               />
               <Field
+                compact
                 label="City *"
                 value={primaryGuest.city}
                 error={fieldErrors["primary.city"]}
@@ -445,6 +484,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ city: guestNameOnly(v, 80) }, ["city"])}
               />
               <Field
+                compact
                 label="State *"
                 value={primaryGuest.state}
                 error={fieldErrors["primary.state"]}
@@ -455,6 +495,7 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ state: guestNameOnly(v, 80) }, ["state"])}
               />
               <Field
+                compact
                 label="Country *"
                 value={primaryGuest.country}
                 error={fieldErrors["primary.country"]}
@@ -465,11 +506,11 @@ export function HotelGuestsClient() {
                 onChange={(v) => updatePrimaryGuest({ country: v }, ["country"])}
               />
               <Field
+                compact
                 label="PIN code *"
                 value={primaryGuest.zipCode}
                 inputMode="numeric"
                 maxLength={6}
-                hint="6-digit PIN"
                 error={fieldErrors["primary.zipCode"]}
                 onBlur={() => {
                   markTouched("primary.zipCode");
@@ -479,9 +520,9 @@ export function HotelGuestsClient() {
               />
               {review.option.panRequired && (
                 <Field
+                  compact
                   label="PAN number *"
                   value={primaryGuest.pan ?? ""}
-                  hint="10 characters, e.g. ABCDE1234F"
                   error={fieldErrors["primary.pan"]}
                   onBlur={() => {
                     markTouched("primary.pan");
@@ -493,6 +534,7 @@ export function HotelGuestsClient() {
               {review.option.passportRequired && (
                 <>
                   <Field
+                    compact
                     label="Passport number *"
                     value={primaryGuest.passportNumber ?? ""}
                     error={fieldErrors["primary.passportNumber"]}
@@ -505,6 +547,7 @@ export function HotelGuestsClient() {
                     }
                   />
                   <Field
+                    compact
                     label="Passport expiry *"
                     type="date"
                     value={primaryGuest.passportExpiry ?? ""}
@@ -521,16 +564,17 @@ export function HotelGuestsClient() {
           </HotelCard>
 
           {roomGuests.map((room, roomIndex) => (
-            <HotelCard key={roomIndex}>
-              <h2 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+            <HotelCard key={roomIndex} padding="sm" className="!p-2.5">
+              <h2 className="text-sm font-bold" style={{ color: HOTEL_UI.primary }}>
                 Room {roomIndex + 1} — Guest names
               </h2>
-              <div className="mt-4 space-y-4">
+              <div className="mt-1.5 space-y-1.5">
                 {room.map((guest, guestIndex) => {
                   const prefix = `room.${roomIndex}.${guestIndex}`;
                   return (
-                    <div key={guestIndex} className="grid gap-3 sm:grid-cols-4">
+                    <div key={guestIndex} className="grid gap-1.5 sm:grid-cols-4">
                       <Field
+                        compact
                         label="Title"
                         value={guest.title}
                         onChange={(v) =>
@@ -540,6 +584,7 @@ export function HotelGuestsClient() {
                         }
                       />
                       <Field
+                        compact
                         label="First name *"
                         value={guest.firstName}
                         error={fieldErrors[`${prefix}.firstName`]}
@@ -558,6 +603,7 @@ export function HotelGuestsClient() {
                         }
                       />
                       <Field
+                        compact
                         label="Last name *"
                         value={guest.lastName}
                         error={fieldErrors[`${prefix}.lastName`]}
@@ -577,6 +623,7 @@ export function HotelGuestsClient() {
                       />
                       {guest.type === "CHILD" ? (
                         <Field
+                          compact
                           label="Age *"
                           type="number"
                           value={String(guest.age ?? "")}
@@ -599,7 +646,7 @@ export function HotelGuestsClient() {
                           }}
                         />
                       ) : (
-                        <div className="flex items-end pb-2 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+                        <div className="flex items-end pb-1 text-[11px]" style={{ color: HOTEL_UI.textMuted }}>
                           Adult
                         </div>
                       )}
@@ -612,33 +659,26 @@ export function HotelGuestsClient() {
 
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-1.5 lg:sticky lg:top-3 lg:self-start">
           <HotelPriceSummary
+            compact
             lines={[
               { label: "Room", value: option.roomInfo[0] || option.roomName },
               { label: "Nights", value: String(nights) },
-              { label: "Meal plan", value: option.mealBasisLabel || option.mealBasis },
-              {
-                label: "Subtotal",
-                value: formatCurrency(option.pricing.basePrice, locale),
-              },
-              {
-                label: "Taxes & fees",
-                value: formatCurrency(option.pricing.taxes + option.pricing.mf + option.pricing.mft, locale),
-              },
             ]}
             total={formatCurrency(option.pricing.totalPrice, locale)}
+            totalLabel="Amount"
             footer={
-              <HotelPrimaryButton loading={submitting} onClick={() => void onSubmit()}>
+              <HotelPrimaryButton className="!h-9 text-sm" loading={submitting} onClick={() => void onSubmit()}>
                 Continue to Review
               </HotelPrimaryButton>
             }
           />
-          <HotelInfoBanner variant="success">
+          <p className="text-[11px]" style={{ color: HOTEL_UI.textMuted }}>
             {option.isRefundable
               ? "Free cancellation available on this rate."
               : "This rate is non-refundable."}
-          </HotelInfoBanner>
+          </p>
         </div>
       </div>
     </HotelBookingLayout>
@@ -656,6 +696,7 @@ function Field({
   hint,
   inputMode,
   maxLength,
+  compact = false,
 }: {
   label: string;
   value: string;
@@ -667,13 +708,16 @@ function Field({
   hint?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   maxLength?: number;
+  compact?: boolean;
 }) {
   const hasError = Boolean(error);
   return (
     <div className={className}>
       <HotelFieldLabel>{label}</HotelFieldLabel>
       <input
-        className="mt-1.5 h-11 w-full rounded border bg-white px-3 text-sm"
+        className={`w-full rounded border bg-white text-sm ${
+          compact ? "mt-0.5 h-8 px-2" : "mt-1.5 h-11 px-3"
+        }`}
         style={{
           borderColor: hasError ? "#dc2626" : HOTEL_UI.border,
         }}
@@ -684,12 +728,12 @@ function Field({
         onBlur={onBlur}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint && !hasError ? (
+      {hint && !hasError && !compact ? (
         <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
           {hint}
         </p>
       ) : null}
-      {hasError ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
+      {hasError ? <p className="mt-0.5 text-[11px] text-red-600">{error}</p> : null}
     </div>
   );
 }
@@ -700,26 +744,33 @@ function PhoneField({
   onChange,
   onBlur,
   error,
+  compact = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   onBlur?: () => void;
   error?: string;
+  compact?: boolean;
 }) {
   const hasError = Boolean(error);
   return (
     <div>
       <HotelFieldLabel>{label}</HotelFieldLabel>
-      <div className="mt-1.5 flex overflow-hidden rounded border" style={{ borderColor: hasError ? "#dc2626" : HOTEL_UI.border }}>
+      <div
+        className={`flex overflow-hidden rounded border ${compact ? "mt-0.5" : "mt-1.5"}`}
+        style={{ borderColor: hasError ? "#dc2626" : HOTEL_UI.border }}
+      >
         <span
-          className="flex h-11 items-center border-r bg-slate-50 px-3 text-sm font-medium text-slate-600"
+          className={`flex items-center border-r bg-slate-50 text-sm font-medium text-slate-600 ${
+            compact ? "h-8 px-2" : "h-11 px-3"
+          }`}
           style={{ borderColor: hasError ? "#dc2626" : HOTEL_UI.border }}
         >
           +91
         </span>
         <input
-          className="h-11 min-w-0 flex-1 bg-white px-3 text-sm"
+          className={`min-w-0 flex-1 bg-white text-sm ${compact ? "h-8 px-2" : "h-11 px-3"}`}
           type="tel"
           inputMode="numeric"
           maxLength={10}
@@ -729,13 +780,12 @@ function PhoneField({
           onChange={(e) => onChange(normalizeIndianMobile(e.target.value))}
         />
       </div>
-      {!hasError ? (
+      {!hasError && !compact ? (
         <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
           Do not include +91 or a leading 0
         </p>
-      ) : (
-        <p className="mt-1 text-xs text-red-600">{error}</p>
-      )}
+      ) : null}
+      {hasError ? <p className="mt-0.5 text-[11px] text-red-600">{error}</p> : null}
     </div>
   );
 }

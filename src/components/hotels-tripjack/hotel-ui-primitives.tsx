@@ -125,18 +125,23 @@ export function HotelPriceSummary({
   total,
   totalLabel = "Total",
   footer,
+  compact = false,
 }: {
   lines: Array<{ label: string; value: string; highlight?: boolean }>;
   total: string;
   totalLabel?: string;
   footer?: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <HotelCard className="sticky top-6 h-fit">
-      <h3 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
+    <HotelCard
+      padding={compact ? "sm" : "md"}
+      className={cn("h-fit", compact ? "!p-2.5 sticky top-3" : "sticky top-6")}
+    >
+      <h3 className={`font-bold ${compact ? "text-sm" : "text-base"}`} style={{ color: HOTEL_UI.primary }}>
         Price Summary
       </h3>
-      <div className="mt-4 space-y-2 text-sm">
+      <div className={`${compact ? "mt-2 space-y-1 text-xs" : "mt-4 space-y-2 text-sm"}`}>
         {lines.map((line) => (
           <div key={line.label} className="flex justify-between gap-4">
             <span style={{ color: HOTEL_UI.textMuted }}>{line.label}</span>
@@ -149,21 +154,29 @@ export function HotelPriceSummary({
           </div>
         ))}
         <div
-          className="flex justify-between border-t pt-3 text-lg font-bold"
+          className={`flex justify-between border-t font-bold ${compact ? "pt-2 text-base" : "pt-3 text-lg"}`}
           style={{ borderColor: HOTEL_UI.border, color: HOTEL_UI.primary }}
         >
           <span>{totalLabel}</span>
           <span>{total}</span>
         </div>
       </div>
-      {footer ? <div className="mt-4">{footer}</div> : null}
+      {footer ? <div className={compact ? "mt-2" : "mt-4"}>{footer}</div> : null}
     </HotelCard>
   );
 }
 
-export function HotelStepBar({ steps, current }: { steps: string[]; current: number }) {
+export function HotelStepBar({
+  steps,
+  current,
+  className,
+}: {
+  steps: string[];
+  current: number;
+  className?: string;
+}) {
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2 text-xs font-medium">
+    <div className={cn("mb-6 flex flex-wrap items-center gap-2 text-xs font-medium", className)}>
       {steps.map((step, i) => (
         <span key={step} className="flex items-center gap-2">
           <span

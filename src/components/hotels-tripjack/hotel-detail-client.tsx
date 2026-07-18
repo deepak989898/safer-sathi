@@ -32,9 +32,11 @@ import {
   isHotelSearchSessionExpired,
   loadHotelDetailCache,
   loadHotelListingSession,
+  refreshHotelSearchSessionClock,
   saveHotelDetailCache,
   saveHotelReviewPrep,
 } from "@/lib/tripjack-hotels/session";
+import { getDefaultHotelStayDates } from "@/lib/tripjack-hotels/stay-dates";
 import type {
   HotelRoomRequest,
   NormalizedHotelDetail,
@@ -65,6 +67,42 @@ type StaticContentPreview = Pick<
   | "geolocation"
   | "images"
 >;
+
+async function recoverHotelDetailSession(input: {
+  hid: string;
+  hotelName?: string;
+  currency?: string;
+  nationality?: string;
+}): Promise<{ ok: true } | { ok: false; needsStayDetails?: boolean; message?: string }> {
+  const session = loadHotelListingSession();
+  const defaults = getDefaultHotelStayDates();
+  const checkIn = session.request?.checkIn || defaults.checkIn;
+  const checkOut = session.request?.checkOut || defaults.checkOut;
+  const rooms: HotelRoomRequest[] =
+    session.request?.rooms?.length ? session.request.rooms : [{ adults: 2 }];
+
+  const live = await startHotelLivePricing({
+    hid: input.hid,
+    checkIn,
+    checkOut,
+    rooms,
+    hotelName: input.hotelName,
+    currency: input.currency ?? session.currency ?? "INR",
+    nationality: input.nationality ?? session.nationality ?? "106",
+  });
+
+  if (live.ok) {
+    refreshHotelSearchSessionClock();
+    return { ok: true };
+  }
+
+  // If live recovery fails and we never had stay dates, let the user pick dates.
+  if (!session.request?.checkIn || !session.request?.checkOut) {
+    return { ok: false, needsStayDetails: true };
+  }
+
+  return { ok: false, message: live.message || "Could not refresh hotel rates. Please try again." };
+}
 
 function DetailSkeleton() {
   return (
@@ -184,7 +222,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   }, [hid, isStaff]);
 
   const loadPricing = useCallback(
-    async (force = false) => {
+    async (force = false, allowRecover = true) => {
       if (!hid) {
         setError({ message: "Hotel ID missing. Go back to results and select a hotel." });
         setLoading(false);
@@ -192,8 +230,42 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       }
 
       if (isHotelSearchSessionExpired()) {
+        if (allowRecover) {
+          setLoading(true);
+          setError(null);
+          setSessionExpired(false);
+          const recovered = await recoverHotelDetailSession({
+            hid,
+            hotelName: listingHotel?.name || staticPreview?.name,
+            currency: listingSession.currency,
+            nationality: listingSession.nationality,
+          });
+          if (recovered.ok) {
+            toast.success("Rates refreshed", { duration: 1800 });
+            await loadPricing(true, false);
+            return;
+          }
+          if (recovered.needsStayDetails) {
+            setNeedsStayDetails(true);
+            setLoading(false);
+            return;
+          }
+          setError({
+            message: recovered.message ?? "Session expired. Please search hotels again.",
+            backToSearch: true,
+            retryable: true,
+          });
+          setSessionExpired(true);
+          setLoading(false);
+          return;
+        }
+
         setSessionExpired(true);
-        setError({ message: "Session expired. Please search hotels again.", backToSearch: true });
+        setError({
+          message: "Session expired. Please search hotels again.",
+          backToSearch: true,
+          retryable: true,
+        });
         setLoading(false);
         return;
       }
@@ -215,6 +287,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
           setDetail(cached);
           setSelectedOptionId(findCheapestOptionId(cached.options));
           setLoading(false);
+          refreshHotelSearchSessionClock();
           if (isStaff) console.log("[hotel-pricing] cache hit", cached.hotelId);
           return;
         }
@@ -233,7 +306,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
           rooms: request.rooms as HotelRoomRequest[],
           currency: request.currency || session.currency,
           nationality: request.nationality || session.nationality,
-          listingHotelName: listingHotel?.name,
+          listingHotelName: listingHotel?.name || staticPreview?.name,
         };
 
         if (isStaff) console.log("[hotel-pricing] request", body);
@@ -246,11 +319,33 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         const json = await res.json();
 
         if (!json.success) {
+          const code = String(json.details?.code ?? "");
+          const message = String(json.error ?? "");
+          const looksExpired =
+            code.includes("SESSION") ||
+            message.toLowerCase().includes("session") ||
+            message.toLowerCase().includes("expired") ||
+            message.toLowerCase().includes("correlation");
+
+          if (allowRecover && looksExpired) {
+            const recovered = await recoverHotelDetailSession({
+              hid,
+              hotelName: listingHotel?.name || staticPreview?.name,
+              currency: listingSession.currency,
+              nationality: listingSession.nationality,
+            });
+            if (recovered.ok) {
+              toast.success("Rates refreshed", { duration: 1800 });
+              await loadPricing(true, false);
+              return;
+            }
+          }
+
           setError({
             message: json.error ?? "Failed to load hotel pricing",
             code: json.details?.code,
             backToSearch: Boolean(json.details?.backToSearch),
-            retryable: Boolean(json.details?.retryable),
+            retryable: true,
             adminMessage: isSuperAdmin ? json.details?.adminMessage : undefined,
           });
           return;
@@ -258,6 +353,8 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
         const next = json.data.detail as NormalizedHotelDetail;
         saveHotelDetailCache(next);
+        refreshHotelSearchSessionClock();
+        setSessionExpired(false);
         setDetail(next);
         setMarkupPercent(Number(json.data.markupPercent ?? 0));
         setSelectedOptionId(findCheapestOptionId(next.options));
@@ -282,7 +379,15 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         setLoading(false);
       }
     },
-    [hid, listingHotel?.name, isStaff, isSuperAdmin]
+    [
+      hid,
+      listingHotel?.name,
+      listingSession.currency,
+      listingSession.nationality,
+      staticPreview?.name,
+      isStaff,
+      isSuperAdmin,
+    ]
   );
 
   const handleStaySubmit = useCallback(
@@ -305,7 +410,8 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         return;
       }
       setNeedsStayDetails(false);
-      await loadPricing(true);
+      refreshHotelSearchSessionClock();
+      await loadPricing(true, false);
     },
     [hid, listingHotel?.name, listingSession.currency, listingSession.nationality, loadPricing]
   );
@@ -315,10 +421,14 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   }, [loadStaticContent]);
 
   useEffect(() => {
-    if (!needsStayDetails) {
-      void loadPricing(false);
-    }
-  }, [needsStayDetails, loadPricing]);
+    void loadPricing(false, true);
+    // Bootstrap pricing once when hotel page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hid]);
+
+  const handleSessionExpired = useCallback(() => {
+    void loadPricing(true, true);
+  }, [loadPricing]);
 
   const onSelectRoom = (optionId: string) => {
     if (optionId === selectedOptionId) return;
@@ -337,8 +447,25 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
   const onContinue = (optionId = selectedOptionId) => {
     if (sessionExpired || isHotelSearchSessionExpired()) {
-      toast.error("Session expired. Please search again.");
-      router.push("/hotels/search");
+      void (async () => {
+        setLoading(true);
+        const recovered = await recoverHotelDetailSession({
+          hid,
+          hotelName: listingHotel?.name || staticPreview?.name,
+          currency: listingSession.currency,
+          nationality: listingSession.nationality,
+        });
+        if (!recovered.ok) {
+          setLoading(false);
+          toast.error(recovered.message ?? "Session expired. Please search again.");
+          if (!recovered.needsStayDetails) router.push("/hotels/search");
+          else setNeedsStayDetails(true);
+          return;
+        }
+        toast.success("Rates refreshed — select your room again");
+        setDetail(null);
+        await loadPricing(true, false);
+      })();
       return;
     }
 
@@ -450,7 +577,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       backHref="/hotels/results"
       backLabel="Back to results"
       showCountdown
-      onSessionExpired={() => setSessionExpired(true)}
+      onSessionExpired={handleSessionExpired}
       maxWidth="lg"
     >
       <HotelStepBar
@@ -458,17 +585,21 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         current={1}
       />
 
-      {loading && !needsStayDetails && !detail && <DetailSkeleton />}
+      {(loading || staticLoading) && !detail && !error && <DetailSkeleton />}
 
-      {needsStayDetails && !detail && listingHotel && (
+      {needsStayDetails && !detail && !loading && (
         <div className="space-y-4">
           <HotelCard padding="sm" className="overflow-hidden">
             {galleryImages.length > 0 && (
-              <PackageImageGallery images={galleryImages} alt={listingHotel.name} className="px-4 pt-4" />
+              <PackageImageGallery
+                images={galleryImages}
+                alt={listingHotel?.name || staticPreview?.name || "Hotel"}
+                className="px-4 pt-4"
+              />
             )}
             <div className="space-y-2 p-4 md:p-5">
               <h1 className="text-2xl font-bold md:text-3xl" style={{ color: HOTEL_UI.primary }}>
-                {listingHotel.name}
+                {listingHotel?.name || staticPreview?.name || "Hotel"}
               </h1>
               {headerLocation && (
                 <p className="inline-flex items-center gap-1 text-sm" style={{ color: HOTEL_UI.textMuted }}>
@@ -495,7 +626,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
           )}
 
           <HotelStayDetailsForm
-            hotelName={listingHotel.name}
+            hotelName={listingHotel?.name || staticPreview?.name || "Hotel"}
             loading={loading}
             onSubmit={(stay) => void handleStaySubmit(stay)}
           />
@@ -510,11 +641,13 @@ export function HotelDetailClient({ hid }: { hid: string }) {
           </p>
           <p className="mt-2 text-sm text-red-700">{error.message}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {error.retryable && (
-              <HotelPrimaryButton className="!w-auto px-6" onClick={() => void loadPricing(true)}>
-                Retry
-              </HotelPrimaryButton>
-            )}
+            <HotelPrimaryButton
+              className="!w-auto px-6"
+              loading={loading}
+              onClick={() => void loadPricing(true, true)}
+            >
+              Refresh rates
+            </HotelPrimaryButton>
             <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
               <HotelPrimaryButton variant="outline" className="!w-auto px-6">
                 {error.backToSearch ? "Search again" : "Back to results"}
