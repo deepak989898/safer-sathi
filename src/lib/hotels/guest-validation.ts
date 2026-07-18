@@ -20,7 +20,20 @@ export function guestDigitsOnly(value: string, max: number): string {
 }
 
 export function guestPanInput(value: string): string {
-  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 10);
+  const cleaned = value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  let out = "";
+  for (const ch of cleaned) {
+    const pos = out.length;
+    if (pos >= 10) break;
+    if (pos < 5) {
+      if (/[A-Z]/.test(ch)) out += ch;
+    } else if (pos < 9) {
+      if (/[0-9]/.test(ch)) out += ch;
+    } else if (/[A-Z]/.test(ch)) {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 /** Normalize Indian mobile: strip country code and leading 0. */

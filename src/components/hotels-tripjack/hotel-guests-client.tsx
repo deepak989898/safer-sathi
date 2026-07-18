@@ -43,7 +43,10 @@ import type { HotelRoomRequest, NormalizedHotelReviewResult } from "@/lib/tripja
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Building2, Minus, Plus } from "lucide-react";
+
+const MAX_ADULTS_PER_ROOM = 8;
+const MAX_CHILDREN_PER_ROOM = 6;
 
 function buildEmptyRoomGuests(review: NormalizedHotelReviewResult): HotelRoomGuestForm[][] {
   return review.searchContext.rooms.map((room) => {
@@ -62,6 +65,29 @@ function buildEmptyRoomGuests(review: NormalizedHotelReviewResult): HotelRoomGue
       });
     }
     return guests;
+  });
+}
+
+function roomsFromGuestRows(roomGuests: HotelRoomGuestForm[][]): HotelRoomRequest[] {
+  return roomGuests.map((room) => {
+    const adults = room.filter((g) => g.type === "ADULT");
+    const children = room.filter((g) => g.type === "CHILD");
+    return {
+      adults: Math.max(1, adults.length),
+      children: children.length,
+      childAge: children.length ? children.map((g) => g.age ?? 5) : undefined,
+    };
+  });
+}
+
+function occupancyMatches(locked: HotelRoomRequest[], current: HotelRoomRequest[]): boolean {
+  if (locked.length !== current.length) return false;
+  return locked.every((room, index) => {
+    const next = current[index];
+    return (
+      (room.adults ?? 1) === (next.adults ?? 1) &&
+      (room.children ?? 0) === (next.children ?? 0)
+    );
   });
 }
 
@@ -277,6 +303,73 @@ export function HotelGuestsClient() {
     );
   };
 
+  const clearRoomGuestFieldErrors = (roomIndex: number, guestIndex?: number) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      const prefix =
+        guestIndex == null ? `room.${roomIndex}.` : `room.${roomIndex}.${guestIndex}.`;
+      for (const key of Object.keys(next)) {
+        if (key.startsWith(prefix)) delete next[key];
+      }
+      return next;
+    });
+  };
+
+  const addRoomGuest = (roomIndex: number, type: "ADULT" | "CHILD") => {
+    const room = roomGuests[roomIndex] ?? [];
+    const adultCount = room.filter((g) => g.type === "ADULT").length;
+    const childCount = room.filter((g) => g.type === "CHILD").length;
+
+    if (type === "ADULT" && adultCount >= MAX_ADULTS_PER_ROOM) {
+      toast.error(`Maximum ${MAX_ADULTS_PER_ROOM} adults per room`);
+      return;
+    }
+    if (type === "CHILD" && childCount >= MAX_CHILDREN_PER_ROOM) {
+      toast.error(`Maximum ${MAX_CHILDREN_PER_ROOM} children per room`);
+      return;
+    }
+
+    const nextGuest: HotelRoomGuestForm =
+      type === "ADULT"
+        ? { title: "Mr", gender: "Male", firstName: "", lastName: "", type: "ADULT" }
+        : {
+            title: "Mstr",
+            gender: "Male",
+            firstName: "",
+            lastName: "",
+            type: "CHILD",
+            age: 5,
+          };
+
+    setRoomGuests((rows) =>
+      rows.map((item, index) => (index === roomIndex ? [...item, nextGuest] : item))
+    );
+  };
+
+  const removeRoomGuest = (roomIndex: number, guestIndex: number) => {
+    const room = roomGuests[roomIndex] ?? [];
+    const guest = room[guestIndex];
+    if (!guest) return;
+
+    const adultCount = room.filter((g) => g.type === "ADULT").length;
+    if (guest.type === "ADULT" && adultCount <= 1) {
+      toast.error("Each room needs at least 1 adult");
+      return;
+    }
+
+    clearRoomGuestFieldErrors(roomIndex, guestIndex);
+    setRoomGuests((rows) =>
+      rows.map((item, index) =>
+        index === roomIndex ? item.filter((_, gi) => gi !== guestIndex) : item
+      )
+    );
+  };
+
+  const occupancyChanged = useMemo(() => {
+    if (!review || roomGuests.length === 0) return false;
+    return !occupancyMatches(review.searchContext.rooms, roomsFromGuestRows(roomGuests));
+  }, [review, roomGuests]);
+
   const onEditOccupancy = async (rooms: HotelRoomRequest[]) => {
     if (!review) return;
     setEditOccupancyLoading(true);
@@ -305,6 +398,12 @@ export function HotelGuestsClient() {
 
   const onSubmit = async () => {
     if (!review) return;
+
+    if (occupancyChanged) {
+      toast.message("Guest count changed — updating room rates…");
+      await onEditOccupancy(roomsFromGuestRows(roomGuests));
+      return;
+    }
 
     const guestDetails: HotelGuestDetailsForm = {
       primaryGuest,
@@ -523,6 +622,10 @@ export function HotelGuestsClient() {
                   compact
                   label="PAN number *"
                   value={primaryGuest.pan ?? ""}
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  placeholder="ABCDE1234F"
+                  hint="5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)"
                   error={fieldErrors["primary.pan"]}
                   onBlur={() => {
                     markTouched("primary.pan");
@@ -563,99 +666,185 @@ export function HotelGuestsClient() {
             </div>
           </HotelCard>
 
-          {roomGuests.map((room, roomIndex) => (
-            <HotelCard key={roomIndex} padding="sm" className="!p-2.5">
-              <h2 className="text-sm font-bold" style={{ color: HOTEL_UI.primary }}>
-                Room {roomIndex + 1} — Guest names
-              </h2>
-              <div className="mt-1.5 space-y-1.5">
-                {room.map((guest, guestIndex) => {
-                  const prefix = `room.${roomIndex}.${guestIndex}`;
-                  return (
-                    <div key={guestIndex} className="grid gap-1.5 sm:grid-cols-4">
-                      <Field
-                        compact
-                        label="Title"
-                        value={guest.title}
-                        onChange={(v) =>
-                          updateRoomGuest(roomIndex, guestIndex, {
-                            title: v as HotelRoomGuestForm["title"],
-                          })
-                        }
-                      />
-                      <Field
-                        compact
-                        label="First name *"
-                        value={guest.firstName}
-                        error={fieldErrors[`${prefix}.firstName`]}
-                        onBlur={() => {
-                          markTouched(`${prefix}.firstName`);
-                          const message = validateGuestName(guest.firstName, "First name");
-                          setFieldErrors((prev) => {
-                            const next = { ...prev };
-                            if (message) next[`${prefix}.firstName`] = message;
-                            else delete next[`${prefix}.firstName`];
-                            return next;
-                          });
-                        }}
-                        onChange={(v) =>
-                          updateRoomGuest(roomIndex, guestIndex, { firstName: guestNameOnly(v) })
-                        }
-                      />
-                      <Field
-                        compact
-                        label="Last name *"
-                        value={guest.lastName}
-                        error={fieldErrors[`${prefix}.lastName`]}
-                        onBlur={() => {
-                          markTouched(`${prefix}.lastName`);
-                          const message = validateGuestName(guest.lastName, "Last name");
-                          setFieldErrors((prev) => {
-                            const next = { ...prev };
-                            if (message) next[`${prefix}.lastName`] = message;
-                            else delete next[`${prefix}.lastName`];
-                            return next;
-                          });
-                        }}
-                        onChange={(v) =>
-                          updateRoomGuest(roomIndex, guestIndex, { lastName: guestNameOnly(v) })
-                        }
-                      />
-                      {guest.type === "CHILD" ? (
+          {roomGuests.map((room, roomIndex) => {
+            const adultCount = room.filter((g) => g.type === "ADULT").length;
+            const childCount = room.filter((g) => g.type === "CHILD").length;
+            const canRemoveGuest = (guest: HotelRoomGuestForm) =>
+              guest.type === "CHILD" || adultCount > 1;
+
+            return (
+              <HotelCard key={roomIndex} padding="sm" className="!p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-bold" style={{ color: HOTEL_UI.primary }}>
+                    Room {roomIndex + 1} — Guest names
+                  </h2>
+                  <span className="text-[11px]" style={{ color: HOTEL_UI.textMuted }}>
+                    {adultCount} adult{adultCount === 1 ? "" : "s"}
+                    {childCount > 0
+                      ? ` · ${childCount} child${childCount === 1 ? "" : "ren"}`
+                      : ""}
+                  </span>
+                </div>
+
+                <div className="mt-1.5 space-y-1.5">
+                  {room.map((guest, guestIndex) => {
+                    const prefix = `room.${roomIndex}.${guestIndex}`;
+                    const isLast = guestIndex === room.length - 1;
+                    return (
+                      <div
+                        key={guestIndex}
+                        className="grid grid-cols-[minmax(0,4.5rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,4.5rem)_auto] items-end gap-1.5"
+                      >
                         <Field
                           compact
-                          label="Age *"
-                          type="number"
-                          value={String(guest.age ?? "")}
-                          error={fieldErrors[`${prefix}.age`]}
+                          label="Title"
+                          value={guest.title}
+                          onChange={(v) =>
+                            updateRoomGuest(roomIndex, guestIndex, {
+                              title: v as HotelRoomGuestForm["title"],
+                            })
+                          }
+                        />
+                        <Field
+                          compact
+                          label="First name *"
+                          value={guest.firstName}
+                          error={fieldErrors[`${prefix}.firstName`]}
                           onBlur={() => {
-                            markTouched(`${prefix}.age`);
-                            const message = validateChildAge(guest.age);
+                            markTouched(`${prefix}.firstName`);
+                            const message = validateGuestName(guest.firstName, "First name");
                             setFieldErrors((prev) => {
                               const next = { ...prev };
-                              if (message) next[`${prefix}.age`] = message;
-                              else delete next[`${prefix}.age`];
+                              if (message) next[`${prefix}.firstName`] = message;
+                              else delete next[`${prefix}.firstName`];
                               return next;
                             });
                           }}
-                          onChange={(v) => {
-                            const age = Number(v);
-                            updateRoomGuest(roomIndex, guestIndex, {
-                              age: Number.isFinite(age) ? age : undefined,
+                          onChange={(v) =>
+                            updateRoomGuest(roomIndex, guestIndex, { firstName: guestNameOnly(v) })
+                          }
+                        />
+                        <Field
+                          compact
+                          label="Last name *"
+                          value={guest.lastName}
+                          error={fieldErrors[`${prefix}.lastName`]}
+                          onBlur={() => {
+                            markTouched(`${prefix}.lastName`);
+                            const message = validateGuestName(guest.lastName, "Last name");
+                            setFieldErrors((prev) => {
+                              const next = { ...prev };
+                              if (message) next[`${prefix}.lastName`] = message;
+                              else delete next[`${prefix}.lastName`];
+                              return next;
                             });
                           }}
+                          onChange={(v) =>
+                            updateRoomGuest(roomIndex, guestIndex, { lastName: guestNameOnly(v) })
+                          }
                         />
-                      ) : (
-                        <div className="flex items-end pb-1 text-[11px]" style={{ color: HOTEL_UI.textMuted }}>
-                          Adult
+                        {guest.type === "CHILD" ? (
+                          <Field
+                            compact
+                            label="Age *"
+                            type="number"
+                            value={String(guest.age ?? "")}
+                            error={fieldErrors[`${prefix}.age`]}
+                            onBlur={() => {
+                              markTouched(`${prefix}.age`);
+                              const message = validateChildAge(guest.age);
+                              setFieldErrors((prev) => {
+                                const next = { ...prev };
+                                if (message) next[`${prefix}.age`] = message;
+                                else delete next[`${prefix}.age`];
+                                return next;
+                              });
+                            }}
+                            onChange={(v) => {
+                              const age = Number(v);
+                              updateRoomGuest(roomIndex, guestIndex, {
+                                age: Number.isFinite(age) ? age : undefined,
+                              });
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className="flex h-8 items-center text-[11px]"
+                            style={{ color: HOTEL_UI.textMuted }}
+                          >
+                            Adult
+                          </div>
+                        )}
+                        <div className="flex h-8 items-center gap-1">
+                          {canRemoveGuest(guest) ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded border text-red-600 hover:bg-red-50"
+                              style={{ borderColor: HOTEL_UI.border }}
+                              aria-label={`Remove guest ${guestIndex + 1}`}
+                              onClick={() => removeRoomGuest(roomIndex, guestIndex)}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <span
+                              className="inline-flex h-8 w-8 items-center justify-center rounded border opacity-30"
+                              style={{ borderColor: HOTEL_UI.border }}
+                              aria-hidden
+                            >
+                              <Minus className="h-4 w-4" />
+                            </span>
+                          )}
+                          {isLast ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded border hover:bg-blue-50"
+                              style={{ borderColor: HOTEL_UI.action, color: HOTEL_UI.action }}
+                              aria-label="Add adult guest"
+                              title="Add adult"
+                              onClick={() => addRoomGuest(roomIndex, "ADULT")}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <span className="inline-block h-8 w-8" aria-hidden />
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </HotelCard>
-          ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold hover:bg-blue-50"
+                    style={{ borderColor: HOTEL_UI.action, color: HOTEL_UI.action }}
+                    onClick={() => addRoomGuest(roomIndex, "ADULT")}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add adult
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold hover:bg-slate-50"
+                    style={{ borderColor: HOTEL_UI.border, color: HOTEL_UI.text }}
+                    onClick={() => addRoomGuest(roomIndex, "CHILD")}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add child
+                  </button>
+                </div>
+              </HotelCard>
+            );
+          })}
+
+          {occupancyChanged ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800">
+              Guest count changed from the locked rate. Continue will refresh prices and ask you to
+              select a room again.
+            </p>
+          ) : null}
 
         </div>
 
@@ -669,8 +858,12 @@ export function HotelGuestsClient() {
             total={formatCurrency(option.pricing.totalPrice, locale)}
             totalLabel="Amount"
             footer={
-              <HotelPrimaryButton className="!h-9 text-sm" loading={submitting} onClick={() => void onSubmit()}>
-                Continue to Review
+              <HotelPrimaryButton
+                className="!h-9 text-sm"
+                loading={submitting || editOccupancyLoading}
+                onClick={() => void onSubmit()}
+              >
+                {occupancyChanged ? "Update rates & reselect" : "Continue to Review"}
               </HotelPrimaryButton>
             }
           />
@@ -697,6 +890,8 @@ function Field({
   inputMode,
   maxLength,
   compact = false,
+  placeholder,
+  autoCapitalize,
 }: {
   label: string;
   value: string;
@@ -709,6 +904,8 @@ function Field({
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   maxLength?: number;
   compact?: boolean;
+  placeholder?: string;
+  autoCapitalize?: React.HTMLAttributes<HTMLInputElement>["autoCapitalize"];
 }) {
   const hasError = Boolean(error);
   return (
@@ -725,11 +922,15 @@ function Field({
         value={value}
         inputMode={inputMode}
         maxLength={maxLength}
+        placeholder={placeholder}
+        autoCapitalize={autoCapitalize}
+        autoCorrect="off"
+        spellCheck={false}
         onBlur={onBlur}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint && !hasError && !compact ? (
-        <p className="mt-1 text-xs" style={{ color: HOTEL_UI.textMuted }}>
+      {hint && !hasError ? (
+        <p className={`mt-0.5 ${compact ? "text-[10px]" : "mt-1 text-xs"}`} style={{ color: HOTEL_UI.textMuted }}>
           {hint}
         </p>
       ) : null}

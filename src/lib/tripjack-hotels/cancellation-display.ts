@@ -36,10 +36,18 @@ export function formatCancellationDateRange(from?: string, to?: string, locale =
   return fromLabel || toLabel || "—";
 }
 
+export type CancellationSegmentRole = "label" | "date" | "amount" | "suffix" | "plain";
+
+export interface CancellationRuleSegment {
+  text: string;
+  role: CancellationSegmentRole;
+}
+
 export interface CancellationRuleLine {
   key: string;
   tone: "free" | "charge" | "info";
   text: string;
+  segments: CancellationRuleSegment[];
 }
 
 export function buildCancellationRuleLines(input: {
@@ -61,10 +69,15 @@ export function buildCancellationRuleLines(input: {
   const lines: CancellationRuleLine[] = [];
 
   if (input.isRefundable && freeUntil) {
+    const until = formatCancellationDateTime(freeUntil, locale);
     lines.push({
       key: "free-until",
       tone: "free",
-      text: `Free cancellation until ${formatCancellationDateTime(freeUntil, locale)}`,
+      text: `Free cancellation until ${until}`,
+      segments: [
+        { text: "Free cancellation until ", role: "label" },
+        { text: until, role: "date" },
+      ],
     });
   }
 
@@ -72,14 +85,32 @@ export function buildCancellationRuleLines(input: {
     const range = formatCancellationDateRange(penalty.from, penalty.to, locale);
     const amount = penalty.amount.toLocaleString(locale, { maximumFractionDigits: 0 });
     const currency = penalty.currency || "INR";
-    lines.push({
-      key: `${penalty.from}-${penalty.to}-${penalty.amount}`,
-      tone: "charge",
-      text:
-        range !== "—"
-          ? `From ${range}: ${currency} ${amount} cancellation charge`
-          : `${currency} ${amount} cancellation charge`,
-    });
+    const amountLabel = `${currency} ${amount}`;
+
+    if (range !== "—") {
+      lines.push({
+        key: `${penalty.from}-${penalty.to}-${penalty.amount}`,
+        tone: "charge",
+        text: `From ${range}: ${amountLabel} cancellation charge`,
+        segments: [
+          { text: "From ", role: "label" },
+          { text: range, role: "date" },
+          { text: ": ", role: "label" },
+          { text: amountLabel, role: "amount" },
+          { text: " cancellation charge", role: "suffix" },
+        ],
+      });
+    } else {
+      lines.push({
+        key: `${penalty.from}-${penalty.to}-${penalty.amount}`,
+        tone: "charge",
+        text: `${amountLabel} cancellation charge`,
+        segments: [
+          { text: amountLabel, role: "amount" },
+          { text: " cancellation charge", role: "suffix" },
+        ],
+      });
+    }
   }
 
   if (!lines.length) {
@@ -88,12 +119,14 @@ export function buildCancellationRuleLines(input: {
         key: "non-refundable",
         tone: "info",
         text: "Non-refundable rate",
+        segments: [{ text: "Non-refundable rate", role: "plain" }],
       });
     } else {
       lines.push({
         key: "refundable-generic",
         tone: "info",
         text: "Refundable rate — see final policy at booking",
+        segments: [{ text: "Refundable rate — see final policy at booking", role: "plain" }],
       });
     }
   }
