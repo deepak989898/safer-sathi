@@ -94,7 +94,10 @@ export function isTripJackHotelLiveBookingAllowed(liveBookingEnabled = false): b
   if (!isTripJackHotelProviderEnabled()) return false;
 
   if (getTripJackHotelEnvironment() === "staging") {
-    return process.env.TRIPJACK_HOTEL_ALLOW_STAGING_BOOKING === "true";
+    // Allow customer Razorpay checkout on staging HMS; admin can reconcile manually.
+    const razorpayKey =
+      process.env.RAZORPAY_KEY_ID ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
+    return Boolean(razorpayKey.trim()) && isTripJackHotelVpsConfigured();
   }
 
   const liveToggle =

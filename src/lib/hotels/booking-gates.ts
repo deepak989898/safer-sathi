@@ -11,6 +11,16 @@ import {
 } from "@/lib/tripjack-hotels/config";
 import { getTripJackHotelOpsMeta } from "@/lib/tripjack-hotels/ops-firestore";
 
+function isCustomerFacingBlocker(message: string): boolean {
+  const lower = message.toLowerCase();
+  // Never show env-flag / staging-gate copy to customers.
+  if (lower.includes("tripjack_hotel_allow_staging_booking")) return false;
+  if (lower.includes("staging hotel bookings are disabled")) return false;
+  if (lower.includes("tripjack_hotel_live_booking")) return false;
+  if (lower.includes("tripjack_hotel_allow_vercel_preview")) return false;
+  return true;
+}
+
 export function getHotelBookingBlockers(liveBookingEnabled = false): string[] {
   const blockers: string[] = [];
 
@@ -27,8 +37,10 @@ export function getHotelBookingBlockers(liveBookingEnabled = false): string[] {
 
   const env = getTripJackHotelEnvironment();
   if (env === "staging") {
-    if (process.env.TRIPJACK_HOTEL_ALLOW_STAGING_BOOKING !== "true") {
-      blockers.push("Staging hotel bookings are disabled (TRIPJACK_HOTEL_ALLOW_STAGING_BOOKING)");
+    // Staging HMS is allowed for customer checkout when Razorpay is configured.
+    // Admin can reconcile TripJack confirmation manually if needed.
+    if (!isRazorpayConfigured()) {
+      blockers.push("Payment gateway is not configured");
     }
     return blockers;
   }
@@ -36,21 +48,17 @@ export function getHotelBookingBlockers(liveBookingEnabled = false): string[] {
   const liveToggle = liveBookingEnabled || process.env.TRIPJACK_HOTEL_LIVE_BOOKING === "true";
 
   if (!liveToggle) {
-    blockers.push("Live hotel booking is disabled — enable it in Admin → TripJack Hotels Ops");
+    blockers.push("Live hotel booking is temporarily unavailable. Please contact support.");
   }
 
   if (!isRazorpayConfigured()) {
-    blockers.push("Razorpay keys are not configured");
+    blockers.push("Payment gateway is not configured");
   } else if (liveToggle && !isRazorpayLiveConfigured()) {
-    blockers.push(
-      "Production requires live Razorpay keys (rzp_live_*) or enable test booking mode"
-    );
+    blockers.push("Payment gateway is not ready for live bookings");
   }
 
   if (!isTripJackHotelProductionDomain()) {
-    blockers.push(
-      "Production domain check failed — deploy on thesafarsathi.com or set TRIPJACK_HOTEL_ALLOW_VERCEL_PREVIEW=true"
-    );
+    blockers.push("Hotel checkout is not available on this domain");
   }
 
   return blockers;
@@ -74,8 +82,9 @@ export function isHotelBookingCheckoutAllowed(liveBookingEnabled = false): boole
     return isTripJackHotelProductionDomain();
   }
 
+  // Staging: allow Razorpay checkout without the staging-booking env flag.
   if (getTripJackHotelEnvironment() === "staging") {
-    return process.env.TRIPJACK_HOTEL_ALLOW_STAGING_BOOKING === "true";
+    return isRazorpayConfigured();
   }
 
   return false;
@@ -91,17 +100,18 @@ export async function assertTripJackHotelBookingAllowed(): Promise<
     return { ok: true };
   }
 
+  const customerBlockers = blockers.filter(isCustomerFacingBlocker);
   const message =
-    blockers.length > 0
-      ? `Hotel booking unavailable:\n${blockers.map((b) => `• ${b}`).join("\n")}`
+    customerBlockers.length > 0
+      ? `Hotel booking unavailable:\n${customerBlockers.map((b) => `• ${b}`).join("\n")}`
       : "Hotel booking is temporarily unavailable. Please try again later or contact support.";
 
   return {
-    blockers,
+    blockers: customerBlockers,
     error: apiError(message, 503, {
       code: "HOTEL_BOOKING_DISABLED",
-      blockers,
-      adminMessage: message,
+      blockers: customerBlockers,
+      adminMessage: blockers.join("; ") || message,
     }),
   };
 }

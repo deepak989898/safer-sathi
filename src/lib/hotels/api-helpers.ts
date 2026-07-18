@@ -37,10 +37,22 @@ export function hotelApiError(error: unknown, fallback = "Request failed") {
 export function sanitizeHotelCustomerError(message: string): string {
   const lower = message.toLowerCase();
   if (
+    lower.includes("tripjack_hotel_allow_staging_booking") ||
+    lower.includes("staging hotel bookings are disabled")
+  ) {
+    return "Hotel booking is temporarily unavailable. Please contact support.";
+  }
+  if (
     lower.includes("hotel booking unavailable") ||
     lower.includes("live hotel booking is disabled") ||
     lower.includes("payment gateway")
   ) {
+    if (
+      lower.includes("tripjack_hotel_allow_staging_booking") ||
+      lower.includes("staging hotel bookings are disabled")
+    ) {
+      return "Hotel booking is temporarily unavailable. Please contact support.";
+    }
     return message.length > 400 ? `${message.slice(0, 400)}…` : message;
   }
   if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("upstream") || lower.includes("invalid json") || lower.includes("proxy") || lower.includes("tripjack")) {
