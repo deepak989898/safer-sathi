@@ -36,6 +36,13 @@ export function hotelApiError(error: unknown, fallback = "Request failed") {
 
 export function sanitizeHotelCustomerError(message: string): string {
   const lower = message.toLowerCase();
+  if (
+    lower.includes("hotel booking unavailable") ||
+    lower.includes("live hotel booking is disabled") ||
+    lower.includes("payment gateway")
+  ) {
+    return message.length > 400 ? `${message.slice(0, 400)}…` : message;
+  }
   if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("upstream") || lower.includes("invalid json") || lower.includes("proxy") || lower.includes("tripjack")) {
     return "Hotel service is temporarily unavailable. Please try again shortly.";
   }

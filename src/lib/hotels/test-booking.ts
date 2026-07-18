@@ -1,5 +1,12 @@
+/**
+ * Developer-only hotel payment bypass (Simulate payment button).
+ *
+ * Enable with NEXT_PUBLIC_TEST_BOOKING=true and redeploy.
+ * Any other value (false, empty, unset) keeps simulate hidden.
+ */
 export function isHotelTestBookingEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_TEST_BOOKING === "true";
+  const flag = (process.env.NEXT_PUBLIC_TEST_BOOKING ?? "").trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
 }
 
 export function buildTestRazorpayIds(bookingId: string) {

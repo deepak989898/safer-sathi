@@ -32,8 +32,8 @@ export function HotelSessionCountdown({ onExpired }: { onExpired?: () => void })
   }
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900">
-      <Clock className="h-3.5 w-3.5" />
+    <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+      <Clock className="h-3.5 w-3.5 text-red-600" />
       Rates valid for {formatRemaining(remainingMs)} (approx. 15 min session)
     </div>
   );

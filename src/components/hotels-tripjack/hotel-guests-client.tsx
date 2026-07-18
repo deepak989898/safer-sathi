@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import {
+  HOTEL_BOOKING_STEPS,
+  HotelLockedBookingSummary,
+  countHotelNights,
+} from "@/components/hotels-tripjack/hotel-locked-booking-summary";
+import {
   HotelCard,
   HotelFieldLabel,
   HotelInfoBanner,
@@ -30,19 +35,15 @@ import { formatCurrency } from "@/lib/i18n";
 import type { HotelGuestDetailsForm, HotelPrimaryGuestForm, HotelRoomGuestForm } from "@/lib/hotels/types";
 import {
   isHotelSearchSessionExpired,
+  loadHotelReviewPrep,
   loadHotelReviewResult,
+  saveHotelReviewResult,
 } from "@/lib/tripjack-hotels/session";
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
-
-function countNights(checkIn: string, checkOut: string) {
-  const diff = Math.round(
-    (new Date(`${checkOut}T12:00:00`).getTime() - new Date(`${checkIn}T12:00:00`).getTime()) /
-      86400000
-  );
-  return Math.max(1, diff);
-}
+import Link from "next/link";
+import { Building2 } from "lucide-react";
 
 function buildEmptyRoomGuests(review: NormalizedHotelReviewResult): HotelRoomGuestForm[][] {
   return review.searchContext.rooms.map((room) => {
@@ -69,6 +70,9 @@ export function HotelGuestsClient() {
   const { locale } = useAppStore();
   const { user } = useAuth();
   const [review, setReview] = useState<NormalizedHotelReviewResult | null>(null);
+  const [loadingReview, setLoadingReview] = useState(true);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [detailHref, setDetailHref] = useState("/hotels/results");
   const [submitting, setSubmitting] = useState(false);
   const [primaryGuest, setPrimaryGuest] = useState<HotelPrimaryGuestForm>({
     firstName: "",
@@ -85,7 +89,6 @@ export function HotelGuestsClient() {
     zipCode: "",
   });
   const [roomGuests, setRoomGuests] = useState<HotelRoomGuestForm[][]>([]);
-  const [specialRequests, setSpecialRequests] = useState("");
   const [fieldErrors, setFieldErrors] = useState<GuestFieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -131,38 +134,99 @@ export function HotelGuestsClient() {
   );
 
   useEffect(() => {
-    if (isHotelSearchSessionExpired()) {
-      toast.error("Session expired. Please search again.");
-      router.push("/hotels/search");
-      return;
-    }
-    const loaded = loadHotelReviewResult();
-    if (!loaded) {
-      toast.error("Complete review step first.");
-      router.push("/hotels/review");
-      return;
-    }
-    setReview(loaded);
-    setRoomGuests(buildEmptyRoomGuests(loaded));
-    if (user?.email) setPrimaryGuest((p) => ({ ...p, email: user.email }));
-    if (user?.phone) {
-      setPrimaryGuest((p) => ({
-        ...p,
-        mobile: normalizeIndianMobile(user.phone!),
-      }));
-    }
-    if (user?.name) {
-      const parts = user.name.split(" ");
-      setPrimaryGuest((p) => ({
-        ...p,
-        firstName: parts[0] ?? "",
-        lastName: parts.slice(1).join(" ") || parts[0] || "",
-      }));
-    }
+    void (async () => {
+      if (isHotelSearchSessionExpired()) {
+        toast.error("Session expired. Please search again.");
+        router.push("/hotels/search");
+        return;
+      }
+
+      const prep = loadHotelReviewPrep();
+      if (!prep) {
+        toast.error("Please select a room first.");
+        router.push("/hotels/results");
+        return;
+      }
+
+      setDetailHref(`/hotels/detail/${encodeURIComponent(String(prep.hotelId))}`);
+
+      const existing = loadHotelReviewResult();
+      if (
+        existing &&
+        existing.option.optionId === prep.selectedOptionId &&
+        String(existing.tjHotelId) === String(prep.hotelId)
+      ) {
+        setReview(existing);
+        setRoomGuests(buildEmptyRoomGuests(existing));
+        setLoadingReview(false);
+      } else {
+        setLoadingReview(true);
+        setReviewError(null);
+        try {
+          const res = await fetch("/api/hotels/review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              correlationId: prep.correlationId,
+              optionId: prep.selectedOptionId,
+              reviewHash: prep.reviewHash,
+              hid: prep.hotelId,
+              hotelName: prep.hotelName,
+              searchContext: prep.searchContext,
+            }),
+          });
+          const json = await res.json();
+          if (!json.success || !json.data?.review) {
+            setReviewError(json.error ?? "Could not lock room price. Please try again.");
+            setLoadingReview(false);
+            return;
+          }
+          const reviewed = {
+            ...(json.data.review as NormalizedHotelReviewResult),
+            reviewHash: prep.reviewHash,
+          };
+          saveHotelReviewResult(reviewed);
+          setReview(reviewed);
+          setRoomGuests(buildEmptyRoomGuests(reviewed));
+        } catch (error) {
+          setReviewError(error instanceof Error ? error.message : "Could not lock room price.");
+          setLoadingReview(false);
+          return;
+        }
+        setLoadingReview(false);
+      }
+
+      if (user?.email) setPrimaryGuest((p) => ({ ...p, email: user.email }));
+      if (user?.phone) {
+        setPrimaryGuest((p) => ({
+          ...p,
+          mobile: normalizeIndianMobile(user.phone!),
+        }));
+      }
+      if (user?.name) {
+        const parts = user.name.split(" ");
+        setPrimaryGuest((p) => ({
+          ...p,
+          firstName: parts[0] ?? "",
+          lastName: parts.slice(1).join(" ") || parts[0] || "",
+        }));
+      }
+
+      try {
+        const savedGuests = sessionStorage.getItem("tripjack_hotel_guest_details");
+        if (savedGuests) {
+          const parsed = JSON.parse(savedGuests) as HotelGuestDetailsForm;
+          if (parsed.primaryGuest) setPrimaryGuest(parsed.primaryGuest);
+          if (parsed.roomGuests?.length) setRoomGuests(parsed.roomGuests);
+        }
+      } catch {
+        // ignore corrupt draft
+      }
+    })();
   }, [router, user]);
 
   const nights = useMemo(
-    () => (review ? countNights(review.searchContext.checkIn, review.searchContext.checkOut) : 0),
+    () => (review ? countHotelNights(review.searchContext.checkIn, review.searchContext.checkOut) : 0),
     [review]
   );
 
@@ -218,7 +282,6 @@ export function HotelGuestsClient() {
     const guestDetails: HotelGuestDetailsForm = {
       primaryGuest,
       roomGuests,
-      specialRequests: specialRequests.trim() || undefined,
     };
 
     const errors = validateGuestDetailsForm(guestDetails, {
@@ -247,17 +310,53 @@ export function HotelGuestsClient() {
     try {
       sessionStorage.setItem("tripjack_hotel_guest_details", JSON.stringify(normalized));
       sessionStorage.setItem("tripjack_hotel_review_for_payment", JSON.stringify(review));
-      router.push("/hotels/payment");
+      router.push("/hotels/review");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!review) {
+  if (loadingReview) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: HOTEL_UI.bg }}>
-        Loading…
-      </div>
+      <HotelBookingLayout
+        title="Guest Details"
+        backHref={detailHref}
+        backLabel="Back to hotel details"
+        showCountdown
+        maxWidth="xl"
+      >
+        <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} />
+        <div className="animate-pulse space-y-4">
+          <div className="h-32 rounded bg-slate-200" />
+          <div className="h-48 rounded bg-slate-200" />
+        </div>
+      </HotelBookingLayout>
+    );
+  }
+
+  if (reviewError || !review) {
+    return (
+      <HotelBookingLayout
+        title="Guest Details"
+        backHref={detailHref}
+        backLabel="Back to hotel details"
+        showCountdown
+        maxWidth="xl"
+      >
+        <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} />
+        <HotelCard className="py-12 text-center">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-red-400" />
+          <p className="font-semibold" style={{ color: HOTEL_UI.primary }}>
+            Room price could not be locked
+          </p>
+          <p className="mt-2 text-sm text-red-700">{reviewError ?? "Please select a room again."}</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Link href={detailHref}>
+              <HotelPrimaryButton className="!w-auto px-6">Choose another room</HotelPrimaryButton>
+            </Link>
+          </div>
+        </HotelCard>
+      </HotelBookingLayout>
     );
   }
 
@@ -267,15 +366,17 @@ export function HotelGuestsClient() {
     <HotelBookingLayout
       title="Guest Details"
       subtitle={review.hotelName}
-      backHref="/hotels/review"
-      backLabel="Back to review"
+      backHref={detailHref}
+      backLabel="Back to hotel details"
       showCountdown
       maxWidth="xl"
     >
-      <HotelStepBar steps={["Search", "Select Room", "Review", "Guests", "Payment"]} current={3} />
+      <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
+          <HotelLockedBookingSummary review={review} locale={locale} />
+
           <HotelCard>
             <h2 className="text-base font-bold" style={{ color: HOTEL_UI.primary }}>
               Primary Guest &amp; Contact
@@ -509,15 +610,6 @@ export function HotelGuestsClient() {
             </HotelCard>
           ))}
 
-          <HotelCard>
-            <HotelFieldLabel>Special requests (optional)</HotelFieldLabel>
-            <textarea
-              className="mt-2 min-h-[80px] w-full rounded border bg-white p-3 text-sm"
-              style={{ borderColor: HOTEL_UI.border }}
-              value={specialRequests}
-              onChange={(e) => setSpecialRequests(e.target.value)}
-            />
-          </HotelCard>
         </div>
 
         <div className="space-y-4">
@@ -538,7 +630,7 @@ export function HotelGuestsClient() {
             total={formatCurrency(option.pricing.totalPrice, locale)}
             footer={
               <HotelPrimaryButton loading={submitting} onClick={() => void onSubmit()}>
-                Save &amp; Continue to Payment
+                Continue to Review
               </HotelPrimaryButton>
             }
           />

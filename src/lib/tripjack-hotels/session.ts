@@ -277,6 +277,13 @@ export function saveHotelReviewPrep(session: HotelReviewPrepSession): void {
   saveJson(HOTEL_SESSION_KEYS.selectedOptionId, session.selectedOptionId);
   saveJson(HOTEL_SESSION_KEYS.selectedHotelId, session.hotelId);
   saveJson(HOTEL_SESSION_KEYS.selectedOption, session.selectedOption);
+  // New room selection invalidates a previous locked review / guest draft.
+  sessionStorage.removeItem(HOTEL_SESSION_KEYS.reviewResponse);
+  sessionStorage.removeItem(HOTEL_SESSION_KEYS.bookingId);
+  sessionStorage.removeItem(HOTEL_SESSION_KEYS.finalPrice);
+  sessionStorage.removeItem(HOTEL_SESSION_KEYS.selectedOptionFinal);
+  sessionStorage.removeItem("tripjack_hotel_guest_details");
+  sessionStorage.removeItem("tripjack_hotel_review_for_payment");
   touchSessionMeta();
 }
 

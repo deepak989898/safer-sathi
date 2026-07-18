@@ -3,6 +3,7 @@ import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
 import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
+import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
 
 export interface PopularDestinationItem {
@@ -149,6 +150,79 @@ export function buildHomepagePackages(live: TourPackage[], limit = MOBILE_HOME_S
 export function buildHomepageHotels(live: Hotel[], limit = MOBILE_HOME_SHOWCASE_LIMIT) {
   const seed = getHotelsSeed().filter((h) => h.available !== false);
   return mergeShowcaseCatalog(live, seed, limit);
+}
+
+/** TripJack featured card → catalog Hotel shape for homepage cards. */
+export function mapFeaturedTripJackToHomepageHotel(
+  card: FeaturedTripJackHotelCard
+): Hotel {
+  const now = new Date().toISOString();
+  const images =
+    card.imageUrls.length > 0
+      ? card.imageUrls
+      : card.heroImage
+        ? [card.heroImage]
+        : [];
+  const starRating = Math.max(1, Math.min(5, Math.round(card.starRating ?? 3)));
+  const locality = card.locality?.trim() || card.location;
+
+  return {
+    id: `tj-${card.tjHotelId}`,
+    slug: `detail/${card.tjHotelId}`,
+    name: { en: card.name, hi: card.name },
+    starRating,
+    location: locality,
+    city: card.cityName,
+    country: "India",
+    images,
+    amenities: card.facilities.slice(0, 6),
+    description: { en: card.name, hi: card.name },
+    // Live rates load on the detail page; homepage shows "View rates" when 0.
+    priceFrom: 0,
+    rooms: [],
+    rating: card.starRating && card.starRating > 0 ? card.starRating : starRating,
+    reviewCount: 0,
+    featured: true,
+    available: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Prefer TripJack featured hotels when website visibility is on.
+ * Fall back to manual/seed hotels when TripJack is hidden or unavailable.
+ */
+export function buildHomepageTopHotels(input: {
+  tripjackEnabled: boolean;
+  tripjackHotels: FeaturedTripJackHotelCard[];
+  manualHotels: Hotel[];
+  limit?: number;
+}): Hotel[] {
+  const limit = input.limit ?? MOBILE_HOME_SHOWCASE_LIMIT;
+
+  if (input.tripjackEnabled && input.tripjackHotels.length > 0) {
+    return input.tripjackHotels
+      .slice(0, limit)
+      .map(mapFeaturedTripJackToHomepageHotel);
+  }
+
+  return buildHomepageHotels(input.manualHotels, limit);
+}
+
+export function toMobileTripJackHotelItems(
+  cards: FeaturedTripJackHotelCard[],
+  limit = MOBILE_HOME_SHOWCASE_LIMIT
+): MobileShowcaseItem[] {
+  return cards.slice(0, limit).map((card) => ({
+    id: `tj-${card.tjHotelId}`,
+    slug: `detail/${card.tjHotelId}`,
+    href: `/hotels/detail/${card.tjHotelId}`,
+    image: card.heroImage ?? card.imageUrls[0] ?? "",
+    title: card.cityName || card.location,
+    subtitle: `${card.starRating && card.starRating > 0 ? card.starRating : 3} Star · per night`,
+    price: 0,
+  }));
 }
 
 export function buildHomepageVehicles(live: Vehicle[], limit = MOBILE_HOME_SHOWCASE_LIMIT) {

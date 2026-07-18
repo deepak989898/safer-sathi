@@ -40,7 +40,6 @@ import type {
   NormalizedHotelDetail,
   NormalizedHotelOption,
 } from "@/lib/tripjack-hotels/types";
-import { formatCurrency } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "sonner";
 
@@ -322,19 +321,32 @@ export function HotelDetailClient({ hid }: { hid: string }) {
   }, [needsStayDetails, loadPricing]);
 
   const onSelectRoom = (optionId: string) => {
+    if (optionId === selectedOptionId) return;
     setSelectedOptionId(optionId);
     setActiveTab("rooms");
     toast.success("Room selected", { duration: 1500 });
   };
 
-  const onContinue = () => {
+  const onConfirmRoom = (optionId: string) => {
+    if (optionId !== selectedOptionId) {
+      onSelectRoom(optionId);
+      return;
+    }
+    onContinue(optionId);
+  };
+
+  const onContinue = (optionId = selectedOptionId) => {
     if (sessionExpired || isHotelSearchSessionExpired()) {
       toast.error("Session expired. Please search again.");
       router.push("/hotels/search");
       return;
     }
 
-    if (!detail || !selectedOption) {
+    const option =
+      detail?.options.find((item) => item.optionId === optionId) ??
+      (selectedOptionId === optionId ? selectedOption : null);
+
+    if (!detail || !option) {
       toast.error("Please select a room option");
       return;
     }
@@ -356,23 +368,23 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       correlationId: detail.correlationId,
       hotelId: detail.hotelId,
       reviewHash: detail.reviewHash,
-      selectedOptionId: selectedOption.optionId,
-      selectedOption,
+      selectedOptionId: option.optionId,
+      selectedOption: option,
       hotelName: detail.name,
-      pricing: selectedOption.pricing,
+      pricing: option.pricing,
       cancellation: {
-        isRefundable: selectedOption.isRefundable,
-        freeCancellationUntil: selectedOption.freeCancellationUntil,
-        penalties: selectedOption.penalties,
+        isRefundable: option.isRefundable,
+        freeCancellationUntil: option.freeCancellationUntil,
+        penalties: option.penalties,
       },
-      roomInfo: selectedOption.roomInfo,
-      mealBasis: selectedOption.mealBasis,
-      bookingNotes: [...detail.bookingNotes, ...selectedOption.bookingNotes],
-      commercial: selectedOption.commercial,
+      roomInfo: option.roomInfo,
+      mealBasis: option.mealBasis,
+      bookingNotes: [...detail.bookingNotes, ...option.bookingNotes],
+      commercial: option.commercial,
       compliance: {
-        gstType: selectedOption.gstType,
-        panRequired: selectedOption.panRequired,
-        passportRequired: selectedOption.passportRequired,
+        gstType: option.gstType,
+        panRequired: option.panRequired,
+        passportRequired: option.passportRequired,
       },
       searchContext: {
         checkIn: request.checkIn,
@@ -390,12 +402,11 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         correlationId: detail.correlationId,
         hotelId: detail.hotelId,
         reviewHash: detail.reviewHash,
-        optionId: selectedOption.optionId,
+        optionId: option.optionId,
       });
     }
 
-    toast.success("Room selected. Continue to review.");
-    router.push("/hotels/review");
+    router.push("/hotels/guests");
   };
 
   const galleryImages = useMemo(() => {
@@ -443,7 +454,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
       maxWidth="lg"
     >
       <HotelStepBar
-        steps={["Search", "Select Room", "Review", "Guests", "Payment"]}
+        steps={["Search", "Select Room", "Guests", "Review", "Payment"]}
         current={1}
       />
 
@@ -575,6 +586,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
                         selectedOptionId={selectedOptionId}
                         locale={locale}
                         onSelect={onSelectRoom}
+                        onConfirm={onConfirmRoom}
                       />
                     </div>
                   </div>
@@ -590,28 +602,6 @@ export function HotelDetailClient({ hid }: { hid: string }) {
               </Tabs>
             </div>
           </HotelCard>
-
-          <HotelCard className="sticky bottom-4 z-10 !bg-white/95 backdrop-blur">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs" style={{ color: HOTEL_UI.textMuted }}>
-                    Selected total
-                  </p>
-                  <p className="text-xl font-bold" style={{ color: HOTEL_UI.primary }}>
-                    {selectedOption
-                      ? formatCurrency(selectedOption.pricing.totalPrice, locale)
-                      : "Select a room"}
-                  </p>
-                </div>
-                <HotelPrimaryButton
-                  className="!w-auto min-w-[200px]"
-                  disabled={!selectedOption || sessionExpired}
-                  onClick={onContinue}
-                >
-                  Continue to Review
-                </HotelPrimaryButton>
-              </div>
-            </HotelCard>
         </div>
       )}
     </HotelBookingLayout>

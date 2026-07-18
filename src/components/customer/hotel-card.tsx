@@ -35,7 +35,10 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
         </div>
         <p className="flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
-          {hotel.city}, {hotel.location}
+          {hotel.location &&
+          hotel.location.trim().toLowerCase() !== hotel.city.trim().toLowerCase()
+            ? `${hotel.city}, ${hotel.location}`
+            : hotel.city || hotel.location}
         </p>
         <div className="flex flex-wrap gap-1">
           {hotel.amenities.slice(0, 3).map((a) => (
@@ -47,14 +50,22 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
       </CardContent>
       <CardFooter className="flex items-center justify-between border-t bg-transparent">
         <div>
-          <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
-          <p className="text-lg font-bold text-primary">
-            {formatCurrency(fromPrice, locale)}
-            <span className="text-xs font-normal text-muted-foreground">
-              {" "}
-              / {t(locale, "common", "perNight")}
-            </span>
-          </p>
+          {fromPrice > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground">{t(locale, "common", "from")}</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(fromPrice, locale)}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {" "}
+                  / {t(locale, "common", "perNight")}
+                </span>
+              </p>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-primary">
+              {locale === "hi" ? "रेट देखें" : "View rates"}
+            </p>
+          )}
         </div>
         <Link href={`/hotels/${hotel.slug}`} className="inline-flex">
           <Button>{t(locale, "common", "viewDetails")}</Button>

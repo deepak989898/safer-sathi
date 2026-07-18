@@ -5,15 +5,22 @@ import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
 import { getHotels, getPackages, getReviews, getVehicles } from "@/lib/data-service";
 import {
-  buildHomepageHotels,
   buildHomepagePackages,
+  buildHomepageTopHotels,
   buildHomepageVehicles,
   buildPopularDestinations,
   toMobileHotelItems,
   toMobilePackageItems,
+  toMobileTripJackHotelItems,
   toMobileVehicleItems,
 } from "@/lib/catalog/homepage-showcase";
+import {
+  DEFAULT_HOTEL_WEBSITE_SETTINGS,
+  getHotelWebsiteSettings,
+  isTripjackHotelsWebsiteEnabled,
+} from "@/lib/hotels/website-settings";
 import { HERO_IMAGES } from "@/lib/media/travel-images";
+import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalog";
 import { MobileFeatureCard } from "@/components/customer/mobile-home-hero";
 import { MobileTravelersSlider } from "@/components/customer/mobile-travelers-slider";
 
@@ -24,7 +31,13 @@ export const revalidate = 300;
 export default async function HomePage() {
   // Homepage catalog content is optional during prerendering. Firestore's free
   // quota can be temporarily exhausted, but that must not abort a deployment.
-  const [packages, hotels, vehicles, reviews] = await Promise.all([
+  const websiteSettings = await getHotelWebsiteSettings().catch((error) => {
+    console.warn("[home-page] hotel settings unavailable; using defaults:", error);
+    return DEFAULT_HOTEL_WEBSITE_SETTINGS;
+  });
+  const tripjackEnabled = isTripjackHotelsWebsiteEnabled(websiteSettings);
+
+  const [packages, hotels, vehicles, reviews, tripjackHotels] = await Promise.all([
     getPackages().catch((error) => {
       console.warn("[home-page] packages unavailable; using empty catalog:", error);
       return [];
@@ -41,15 +54,28 @@ export default async function HomePage() {
       console.warn("[home-page] reviews unavailable; using empty catalog:", error);
       return [];
     }),
+    tripjackEnabled
+      ? getFeaturedTripJackHotels(24).catch((error) => {
+          console.warn("[home-page] TripJack featured hotels unavailable:", error);
+          return [];
+        })
+      : Promise.resolve([]),
   ]);
 
   const featuredPackages = buildHomepagePackages(packages);
-  const featuredHotels = buildHomepageHotels(hotels);
+  const featuredHotels = buildHomepageTopHotels({
+    tripjackEnabled,
+    tripjackHotels,
+    manualHotels: hotels,
+  });
   const featuredVehicles = buildHomepageVehicles(vehicles);
   const popularDestinations = buildPopularDestinations(packages);
 
   const mobilePackages = toMobilePackageItems(packages);
-  const mobileHotels = toMobileHotelItems(hotels);
+  const mobileHotels =
+    tripjackEnabled && tripjackHotels.length > 0
+      ? toMobileTripJackHotelItems(tripjackHotels)
+      : toMobileHotelItems(hotels);
   const mobileVehicles = toMobileVehicleItems(vehicles);
 
   return (

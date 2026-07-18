@@ -12,6 +12,7 @@ interface HotelRoomOptionsListProps {
   selectedOptionId: string;
   locale: Locale;
   onSelect: (optionId: string) => void;
+  onConfirm: (optionId: string) => void;
 }
 
 export function HotelRoomOptionsList({
@@ -19,6 +20,7 @@ export function HotelRoomOptionsList({
   selectedOptionId,
   locale,
   onSelect,
+  onConfirm,
 }: HotelRoomOptionsListProps) {
   const groups = groupRoomOptions(options);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -40,6 +42,7 @@ export function HotelRoomOptionsList({
               selected={group.primary.optionId === selectedOptionId}
               locale={locale}
               onSelect={onSelect}
+              onConfirm={onConfirm}
             />
 
             {group.alternates.length > 0 && (
@@ -60,6 +63,7 @@ export function HotelRoomOptionsList({
                 selected={option.optionId === selectedOptionId}
                 locale={locale}
                 onSelect={onSelect}
+                onConfirm={onConfirm}
               />
             ))}
           </div>

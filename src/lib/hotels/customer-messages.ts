@@ -25,6 +25,14 @@ export function mapHotelCustomerError(input: {
   if (!raw) return "Something went wrong. Please try again.";
 
   const lower = raw.toLowerCase();
+  // Keep explicit booking-gate / blocker copy visible to the customer.
+  if (
+    lower.includes("hotel booking unavailable") ||
+    lower.includes("live hotel booking is disabled") ||
+    lower.includes("razorpay")
+  ) {
+    return raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
+  }
   if (
     lower.includes("invalid json") ||
     lower.includes("upstream") ||

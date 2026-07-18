@@ -13,7 +13,10 @@ interface HotelRoomOptionCardProps {
   option: NormalizedHotelOption;
   selected: boolean;
   locale: Locale;
+  /** Highlight this room as selected (card body click). */
   onSelect: (optionId: string) => void;
+  /** If already selected → continue; otherwise select first. */
+  onConfirm: (optionId: string) => void;
 }
 
 export function HotelRoomOptionCard({
@@ -21,13 +24,26 @@ export function HotelRoomOptionCard({
   selected,
   locale,
   onSelect,
+  onConfirm,
 }: HotelRoomOptionCardProps) {
   const p = option.pricing;
   const roomTitle = option.roomInfo[0] || option.roomName;
 
   return (
     <div
-      className={cn("border bg-white p-4 shadow-sm transition md:p-5")}
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(option.optionId)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(option.optionId);
+        }
+      }}
+      className={cn(
+        "cursor-pointer border bg-white p-4 shadow-sm transition md:p-5",
+        selected ? "" : "hover:border-[#006CE4]/60"
+      )}
       style={{
         borderRadius: HOTEL_UI.cardRadius,
         borderColor: selected ? HOTEL_UI.action : HOTEL_UI.border,
@@ -76,9 +92,12 @@ export function HotelRoomOptionCard({
             <HotelPrimaryButton
               className="!h-10 text-xs"
               variant={selected ? "primary" : "outline"}
-              onClick={() => onSelect(option.optionId)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onConfirm(option.optionId);
+              }}
             >
-              {selected ? "Selected" : "Select"}
+              {selected ? "Continue" : "Select"}
             </HotelPrimaryButton>
           </div>
         </div>

@@ -327,12 +327,12 @@ export function HotelPaymentClient() {
     <HotelBookingLayout
       title="Payment"
       subtitle="Secure checkout via Razorpay"
-      backHref="/hotels/guests"
-      backLabel="Back to guest details"
+      backHref="/hotels/review"
+      backLabel="Back to review"
       showCountdown
       maxWidth="xl"
     >
-      <HotelStepBar steps={["Search", "Select Room", "Review", "Guests", "Payment"]} current={4} />
+      <HotelStepBar steps={["Search", "Select Room", "Guests", "Review", "Payment"]} current={4} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
@@ -466,7 +466,8 @@ export function HotelPaymentClient() {
               >
                 Pay with Razorpay
               </HotelPrimaryButton>
-              {testMode && (
+              {/* NEXT_PUBLIC_TEST_BOOKING must be exactly true (rebuild required). */}
+              {testMode ? (
                 <HotelPrimaryButton
                   variant="outline"
                   className="mt-3"
@@ -475,7 +476,7 @@ export function HotelPaymentClient() {
                 >
                   Simulate payment (test)
                 </HotelPrimaryButton>
-              )}
+              ) : null}
             </>
           }
         />

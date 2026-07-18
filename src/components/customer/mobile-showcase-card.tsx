@@ -62,7 +62,7 @@ export function MobileShowcaseCard({
             <p className="mt-0.5 text-[11px] text-white/90">{subtitle}</p>
           </div>
           <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-foreground shadow-sm">
-            {formatCurrency(price, locale)}
+            {price > 0 ? formatCurrency(price, locale) : locale === "hi" ? "रेट" : "Rates"}
           </span>
         </div>
       </div>

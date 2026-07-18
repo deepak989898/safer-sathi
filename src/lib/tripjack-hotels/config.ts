@@ -64,9 +64,9 @@ export function getTripJackHotelBaseUrlLabel(): string {
 }
 
 export function isTripJackHotelVpsConfigured(): boolean {
-  return Boolean(
-    (process.env.TRIPJACK_PROXY_BASE_URL ?? process.env.NEXT_PUBLIC_TRIPJACK_PROXY_BASE_URL ?? "").trim()
-  );
+  // Match getTripJackHotelProxyBaseUrl(): search already falls back to the
+  // built-in VPS default, so booking gates must treat that default as configured.
+  return Boolean(getTripJackHotelProxyBaseUrl().trim());
 }
 
 /** Production customer domain — blocks preview deploys unless explicitly allowed. */
