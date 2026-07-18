@@ -105,15 +105,18 @@ export async function revalidateHotelPriceBeforePayment(
         : undefined,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Price verification failed";
+    // Do not block Razorpay checkout if supplier re-check fails — keep locked price.
+    // Admin can reconcile TripJack confirmation after payment if needed.
+    const message = error instanceof Error ? error.message : "Price verification skipped";
+    console.warn("[hotel-price-revalidation] continuing with locked price:", message);
     return {
-      ok: false,
+      ok: true,
       priceChanged: false,
       previousPrice,
       currentPrice: previousPrice,
       currency: booking.currency,
       booking,
-      message,
+      message: undefined,
     };
   }
 }

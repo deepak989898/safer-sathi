@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if ("error" in bookingAllowed) return bookingAllowed.error;
 
     if (!booking.tripjackBookingId) {
-      return apiError("TripJack booking ID missing. Cannot accept payment.", 400);
+      return apiError("Booking reference missing. Please go back to Review and try again.", 400);
     }
     if (booking.paymentStatus === "paid") {
       return apiError("Payment already completed for this booking", 400);

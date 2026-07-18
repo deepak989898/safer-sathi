@@ -2,115 +2,60 @@ import { apiError } from "@/lib/api-response";
 import { isHotelTestBookingEnabled } from "@/lib/hotels/test-booking";
 import { isRazorpayConfigured } from "@/lib/payments/razorpay";
 import {
-  getTripJackHotelEnvironment,
-  isTripJackHotelLiveBookingAllowed,
   isTripJackHotelProviderEnabled,
-  isTripJackHotelProductionDomain,
   isTripJackHotelVpsConfigured,
-  isRazorpayLiveConfigured,
 } from "@/lib/tripjack-hotels/config";
 import { getTripJackHotelOpsMeta } from "@/lib/tripjack-hotels/ops-firestore";
 
-function isCustomerFacingBlocker(message: string): boolean {
-  const lower = message.toLowerCase();
-  // Never show env-flag / staging-gate copy to customers.
-  if (lower.includes("tripjack_hotel_allow_staging_booking")) return false;
-  if (lower.includes("staging hotel bookings are disabled")) return false;
-  if (lower.includes("tripjack_hotel_live_booking")) return false;
-  if (lower.includes("tripjack_hotel_allow_vercel_preview")) return false;
-  return true;
-}
-
-export function getHotelBookingBlockers(liveBookingEnabled = false): string[] {
+/**
+ * Customer checkout blockers. Keep these customer-safe — never mention env var names.
+ * Razorpay-ready deployments are allowed so payment + invoice can complete;
+ * TripJack confirmation can be reconciled by admin when needed.
+ */
+export function getHotelBookingBlockers(_liveBookingEnabled = false): string[] {
   const blockers: string[] = [];
 
   if (!isTripJackHotelProviderEnabled()) {
-    blockers.push("TripJack Hotels provider is disabled");
+    blockers.push("Hotel booking is temporarily unavailable. Please contact support.");
   }
   if (!isTripJackHotelVpsConfigured()) {
-    blockers.push("TripJack VPS proxy URL is not configured");
+    blockers.push("Hotel booking is temporarily unavailable. Please contact support.");
   }
-
-  if (isHotelTestBookingEnabled()) {
-    return blockers;
-  }
-
-  const env = getTripJackHotelEnvironment();
-  if (env === "staging") {
-    // Staging HMS is allowed for customer checkout when Razorpay is configured.
-    // Admin can reconcile TripJack confirmation manually if needed.
-    if (!isRazorpayConfigured()) {
-      blockers.push("Payment gateway is not configured");
-    }
-    return blockers;
-  }
-
-  const liveToggle = liveBookingEnabled || process.env.TRIPJACK_HOTEL_LIVE_BOOKING === "true";
-
-  if (!liveToggle) {
-    blockers.push("Live hotel booking is temporarily unavailable. Please contact support.");
-  }
-
-  if (!isRazorpayConfigured()) {
-    blockers.push("Payment gateway is not configured");
-  } else if (liveToggle && !isRazorpayLiveConfigured()) {
-    blockers.push("Payment gateway is not ready for live bookings");
-  }
-
-  if (!isTripJackHotelProductionDomain()) {
-    blockers.push("Hotel checkout is not available on this domain");
+  if (!isHotelTestBookingEnabled() && !isRazorpayConfigured()) {
+    blockers.push("Payment gateway is not configured. Please contact support.");
   }
 
   return blockers;
 }
 
-export function isHotelBookingCheckoutAllowed(liveBookingEnabled = false): boolean {
-  if (!isTripJackHotelProviderEnabled() || !isTripJackHotelVpsConfigured()) {
-    return false;
-  }
-
-  if (isHotelTestBookingEnabled()) {
-    return true;
-  }
-
-  if (isTripJackHotelLiveBookingAllowed(liveBookingEnabled)) {
-    return true;
-  }
-
-  const liveToggle = liveBookingEnabled || process.env.TRIPJACK_HOTEL_LIVE_BOOKING === "true";
-  if (liveToggle && isRazorpayConfigured() && getTripJackHotelEnvironment() === "production") {
-    return isTripJackHotelProductionDomain();
-  }
-
-  // Staging: allow Razorpay checkout without the staging-booking env flag.
-  if (getTripJackHotelEnvironment() === "staging") {
-    return isRazorpayConfigured();
-  }
-
-  return false;
+export function isHotelBookingCheckoutAllowed(_liveBookingEnabled = false): boolean {
+  if (!isTripJackHotelProviderEnabled()) return false;
+  if (!isTripJackHotelVpsConfigured()) return false;
+  if (isHotelTestBookingEnabled()) return true;
+  return isRazorpayConfigured();
 }
 
 export async function assertTripJackHotelBookingAllowed(): Promise<
   { ok: true } | { error: Response; blockers: string[] }
 > {
-  const ops = await getTripJackHotelOpsMeta();
-  const blockers = getHotelBookingBlockers(ops.liveBookingEnabled);
+  // Ops meta is used elsewhere for admin toggles; checkout itself only needs Razorpay readiness.
+  await getTripJackHotelOpsMeta().catch(() => null);
 
-  if (isHotelBookingCheckoutAllowed(ops.liveBookingEnabled)) {
+  const blockers = getHotelBookingBlockers();
+
+  if (isHotelBookingCheckoutAllowed()) {
     return { ok: true };
   }
 
-  const customerBlockers = blockers.filter(isCustomerFacingBlocker);
   const message =
-    customerBlockers.length > 0
-      ? `Hotel booking unavailable:\n${customerBlockers.map((b) => `• ${b}`).join("\n")}`
-      : "Hotel booking is temporarily unavailable. Please try again later or contact support.";
+    blockers[0] ??
+    "Hotel booking is temporarily unavailable. Please try again later or contact support.";
 
   return {
-    blockers: customerBlockers,
+    blockers,
     error: apiError(message, 503, {
       code: "HOTEL_BOOKING_DISABLED",
-      blockers: customerBlockers,
+      blockers,
       adminMessage: blockers.join("; ") || message,
     }),
   };

@@ -56,11 +56,11 @@ export function mapHotelCustomerError(input: {
     lower.includes("proxy") ||
     lower.includes("api key") ||
     lower.includes("unauthorized") ||
-    lower.includes("tripjack")
+    lower.includes("supplier_unavailable")
   ) {
     return "Hotel service is temporarily unavailable. Please try again shortly.";
   }
-  if (lower.includes("supplier_unavailable") || lower.includes("timeout")) {
+  if (lower.includes("timeout")) {
     return "Hotel supplier is busy. Please retry in a moment.";
   }
   if (lower.includes("session expired") || lower.includes("search again")) {

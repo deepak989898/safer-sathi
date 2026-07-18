@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     });
 
     if (!booking.tripjackBookingId) {
-      return apiError("TripJack booking ID missing. Cannot proceed to payment.", 400);
+      return apiError("Booking reference missing. Please go back to Review and try again.", 400);
     }
 
     return apiSuccess({ booking });

@@ -55,7 +55,7 @@ export function sanitizeHotelCustomerError(message: string): string {
     }
     return message.length > 400 ? `${message.slice(0, 400)}…` : message;
   }
-  if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("upstream") || lower.includes("invalid json") || lower.includes("proxy") || lower.includes("tripjack")) {
+  if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("upstream") || lower.includes("invalid json") || lower.includes("proxy")) {
     return "Hotel service is temporarily unavailable. Please try again shortly.";
   }
   if (lower.includes("timeout") || lower.includes("supplier_unavailable")) {

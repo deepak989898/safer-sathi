@@ -29,6 +29,20 @@ import {
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import { useAppStore } from "@/store/app-store";
 
+/** Soft/infra messages — never block the Razorpay pay UI with these. */
+function isSoftHotelServiceMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("temporarily unavailable") ||
+    lower.includes("try again shortly") ||
+    lower.includes("try again later") ||
+    lower.includes("hotel service is temporarily") ||
+    lower.includes("tripjack_hotel_allow_staging") ||
+    lower.includes("staging hotel bookings are disabled") ||
+    lower.includes("hotel booking unavailable")
+  );
+}
+
 function loadGuestDetails(): HotelGuestDetailsForm | null {
   if (typeof window === "undefined") return null;
   const raw = sessionStorage.getItem("tripjack_hotel_guest_details");
@@ -159,7 +173,10 @@ export function HotelPaymentClient() {
         loadedReview = await refreshReviewIfNeeded(loadedReview);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Review refresh failed";
-        setLastApiError(message);
+        // Soft infra errors must not block payment UI.
+        if (!isSoftHotelServiceMessage(message)) {
+          setLastApiError(message);
+        }
       }
 
       const missing = validateReviewForPayment(loadedReview);
@@ -185,7 +202,8 @@ export function HotelPaymentClient() {
 
       if (prepared) {
         setBooking(prepared);
-      } else if (api.error) {
+        setLastApiError(null);
+      } else if (api.error && !isSoftHotelServiceMessage(api.error)) {
         setLastApiError(api.error);
       }
 
@@ -237,7 +255,12 @@ export function HotelPaymentClient() {
     }
 
     if (!activeBooking) {
-      toast.error(api.error ?? "Could not prepare booking for payment");
+      const msg = api.error;
+      if (msg && !isSoftHotelServiceMessage(msg)) {
+        toast.error(msg);
+      } else {
+        toast.error("Could not prepare booking. Please try Pay again.");
+      }
       return;
     }
 
@@ -321,7 +344,9 @@ export function HotelPaymentClient() {
   }
 
   const totalPrice = booking?.totalFare ?? review.option.pricing.totalPrice;
-  const displayError = api.error ?? lastApiError;
+  const rawError = api.error ?? lastApiError;
+  const displayError =
+    rawError && !isSoftHotelServiceMessage(rawError) ? rawError : null;
 
   return (
     <HotelBookingLayout
@@ -336,15 +361,12 @@ export function HotelPaymentClient() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
-          {displayError &&
-            !/tripjack_hotel_allow_staging_booking|staging hotel bookings are disabled/i.test(
-              displayError
-            ) && (
+          {displayError ? (
             <div className="flex items-start gap-3 rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800 whitespace-pre-wrap">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
               {displayError}
             </div>
-          )}
+          ) : null}
 
           {!booking && review.bookingId && !displayError ? (
             <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
