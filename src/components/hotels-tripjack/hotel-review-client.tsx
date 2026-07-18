@@ -11,7 +11,6 @@ import {
 import { HotelBookingLayout } from "@/components/hotels-tripjack/hotel-booking-layout";
 import {
   HotelCard,
-  HotelInfoBanner,
   HotelPrimaryButton,
   HotelPriceSummary,
   HotelStepBar,
@@ -133,23 +132,23 @@ export function HotelReviewClient() {
   return (
     <HotelBookingLayout
       title="Review Booking"
-      subtitle={review.hotelName}
       backHref="/hotels/guests"
       backLabel="Back to guest details"
       showCountdown
       maxWidth="xl"
+      className="!py-3 md:!py-4"
     >
-      <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={3} />
+      <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={3} className="!mb-3" />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
+      <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
+        <div className="space-y-3">
           <HotelLockedBookingSummary review={review} locale={locale} showCancellation />
 
-          <HotelCard>
-            <h3 className="font-bold" style={{ color: HOTEL_UI.primary }}>
+          <HotelCard padding="sm" className="!p-3">
+            <h3 className="text-sm font-bold" style={{ color: HOTEL_UI.primary }}>
               Guest Details
             </h3>
-            <div className="mt-3 space-y-2 text-sm">
+            <div className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
               <p>
                 <span className="text-muted-foreground">Lead guest: </span>
                 <span className="font-semibold">
@@ -164,7 +163,7 @@ export function HotelReviewClient() {
                 <span className="text-muted-foreground">Phone: </span>
                 +{pg.countryCode} {pg.mobile}
               </p>
-              <p>
+              <p className="sm:col-span-2">
                 <span className="text-muted-foreground">Address: </span>
                 {[pg.address, pg.city, pg.state, pg.country, pg.zipCode].filter(Boolean).join(", ")}
               </p>
@@ -177,11 +176,11 @@ export function HotelReviewClient() {
             </div>
 
             {roomGuestRows.length > 0 ? (
-              <div className="mt-4 border-t pt-4" style={{ borderColor: HOTEL_UI.border }}>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              <div className="mt-3 border-t pt-2.5" style={{ borderColor: HOTEL_UI.border }}>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                   Travellers
                 </p>
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-1 text-sm">
                   {roomGuestRows.map((row) => (
                     <li key={row.key} className="flex items-center justify-between gap-3">
                       <span className="font-medium">{row.label}</span>
@@ -196,8 +195,9 @@ export function HotelReviewClient() {
           </HotelCard>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-2 lg:sticky lg:top-3 lg:self-start">
           <HotelPriceSummary
+            compact
             lines={[
               { label: "Base price", value: formatCurrency(option.pricing.basePrice, locale) },
               { label: "Taxes", value: formatCurrency(option.pricing.taxes, locale) },
@@ -215,16 +215,16 @@ export function HotelReviewClient() {
             total={formatCurrency(option.pricing.totalPrice, locale)}
             totalLabel="Total payable"
             footer={
-              <HotelPrimaryButton onClick={() => router.push("/hotels/payment")}>
+              <HotelPrimaryButton className="!h-9 text-sm" onClick={() => router.push("/hotels/payment")}>
                 Continue to Payment
               </HotelPrimaryButton>
             }
           />
-          <HotelInfoBanner variant="success">
+          <p className="text-[11px]" style={{ color: HOTEL_UI.textMuted }}>
             {option.isRefundable
               ? "Free cancellation on this booking until policy deadline."
               : "This booking is non-refundable."}
-          </HotelInfoBanner>
+          </p>
         </div>
       </div>
     </HotelBookingLayout>
