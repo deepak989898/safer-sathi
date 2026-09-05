@@ -308,7 +308,12 @@ export function buildVisitorAnalyticsPayload(
   const days = Array.from(dayMap.values())
     .map((day) => ({
       ...day,
-      sessions: day.sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+      // Latest activity first within each day
+      sessions: day.sessions.sort((a, b) => {
+        const aTime = a.lastSeenAt || a.endedAt || a.startedAt;
+        const bTime = b.lastSeenAt || b.endedAt || b.startedAt;
+        return bTime.localeCompare(aTime);
+      }),
       visitorGroups: groupSessionsByVisitor(day.sessions, aiStatsMap, now),
     }))
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
