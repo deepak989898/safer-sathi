@@ -75,16 +75,15 @@ export function MobileHomeShowcase({
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [mobileTab, setMobileTab] = useState<ShowcaseTab>("packages");
 
-  const source =
+  const source: HomepageHeroSlide[] =
     heroSlides.length > 0
       ? heroSlides
       : HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
 
   const slides = source.map((slide) => {
-    const packageTitle =
-      "packageTitle" in slide && slide.packageTitle
-        ? localizedText(slide.packageTitle, locale).trim()
-        : "";
+    const packageTitle = slide.packageTitle
+      ? localizedText(slide.packageTitle, locale).trim()
+      : "";
     return {
       image: slide.image,
       // Mobile hero shows package name as the main title when available.

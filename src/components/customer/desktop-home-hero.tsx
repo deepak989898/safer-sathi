@@ -16,20 +16,16 @@ export function DesktopHomeHero({
 }) {
   const { locale } = useAppStore();
 
-  const source =
+  const source: HomepageHeroSlide[] =
     heroSlides.length > 0
       ? heroSlides
       : HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
 
   const slides = source.map((slide) => {
-    const packageSlug =
-      "packageSlug" in slide && typeof slide.packageSlug === "string"
-        ? slide.packageSlug
-        : undefined;
-    const packageTitle =
-      "packageTitle" in slide && slide.packageTitle
-        ? localizedText(slide.packageTitle, locale).trim()
-        : "";
+    const packageSlug = slide.packageSlug;
+    const packageTitle = slide.packageTitle
+      ? localizedText(slide.packageTitle, locale).trim()
+      : "";
 
     return {
       image: slide.image,
