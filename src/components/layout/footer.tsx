@@ -17,7 +17,6 @@ const QUICK_LINKS = [
   { href: "/packages", label: "Tour Packages" },
   { href: "/vehicles", label: "Vehicles" },
   { href: "/hotels", label: "Hotels" },
-  { href: "/bus/search", label: "Bus Booking" },
 ] as const;
 
 const SUPPORT_LINKS = [

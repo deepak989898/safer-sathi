@@ -2,14 +2,15 @@ import { getHotels } from "@/lib/data-service";
 import {
   DEFAULT_HOTEL_WEBSITE_SETTINGS,
   getHotelWebsiteSettings,
+  isManualHotelsWebsiteEnabled,
+  isTripjackHotelsWebsiteEnabled,
 } from "@/lib/hotels/website-settings";
 import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalog";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import HotelsClient from "./hotels-client";
 
-// Cache the catalog shell and featured cards briefly. Live availability and
-// prices still load through their APIs for the dates selected by the user.
-export const revalidate = 300;
+// Match packages: always load Firestore hotels at request time (no empty ISR shell).
+export const dynamic = "force-dynamic";
 
 export const metadata = buildPageMetadata({
   title: "Hotels in India | Book Stays | Safar Sathi",
@@ -20,24 +21,25 @@ export const metadata = buildPageMetadata({
 });
 
 export default async function HotelsPage() {
-  // Firestore may be temporarily unavailable or quota-limited during a Vercel
-  // build. Never fail the whole deployment for optional catalog data.
+  // Firestore may be temporarily unavailable or quota-limited.
+  // Never fail the whole page for optional catalog data.
   const websiteSettings = await getHotelWebsiteSettings().catch((error) => {
     console.warn("[hotels-page] website settings unavailable; using defaults:", error);
     return DEFAULT_HOTEL_WEBSITE_SETTINGS;
   });
-  const tripjackEnabled =
-    websiteSettings.tripjackHotelsWebsiteEnabled === true &&
-    process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false";
+  const tripjackEnabled = isTripjackHotelsWebsiteEnabled(websiteSettings);
+  const manualEnabled = isManualHotelsWebsiteEnabled(websiteSettings);
 
   const [hotels, featuredTripJackHotels] = await Promise.all([
-    getHotels().catch((error) => {
-      console.warn("[hotels-page] manual catalog unavailable during prerender:", error);
-      return [];
-    }),
+    manualEnabled
+      ? getHotels().catch((error) => {
+          console.warn("[hotels-page] manual catalog unavailable:", error);
+          return [];
+        })
+      : Promise.resolve([]),
     tripjackEnabled
       ? getFeaturedTripJackHotels(24).catch((error) => {
-          console.warn("[hotels-page] featured catalog unavailable during prerender:", error);
+          console.warn("[hotels-page] featured catalog unavailable:", error);
           return [];
         })
       : Promise.resolve([]),
@@ -48,7 +50,7 @@ export default async function HotelsPage() {
       initialHotels={hotels}
       featuredTripJackHotels={featuredTripJackHotels}
       tripjackHotelsEnabled={tripjackEnabled}
-      manualHotelsEnabled={websiteSettings.manualHotelsWebsiteEnabled !== false}
+      manualHotelsEnabled={manualEnabled}
     />
   );
 }

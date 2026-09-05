@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bus,
   Car,
   Globe,
   Home,
@@ -11,7 +10,6 @@ import {
   LayoutDashboard,
   Moon,
   Package,
-  Plane,
   Sun,
   User,
 } from "lucide-react";
@@ -38,8 +36,6 @@ const navLinks = [
   { href: "/packages", label: "packages", icon: Package },
   { href: "/vehicles", label: "vehicles", icon: Car },
   { href: "/hotels", label: "hotels", icon: Hotel },
-  { href: "/bus/search", label: "bus", icon: Bus },
-  { href: "/flights", label: "flights", icon: Plane },
 ];
 
 function isNavActive(pathname: string, href: string) {

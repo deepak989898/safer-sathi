@@ -36,6 +36,8 @@ export async function getHotelWebsiteSettings(): Promise<HotelWebsiteSettings> {
   // Live TripJack rates only when explicitly enabled via env.
   if (process.env.NEXT_PUBLIC_ENABLE_LIVE_HOTELS !== "true") {
     merged.tripjackHotelsWebsiteEnabled = false;
+    // Never blank /hotels when live TripJack is off — always show Firestore catalog.
+    merged.manualHotelsWebsiteEnabled = true;
   }
 
   return merged;
