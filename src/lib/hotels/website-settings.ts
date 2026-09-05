@@ -16,7 +16,8 @@ export interface HotelWebsiteSettings {
 
 export const DEFAULT_HOTEL_WEBSITE_SETTINGS: HotelWebsiteSettings = {
   manualHotelsWebsiteEnabled: true,
-  tripjackHotelsWebsiteEnabled: true,
+  /** Off by default — customer Hotels use curated Firestore + Razorpay like packages */
+  tripjackHotelsWebsiteEnabled: false,
   hotelMarkupPercent: 0,
   updatedAt: new Date().toISOString(),
 };
@@ -27,8 +28,17 @@ export async function getHotelWebsiteSettings(): Promise<HotelWebsiteSettings> {
   if (!db) return DEFAULT_HOTEL_WEBSITE_SETTINGS;
 
   const snap = await db.doc(HOTEL_WEBSITE_SETTINGS_DOC).get();
-  if (!snap.exists) return DEFAULT_HOTEL_WEBSITE_SETTINGS;
-  return { ...DEFAULT_HOTEL_WEBSITE_SETTINGS, ...(snap.data() as HotelWebsiteSettings) };
+  const merged: HotelWebsiteSettings = snap.exists
+    ? { ...DEFAULT_HOTEL_WEBSITE_SETTINGS, ...(snap.data() as HotelWebsiteSettings) }
+    : DEFAULT_HOTEL_WEBSITE_SETTINGS;
+
+  // Curated Firestore hotels + Razorpay (like packages) is the default customer path.
+  // Live TripJack rates only when explicitly enabled via env.
+  if (process.env.NEXT_PUBLIC_ENABLE_LIVE_HOTELS !== "true") {
+    merged.tripjackHotelsWebsiteEnabled = false;
+  }
+
+  return merged;
 }
 
 export async function updateHotelWebsiteSettings(
@@ -59,5 +69,8 @@ export function isManualHotelsWebsiteEnabled(settings = DEFAULT_HOTEL_WEBSITE_SE
 }
 
 export function isTripjackHotelsWebsiteEnabled(settings = DEFAULT_HOTEL_WEBSITE_SETTINGS): boolean {
-  return settings.tripjackHotelsWebsiteEnabled !== false;
+  // Opt-in only. Curated /hotels/[slug] booking (package-style) is the default path.
+  // Also require NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false".
+  if (process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED === "false") return false;
+  return settings.tripjackHotelsWebsiteEnabled === true;
 }

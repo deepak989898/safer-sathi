@@ -267,12 +267,12 @@ export default function HotelsClient({
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0c2444] md:text-3xl">
-            {locale === "hi" ? "होटल" : "Curated Hotels"}
+            {locale === "hi" ? "होटल" : "Hotels"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {locale === "hi"
-              ? "बजट से लक्ज़री — चुनिंदा होटल और रिसॉर्ट"
-              : "Handpicked stays from budget-friendly to luxury resorts"}
+              ? "फ़ोटो देखें, कीमत चुनें, और Razorpay से बुक करें — 10% एडवांस या पूरी राशि"
+              : "View photos, pick dates & room, book with Razorpay — 10% advance or full amount"}
           </p>
         </div>
         <SearchInput

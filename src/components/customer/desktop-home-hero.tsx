@@ -5,13 +5,23 @@ import { MapPin, PlayCircle, Sparkles } from "lucide-react";
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { SearchWidget } from "@/components/customer/search-widget";
 import { Button } from "@/components/ui/button";
+import type { HomepageHeroSlide } from "@/lib/catalog/homepage-showcase";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
 import { useAppStore } from "@/store/app-store";
 
-export function DesktopHomeHero() {
+export function DesktopHomeHero({
+  heroSlides = [],
+}: {
+  heroSlides?: HomepageHeroSlide[];
+}) {
   const { locale } = useAppStore();
 
-  const heroSlides = HOME_HERO_SLIDES.map((slide) => ({
+  const source =
+    heroSlides.length > 0
+      ? heroSlides
+      : HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
+
+  const slides = source.map((slide) => ({
     image: slide.image,
     title:
       locale === "hi"
@@ -27,7 +37,7 @@ export function DesktopHomeHero() {
     <div className="desktop-hero-stack hidden md:block">
       <div className="relative">
         <HeroSlider
-          slides={heroSlides}
+          slides={slides}
           className="min-h-[560px] lg:min-h-[600px]"
           desktopReferenceLayout
         >

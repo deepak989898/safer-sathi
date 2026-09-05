@@ -14,8 +14,8 @@ import {
 import { HeroSlider } from "@/components/customer/hero-slider";
 import { SearchWidget } from "@/components/customer/search-widget";
 import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
+import type { HomepageHeroSlide, MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
-import type { MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
@@ -53,6 +53,7 @@ export const MOBILE_SHOWCASE_TABS = [
 type ShowcaseTab = "packages" | "vehicles" | "hotels";
 
 interface MobileHomeShowcaseProps {
+  heroSlides?: HomepageHeroSlide[];
   mobilePackages: MobileShowcaseItem[];
   mobileHotels: MobileShowcaseItem[];
   mobileVehicles: MobileShowcaseItem[];
@@ -65,6 +66,7 @@ const MOBILE_SECTION_COPY: Record<ShowcaseTab, { title: string; href: string }> 
 };
 
 export function MobileHomeShowcase({
+  heroSlides = [],
   mobilePackages,
   mobileHotels,
   mobileVehicles,
@@ -73,7 +75,12 @@ export function MobileHomeShowcase({
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [mobileTab, setMobileTab] = useState<ShowcaseTab>("packages");
 
-  const heroSlides = HOME_HERO_SLIDES.map((slide) => ({
+  const source =
+    heroSlides.length > 0
+      ? heroSlides
+      : HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
+
+  const slides = source.map((slide) => ({
     image: slide.image,
     title: t(locale, "hero", "title"),
     subtitle: t(locale, "hero", "subtitle"),
@@ -92,7 +99,7 @@ export function MobileHomeShowcase({
     <div className="mobile-hero-stack overflow-x-hidden md:hidden">
       <div className="relative">
         <HeroSlider
-          slides={heroSlides}
+          slides={slides}
           compact={!searchExpanded}
           className="min-h-[400px] sm:min-h-[430px]"
           mobileReferenceLayout

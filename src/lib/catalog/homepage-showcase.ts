@@ -1,10 +1,59 @@
 import { getHotelsSeed } from "@/data/hotels-seed";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
-import { TRAVEL_IMAGES } from "@/lib/media/travel-images";
+import { HOME_HERO_SLIDES, TRAVEL_IMAGES } from "@/lib/media/travel-images";
 import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 import type { Hotel, TourPackage, Vehicle } from "@/types";
+
+export interface HomepageHeroSlide {
+  image: string;
+  packageId?: string;
+  packageSlug?: string;
+}
+
+/** One random image from each published tour package for the homepage hero slider. */
+export function buildHomepageHeroSlides(packages: TourPackage[]): HomepageHeroSlide[] {
+  const seed = getTourPackagesSeed().filter(
+    (p) => !p.publishStatus || p.publishStatus === "published"
+  );
+  const byId = new Map<string, TourPackage>();
+  for (const pkg of seed) byId.set(pkg.id, pkg);
+  for (const pkg of packages) {
+    if (!pkg.publishStatus || pkg.publishStatus === "published") {
+      byId.set(pkg.id, pkg);
+    }
+  }
+
+  const slides: HomepageHeroSlide[] = [];
+  const seen = new Set<string>();
+
+  for (const pkg of byId.values()) {
+    const urls = (pkg.images ?? []).map((u) => u?.trim()).filter(Boolean) as string[];
+    if (urls.length === 0) continue;
+    const pick = urls[Math.floor(Math.random() * urls.length)]!;
+    if (seen.has(pick)) continue;
+    seen.add(pick);
+    slides.push({
+      image: pick,
+      packageId: pkg.id,
+      packageSlug: pkg.slug,
+    });
+  }
+
+  for (let i = slides.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = slides[i]!;
+    slides[i] = slides[j]!;
+    slides[j] = tmp;
+  }
+
+  if (slides.length === 0) {
+    return HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
+  }
+
+  return slides;
+}
 
 export interface PopularDestinationItem {
   name: string;

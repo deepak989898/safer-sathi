@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -85,6 +86,7 @@ export function HotelDetailClient({
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
+  const [specialRequest, setSpecialRequest] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("advance");
   const [rewardPointsToRedeem, setRewardPointsToRedeem] = useState(0);
   const [bookingExpanded, setBookingExpanded] = useState(false);
@@ -132,13 +134,24 @@ export function HotelDetailClient({
       toast.error("Please fill name, email and phone");
       return;
     }
+    if (phone.replace(/\D/g, "").length < 10) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
     if (!checkIn || !checkOut) {
       toast.error("Please select check-in and check-out dates");
+      return;
+    }
+    if (new Date(`${checkOut}T12:00:00`) <= new Date(`${checkIn}T12:00:00`)) {
+      toast.error("Check-out must be after check-in");
       return;
     }
 
     try {
       const roomName = selectedRoom ? localizedText(selectedRoom.name, locale) : "Standard";
+      // Include ₹ nightly rate so server price validation matches selected room.
+      const roomNote = `Room type: ${roomName} (${selectedRoom?.type ?? "standard"}) · ₹${pricePerNight}/night · ${nights} night${nights === 1 ? "" : "s"}`;
+      const requestNote = specialRequest.trim();
       trackBookingStarted("hotel", hotel.id, total);
       const result = await completeCatalogBooking({
         customerName: name.trim(),
@@ -154,7 +167,7 @@ export function HotelDetailClient({
         paymentPlan,
         userId: user?.id,
         rewardPointsToRedeem: rewardPointsToRedeem || undefined,
-        notes: `Room type: ${roomName} (${selectedRoom?.type ?? "standard"})`,
+        notes: requestNote ? `${roomNote}\nSpecial request: ${requestNote}` : roomNote,
       });
       toast.success(
         postPaymentSuccessMessage(result.booking.bookingNumber, Boolean(user))
@@ -369,7 +382,6 @@ export function HotelDetailClient({
                   submitDisabled={!checkIn || !checkOut}
                   onSubmit={handleBook}
                   scrollTargetId="hotel-booking-form"
-                  submitClassName="bg-[#f97316] hover:bg-[#ea580c]"
                 >
                   <div>
                     <Label>Full Name</Label>
@@ -448,6 +460,15 @@ export function HotelDetailClient({
                       value={guests}
                       onChange={(e) => setGuests(e.target.value)}
                       className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label>Special Request</Label>
+                    <Textarea
+                      value={specialRequest}
+                      onChange={(e) => setSpecialRequest(e.target.value)}
+                      placeholder="Dietary needs, room preference, etc."
+                      className="mt-1.5 min-h-[72px]"
                     />
                   </div>
                   <div className="rounded-lg bg-muted/50 p-4">

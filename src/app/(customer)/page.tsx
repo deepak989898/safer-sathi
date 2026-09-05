@@ -5,6 +5,7 @@ import { HomeShowcase } from "@/components/customer/home-showcase";
 import { ImageBannerSection } from "@/components/customer/page-hero";
 import { getHotels, getPackages, getReviews, getVehicles } from "@/lib/data-service";
 import {
+  buildHomepageHeroSlides,
   buildHomepagePackages,
   buildHomepageTopHotels,
   buildHomepageVehicles,
@@ -63,6 +64,7 @@ export default async function HomePage() {
   ]);
 
   const featuredPackages = buildHomepagePackages(packages);
+  const heroSlides = buildHomepageHeroSlides(packages);
   const featuredHotels = buildHomepageTopHotels({
     tripjackEnabled,
     tripjackHotels,
@@ -81,6 +83,7 @@ export default async function HomePage() {
   return (
     <>
       <HomeShowcase
+        heroSlides={heroSlides}
         popularDestinations={popularDestinations}
         featuredPackages={featuredPackages}
         featuredHotels={featuredHotels}

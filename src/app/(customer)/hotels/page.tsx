@@ -14,7 +14,7 @@ export const revalidate = 300;
 export const metadata = buildPageMetadata({
   title: "Hotels in India | Book Stays | Safar Sathi",
   description:
-    "Find and book hotels across India — budget to luxury stays in Manali, Goa, Delhi, Jaipur and more.",
+    "Browse curated hotels with photos and fixed prices. Book online with Razorpay — pay 10% advance or full amount.",
   path: "/hotels",
   keywords: ["hotels India", "hotel booking", "budget hotels Goa", "Manali hotels"],
 });
@@ -26,7 +26,9 @@ export default async function HotelsPage() {
     console.warn("[hotels-page] website settings unavailable; using defaults:", error);
     return DEFAULT_HOTEL_WEBSITE_SETTINGS;
   });
-  const tripjackEnabled = websiteSettings.tripjackHotelsWebsiteEnabled !== false;
+  const tripjackEnabled =
+    websiteSettings.tripjackHotelsWebsiteEnabled === true &&
+    process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false";
 
   const [hotels, featuredTripJackHotels] = await Promise.all([
     getHotels().catch((error) => {

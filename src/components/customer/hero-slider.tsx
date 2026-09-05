@@ -58,7 +58,7 @@ export function HeroSlider({
     >
       {slides.map((slide, slideIndex) => (
         <div
-          key={slide.image}
+          key={`${slide.image}-${slideIndex}`}
           className={cn(
             "absolute inset-0 transition-opacity duration-1000 ease-in-out",
             slideIndex === index ? "opacity-100" : "opacity-0"
@@ -134,7 +134,7 @@ export function HeroSlider({
           <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
             {slides.map((slide, slideIndex) => (
               <button
-                key={slide.image}
+                key={`${slide.image}-dot-${slideIndex}`}
                 type="button"
                 aria-label={`Go to hero slide ${slideIndex + 1}`}
                 onClick={() => setIndex(slideIndex)}
