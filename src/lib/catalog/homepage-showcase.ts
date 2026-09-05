@@ -2,14 +2,20 @@ import { getHotelsSeed } from "@/data/hotels-seed";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import { getVehiclesSeed } from "@/data/vehicles-seed";
 import { HOME_HERO_SLIDES, TRAVEL_IMAGES } from "@/lib/media/travel-images";
+import {
+  isRemoteHotelImageUrl,
+  resolveHotelDisplayImages,
+} from "@/lib/media/hotel-images";
 import { MOBILE_HOME_SHOWCASE_LIMIT } from "@/lib/site-config";
 import type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
-import type { Hotel, TourPackage, Vehicle } from "@/types";
+import type { Hotel, LocalizedString, TourPackage, Vehicle } from "@/types";
 
 export interface HomepageHeroSlide {
   image: string;
   packageId?: string;
   packageSlug?: string;
+  /** Localized name for the package shown with this slide */
+  packageTitle?: LocalizedString;
 }
 
 /** One random image from each published tour package for the homepage hero slider. */
@@ -38,6 +44,7 @@ export function buildHomepageHeroSlides(packages: TourPackage[]): HomepageHeroSl
       image: pick,
       packageId: pkg.id,
       packageSlug: pkg.slug,
+      packageTitle: pkg.title,
     });
   }
 
@@ -198,7 +205,35 @@ export function buildHomepagePackages(live: TourPackage[], limit = MOBILE_HOME_S
 
 export function buildHomepageHotels(live: Hotel[], limit = MOBILE_HOME_SHOWCASE_LIMIT) {
   const seed = getHotelsSeed().filter((h) => h.available !== false);
-  return mergeShowcaseCatalog(live, seed, limit);
+  const merged = mergeShowcaseCatalog(live, seed, Math.max(limit * 4, 16));
+
+  const withDisplayImages = merged.map((hotel) => ({
+    ...hotel,
+    images: resolveHotelDisplayImages(hotel),
+  }));
+
+  // Prefer Firestore hotels that already store remote CDN/Firebase image URLs.
+  const liveRemoteIds = new Set(
+    live
+      .filter((hotel) => (hotel.images ?? []).some(isRemoteHotelImageUrl))
+      .map((hotel) => hotel.id)
+  );
+
+  const preferred = [
+    ...withDisplayImages.filter((hotel) => liveRemoteIds.has(hotel.id)),
+    ...withDisplayImages,
+  ];
+
+  const seen = new Set<string>();
+  const unique: Hotel[] = [];
+  for (const hotel of preferred) {
+    if (seen.has(hotel.id)) continue;
+    seen.add(hotel.id);
+    unique.push(hotel);
+    if (unique.length >= limit) break;
+  }
+
+  return unique;
 }
 
 /** TripJack featured card → catalog Hotel shape for homepage cards. */
@@ -318,7 +353,7 @@ export function toMobileHotelItems(
     id: hotel.id,
     slug: hotel.slug,
     href: `/hotels/${hotel.slug}`,
-    image: hotel.images[0] ?? "",
+    image: resolveHotelDisplayImages(hotel)[0] ?? "",
     title: hotel.city || hotel.location,
     subtitle: `${hotel.starRating} Star · per night`,
     price: hotel.priceFrom,

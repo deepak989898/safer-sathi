@@ -42,6 +42,7 @@ import {
   getCheapestHotelRoom,
   getEffectiveHotelPriceFrom,
 } from "@/lib/catalog/hotel-pricing";
+import { resolveHotelDisplayImages } from "@/lib/media/hotel-images";
 import { useAppStore } from "@/store/app-store";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import type { Hotel, HotelRoom } from "@/types";
@@ -206,7 +207,7 @@ export function HotelDetailClient({
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
           <div className="min-w-0 space-y-3">
-            <PackageImageGallery images={hotel.images} alt={title} />
+            <PackageImageGallery images={resolveHotelDisplayImages(hotel)} alt={title} />
 
             <Tabs defaultValue="overview" className="min-w-0">
               <CatalogDetailTabsList>

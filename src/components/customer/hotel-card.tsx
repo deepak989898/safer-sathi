@@ -8,15 +8,17 @@ import { RatingStars } from "@/components/customer/rating-stars";
 import type { Hotel, Locale } from "@/types";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
+import { resolveHotelDisplayImages } from "@/lib/media/hotel-images";
 
 export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
   const fromPrice = getEffectiveHotelPriceFrom(hotel);
+  const images = resolveHotelDisplayImages(hotel);
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <Link href={`/hotels/${hotel.slug}`} className="block">
         <div className="relative aspect-[4/3] overflow-hidden">
           <ImageAutoSlider
-            images={hotel.images}
+            images={images}
             alt={localizedText(hotel.name, locale)}
             sizes="(max-width: 768px) 100vw, 33vw"
           />

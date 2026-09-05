@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export interface HeroSlide {
   image: string;
   title?: string;
   subtitle?: string;
+  href?: string;
+  packageSlug?: string;
 }
 
 interface HeroSliderProps {
   slides: HeroSlide[];
   interval?: number;
-  children?: React.ReactNode;
+  children?: ReactNode | ((activeSlide: HeroSlide, index: number) => ReactNode);
   className?: string;
   /** Shorter hero on mobile when search is collapsed */
   compact?: boolean;
@@ -20,6 +22,7 @@ interface HeroSliderProps {
   mobileReferenceLayout?: boolean;
   /** Desktop homepage reference — left title, navy text, bridge-friendly overlay */
   desktopReferenceLayout?: boolean;
+  onActiveIndexChange?: (index: number) => void;
 }
 
 export function HeroSlider({
@@ -30,6 +33,7 @@ export function HeroSlider({
   compact = false,
   mobileReferenceLayout = false,
   desktopReferenceLayout = false,
+  onActiveIndexChange,
 }: HeroSliderProps) {
   const [index, setIndex] = useState(0);
   const activeSlide = slides[index] ?? slides[0];
@@ -44,7 +48,14 @@ export function HeroSlider({
     return () => window.clearInterval(timer);
   }, [slides.length, interval]);
 
+  useEffect(() => {
+    onActiveIndexChange?.(index);
+  }, [index, onActiveIndexChange]);
+
   if (!activeSlide) return null;
+
+  const actions =
+    typeof children === "function" ? children(activeSlide, index) : children;
 
   return (
     <section
@@ -109,14 +120,14 @@ export function HeroSlider({
           <p
             className={cn(
               desktopReferenceLayout
-                ? "desktop-hero-subtitle mt-4 max-w-lg text-base leading-relaxed lg:text-lg"
+                ? "desktop-hero-subtitle mt-3 max-w-xl text-xl font-bold leading-snug tracking-tight lg:mt-4 lg:text-2xl"
                 : "mx-auto mt-3 max-w-2xl text-base text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)] sm:mt-4 sm:text-lg md:text-white/95"
             )}
           >
             {activeSlide.subtitle}
           </p>
         )}
-        {children && (
+        {actions ? (
           <div
             className={cn(
               "mt-5 md:mt-10",
@@ -124,9 +135,9 @@ export function HeroSlider({
               desktopReferenceLayout && "mt-6 md:mt-8"
             )}
           >
-            {children}
+            {actions}
           </div>
-        )}
+        ) : null}
       </div>
 
       {slides.length > 1 && !mobileReferenceLayout && !desktopReferenceLayout && (

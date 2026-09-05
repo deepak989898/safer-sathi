@@ -1,5 +1,6 @@
 import type { Hotel, HotelRoom, LocalizedString } from "@/types";
 import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
+import { buildSeedHotelImages } from "@/lib/media/hotel-images";
 
 function enHi(en: string, hi?: string): LocalizedString {
   return { en, hi: hi ?? en };
@@ -36,7 +37,7 @@ interface HotelSeedConfig {
 }
 
 function imagePaths(slug: string): string[] {
-  return [1, 2, 3, 4, 5].map((n) => `/images/hotels/${slug}/${n}.jpg`);
+  return buildSeedHotelImages(slug, 5);
 }
 
 function buildRooms(hotelId: string, base: number): HotelRoom[] {

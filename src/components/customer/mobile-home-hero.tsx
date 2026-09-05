@@ -16,7 +16,7 @@ import { SearchWidget } from "@/components/customer/search-widget";
 import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
 import type { HomepageHeroSlide, MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
-import { t } from "@/lib/i18n";
+import { localizedText, t } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
 const MOBILE_FEATURES = [
@@ -80,11 +80,18 @@ export function MobileHomeShowcase({
       ? heroSlides
       : HOME_HERO_SLIDES.map((slide) => ({ image: slide.image }));
 
-  const slides = source.map((slide) => ({
-    image: slide.image,
-    title: t(locale, "hero", "title"),
-    subtitle: t(locale, "hero", "subtitle"),
-  }));
+  const slides = source.map((slide) => {
+    const packageTitle =
+      "packageTitle" in slide && slide.packageTitle
+        ? localizedText(slide.packageTitle, locale).trim()
+        : "";
+    return {
+      image: slide.image,
+      // Mobile hero shows package name as the main title when available.
+      title: packageTitle || t(locale, "hero", "title"),
+      subtitle: undefined,
+    };
+  });
 
   const mobileSection = MOBILE_SECTION_COPY[mobileTab];
 

@@ -10,6 +10,7 @@ import { isCatalogPublished } from "@/lib/catalog/publish";
 import { isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { getSeedHotels } from "@/data/seed-catalog";
 import { getHotelsSeed } from "@/data/hotels-seed";
+import { resolveHotelDisplayImages } from "@/lib/media/hotel-images";
 import type { Hotel } from "@/types";
 
 const HOTELS_COLLECTION = "hotels";
@@ -18,9 +19,16 @@ const LEGACY_DEMO_HOTEL_IDS = ["h1", "h2", "h3"];
 let hotelsStore: Hotel[] = [];
 let hydratePromise: Promise<void> | null = null;
 
+function withResolvedImages(hotel: Hotel): Hotel {
+  return {
+    ...hotel,
+    images: resolveHotelDisplayImages(hotel),
+  };
+}
+
 function upsertInMemory(hotel: Hotel): Hotel {
-  hotelsStore = [hotel, ...hotelsStore.filter((h) => h.id !== hotel.id)];
-  return hotel;
+  hotelsStore = [withResolvedImages(hotel), ...hotelsStore.filter((h) => h.id !== hotel.id)];
+  return hotelsStore[0]!;
 }
 
 export async function hydrateHotelsStore(): Promise<void> {
@@ -31,25 +39,25 @@ export async function hydrateHotelsStore(): Promise<void> {
     const remote = await loadCatalogCollection<Hotel>(HOTELS_COLLECTION);
 
     if (remote === null) {
-      if (hotelsStore.length === 0) hotelsStore = seed;
+      if (hotelsStore.length === 0) hotelsStore = seed.map(withResolvedImages);
       return;
     }
 
     if (remote.length > 0) {
-      hotelsStore = remote;
+      hotelsStore = remote.map(withResolvedImages);
       return;
     }
 
     if (!isAdminEnvConfigured()) {
-      hotelsStore = seed;
+      hotelsStore = seed.map(withResolvedImages);
       return;
     }
 
     try {
-      hotelsStore = await seedCatalogIfEmpty(HOTELS_COLLECTION, seed);
+      hotelsStore = (await seedCatalogIfEmpty(HOTELS_COLLECTION, seed)).map(withResolvedImages);
     } catch (error) {
       console.warn("hydrateHotelsStore seed failed, using in-memory seed:", error);
-      hotelsStore = seed;
+      hotelsStore = seed.map(withResolvedImages);
     }
   })();
 
