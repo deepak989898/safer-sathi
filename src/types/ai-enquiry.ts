@@ -145,31 +145,72 @@ function mergeSessionSummary(session: AiEnquiryVisitorSession, enquiry: AiAssist
 }
 
 function appendEnquiryToChat(session: AiEnquiryVisitorSession, enquiry: AiAssistantEnquiry) {
-  session.chat.push({
-    id: `${enquiry.id}-user`,
-    at: enquiry.createdAt,
-    timeLabel: enquiry.timeLabel,
-    role: "user",
-    content: formatEnquiryUserMessage(enquiry.userMessage),
-  });
-  if (enquiry.aiReply?.trim()) {
+  const userContent = formatEnquiryUserMessage(enquiry.userMessage);
+  const aiContent = enquiry.aiReply?.trim() || "";
+
+  // Skip exact duplicate turns already present (legacy double-log from server+client).
+  const lastUser = [...session.chat].reverse().find((m) => m.role === "user");
+  const lastAi = [...session.chat].reverse().find((m) => m.role === "assistant");
+  const isDuplicateTurn =
+    lastUser?.content === userContent &&
+    (!aiContent || lastAi?.content === aiContent) &&
+    Math.abs(new Date(enquiry.createdAt).getTime() - new Date(lastUser.at).getTime()) < 10_000;
+
+  if (!isDuplicateTurn) {
     session.chat.push({
-      id: `${enquiry.id}-ai`,
+      id: `${enquiry.id}-user`,
       at: enquiry.createdAt,
       timeLabel: enquiry.timeLabel,
-      role: "assistant",
-      content: enquiry.aiReply.trim(),
+      role: "user",
+      content: userContent,
     });
+    if (aiContent) {
+      session.chat.push({
+        id: `${enquiry.id}-ai`,
+        at: enquiry.createdAt,
+        timeLabel: enquiry.timeLabel,
+        role: "assistant",
+        content: aiContent,
+      });
+    }
   }
+
   mergeSessionSummary(session, enquiry);
   session.messageCount = session.chat.filter((m) => m.role === "user").length;
+}
+
+/** Drop near-identical enquiry docs written twice within a few seconds. */
+function dedupeEnquiryDocuments(enquiries: AiAssistantEnquiry[]): AiAssistantEnquiry[] {
+  const sorted = [...enquiries].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const kept: AiAssistantEnquiry[] = [];
+
+  for (const enquiry of sorted) {
+    const visitorKey =
+      enquiry.visitorId || enquiry.guestId || enquiry.userId || enquiry.ip || "";
+    const prev = kept[kept.length - 1];
+    if (prev) {
+      const prevKey = prev.visitorId || prev.guestId || prev.userId || prev.ip || "";
+      const sameVisitor = visitorKey && prevKey && visitorKey === prevKey;
+      const sameTurn =
+        prev.userMessage === enquiry.userMessage &&
+        (prev.aiReply ?? "") === (enquiry.aiReply ?? "");
+      const closeInTime =
+        Math.abs(
+          new Date(enquiry.createdAt).getTime() - new Date(prev.createdAt).getTime()
+        ) < 10_000;
+      if (sameVisitor && sameTurn && closeInTime) continue;
+    }
+    kept.push(enquiry);
+  }
+
+  return kept;
 }
 
 /** Group per-message enquiry logs into visitor chat sessions (new session after 45 min idle). */
 export function groupEnquiriesIntoVisitorSessions(
   enquiries: AiAssistantEnquiry[]
 ): AiEnquiryVisitorSession[] {
-  const sorted = [...enquiries].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const sorted = dedupeEnquiryDocuments(enquiries);
   const sessions: AiEnquiryVisitorSession[] = [];
 
   for (const enquiry of sorted) {

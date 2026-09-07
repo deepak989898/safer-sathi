@@ -8,7 +8,7 @@ import {
   buildInitContext,
   persistAiMemory,
 } from "@/lib/ai/travel-manager/init-context";
-import { logAiAssistantEnquiry } from "@/lib/ai/travel-manager/enquiry-service";
+import { logAiAssistantEnquiry, isAiEnquiryStorageConfigured } from "@/lib/ai/travel-manager/enquiry-service";
 import { runTravelManager } from "@/lib/ai/travel-manager/travel-manager-agent";
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response";
 import type { TravelManagerState } from "@/types/travel-manager";
@@ -131,19 +131,24 @@ export async function POST(request: Request) {
         (t) => t.tierId === result.state.selectedTierId
       );
 
-      void logAiAssistantEnquiry({
-        request,
-        userMessage: parsed.data.message,
-        aiReply: result.reply,
-        locale,
-        state: result.state,
-        context: parsed.data.context,
-        packagePrice: result.packageQuote?.totalAmount ?? selectedTier?.totalAmount,
-      });
+      // Server logs the enquiry when Admin SDK is configured. Tell the client so it
+      // does not write a second identical document (which duplicated every chat turn).
+      const willLogOnServer = isAiEnquiryStorageConfigured();
+      if (willLogOnServer) {
+        void logAiAssistantEnquiry({
+          request,
+          userMessage: parsed.data.message,
+          aiReply: result.reply,
+          locale,
+          state: result.state,
+          context: parsed.data.context,
+          packagePrice: result.packageQuote?.totalAmount ?? selectedTier?.totalAmount,
+        });
+      }
 
       return apiSuccess({
         ...result,
-        enquiryLogged: false,
+        enquiryLogged: willLogOnServer,
         location: initContext?.location ?? result.state.userLocation,
         preferences: initContext?.preferences,
       });
