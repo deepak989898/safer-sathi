@@ -108,6 +108,11 @@ export default function HotelBookingDetailAdminClient({ bookingId }: { bookingId
               <div className="flex flex-wrap gap-2">
                 <Badge>{booking.status.replace(/_/g, " ")}</Badge>
                 <Badge variant="outline">{booking.paymentStatus}</Badge>
+                {(booking.fulfillment === "offline_razorpay" ||
+                  booking.bookingMode === "offline_cache" ||
+                  booking.tripjackBookingId?.startsWith("OFFLINE_")) && (
+                  <Badge className="border-0 bg-orange-100 text-orange-900">Offline / Razorpay</Badge>
+                )}
                 {booking.refundStatus && booking.refundStatus !== "NONE" && (
                   <Badge variant="outline">Refund: {booking.refundStatus}</Badge>
                 )}
@@ -121,6 +126,14 @@ export default function HotelBookingDetailAdminClient({ bookingId }: { bookingId
               <Item label="Customer" value={`${booking.customerName} (${booking.customerEmail})`} />
               <Item label="Mobile" value={booking.customerMobile} />
               <Item label="TripJack ID" value={booking.tripjackBookingId} />
+              <Item
+                label="Fulfillment"
+                value={
+                  booking.fulfillment === "offline_razorpay" || booking.bookingMode === "offline_cache"
+                    ? "Offline / Razorpay (confirm with hotel manually)"
+                    : "TripJack"
+                }
+              />
               <Item label="Razorpay payment" value={booking.razorpayPaymentId ?? "—"} />
               <Item label="Supplier ref" value={booking.supplierReference ?? "—"} />
               <Item label="Confirmation" value={booking.confirmationNumber ?? "—"} />

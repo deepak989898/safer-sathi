@@ -85,6 +85,7 @@ async function refreshReviewIfNeeded(
       hid: prep.hotelId,
       hotelName: prep.hotelName,
       searchContext: prep.searchContext,
+      selectedOption: prep.selectedOption,
     }),
   });
 
@@ -373,6 +374,15 @@ export function HotelPaymentClient() {
               Review is valid (bookingId: {review.bookingId}). Click Pay to prepare checkout and continue.
             </div>
           ) : null}
+
+          {(review.bookingMode === "offline_cache" ||
+            review.priceSource === "cache" ||
+            review.bookingId?.startsWith("OFFLINE_")) && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Booking with last saved rates (live TripJack temporarily unavailable). After payment your
+              booking is confirmed and our team will arrange the room with the hotel.
+            </div>
+          )}
 
           {priceChange && (
             <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

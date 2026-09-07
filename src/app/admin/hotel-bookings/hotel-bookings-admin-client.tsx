@@ -104,6 +104,7 @@ export default function HotelBookingsAdminClient() {
     const header = [
       "Booking ID",
       "TripJack ID",
+      "Fulfillment",
       "Customer",
       "Email",
       "Phone",
@@ -118,6 +119,9 @@ export default function HotelBookingsAdminClient() {
     const rows = bookings.map((b) => [
       b.bookingId,
       b.tripjackBookingId,
+      b.fulfillment === "offline_razorpay" || b.bookingMode === "offline_cache"
+        ? "offline_razorpay"
+        : "tripjack",
       b.customerName,
       b.customerEmail,
       b.customerMobile,
@@ -276,6 +280,13 @@ export default function HotelBookingsAdminClient() {
                         {b.status.replace(/_/g, " ")}
                       </Badge>
                       <Badge variant="outline">{b.paymentStatus}</Badge>
+                      {(b.fulfillment === "offline_razorpay" ||
+                        b.bookingMode === "offline_cache" ||
+                        b.tripjackBookingId?.startsWith("OFFLINE_")) && (
+                        <Badge className="border-0 bg-orange-100 text-orange-900">
+                          Offline / Razorpay
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-2 font-bold text-primary">{formatCurrency(b.totalFare, "en")}</p>
                     <div className="mt-2 flex flex-wrap justify-end gap-2">

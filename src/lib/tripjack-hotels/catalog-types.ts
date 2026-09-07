@@ -41,6 +41,10 @@ export interface TripJackHotelCatalogEntry {
   isActive?: boolean;
   isDeleted: boolean;
   searchBlob: string;
+  /** Last known cheapest live total (INR) from pricing/listing — used when proxy is down */
+  lastPriceFrom?: number;
+  lastPricedAt?: string;
+  lastPriceCurrency?: string;
   updatedAt: string;
 }
 
@@ -127,6 +131,8 @@ export const TRIPJACK_HOTEL_API_LOGS_COLLECTION = "tripjackHotelApiLogs";
 export const TRIPJACK_HOTEL_NATIONALITIES_COLLECTION = "tripjackHotelNationalities";
 export const TRIPJACK_HOTEL_OPS_META_DOC = "tripjackHotelOpsMeta/settings";
 export const TRIPJACK_HOTEL_MANUAL_DESTINATIONS_COLLECTION = "tripjackHotelManualDestinations";
+/** Latest successful live pricing snapshot per hotel (rooms + rates for offline fallback) */
+export const TRIPJACK_HOTEL_PRICE_CACHE_COLLECTION = "tripjackHotelPriceCache";
 export const MAX_LISTING_HIDS = 100;
 export const MAX_HOTEL_CONTENT_BATCH = 100;
 export const MAX_HOTEL_MAPPING_PAGE_SIZE = 2000;

@@ -13,6 +13,10 @@ import {
   getHotelWebsiteSettings,
   isTripjackHotelsWebsiteEnabled,
 } from "@/lib/hotels/website-settings";
+import {
+  getCatalogLastPricesByHids,
+  patchCatalogLastPriceFrom,
+} from "@/lib/tripjack-hotels/price-cache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -55,14 +59,15 @@ export async function POST(request: Request) {
     const checkIn = parsed.data.checkIn ?? defaults.checkIn;
     const checkOut = parsed.data.checkOut ?? defaults.checkOut;
     const now = Date.now();
-    const prices: Record<string, { price: number; currency: string } | null> = {};
+    const prices: Record<string, { price: number; currency: string; source?: "live" | "cache" } | null> =
+      {};
     const missing: number[] = [];
 
     for (const hid of parsed.data.hids) {
       const key = cacheKey(hid, checkIn, checkOut);
       const cached = priceCache.get(key);
       if (cached && cached.expiresAt > now) {
-        prices[String(hid)] = { price: cached.price, currency: cached.currency };
+        prices[String(hid)] = { price: cached.price, currency: cached.currency, source: "live" };
       } else {
         missing.push(hid);
       }
@@ -79,6 +84,7 @@ export async function POST(request: Request) {
         hids: missing,
       });
 
+      let liveFailed = false;
       try {
         const listing = await listTripJackHotels(listingBody);
         const byHid = new Map(
@@ -88,20 +94,45 @@ export async function POST(request: Request) {
         for (const hid of missing) {
           const total = byHid.get(String(hid)) ?? 0;
           if (total > 0) {
-            const value = { price: total, currency: listing.currency || DEFAULT_HOTEL_CURRENCY };
+            const value = {
+              price: total,
+              currency: listing.currency || DEFAULT_HOTEL_CURRENCY,
+              source: "live" as const,
+            };
             prices[String(hid)] = value;
             priceCache.set(cacheKey(hid, checkIn, checkOut), {
-              ...value,
+              price: value.price,
+              currency: value.currency,
               expiresAt: now + CACHE_TTL_MS,
+            });
+            void patchCatalogLastPriceFrom({
+              hid,
+              priceFrom: value.price,
+              currency: value.currency,
+            }).catch(() => {
+              /* non-blocking */
             });
           } else {
             prices[String(hid)] = null;
           }
         }
       } catch (err) {
+        liveFailed = true;
         console.warn("[featured-prices] listing failed:", err instanceof Error ? err.message : err);
-        for (const hid of missing) {
-          prices[String(hid)] = null;
+      }
+
+      const stillMissing = missing.filter((hid) => prices[String(hid)] == null);
+      if (liveFailed || stillMissing.length) {
+        const fallbackHids = liveFailed ? missing : stillMissing;
+        const catalogPrices = await getCatalogLastPricesByHids(fallbackHids);
+        for (const hid of fallbackHids) {
+          if (prices[String(hid)]) continue;
+          const cached = catalogPrices.get(String(hid));
+          if (cached) {
+            prices[String(hid)] = { ...cached, source: "cache" };
+          } else if (liveFailed) {
+            prices[String(hid)] = null;
+          }
         }
       }
     }

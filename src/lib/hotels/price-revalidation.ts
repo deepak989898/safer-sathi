@@ -5,6 +5,7 @@ import { applyHotelMarkupToReview } from "@/lib/tripjack-hotels/pricing-display"
 import { fetchTripJackHotelReview } from "@/lib/tripjack-hotels/client";
 import { getHotelWebsiteSettings } from "@/lib/hotels/website-settings";
 import type { HotelBookingRecord } from "@/lib/hotels/types";
+import { isOfflineTripJackBookingId } from "@/lib/tripjack-hotels/price-cache";
 
 export interface HotelPriceRevalidationResult {
   ok: boolean;
@@ -28,6 +29,24 @@ export async function revalidateHotelPriceBeforePayment(
       currentPrice: 0,
       currency: "INR",
       message: "Booking not found",
+    };
+  }
+
+  const isOffline =
+    booking.bookingMode === "offline_cache" ||
+    booking.fulfillment === "offline_razorpay" ||
+    isOfflineTripJackBookingId(booking.tripjackBookingId) ||
+    booking.priceSource === "cache";
+
+  if (isOffline) {
+    return {
+      ok: true,
+      priceChanged: false,
+      previousPrice: booking.totalFare,
+      currentPrice: booking.totalFare,
+      currency: booking.currency,
+      booking,
+      message: undefined,
     };
   }
 

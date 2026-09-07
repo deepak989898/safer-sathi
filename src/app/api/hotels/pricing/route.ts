@@ -21,6 +21,12 @@ import {
 } from "@/lib/hotels/website-settings";
 import { applyHotelMarkupToDetail } from "@/lib/tripjack-hotels/pricing-display";
 import { mapHotelPricingError } from "@/lib/tripjack-hotels/pricing-errors";
+import {
+  buildDetailFromPriceCache,
+  getTripJackHotelPriceCache,
+  saveTripJackHotelPriceCache,
+  shouldFallbackToPriceCache,
+} from "@/lib/tripjack-hotels/price-cache";
 
 const roomSchema = z.object({
   adults: z.number().int().min(1).max(8),
@@ -80,58 +86,132 @@ export async function POST(request: Request) {
       parsed.data.hid
     );
     const started = Date.now();
-
-    const result = await fetchTripJackHotelPricing({
-      correlationId: parsed.data.correlationId,
-      hid: parsed.data.hid,
-      checkIn: parsed.data.checkIn,
-      checkOut: parsed.data.checkOut,
-      rooms: parsed.data.rooms,
-      currency: parsed.data.currency,
-      nationality: parsed.data.nationality,
-      listingHotelName: parsed.data.listingHotelName,
-      catalogEnrichment:
-        enrichment ??
-        (catalog
-          ? {
-              ...catalogEntryToEnrichment(catalog),
-              imageUrls: catalogEntryImageUrls(catalog),
-            }
-          : undefined),
-    });
-
     const markupPercent = Math.max(0, websiteSettings.hotelMarkupPercent ?? 0);
-    const detail = applyHotelMarkupToDetail(result.detail, markupPercent);
-
     const requestBody = buildHotelPricingBody(parsed.data);
 
-    return apiSuccess({
-      detail,
-      markupPercent,
-      elapsedMs: result.elapsedMs ?? Date.now() - started,
-      requestBody,
-      proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/pricing`,
-      ...(includeDebug
-        ? {
-            debug: {
-              optionCount: detail.options.length,
-              reviewHashPresent: Boolean(detail.reviewHash),
-              elapsedMs: result.elapsedMs,
-              catalogFound: Boolean(catalog),
-              staticSource,
-              markupPercent,
-            },
-          }
-        : {}),
-      ...(isSuperAdmin
-        ? {
-            adminDebug: {
-              requestBody,
-              rawResponse: result.rawResponse,
-            },
-          }
-        : {}),
-    });
+    try {
+      const result = await fetchTripJackHotelPricing({
+        correlationId: parsed.data.correlationId,
+        hid: parsed.data.hid,
+        checkIn: parsed.data.checkIn,
+        checkOut: parsed.data.checkOut,
+        rooms: parsed.data.rooms,
+        currency: parsed.data.currency,
+        nationality: parsed.data.nationality,
+        listingHotelName: parsed.data.listingHotelName,
+        catalogEnrichment:
+          enrichment ??
+          (catalog
+            ? {
+                ...catalogEntryToEnrichment(catalog),
+                imageUrls: catalogEntryImageUrls(catalog),
+              }
+            : undefined),
+      });
+
+      // Cache pre-markup detail so markup is not double-applied on offline read.
+      void saveTripJackHotelPriceCache({
+        detail: result.detail,
+        rooms: parsed.data.rooms,
+        currency: parsed.data.currency,
+        nationality: parsed.data.nationality,
+      }).catch((cacheError) => {
+        console.warn(
+          "[hotels/pricing] price cache write failed:",
+          cacheError instanceof Error ? cacheError.message : cacheError
+        );
+      });
+
+      const detail = {
+        ...applyHotelMarkupToDetail(result.detail, markupPercent),
+        priceSource: "live" as const,
+        offlineBookingAllowed: false,
+      };
+
+      return apiSuccess({
+        detail,
+        markupPercent,
+        source: "live",
+        offlineBookingAllowed: false,
+        elapsedMs: result.elapsedMs ?? Date.now() - started,
+        requestBody,
+        proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/pricing`,
+        ...(includeDebug
+          ? {
+              debug: {
+                optionCount: detail.options.length,
+                reviewHashPresent: Boolean(detail.reviewHash),
+                elapsedMs: result.elapsedMs,
+                catalogFound: Boolean(catalog),
+                staticSource,
+                markupPercent,
+                source: "live",
+              },
+            }
+          : {}),
+        ...(isSuperAdmin
+          ? {
+              adminDebug: {
+                requestBody,
+                rawResponse: result.rawResponse,
+              },
+            }
+          : {}),
+      });
+    } catch (liveError) {
+      const canFallback =
+        liveError instanceof TripJackHotelApiError
+          ? shouldFallbackToPriceCache(liveError)
+          : true;
+
+      if (!canFallback) throw liveError;
+
+      const cache = await getTripJackHotelPriceCache(parsed.data.hid);
+      if (!cache?.options?.length) throw liveError;
+
+      console.warn(
+        "[hotels/pricing] live failed; serving Firestore price cache for",
+        parsed.data.hid,
+        liveError instanceof Error ? liveError.message : liveError
+      );
+
+      const cachedDetail = buildDetailFromPriceCache(cache, {
+        correlationId: parsed.data.correlationId,
+        checkIn: parsed.data.checkIn,
+        checkOut: parsed.data.checkOut,
+        rooms: parsed.data.rooms,
+        currency: parsed.data.currency,
+        nationality: parsed.data.nationality,
+      });
+      const detail = applyHotelMarkupToDetail(cachedDetail, markupPercent);
+      detail.priceSource = "cache";
+      detail.offlineBookingAllowed = true;
+      detail.reviewHash = cachedDetail.reviewHash;
+
+      return apiSuccess({
+        detail,
+        markupPercent,
+        source: "cache",
+        offlineBookingAllowed: true,
+        elapsedMs: Date.now() - started,
+        requestBody,
+        proxyEndpoint: `${process.env.TRIPJACK_PROXY_BASE_URL?.replace(/\/$/, "") || "http://178.128.151.233:4000"}/api/tripjack/hotels/pricing`,
+        ...(includeDebug
+          ? {
+              debug: {
+                optionCount: detail.options.length,
+                reviewHashPresent: Boolean(detail.reviewHash),
+                elapsedMs: Date.now() - started,
+                catalogFound: Boolean(catalog),
+                staticSource,
+                markupPercent,
+                source: "cache",
+                cacheFetchedAt: cache.fetchedAt,
+              },
+            }
+          : {}),
+      });
+    }
   } catch (err) {
     if (err instanceof TripJackHotelApiError) {
       const mapped = mapHotelPricingError({

@@ -32,7 +32,12 @@ export async function POST(request: Request) {
     const bookingAllowed = await assertTripJackHotelBookingAllowed();
     if ("error" in bookingAllowed) return bookingAllowed.error;
 
-    if (!booking.tripjackBookingId) {
+    const isOffline =
+      booking.bookingMode === "offline_cache" ||
+      booking.fulfillment === "offline_razorpay" ||
+      Boolean(booking.tripjackBookingId?.startsWith("OFFLINE_"));
+
+    if (!booking.tripjackBookingId && !isOffline) {
       return apiError("Booking reference missing. Please go back to Review and try again.", 400);
     }
     if (booking.paymentStatus === "paid") {
@@ -61,6 +66,9 @@ export async function POST(request: Request) {
     }
 
     const payableBooking = revalidation.booking ?? booking;
+    const tripjackRef =
+      payableBooking.tripjackBookingId ||
+      (isOffline ? `OFFLINE_${payableBooking.bookingId}` : "");
 
     const order = await createOrder({
       amount: payableBooking.totalFare,
@@ -68,19 +76,24 @@ export async function POST(request: Request) {
       notes: {
         purpose: "hotel_booking",
         bookingId: payableBooking.bookingId,
-        tripjackBookingId: payableBooking.tripjackBookingId,
+        tripjackBookingId: tripjackRef,
+        bookingMode: payableBooking.bookingMode || (isOffline ? "offline_cache" : "live"),
       },
     });
 
     await updateHotelBooking(payableBooking.bookingId, {
       status: "payment_pending",
       razorpayOrderId: order.orderId,
+      ...(tripjackRef && !payableBooking.tripjackBookingId
+        ? { tripjackBookingId: tripjackRef }
+        : {}),
     });
 
     console.log("[hotel-payment] created Razorpay order:", {
       bookingId: payableBooking.bookingId,
       orderId: order.orderId,
       amount: payableBooking.totalFare,
+      bookingMode: payableBooking.bookingMode,
     });
 
     return apiSuccess({

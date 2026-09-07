@@ -181,6 +181,11 @@ export interface HotelBookingRecord {
   processingEmailSentAt?: string;
   confirmedEmailSentAt?: string;
 
+  /** live TripJack book vs offline Razorpay when proxy/API is down */
+  bookingMode?: "live" | "offline_cache";
+  fulfillment?: "tripjack" | "offline_razorpay";
+  priceSource?: "live" | "cache";
+
   createdAt: string;
   updatedAt: string;
 }

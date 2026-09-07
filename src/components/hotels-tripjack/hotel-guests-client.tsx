@@ -200,6 +200,7 @@ export function HotelGuestsClient() {
               hid: prep.hotelId,
               hotelName: prep.hotelName,
               searchContext: prep.searchContext,
+              selectedOption: prep.selectedOption,
             }),
           });
           const json = await res.json();
@@ -498,6 +499,17 @@ export function HotelGuestsClient() {
       className="!py-2 md:!py-3"
     >
       <HotelStepBar steps={[...HOTEL_BOOKING_STEPS]} current={2} className="!mb-2" />
+
+      {(review.bookingMode === "offline_cache" ||
+        review.priceSource === "cache" ||
+        review.bookingId?.startsWith("OFFLINE_")) && (
+        <HotelCard className="mb-2 border border-amber-200 bg-amber-50 py-3">
+          <p className="text-sm text-amber-900">
+            Using last saved rates (live TripJack temporarily unavailable). You can continue and pay
+            with Razorpay — we will confirm the room with the hotel.
+          </p>
+        </HotelCard>
+      )}
 
       <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_260px]">
         <div className="space-y-2">

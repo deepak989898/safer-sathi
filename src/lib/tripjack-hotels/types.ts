@@ -180,6 +180,9 @@ export interface NormalizedHotelDetail {
   checkInPolicy?: string;
   checkOutPolicy?: string;
   geolocation?: { lat?: number; lng?: number };
+  /** live = TripJack proxy; cache = Firestore last-known rates */
+  priceSource?: "live" | "cache";
+  offlineBookingAllowed?: boolean;
 }
 
 /** Session payload prepared for Review API (Phase 3). */
@@ -238,4 +241,7 @@ export interface NormalizedHotelReviewResult {
   searchContext: HotelReviewPrepSession["searchContext"];
   reviewedAt: string;
   rawResponse: unknown;
+  /** live TripJack review vs offline cache lock */
+  bookingMode?: "live" | "offline_cache";
+  priceSource?: "live" | "cache";
 }

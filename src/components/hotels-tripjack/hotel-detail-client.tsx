@@ -352,12 +352,25 @@ export function HotelDetailClient({ hid }: { hid: string }) {
         }
 
         const next = json.data.detail as NormalizedHotelDetail;
+        if (json.data.source === "cache" || json.data.offlineBookingAllowed) {
+          next.priceSource = "cache";
+          next.offlineBookingAllowed = true;
+        } else {
+          next.priceSource = next.priceSource ?? "live";
+          next.offlineBookingAllowed = false;
+        }
         saveHotelDetailCache(next);
         refreshHotelSearchSessionClock();
         setSessionExpired(false);
         setDetail(next);
         setMarkupPercent(Number(json.data.markupPercent ?? 0));
         setSelectedOptionId(findCheapestOptionId(next.options));
+
+        if (json.data.source === "cache") {
+          toast.message("Live rates temporarily unavailable — showing last saved rates", {
+            duration: 4000,
+          });
+        }
 
         if (isSuperAdmin && json.data.adminDebug) {
           setAdminDebug(json.data.adminDebug);
@@ -369,6 +382,7 @@ export function HotelDetailClient({ hid }: { hid: string }) {
             options: next.options.length,
             reviewHash: next.reviewHash,
             elapsedMs: json.data.elapsedMs,
+            source: json.data.source ?? next.priceSource,
           });
         }
       } catch (e) {
@@ -659,6 +673,15 @@ export function HotelDetailClient({ hid }: { hid: string }) {
 
       {detail && !error && !needsStayDetails && (
         <div className="space-y-4">
+          {(detail.priceSource === "cache" || detail.offlineBookingAllowed) && (
+            <HotelCard className="border border-amber-200 bg-amber-50 py-3">
+              <p className="text-sm font-medium text-amber-900">
+                Live rates temporarily unavailable — showing last saved rates. You can still book and
+                pay with Razorpay; our team will confirm the room with the hotel.
+              </p>
+            </HotelCard>
+          )}
+
           {isSuperAdmin && adminDebug && (
             <HotelPricingDebugPanel
               requestBody={adminDebug.requestBody}

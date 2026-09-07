@@ -15,6 +15,7 @@ import type { HotelBookingRecord, HotelGuestDetailsForm } from "@/lib/hotels/typ
 import { buildTripJackHotelBookRequest } from "@/lib/tripjack-hotels/build-book";
 import { bookTripJackHotel } from "@/lib/tripjack-hotels/client";
 import { normalizeHotelBookResponse } from "@/lib/tripjack-hotels/parse-book-response";
+import { isOfflineTripJackBookingId } from "@/lib/tripjack-hotels/price-cache";
 import type { NormalizedHotelReviewResult } from "@/lib/tripjack-hotels/types";
 import type { Booking } from "@/types";
 
@@ -23,6 +24,14 @@ export interface PrepareHotelBookingInput {
   review: NormalizedHotelReviewResult;
   guestDetails: HotelGuestDetailsForm;
   reviewHash?: string;
+}
+
+function resolveBookingMode(
+  review: NormalizedHotelReviewResult
+): HotelBookingRecord["bookingMode"] {
+  if (review.bookingMode === "offline_cache") return "offline_cache";
+  if (isOfflineTripJackBookingId(review.bookingId)) return "offline_cache";
+  return "live";
 }
 
 export async function prepareHotelBookingFromReview(
@@ -36,10 +45,15 @@ export async function prepareHotelBookingFromReview(
     passportRequired: option.passportRequired,
   });
   const pg = guestDetails.primaryGuest;
+  const bookingMode = resolveBookingMode(input.review);
+  const bookingId = generateHotelBookingId();
+  const tripjackBookingId =
+    input.review.bookingId?.trim() ||
+    (bookingMode === "offline_cache" ? `OFFLINE_${bookingId}` : "");
 
   const record: HotelBookingRecord = {
-    bookingId: generateHotelBookingId(),
-    tripjackBookingId: input.review.bookingId,
+    bookingId,
+    tripjackBookingId,
     userId: input.userId,
     customerName: `${pg.firstName} ${pg.lastName}`.trim(),
     customerEmail: pg.email,
@@ -65,9 +79,16 @@ export async function prepareHotelBookingFromReview(
     panRequired: option.panRequired,
     passportRequired: option.passportRequired,
     gstType: option.gstType,
-    status: input.review.bookingId ? "review_confirmed" : "manual_review_required",
+    status: tripjackBookingId || bookingMode === "offline_cache" ? "review_confirmed" : "manual_review_required",
     paymentStatus: "pending",
     reviewNormalized: input.review,
+    bookingMode,
+    fulfillment: bookingMode === "offline_cache" ? "offline_razorpay" : "tripjack",
+    priceSource: input.review.priceSource ?? (bookingMode === "offline_cache" ? "cache" : "live"),
+    adminNotes:
+      bookingMode === "offline_cache"
+        ? "Offline Razorpay booking — confirm with hotel manually (TripJack/proxy unavailable)."
+        : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -127,7 +148,7 @@ export async function confirmHotelAfterPayment(input: {
     booking.idempotencyKey === idempotencyKey &&
     booking.razorpayPaymentId === input.razorpayPaymentId &&
     (booking.status === "confirmed" || booking.status === "booking_pending") &&
-    booking.bookResponse
+    (booking.bookResponse || booking.fulfillment === "offline_razorpay")
   ) {
     return booking;
   }
@@ -148,6 +169,15 @@ export async function confirmHotelAfterPayment(input: {
     razorpaySignatureVerified: true,
     idempotencyKey,
   };
+
+  const isOffline =
+    booking.bookingMode === "offline_cache" ||
+    booking.fulfillment === "offline_razorpay" ||
+    isOfflineTripJackBookingId(booking.tripjackBookingId);
+
+  if (isOffline) {
+    return confirmOfflineHotelAfterPayment(input.bookingId, booking, paymentFields);
+  }
 
   if (!booking.tripjackBookingId) {
     const failed = await updateHotelBooking(input.bookingId, {
@@ -179,6 +209,64 @@ export async function confirmHotelAfterPayment(input: {
   } finally {
     await updateHotelBooking(input.bookingId, { bookingLock: false });
   }
+}
+
+async function confirmOfflineHotelAfterPayment(
+  bookingId: string,
+  booking: HotelBookingRecord,
+  paymentFields: {
+    paymentStatus: "paid";
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignatureVerified: boolean;
+    idempotencyKey: string;
+  }
+): Promise<HotelBookingRecord> {
+  const offlineRef = booking.tripjackBookingId || `OFFLINE_${bookingId}`;
+  const updated = await updateHotelBooking(bookingId, {
+    ...paymentFields,
+    status: "confirmed",
+    bookingMode: "offline_cache",
+    fulfillment: "offline_razorpay",
+    priceSource: booking.priceSource ?? "cache",
+    tripjackBookingId: offlineRef,
+    hotelReference: offlineRef,
+    confirmationNumber: offlineRef,
+    tripjackStatus: "offline_razorpay_confirmed",
+    adminNotes:
+      booking.adminNotes ||
+      "Offline Razorpay booking confirmed — confirm with hotel manually (TripJack/proxy unavailable).",
+    bookResponse: { offline: true, source: "firestore_price_cache" },
+  });
+
+  if (!updated) throw new Error("Booking update failed");
+
+  const { booking: withGuest, loginCredentials } =
+    await ensureHotelGuestCustomerAccess(updated);
+  try {
+    await sendBookingConfirmationNotifications({
+      booking: hotelBookingToLegacyBooking(withGuest),
+      isFullyPaid: true,
+      loginEmail: loginCredentials?.loginEmail,
+      loginPassword: loginCredentials?.loginPassword,
+      voucherUrl: withGuest.voucherUrl,
+      hotelReference: getHotelReferenceLabel(withGuest),
+    });
+    await sendAdminBookingAlert({
+      booking: hotelBookingToLegacyBooking(withGuest),
+      isFullyPaid: true,
+      balanceDue: 0,
+    });
+    await updateHotelBooking(bookingId, {
+      emailSentAt: new Date().toISOString(),
+      confirmedEmailSentAt: new Date().toISOString(),
+      invoiceSentAt: new Date().toISOString(),
+    });
+  } catch (emailError) {
+    console.warn("[hotel-booking] offline confirmation email failed:", emailError);
+  }
+
+  return (await getHotelBookingById(bookingId)) ?? withGuest;
 }
 
 async function executeTripJackHotelBook(
