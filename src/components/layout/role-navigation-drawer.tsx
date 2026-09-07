@@ -105,9 +105,7 @@ export function RoleNavigationDrawer({
               {adminItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
-                  item.href === "/admin"
-                    ? pathname === "/admin"
-                    : pathname.startsWith(item.href);
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link

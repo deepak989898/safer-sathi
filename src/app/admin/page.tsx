@@ -1,5 +1,6 @@
-import DashboardAdminClient from "./dashboard-admin-client";
+import { redirect } from "next/navigation";
 
+/** Dashboard page removed — land staff on Bookings instead. */
 export default function AdminDashboardPage() {
-  return <DashboardAdminClient />;
+  redirect("/admin/bookings");
 }

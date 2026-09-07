@@ -13,7 +13,7 @@ export function AiCenterGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
     if (!user || !canAccessAICenter(user.role)) {
-      router.replace("/admin");
+      router.replace("/admin/bookings");
     }
   }, [user, loading, router]);
 

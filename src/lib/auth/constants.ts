@@ -30,13 +30,11 @@ export function getLoginRedirect(role: UserRole): string {
   switch (role) {
     case "super_admin":
     case "manager":
-      return "/admin";
     case "sales_agent":
+    case "driver":
       return "/admin/bookings";
     case "support_agent":
       return "/admin/ai-enquiries";
-    case "driver":
-      return "/admin/bookings";
     case "customer":
     default:
       return "/my-bookings";
