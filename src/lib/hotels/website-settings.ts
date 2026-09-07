@@ -32,9 +32,12 @@ export async function getHotelWebsiteSettings(): Promise<HotelWebsiteSettings> {
     ? { ...DEFAULT_HOTEL_WEBSITE_SETTINGS, ...(snap.data() as HotelWebsiteSettings) }
     : DEFAULT_HOTEL_WEBSITE_SETTINGS;
 
-  // Curated Firestore hotels + Razorpay (like packages) is the default customer path.
-  // Live TripJack rates only when explicitly enabled via env.
-  if (process.env.NEXT_PUBLIC_ENABLE_LIVE_HOTELS !== "true") {
+  // Live TripJack on website only when explicitly opted in via env.
+  // Accept either flag so Vercel setup matches common deploy checklists.
+  const liveHotelsOptIn =
+    process.env.NEXT_PUBLIC_ENABLE_LIVE_HOTELS === "true" ||
+    process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED === "true";
+  if (!liveHotelsOptIn) {
     merged.tripjackHotelsWebsiteEnabled = false;
     // Never blank /hotels when live TripJack is off — always show Firestore catalog.
     merged.manualHotelsWebsiteEnabled = true;
@@ -72,7 +75,10 @@ export function isManualHotelsWebsiteEnabled(settings = DEFAULT_HOTEL_WEBSITE_SE
 
 export function isTripjackHotelsWebsiteEnabled(settings = DEFAULT_HOTEL_WEBSITE_SETTINGS): boolean {
   // Opt-in only. Curated /hotels/[slug] booking (package-style) is the default path.
-  // Also require NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED !== "false".
   if (process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED === "false") return false;
+  const liveHotelsOptIn =
+    process.env.NEXT_PUBLIC_ENABLE_LIVE_HOTELS === "true" ||
+    process.env.NEXT_PUBLIC_TRIPJACK_HOTELS_ENABLED === "true";
+  if (!liveHotelsOptIn) return false;
   return settings.tripjackHotelsWebsiteEnabled === true;
 }

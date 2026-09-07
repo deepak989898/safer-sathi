@@ -167,14 +167,21 @@ export async function runTripJackHotelProxyRouteTests(): Promise<{
       name: "listing",
       url: config.listingUrl,
       method: "POST",
-      body: {
-        checkIn: "2026-08-01",
-        checkOut: "2026-08-03",
-        rooms: [{ adults: 2 }],
-        hids: [1001],
-        currency: "INR",
-        nationality: "106",
-      },
+      body: (() => {
+        const checkIn = new Date();
+        checkIn.setUTCDate(checkIn.getUTCDate() + 14);
+        const checkOut = new Date(checkIn);
+        checkOut.setUTCDate(checkOut.getUTCDate() + 2);
+        const ymd = (d: Date) => d.toISOString().slice(0, 10);
+        return {
+          checkIn: ymd(checkIn),
+          checkOut: ymd(checkOut),
+          rooms: [{ adults: 2 }],
+          hids: [1001],
+          currency: "INR",
+          nationality: "106",
+        };
+      })(),
     }),
     await runOne({
       name: "pricing",
