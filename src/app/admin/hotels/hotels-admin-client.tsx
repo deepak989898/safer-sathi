@@ -38,14 +38,55 @@ import {
 import { buildCityCounts, filterByCity } from "@/lib/admin/city-filter";
 import { applyAdminHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
 import { formatCurrency, localizedText } from "@/lib/i18n";
-import type { Hotel, HotelStatus, PackagePublishStatus } from "@/types";
+import type { Hotel, HotelRoom, HotelStatus, PackagePublishStatus } from "@/types";
 import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function getHotelCities(hotel: Hotel): string[] {
   return hotel.city?.trim() ? [hotel.city.trim()] : [];
 }
 
-const emptyForm = {
+function createEmptyRoom(): HotelRoom {
+  return {
+    id: `room_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    name: { en: "", hi: "" },
+    type: "standard",
+    pricePerNight: 0,
+    maxGuests: 2,
+    available: true,
+    amenities: [],
+    images: [],
+  };
+}
+
+type HotelFormState = {
+  name: string;
+  nameHi: string;
+  slug: string;
+  city: string;
+  state: string;
+  country: string;
+  location: string;
+  address: string;
+  starRating: string;
+  priceFrom: string;
+  description: string;
+  amenities: string;
+  images: string;
+  rooms: HotelRoom[];
+  available: boolean;
+  featured: boolean;
+  status: HotelStatus;
+};
+
+const emptyForm: HotelFormState = {
   name: "",
   nameHi: "",
   slug: "",
@@ -59,11 +100,170 @@ const emptyForm = {
   description: "",
   amenities: "",
   images: "",
-  roomsJson: "",
+  rooms: [],
   available: true,
   featured: false,
-  status: "active" as HotelStatus,
+  status: "active",
 };
+
+function HotelRoomsTable({
+  rooms,
+  onChange,
+  disabled,
+}: {
+  rooms: HotelRoom[];
+  onChange: (rooms: HotelRoom[]) => void;
+  disabled?: boolean;
+}) {
+  const updateRoom = (index: number, patch: Partial<HotelRoom>) => {
+    onChange(rooms.map((room, i) => (i === index ? { ...room, ...patch } : room)));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label>Rooms</Label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => onChange([...rooms, createEmptyRoom()])}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Add room
+        </Button>
+      </div>
+      {rooms.length === 0 ? (
+        <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+          No rooms yet. Click Add room to create room types and prices.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[140px]">Name (EN)</TableHead>
+                <TableHead className="min-w-[120px]">Name (HI)</TableHead>
+                <TableHead className="min-w-[100px]">Type</TableHead>
+                <TableHead className="min-w-[110px]">₹ / night</TableHead>
+                <TableHead className="min-w-[80px]">Guests</TableHead>
+                <TableHead className="min-w-[90px]">Available</TableHead>
+                <TableHead className="min-w-[160px]">Amenities</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rooms.map((room, index) => (
+                <TableRow key={room.id}>
+                  <TableCell>
+                    <Input
+                      value={room.name.en}
+                      disabled={disabled}
+                      placeholder="Standard Room"
+                      onChange={(e) =>
+                        updateRoom(index, {
+                          name: { ...room.name, en: e.target.value },
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={room.name.hi}
+                      disabled={disabled}
+                      placeholder="स्टैंडर्ड रूम"
+                      onChange={(e) =>
+                        updateRoom(index, {
+                          name: { ...room.name, hi: e.target.value },
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={room.type}
+                      disabled={disabled}
+                      placeholder="standard"
+                      onChange={(e) => updateRoom(index, { type: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={room.pricePerNight || ""}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        updateRoom(index, {
+                          pricePerNight: Number(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={room.maxGuests || ""}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        updateRoom(index, {
+                          maxGuests: Number(e.target.value) || 1,
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={room.available}
+                        disabled={disabled}
+                        onChange={(e) =>
+                          updateRoom(index, { available: e.target.checked })
+                        }
+                      />
+                      Yes
+                    </label>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={room.amenities.join(", ")}
+                      disabled={disabled}
+                      placeholder="AC, TV, WiFi"
+                      onChange={(e) =>
+                        updateRoom(index, {
+                          amenities: e.target.value
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean),
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive"
+                      disabled={disabled}
+                      aria-label="Remove room"
+                      onClick={() => onChange(rooms.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function HotelsAdminClient() {
   const { user } = useAuth();
@@ -196,15 +396,21 @@ export default function HotelsAdminClient() {
     }
   };
 
-  const buildPayload = (f: typeof emptyForm, existing?: Hotel) => {
-    let rooms = existing?.rooms ?? [];
-    if (f.roomsJson.trim()) {
-      try {
-        rooms = JSON.parse(f.roomsJson);
-      } catch {
-        throw new Error("Invalid rooms JSON");
-      }
-    }
+  const buildPayload = (f: HotelFormState, existing?: Hotel) => {
+    const rooms = f.rooms.map((room) => ({
+      ...room,
+      id: room.id || createEmptyRoom().id,
+      name: {
+        en: room.name.en.trim() || room.type || "Room",
+        hi: room.name.hi.trim() || room.name.en.trim() || room.type || "Room",
+      },
+      type: room.type.trim() || "standard",
+      pricePerNight: Number(room.pricePerNight) || 0,
+      maxGuests: Number(room.maxGuests) || 2,
+      available: room.available !== false,
+      amenities: room.amenities ?? [],
+      images: room.images ?? [],
+    }));
     const images = f.images.split("\n").map((s) => s.trim()).filter(Boolean);
     const { priceFrom, rooms: pricedRooms } = applyAdminHotelPriceFrom(
       Number(f.priceFrom) || existing?.priceFrom || 0,
@@ -251,7 +457,12 @@ export default function HotelsAdminClient() {
       description: localizedText(hotel.description, "en"),
       amenities: hotel.amenities.join(", "),
       images: hotel.images.join("\n"),
-      roomsJson: JSON.stringify(hotel.rooms, null, 2),
+      rooms: (hotel.rooms ?? []).map((room) => ({
+        ...room,
+        name: { en: room.name?.en ?? "", hi: room.name?.hi ?? "" },
+        amenities: room.amenities ?? [],
+        images: room.images ?? [],
+      })),
       available: hotel.available,
       featured: hotel.featured ?? false,
       status: hotel.status ?? (hotel.available ? "active" : "inactive"),
@@ -435,10 +646,11 @@ export default function HotelsAdminClient() {
         rows={3}
         disabled={saving}
       />
-      <div className="grid gap-2">
-        <Label>Rooms (JSON array)</Label>
-        <Textarea rows={4} className="font-mono text-xs" value={form.roomsJson} onChange={(e) => setForm({ ...form, roomsJson: e.target.value })} placeholder='[{"type":"deluxe","pricePerNight":8500,...}]' />
-      </div>
+      <HotelRoomsTable
+        rooms={form.rooms}
+        disabled={saving}
+        onChange={(rooms) => setForm({ ...form, rooms })}
+      />
       <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} />
@@ -593,12 +805,15 @@ export default function HotelsAdminClient() {
               {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
               Seed Hotels (60)
             </Button>
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <Dialog open={addOpen} onOpenChange={(open) => {
+              setAddOpen(open);
+              if (open) setForm(emptyForm);
+            }}>
               <DialogTrigger render={<Button variant="outline" />}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Hotel
               </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
                 <DialogHeader><DialogTitle>Add Hotel</DialogTitle></DialogHeader>
                 {formFields}
                 <DialogFooter>
@@ -698,7 +913,7 @@ export default function HotelsAdminClient() {
       </div>
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {selected ? localizedText(selected.name, "en") : "Review Hotel"}
