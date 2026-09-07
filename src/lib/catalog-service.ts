@@ -33,12 +33,22 @@ import {
   hydrateBlogStore,
 } from "@/lib/blog-store";
 import { syncHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
+import { resolveHotelDisplayImages } from "@/lib/media/hotel-images";
 import { getTourPackagesSeed } from "@/data/tour-packages-seed";
 import type { BlogPost, BusRoute, Hotel, SearchFilters, TourPackage, Vehicle } from "@/types";
 
 function normalizeHotelForCatalog(hotel: Hotel): Hotel {
   const priceFrom = syncHotelPriceFrom(hotel);
-  return priceFrom === hotel.priceFrom ? hotel : { ...hotel, priceFrom };
+  const images = resolveHotelDisplayImages(hotel);
+  const sameImages =
+    images.length === (hotel.images?.length ?? 0) &&
+    images.every((url, i) => url === hotel.images?.[i]);
+  if (priceFrom === hotel.priceFrom && sameImages) return hotel;
+  return {
+    ...hotel,
+    priceFrom,
+    images,
+  };
 }
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {

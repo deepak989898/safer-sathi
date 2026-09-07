@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SafeImage } from "@/components/ui/safe-image";
 import { PLACEHOLDER_TRAVEL_IMAGE } from "@/lib/media/travel-images";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ interface ImageAutoSliderProps {
   imageClassName?: string;
   sizes?: string;
   priority?: boolean;
+  /** Used only after every slide fails — pass a hotel-specific URL, not a shared global one. */
+  fallbackSrc?: string;
 }
 
 export function ImageAutoSlider({
@@ -25,10 +27,21 @@ export function ImageAutoSlider({
   imageClassName,
   sizes = "100vw",
   priority = false,
+  fallbackSrc = PLACEHOLDER_TRAVEL_IMAGE,
 }: ImageAutoSliderProps) {
-  const slides = images.length > 0 ? images : [PLACEHOLDER_TRAVEL_IMAGE];
+  const initial = useMemo(() => {
+    const unique = [...new Set(images.map((u) => u.trim()).filter(Boolean))];
+    return unique.length > 0 ? unique : [fallbackSrc];
+  }, [images, fallbackSrc]);
+
+  const [slides, setSlides] = useState(initial);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    setSlides(initial);
+    setIndex(0);
+  }, [initial]);
 
   useEffect(() => {
     if (slides.length <= 1 || paused) return;
@@ -39,6 +52,16 @@ export function ImageAutoSlider({
 
     return () => clearInterval(timer);
   }, [slides.length, interval, paused]);
+
+  const markFailed = (failedSrc: string) => {
+    setSlides((current) => {
+      const next = current.filter((src) => src !== failedSrc);
+      if (next.length > 0) return next;
+      if (failedSrc !== fallbackSrc) return [fallbackSrc];
+      return current;
+    });
+    setIndex(0);
+  };
 
   return (
     <div
@@ -61,7 +84,9 @@ export function ImageAutoSlider({
             fill
             priority={priority && slideIndex === 0}
             sizes={sizes}
+            fallbackSrc={fallbackSrc}
             className={cn("object-cover", imageClassName)}
+            onError={() => markFailed(src)}
           />
         </div>
       ))}

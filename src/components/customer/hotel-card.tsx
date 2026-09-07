@@ -8,11 +8,12 @@ import { RatingStars } from "@/components/customer/rating-stars";
 import type { Hotel, Locale } from "@/types";
 import { formatCurrency, localizedText, t } from "@/lib/i18n";
 import { getEffectiveHotelPriceFrom } from "@/lib/catalog/hotel-pricing";
-import { resolveHotelDisplayImages } from "@/lib/media/hotel-images";
+import { resolveHotelDisplayImages, getHotelFallbackImages } from "@/lib/media/hotel-images";
 
 export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
   const fromPrice = getEffectiveHotelPriceFrom(hotel);
   const images = resolveHotelDisplayImages(hotel);
+  const uniqueFallback = getHotelFallbackImages(hotel, 1)[0]!;
   return (
     <Card className="group/card overflow-hidden pt-0 transition-shadow hover:shadow-lg">
       <Link href={`/hotels/${hotel.slug}`} className="block">
@@ -21,6 +22,7 @@ export function HotelCard({ hotel, locale }: { hotel: Hotel; locale: Locale }) {
             images={images}
             alt={localizedText(hotel.name, locale)}
             sizes="(max-width: 768px) 100vw, 33vw"
+            fallbackSrc={uniqueFallback}
           />
           <Badge className="absolute left-3 top-3 z-10">
             <Star className="mr-1 h-3 w-3 fill-current" />

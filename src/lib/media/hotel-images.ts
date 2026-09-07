@@ -74,7 +74,10 @@ export function getHotelFallbackImages(
 
 /**
  * Prefer real Firestore/CDN images; otherwise assign a distinct fallback set
- * so homepage cards never share the same placeholder photo.
+ * so hotel cards never share the same placeholder photo.
+ *
+ * If many hotels were saved with the same shared stock URL, still diversify by
+ * hotel id/slug so the listing grid does not look identical.
  */
 export function resolveHotelDisplayImages(hotel: {
   id?: string;
@@ -86,8 +89,24 @@ export function resolveHotelDisplayImages(hotel: {
     .map((url) => url.trim())
     .filter(isUsableHotelImageUrl);
 
-  if (usable.length > 0) return usable;
-  return getHotelFallbackImages(hotel);
+  const uniqueFallbacks = getHotelFallbackImages(hotel);
+
+  if (usable.length === 0) return uniqueFallbacks;
+
+  // Shared global placeholder / first pool image — treat as "no real photo".
+  const SHARED_STOCK = new Set([
+    HOTEL_IMAGE_POOL[0],
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
+  ]);
+
+  const onlySharedStock = usable.every((url) => {
+    const bare = url.split("?")[0] ?? url;
+    return [...SHARED_STOCK].some((stock) => (stock.split("?")[0] ?? stock) === bare);
+  });
+
+  if (onlySharedStock) return uniqueFallbacks;
+
+  return usable;
 }
 
 /** Seed helper: unique remote gallery per hotel slug. */
