@@ -15,9 +15,14 @@ export async function bootstrapFeaturedTripJackHotel(input: {
   imageUrls?: string[];
   starRating?: number | null;
   facilities?: string[];
+  /** Prefer the date strip selection so listing/pricing dates match card prices. */
+  checkIn?: string;
+  checkOut?: string;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   const destinationLabel = input.cityName?.trim() || input.hotelName;
-  const { checkIn, checkOut } = getDefaultHotelStayDates();
+  const defaults = getDefaultHotelStayDates();
+  const checkIn = input.checkIn || defaults.checkIn;
+  const checkOut = input.checkOut || defaults.checkOut;
 
   try {
     const pricing = await startHotelLivePricing({
@@ -88,6 +93,7 @@ export async function bootstrapFeaturedTripJackHotel(input: {
       nationality: "106",
     };
 
+    // No live correlation — detail page will ask for stay dates / retry listing.
     saveHotelListingSession({
       request,
       correlationId: "",
@@ -147,7 +153,29 @@ export async function startHotelLivePricing(input: {
     }
 
     const hotels = Array.isArray(listingJson.data?.hotels) ? listingJson.data.hotels : [];
-    const listingHotel = hotels[0];
+    const listingHotel =
+      hotels.find((hotel: { tjHotelId?: string | number }) => String(hotel.tjHotelId) === String(input.hid)) ??
+      hotels[0];
+
+    // Listing succeeded but this hotel has no inventory for these dates —
+    // do not invent a live session (pricing would only return "No rooms available").
+    if (!listingHotel) {
+      return {
+        ok: false,
+        message: "No rooms available for this hotel on selected dates. Try different dates.",
+      };
+    }
+
+    const hasPrice =
+      Number(listingHotel.cheapestTotalPrice) > 0 ||
+      (Array.isArray(listingHotel.options) && listingHotel.options.length > 0);
+
+    if (!hasPrice) {
+      return {
+        ok: false,
+        message: "No rooms available for this hotel on selected dates. Try different dates.",
+      };
+    }
 
     saveHotelListingSession({
       request: {
@@ -160,19 +188,15 @@ export async function startHotelLivePricing(input: {
         nationality: input.nationality ?? "106",
       },
       correlationId: listingJson.data?.correlationId || correlationId,
-      hotels: listingHotel
-        ? [
-            {
-              ...listingHotel,
-              location: listingHotel.location || input.location || destinationLabel,
-              heroImage: listingHotel.heroImage || input.heroImage,
-              imageUrls: listingHotel.imageUrls?.length
-                ? listingHotel.imageUrls
-                : input.imageUrls,
-              starRating: listingHotel.starRating ?? input.starRating ?? null,
-            },
-          ]
-        : [],
+      hotels: [
+        {
+          ...listingHotel,
+          location: listingHotel.location || input.location || destinationLabel,
+          heroImage: listingHotel.heroImage || input.heroImage,
+          imageUrls: listingHotel.imageUrls?.length ? listingHotel.imageUrls : input.imageUrls,
+          starRating: listingHotel.starRating ?? input.starRating ?? null,
+        },
+      ],
       totalResults: hotels.length,
       currency: listingJson.data?.currency ?? "INR",
       nationality: input.nationality ?? "106",

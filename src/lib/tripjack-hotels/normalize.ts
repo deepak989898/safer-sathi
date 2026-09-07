@@ -166,7 +166,11 @@ function parseOption(optionRaw: unknown, currencyFallback: string): NormalizedHo
   const option = asRecord(optionRaw);
   if (!option) return null;
 
-  const optionId = pickString(option, ["optionId", "id"], "");
+  const optionId =
+    pickString(option, ["optionId", "id", "oid", "scId"], "") ||
+    (typeof option.optionId === "number" || typeof option.id === "number"
+      ? String(option.optionId ?? option.id)
+      : "");
   if (!optionId) return null;
 
   const pricing = parsePricing(option.pricing, currencyFallback);
@@ -179,11 +183,28 @@ function parseOption(optionRaw: unknown, currencyFallback: string): NormalizedHo
     pricing.currency
   );
 
-  const roomInfo = stringList(option.roomInfo ?? option.rooms);
+  const roomInfoRaw = option.roomInfo ?? option.rooms;
+  const roomInfoObjects = asArray(roomInfoRaw)
+    .map((item) => asRecord(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const roomInfo = roomInfoObjects.length
+    ? roomInfoObjects
+        .map((item) => pickString(item, ["name", "roomName", "type", "rt", "srn"], ""))
+        .filter(Boolean)
+    : stringList(roomInfoRaw);
   const roomName =
     pickString(option, ["roomName", "name", "roomTypeName"], "") ||
     roomInfo[0] ||
     pickString(option, ["optionType", "type"], "Room");
+
+  const bookingNotesRaw = option.bookingNotes ?? option.notes;
+  const bookingNotes =
+    typeof bookingNotesRaw === "string"
+      ? bookingNotesRaw
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+      : stringList(bookingNotesRaw);
 
   return {
     optionId,
@@ -198,7 +219,7 @@ function parseOption(optionRaw: unknown, currencyFallback: string): NormalizedHo
     inclusions: stringList(option.inclusions),
     mealBasis,
     mealBasisLabel: mealBasisLabel(mealBasis),
-    bookingNotes: stringList(option.bookingNotes ?? option.notes),
+    bookingNotes,
     pricing,
     commercialType: pickString(commercialRec, ["type"], ""),
     commission: pickNumber(commercialRec, ["commission"], 0),
@@ -372,7 +393,11 @@ export function normalizeTripJackHotelDetail(
   const optionsSource =
     asArray(payload.options).length > 0
       ? asArray(payload.options)
-      : asArray(hotel.options);
+      : asArray(hotel.options).length > 0
+        ? asArray(hotel.options)
+        : asArray(asRecord(payload.searchResult)?.options).length > 0
+          ? asArray(asRecord(payload.searchResult)?.options)
+          : asArray(asRecord(hotel.hotelDetail)?.options);
 
   const options = optionsSource
     .map((opt) => parseOption(opt, currency))

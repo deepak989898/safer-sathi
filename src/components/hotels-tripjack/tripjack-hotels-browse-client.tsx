@@ -131,6 +131,9 @@ export function TripJackHotelsBrowseClient() {
         tjHotelId: Number(hotel.tjHotelId),
         hotelName: hotel.name,
         location: hotel.location,
+        heroImage: hotel.heroImage,
+        imageUrls: hotel.imageUrls,
+        starRating: hotel.starRating,
       });
       if (!result.ok) {
         toast.error(result.message);

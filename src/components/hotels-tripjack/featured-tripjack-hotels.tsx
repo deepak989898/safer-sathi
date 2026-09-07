@@ -27,11 +27,15 @@ function FeaturedTripJackCard({
   locale,
   livePrice,
   priceLoading,
+  checkIn,
+  checkOut,
 }: {
   hotel: FeaturedTripJackHotelCard;
   locale: Locale;
   livePrice?: { price: number; currency: string } | null;
   priceLoading?: boolean;
+  checkIn?: string;
+  checkOut?: string;
 }) {
   const router = useRouter();
   const [booking, setBooking] = useState(false);
@@ -51,6 +55,8 @@ function FeaturedTripJackCard({
         imageUrls: hotel.imageUrls,
         starRating: hotel.starRating,
         facilities: hotel.facilities,
+        checkIn,
+        checkOut,
       });
       if (!result.ok) {
         toast.error(result.message);
@@ -295,6 +301,9 @@ export function FeaturedTripJackHotelsSection({
     displayedHotels.length > 0 && !showFullGridSkeleton
   );
 
+  const selectedCheckOut =
+    stayDates.find((stay) => stay.checkIn === selectedCheckIn)?.checkOut ?? undefined;
+
   const pricedHotels = useMemo(() => {
     if (isOtherCities || !displayedHotels.length) return [];
     if (!selectedPricesReady) return [];
@@ -455,6 +464,8 @@ export function FeaturedTripJackHotelsSection({
                         locale={locale}
                         livePrice={selectedPrices[String(hotel.tjHotelId)]}
                         priceLoading={false}
+                        checkIn={selectedCheckIn}
+                        checkOut={selectedCheckOut}
                       />
                     ))}
                     {pricedHotels.length === 0 && selectedPricesReady && (

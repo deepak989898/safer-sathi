@@ -141,7 +141,8 @@ export interface HotelDetailRequestBody {
 /** TripJack v3 Hotel Pricing API request body. */
 export interface HotelPricingRequestBody {
   correlationId: string;
-  hid: number;
+  /** TripJack docs: hid is a string (tjHotelId). */
+  hid: string;
   checkIn: string;
   checkOut: string;
   rooms: HotelRoomRequest[];
@@ -224,7 +225,7 @@ export interface HotelReviewRequestBody {
   correlationId: string;
   optionId: string;
   reviewHash: string;
-  hid: number | string;
+  hid: string | number;
 }
 
 /** Normalized Review API result — source of truth before guest/payment. */

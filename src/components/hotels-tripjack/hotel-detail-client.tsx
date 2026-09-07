@@ -662,12 +662,33 @@ export function HotelDetailClient({ hid }: { hid: string }) {
             >
               Refresh rates
             </HotelPrimaryButton>
+            <HotelPrimaryButton
+              variant="outline"
+              className="!w-auto px-6"
+              onClick={() => {
+                setError(null);
+                setDetail(null);
+                setNeedsStayDetails(true);
+              }}
+            >
+              Change dates
+            </HotelPrimaryButton>
             <Link href={error.backToSearch ? "/hotels/search" : "/hotels/results"}>
               <HotelPrimaryButton variant="outline" className="!w-auto px-6">
                 {error.backToSearch ? "Search again" : "Back to results"}
               </HotelPrimaryButton>
             </Link>
           </div>
+          {(error.message.toLowerCase().includes("no rooms") ||
+            error.message.toLowerCase().includes("selected dates")) && (
+            <div className="mx-auto mt-8 max-w-lg text-left">
+              <HotelStayDetailsForm
+                hotelName={listingHotel?.name || staticPreview?.name || "Hotel"}
+                loading={loading}
+                onSubmit={(stay) => void handleStaySubmit(stay)}
+              />
+            </div>
+          )}
         </HotelCard>
       )}
 

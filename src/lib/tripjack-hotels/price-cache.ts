@@ -68,12 +68,17 @@ export function shouldFallbackToPriceCache(error: {
   message?: string;
 }): boolean {
   const code = (error.errorCode ?? "").toUpperCase();
-  if (code === "SUPPLIER_UNAVAILABLE" || code.includes("TIMEOUT") || code.includes("NETWORK")) {
+  if (
+    code === "SUPPLIER_UNAVAILABLE" ||
+    code === "NO_AVAILABILITY" ||
+    code.includes("TIMEOUT") ||
+    code.includes("NETWORK")
+  ) {
     return true;
   }
   const status = error.statusCode;
   if (status == null) return true;
-  if (status === 408 || status === 429 || status >= 500) return true;
+  if (status === 404 || status === 408 || status === 429 || status >= 500) return true;
   const message = (error.message ?? "").toLowerCase();
   return (
     message.includes("fetch failed") ||
@@ -81,7 +86,8 @@ export function shouldFallbackToPriceCache(error: {
     message.includes("etimedout") ||
     message.includes("socket hang up") ||
     message.includes("network") ||
-    message.includes("proxy")
+    message.includes("proxy") ||
+    message.includes("no rooms available")
   );
 }
 

@@ -159,9 +159,14 @@ export function buildHotelPricingBody(input: {
   });
 
   const hidNum = Number(input.hid);
+  const hid =
+    Number.isFinite(hidNum) && hidNum > 0
+      ? String(hidNum)
+      : String(input.hid).replace(/\D/g, "");
   return {
     correlationId: input.correlationId,
-    hid: Number.isFinite(hidNum) ? hidNum : Number(String(input.hid).replace(/\D/g, "")),
+    // TripJack pricing docs require hid as string.
+    hid,
     checkIn: input.checkIn,
     checkOut: input.checkOut,
     rooms,
@@ -313,7 +318,7 @@ export async function fetchTripJackHotelPricing(input: {
       404,
       raw,
       pricingUrl,
-      "INVALID_HOTEL_ID"
+      "NO_AVAILABILITY"
     );
   }
 
@@ -459,11 +464,15 @@ export function buildHotelReviewBody(input: {
   hid: number | string;
 }): HotelReviewRequestBody {
   const hidNum = Number(input.hid);
+  const hid =
+    Number.isFinite(hidNum) && hidNum > 0
+      ? String(hidNum)
+      : String(input.hid).replace(/\D/g, "");
   return {
     correlationId: input.correlationId,
     optionId: input.optionId,
     reviewHash: input.reviewHash,
-    hid: Number.isFinite(hidNum) ? hidNum : input.hid,
+    hid,
   };
 }
 
