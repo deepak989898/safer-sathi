@@ -13,6 +13,7 @@ import {
   Laptop,
   Loader2,
   LogOut,
+  MapPin,
   MousePointerClick,
   RefreshCw,
   Search,
@@ -35,7 +36,6 @@ import { ONLINE_THRESHOLD_MS } from "@/lib/visitor-analytics/constants";
 import { cn } from "@/lib/utils";
 import type {
   VisitorAnalyticsPayload,
-  VisitorDayGroup,
   VisitorEvent,
   VisitorSession,
   VisitorUserGroup,
@@ -48,6 +48,30 @@ function isOnline(session: VisitorSession): boolean {
 
 function sessionSortTime(session: VisitorSession): string {
   return session.lastSeenAt || session.endedAt || session.startedAt;
+}
+
+function dateKeyOf(iso: string): string {
+  try {
+    return new Date(iso).toISOString().slice(0, 10);
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
+function formatDateHeading(dateKey: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().slice(0, 10);
+  const label = new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  if (dateKey === today) return `Today · ${label}`;
+  if (dateKey === yesterday) return `Yesterday · ${label}`;
+  return label;
 }
 
 function pagesVisited(session: VisitorSession): string[] {
@@ -68,20 +92,27 @@ function pagesVisited(session: VisitorSession): string[] {
   return paths;
 }
 
-function visitorDisplayName(session: VisitorSession): string {
-  const tail =
+function locationLabel(session: VisitorSession): string {
+  return [session.city, session.country].filter(Boolean).join(", ") || "Location unknown";
+}
+
+function visitorTail(session: VisitorSession): string {
+  return (
     session.visitorId.replace(/^(v_|guest_)/, "").slice(-8) ||
-    session.visitorId.slice(-6);
-  const devicePart =
-    session.deviceName?.trim() || `${session.browser} · ${session.device}`;
-  return `${devicePart} · …${tail}`;
+    session.visitorId.slice(-6)
+  );
 }
 
 function EventRow({ event }: { event: VisitorEvent }) {
   return (
     <div className="flex flex-wrap items-start gap-2 border-b border-dashed py-2 text-xs last:border-0">
-      <span className="shrink-0 font-mono text-muted-foreground">{formatEventTime(event.at)}</span>
-      <Badge variant="outline" className="h-5 text-[10px]">
+      <span className="shrink-0 font-mono text-sky-700 dark:text-sky-300">
+        {formatEventTime(event.at)}
+      </span>
+      <Badge
+        variant="outline"
+        className="h-5 border-violet-200 bg-violet-50 text-[10px] text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300"
+      >
         {eventTypeLabel(event.type)}
       </Badge>
       <span className="min-w-0 flex-1 break-all text-foreground/90">
@@ -104,9 +135,30 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   if (value === undefined || value === null || value === "") return null;
   return (
     <div className="grid grid-cols-[7.5rem_1fr] gap-2 text-xs sm:grid-cols-[9rem_1fr]">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-all font-medium text-foreground/90">{value}</span>
+      <span className="font-medium text-slate-500">{label}</span>
+      <span className="min-w-0 break-all font-semibold text-slate-800 dark:text-slate-100">
+        {value}
+      </span>
     </div>
+  );
+}
+
+function Chip({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        className
+      )}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -122,19 +174,35 @@ function SessionCard({
   const visibleEvents = session.events.filter((e) => e.type !== "heartbeat");
   const pages = pagesVisited(session);
   const staySeconds = Math.max(0, Math.round(session.durationSec || 0));
+  const location = locationLabel(session);
+  const lastActive = session.lastSeenAt || session.endedAt || session.startedAt;
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border-2 bg-white shadow-sm dark:bg-card",
+        online
+          ? "border-emerald-300 dark:border-emerald-700"
+          : open
+            ? "border-sky-300 dark:border-sky-700"
+            : "border-slate-200 dark:border-border"
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-start justify-between gap-3 bg-gradient-to-r from-sky-50/90 via-white to-emerald-50/70 px-4 py-3 text-left transition-colors hover:from-sky-100 hover:to-emerald-100/80 dark:from-sky-950/30 dark:via-card dark:to-emerald-950/20"
       >
-        <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="min-w-0 flex-1 space-y-2">
+          {/* Primary: recent activity time — not device */}
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold">{visitorDisplayName(session)}</p>
+            <p className="text-sm font-bold text-sky-900 dark:text-sky-200">
+              Last active {formatEventTime(lastActive)}
+            </p>
             {online && (
-              <Badge className="h-5 bg-green-600 text-[10px] hover:bg-green-600">Online</Badge>
+              <Badge className="h-5 bg-emerald-600 text-[10px] hover:bg-emerald-600">
+                Online now
+              </Badge>
             )}
             {ai && ai.aiChatSessions > 0 && (
               <Badge className="h-5 bg-violet-600 text-[10px] hover:bg-violet-600">
@@ -142,73 +210,94 @@ function SessionCard({
                 {ai.aiChatSessions} AI · {ai.aiMessages} msg
               </Badge>
             )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground/80">
-              Visited {formatEventTime(session.startedAt)}
+            <span className="text-[10px] font-medium text-sky-600">
+              {open ? "Hide details" : "More info ▼"}
             </span>
-            <span>→</span>
-            <span>
-              Left {formatEventTime(session.endedAt || session.lastSeenAt)}
-            </span>
-            <Badge variant="secondary" className="h-5 text-[10px]">
-              {staySeconds}s · {formatDuration(staySeconds)}
-            </Badge>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Globe className="h-3.5 w-3.5" />
+
+          <div className="flex flex-wrap gap-1.5">
+            <Chip className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              <Clock className="h-3 w-3" />
+              Stay {staySeconds}s · {formatDuration(staySeconds)}
+            </Chip>
+            <Chip className="border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <MapPin className="h-3 w-3" />
+              {location}
+            </Chip>
+            {session.ip && (
+              <Chip className="border-slate-200 bg-slate-50 font-mono text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                <Globe className="h-3 w-3" />
+                {session.ip}
+              </Chip>
+            )}
+            <Chip className="border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
               {session.source}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Eye className="h-3.5 w-3.5" />
+            </Chip>
+            <Chip className="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800 dark:border-fuchsia-800 dark:bg-fuchsia-950/40 dark:text-fuchsia-300">
+              <Eye className="h-3 w-3" />
               {session.pageViewCount} pages
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MousePointerClick className="h-3.5 w-3.5" />
+            </Chip>
+            <Chip className="border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300">
+              <MousePointerClick className="h-3 w-3" />
               {session.clickCount} clicks
-            </span>
+            </Chip>
             {session.searchCount > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Search className="h-3.5 w-3.5" />
+              <Chip className="border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300">
+                <Search className="h-3 w-3" />
                 {session.searchCount} searches
-              </span>
-            )}
-            {session.ip && <span className="font-mono">{session.ip}</span>}
-            {(session.city || session.country) && (
-              <span>
-                {[session.city, session.country].filter(Boolean).join(", ")}
-              </span>
+              </Chip>
             )}
           </div>
-          <p className="text-xs text-foreground/80">
-            Entry: {session.entryPath}
-            {session.exitPath !== session.entryPath ? ` · Exit: ${session.exitPath}` : ""}
-          </p>
+
+          <div className="space-y-0.5 text-xs">
+            <p className="font-medium text-slate-700 dark:text-slate-200">
+              <span className="text-sky-700 dark:text-sky-300">Visited</span>{" "}
+              {formatEventTime(session.startedAt)}
+              <span className="mx-1 text-slate-400">→</span>
+              <span className="text-rose-700 dark:text-rose-300">Left</span>{" "}
+              {formatEventTime(session.endedAt || session.lastSeenAt)}
+            </p>
+            <p className="text-slate-600 dark:text-slate-300">
+              <span className="font-semibold text-teal-700 dark:text-teal-300">Entry</span>{" "}
+              {session.entryPath}
+              {session.exitPath !== session.entryPath && (
+                <>
+                  {" · "}
+                  <span className="font-semibold text-rose-700 dark:text-rose-300">Exit</span>{" "}
+                  {session.exitPath}
+                </>
+              )}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Visitor …{visitorTail(session)}
+              {" · "}
+              {session.deviceName || `${session.browser} · ${session.device}`}
+            </p>
+          </div>
         </div>
         <ChevronDown
           className={cn(
-            "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            "mt-1 h-5 w-5 shrink-0 text-sky-600 transition-transform",
             open && "rotate-180"
           )}
         />
       </button>
 
       {open && (
-        <div className="space-y-4 border-t bg-muted/10 px-4 py-4">
+        <div className="space-y-4 border-t border-sky-200 bg-slate-50/80 px-4 py-4 dark:border-sky-900 dark:bg-muted/20">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
               Visit timing
             </p>
-            <div className="space-y-1.5 rounded-lg border bg-background/70 p-3">
+            <div className="space-y-1.5 rounded-lg border border-sky-100 bg-white p-3 dark:border-sky-900 dark:bg-background/70">
               <DetailRow label="Visited at" value={formatEventTime(session.startedAt)} />
               <DetailRow
                 label="Left at"
                 value={formatEventTime(session.endedAt || session.lastSeenAt)}
               />
-              <DetailRow label="Last seen" value={formatEventTime(session.lastSeenAt)} />
+              <DetailRow label="Last active" value={formatEventTime(lastActive)} />
               <DetailRow
-                label="Stay duration"
+                label="Stay on site"
                 value={`${staySeconds} seconds (${formatDuration(staySeconds)})`}
               />
               <DetailRow label="Status" value={online ? "Online now" : "Offline"} />
@@ -216,10 +305,34 @@ function SessionCard({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Device &amp; identity
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+              Location &amp; identity
             </p>
-            <div className="space-y-1.5 rounded-lg border bg-background/70 p-3">
+            <div className="space-y-1.5 rounded-lg border border-emerald-100 bg-white p-3 dark:border-emerald-900 dark:bg-background/70">
+              <DetailRow label="Location" value={location} />
+              <DetailRow
+                label="IP address"
+                value={session.ip ? <span className="font-mono">{session.ip}</span> : "—"}
+              />
+              <DetailRow
+                label="Visitor ID"
+                value={<span className="font-mono">{session.visitorId}</span>}
+              />
+              {session.userId && (
+                <DetailRow
+                  label="Logged-in user"
+                  value={<span className="font-mono">{session.userId}</span>}
+                />
+              )}
+              <DetailRow label="Language" value={session.language || "—"} />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-300">
+              Device
+            </p>
+            <div className="space-y-1.5 rounded-lg border border-indigo-100 bg-white p-3 dark:border-indigo-900 dark:bg-background/70">
               <DetailRow
                 label="Device"
                 value={
@@ -231,27 +344,20 @@ function SessionCard({
               />
               <DetailRow label="Browser" value={session.browser} />
               <DetailRow label="Device type" value={session.device} />
-              <DetailRow label="Language" value={session.language} />
-              <DetailRow label="Visitor ID" value={<span className="font-mono">{session.visitorId}</span>} />
               {session.deviceId && (
-                <DetailRow label="Device ID" value={<span className="font-mono">{session.deviceId}</span>} />
+                <DetailRow
+                  label="Device ID"
+                  value={<span className="font-mono">{session.deviceId}</span>}
+                />
               )}
-              {session.userId && (
-                <DetailRow label="User ID" value={<span className="font-mono">{session.userId}</span>} />
-              )}
-              <DetailRow label="IP" value={session.ip ? <span className="font-mono">{session.ip}</span> : "—"} />
-              <DetailRow
-                label="Location"
-                value={[session.city, session.country].filter(Boolean).join(", ") || "—"}
-              />
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-orange-800 dark:text-orange-300">
               Traffic &amp; activity
             </p>
-            <div className="space-y-1.5 rounded-lg border bg-background/70 p-3">
+            <div className="space-y-1.5 rounded-lg border border-orange-100 bg-white p-3 dark:border-orange-900 dark:bg-background/70">
               <DetailRow label="Source" value={session.source} />
               <DetailRow label="Referrer" value={session.referrer || "Direct / none"} />
               <DetailRow label="Entry page" value={session.entryPath} />
@@ -275,15 +381,15 @@ function SessionCard({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-fuchsia-800 dark:text-fuchsia-300">
               Pages visited ({pages.length})
             </p>
             {pages.length === 0 ? (
               <p className="text-xs text-muted-foreground">No page paths recorded.</p>
             ) : (
-              <ul className="space-y-1 rounded-lg border bg-background/70 p-3 text-xs">
+              <ul className="space-y-1 rounded-lg border border-fuchsia-100 bg-white p-3 text-xs dark:border-fuchsia-900 dark:bg-background/70">
                 {pages.map((path) => (
-                  <li key={path} className="break-all font-mono text-foreground/90">
+                  <li key={path} className="break-all font-mono text-fuchsia-900 dark:text-fuchsia-200">
                     {path}
                   </li>
                 ))}
@@ -292,13 +398,13 @@ function SessionCard({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-violet-800 dark:text-violet-300">
               Event timeline ({visibleEvents.length})
             </p>
             {visibleEvents.length === 0 ? (
               <p className="text-xs text-muted-foreground">No detailed events recorded.</p>
             ) : (
-              <div className="max-h-96 overflow-y-auto rounded-lg border bg-background/70 px-3">
+              <div className="max-h-96 overflow-y-auto rounded-lg border border-violet-100 bg-white px-3 dark:border-violet-900 dark:bg-background/70">
                 {visibleEvents.map((event) => (
                   <EventRow key={event.id} event={event} />
                 ))}
@@ -311,93 +417,13 @@ function SessionCard({
   );
 }
 
-function DayGroup({
-  group,
-  defaultOpen,
-}: {
-  group: VisitorDayGroup;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen ?? group.isToday);
-  const uniqueVisitors = new Set(group.sessions.map((s) => s.visitorId)).size;
-  const pageViews = group.sessions.reduce((sum, s) => sum + s.pageViewCount, 0);
-  const online = group.sessions.filter(isOnline).length;
-  const aiUsers = group.visitorGroups.filter((g) => g.aiChatSessions > 0).length;
-
-  const sessionsLatestFirst = useMemo(
-    () =>
-      [...group.sessions].sort((a, b) =>
-        sessionSortTime(b).localeCompare(sessionSortTime(a))
-      ),
-    [group.sessions]
-  );
-
-  const aiBySessionKey = useMemo(() => {
-    const map = new Map<string, Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">>();
-    for (const visitorGroup of group.visitorGroups) {
-      const key = `${visitorGroup.visitorId}::${visitorGroup.deviceId ?? visitorGroup.device}`;
-      map.set(key, {
-        aiChatSessions: visitorGroup.aiChatSessions,
-        aiMessages: visitorGroup.aiMessages,
-      });
-    }
-    return map;
-  }, [group.visitorGroups]);
-
-  return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
-      >
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <Calendar className="h-4 w-4 shrink-0 text-primary" />
-          <p className="text-base font-semibold">{group.dateLabel}</p>
-          <Badge variant="secondary" className="text-xs">
-            {uniqueVisitors} visitor{uniqueVisitors === 1 ? "" : "s"}
-          </Badge>
-          {aiUsers > 0 && (
-            <Badge className="bg-violet-600 text-xs hover:bg-violet-600">
-              <Bot className="mr-1 h-3 w-3" />
-              {aiUsers} AI user{aiUsers === 1 ? "" : "s"}
-            </Badge>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {group.sessions.length} visit{group.sessions.length === 1 ? "" : "s"} · {pageViews}{" "}
-            page views
-          </span>
-          {online > 0 && (
-            <Badge className="bg-green-600 text-xs hover:bg-green-600">{online} online</Badge>
-          )}
-        </div>
-        <ChevronDown
-          className={cn(
-            "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-
-      {open && (
-        <div className="space-y-3 border-t bg-muted/10 p-3">
-          <p className="text-xs text-muted-foreground">
-            Latest activity first · click a visitor to see full details
-          </p>
-          {sessionsLatestFirst.map((session) => (
-            <SessionCard
-              key={session.id}
-              session={session}
-              ai={aiBySessionKey.get(
-                `${session.visitorId}::${session.deviceId ?? session.device}`
-              )}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+type FeedItem =
+  | { type: "day"; dateKey: string; label: string; count: number }
+  | {
+      type: "session";
+      session: VisitorSession;
+      ai?: Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">;
+    };
 
 export default function VisitorAnalyticsClient() {
   const { user } = useAuth();
@@ -427,9 +453,49 @@ export default function VisitorAnalyticsClient() {
   const stats = data?.stats;
   const clarityUrl = getClarityDashboardUrl();
 
+  const feed = useMemo((): FeedItem[] => {
+    if (!data?.days.length) return [];
+
+    const aiLookup = new Map<string, Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">>();
+    for (const day of data.days) {
+      for (const group of day.visitorGroups) {
+        aiLookup.set(`${group.visitorId}::${group.deviceId ?? group.device}`, {
+          aiChatSessions: group.aiChatSessions,
+          aiMessages: group.aiMessages,
+        });
+      }
+    }
+
+    const allSessions = data.days
+      .flatMap((day) => day.sessions)
+      .sort((a, b) => sessionSortTime(b).localeCompare(sessionSortTime(a)));
+
+    const items: FeedItem[] = [];
+    let currentDate = "";
+    for (const session of allSessions) {
+      const key = dateKeyOf(sessionSortTime(session));
+      if (key !== currentDate) {
+        currentDate = key;
+        const count = allSessions.filter((s) => dateKeyOf(sessionSortTime(s)) === key).length;
+        items.push({
+          type: "day",
+          dateKey: key,
+          label: formatDateHeading(key),
+          count,
+        });
+      }
+      items.push({
+        type: "session",
+        session,
+        ai: aiLookup.get(`${session.visitorId}::${session.deviceId ?? session.device}`),
+      });
+    }
+    return items;
+  }, [data]);
+
   const subtitle = useMemo(() => {
-    if (!data) return "Track visitors, searches, clicks, sources, and exit pages";
-    return `${data.totalSessions} sessions tracked · refreshes every minute`;
+    if (!data) return "Recently active visitors first — stay time, location, and full details";
+    return `${data.totalSessions} sessions · most recently active first · refreshes every minute`;
   }, [data]);
 
   return (
@@ -440,12 +506,25 @@ export default function VisitorAnalyticsClient() {
         adminName={user?.name ?? "Admin"}
       />
       <div className="space-y-4 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="max-w-3xl text-xs text-muted-foreground sm:text-sm">
-            Visitors grouped by day. Within each day, latest visits appear first. Click any
-            visitor to see device info, visit/leave time, stay seconds, pages, clicks, and full
-            activity.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-3 dark:border-sky-900 dark:from-sky-950/30 dark:via-background dark:to-emerald-950/20">
+          <div className="space-y-2">
+            <p className="max-w-3xl text-sm font-medium text-slate-700 dark:text-slate-200">
+              Visitors listed by <span className="font-bold text-sky-700">recent activity</span>{" "}
+              (latest first). Each row shows stay time, location, pages, and clicks — open a row
+              for full visitor details.
+            </p>
+            <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900">Stay time</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
+                Location
+              </span>
+              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-orange-800">Source</span>
+              <span className="rounded-full bg-fuchsia-100 px-2 py-0.5 text-fuchsia-800">
+                Pages
+              </span>
+              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-800">Clicks</span>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {clarityUrl ? (
               <a
@@ -462,7 +541,13 @@ export default function VisitorAnalyticsClient() {
                 Clarity not configured
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-sky-300 text-sky-800"
+              onClick={() => void load()}
+              disabled={loading}
+            >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -493,7 +578,7 @@ export default function VisitorAnalyticsClient() {
         )}
 
         {loading && !data ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-sky-700">
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading visitor data...
           </div>
@@ -550,7 +635,7 @@ export default function VisitorAnalyticsClient() {
               />
             </div>
 
-            {!data || data.days.length === 0 ? (
+            {feed.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
                   No visitor sessions yet. Browse the customer website (not /admin) to start
@@ -558,10 +643,29 @@ export default function VisitorAnalyticsClient() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
-                {data.days.map((group) => (
-                  <DayGroup key={group.dateKey} group={group} defaultOpen={group.isToday} />
-                ))}
+              <div className="space-y-3">
+                {feed.map((item) =>
+                  item.type === "day" ? (
+                    <div
+                      key={`day-${item.dateKey}`}
+                      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-100/95 px-3 py-2 backdrop-blur dark:border-sky-900 dark:bg-sky-950/90"
+                    >
+                      <Calendar className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                      <p className="text-sm font-bold text-sky-900 dark:text-sky-100">
+                        {item.label}
+                      </p>
+                      <Badge className="border-0 bg-sky-700 text-[10px] text-white hover:bg-sky-700">
+                        {item.count} visit{item.count === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <SessionCard
+                      key={item.session.id}
+                      session={item.session}
+                      ai={item.ai}
+                    />
+                  )
+                )}
               </div>
             )}
           </>
