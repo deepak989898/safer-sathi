@@ -157,7 +157,7 @@ function buildGoaHotelDoc(
     rooms,
     lastPricedAt: cache?.fetchedAt || entry.lastPricedAt,
     contentSynced: Boolean(entry.contentSynced),
-    websiteVisible: entry.websiteVisible !== false,
+    websiteVisible: true,
     isDeleted: false,
     source: "tripjack",
     sharedFor: "bookscubagoa",
