@@ -417,18 +417,22 @@ function SessionCard({
   );
 }
 
-type FeedItem =
-  | { type: "day"; dateKey: string; label: string; count: number }
-  | {
-      type: "session";
-      session: VisitorSession;
-      ai?: Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">;
-    };
+type DayGroup = {
+  dateKey: string;
+  label: string;
+  count: number;
+  sessions: Array<{
+    session: VisitorSession;
+    ai?: Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">;
+  }>;
+};
 
 export default function VisitorAnalyticsClient() {
   const { user } = useAuth();
   const [data, setData] = useState<VisitorAnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  /** dateKey → expanded. Today starts open; older days start collapsed. */
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -453,7 +457,7 @@ export default function VisitorAnalyticsClient() {
   const stats = data?.stats;
   const clarityUrl = getClarityDashboardUrl();
 
-  const feed = useMemo((): FeedItem[] => {
+  const dayGroups = useMemo((): DayGroup[] => {
     if (!data?.days.length) return [];
 
     const aiLookup = new Map<string, Pick<VisitorUserGroup, "aiChatSessions" | "aiMessages">>();
@@ -470,32 +474,56 @@ export default function VisitorAnalyticsClient() {
       .flatMap((day) => day.sessions)
       .sort((a, b) => sessionSortTime(b).localeCompare(sessionSortTime(a)));
 
-    const items: FeedItem[] = [];
-    let currentDate = "";
+    const groups: DayGroup[] = [];
+    const indexByKey = new Map<string, number>();
+
     for (const session of allSessions) {
       const key = dateKeyOf(sessionSortTime(session));
-      if (key !== currentDate) {
-        currentDate = key;
-        const count = allSessions.filter((s) => dateKeyOf(sessionSortTime(s)) === key).length;
-        items.push({
-          type: "day",
+      let idx = indexByKey.get(key);
+      if (idx === undefined) {
+        idx = groups.length;
+        indexByKey.set(key, idx);
+        groups.push({
           dateKey: key,
           label: formatDateHeading(key),
-          count,
+          count: 0,
+          sessions: [],
         });
       }
-      items.push({
-        type: "session",
+      groups[idx].sessions.push({
         session,
         ai: aiLookup.get(`${session.visitorId}::${session.deviceId ?? session.device}`),
       });
+      groups[idx].count = groups[idx].sessions.length;
     }
-    return items;
+
+    return groups;
   }, [data]);
+
+  useEffect(() => {
+    if (!dayGroups.length) return;
+    const today = new Date().toISOString().slice(0, 10);
+    setExpandedDays((prev) => {
+      const next = { ...prev };
+      for (const group of dayGroups) {
+        if (next[group.dateKey] === undefined) {
+          next[group.dateKey] = group.dateKey === today;
+        }
+      }
+      return next;
+    });
+  }, [dayGroups]);
+
+  const toggleDay = (dateKey: string) => {
+    setExpandedDays((prev) => ({
+      ...prev,
+      [dateKey]: !prev[dateKey],
+    }));
+  };
 
   const subtitle = useMemo(() => {
     if (!data) return "Recently active visitors first — stay time, location, and full details";
-    return `${data.totalSessions} sessions · most recently active first · refreshes every minute`;
+    return `${data.totalSessions} sessions · grouped by day · refreshes every minute`;
   }, [data]);
 
   return (
@@ -509,9 +537,9 @@ export default function VisitorAnalyticsClient() {
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-3 dark:border-sky-900 dark:from-sky-950/30 dark:via-background dark:to-emerald-950/20">
           <div className="space-y-2">
             <p className="max-w-3xl text-sm font-medium text-slate-700 dark:text-slate-200">
-              Visitors listed by <span className="font-bold text-sky-700">recent activity</span>{" "}
-              (latest first). Each row shows stay time, location, pages, and clicks — open a row
-              for full visitor details.
+              Visitors grouped by <span className="font-bold text-sky-700">date</span> (Today,
+              Yesterday, earlier). Expand a day to see all visitors — then open a row for full
+              details.
             </p>
             <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900">Stay time</span>
@@ -635,7 +663,7 @@ export default function VisitorAnalyticsClient() {
               />
             </div>
 
-            {feed.length === 0 ? (
+            {dayGroups.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
                   No visitor sessions yet. Browse the customer website (not /admin) to start
@@ -644,28 +672,47 @@ export default function VisitorAnalyticsClient() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {feed.map((item) =>
-                  item.type === "day" ? (
+                {dayGroups.map((group) => {
+                  const open = Boolean(expandedDays[group.dateKey]);
+                  return (
                     <div
-                      key={`day-${item.dateKey}`}
-                      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-100/95 px-3 py-2 backdrop-blur dark:border-sky-900 dark:bg-sky-950/90"
+                      key={group.dateKey}
+                      className="overflow-hidden rounded-xl border border-sky-200 bg-white dark:border-sky-900 dark:bg-sky-950/20"
                     >
-                      <Calendar className="h-4 w-4 text-sky-700 dark:text-sky-300" />
-                      <p className="text-sm font-bold text-sky-900 dark:text-sky-100">
-                        {item.label}
-                      </p>
-                      <Badge className="border-0 bg-sky-700 text-[10px] text-white hover:bg-sky-700">
-                        {item.count} visit{item.count === 1 ? "" : "s"}
-                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => toggleDay(group.dateKey)}
+                        aria-expanded={open}
+                        className="flex w-full flex-wrap items-center gap-2 bg-sky-100/95 px-3 py-2.5 text-left transition hover:bg-sky-200/80 dark:bg-sky-950/90 dark:hover:bg-sky-900/80"
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-sky-700 transition-transform dark:text-sky-300",
+                            open ? "rotate-0" : "-rotate-90"
+                          )}
+                        />
+                        <Calendar className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                        <p className="text-sm font-bold text-sky-900 dark:text-sky-100">
+                          {group.label}
+                        </p>
+                        <Badge className="border-0 bg-sky-700 text-[10px] text-white hover:bg-sky-700">
+                          {group.count} visit{group.count === 1 ? "" : "s"}
+                        </Badge>
+                        <span className="ml-auto text-[11px] font-medium text-sky-700/80 dark:text-sky-300/80">
+                          {open ? "Hide visitors" : "Show visitors"}
+                        </span>
+                      </button>
+
+                      {open ? (
+                        <div className="space-y-3 border-t border-sky-100 bg-slate-50/60 p-3 dark:border-sky-900 dark:bg-background/40">
+                          {group.sessions.map(({ session, ai }) => (
+                            <SessionCard key={session.id} session={session} ai={ai} />
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : (
-                    <SessionCard
-                      key={item.session.id}
-                      session={item.session}
-                      ai={item.ai}
-                    />
-                  )
-                )}
+                  );
+                })}
               </div>
             )}
           </>
