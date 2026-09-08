@@ -180,8 +180,14 @@ export default function TripJackHotelsAdminClient() {
       const result = await tripjackAdminApiCall<{
         exported?: number;
         withRooms?: number;
+        withDescription?: number;
+        livePriced?: number;
         message?: string;
-      }>("/api/admin/tripjack-hotels/export-goa", { method: "POST" }, "Export Goa hotels");
+      }>(
+        "/api/admin/tripjack-hotels/export-goa",
+        { method: "POST", body: JSON.stringify({ maxLivePricing: 120 }) },
+        "Export Goa hotels"
+      );
 
       if (!result.ok) {
         const message = result.error ?? "Goa export failed";
@@ -662,9 +668,10 @@ export default function TripJackHotelsAdminClient() {
               <Badge className="border-0 bg-sky-700 text-white hover:bg-sky-700">goaHotels</Badge>
             </div>
             <p className="text-sm text-sky-950/80 dark:text-sky-100/80">
-              Click below to copy <strong>Goa-only</strong> TripJack hotels (images, overview, room
-              prices when available) into Firestore collection <code>goaHotels</code>. Bookscubagoa
-              reads this collection. This does <strong>not</strong> export all India hotels.
+              Copies <strong>Goa-only</strong> TripJack hotels into Firestore <code>goaHotels</code> for
+              Bookscubagoa: address, description, facilities, images, and live room rates. Each run
+              refreshes content and live-prices up to ~120 hotels missing rooms (takes a few minutes).
+              Re-run until room data looks complete. Does <strong>not</strong> export all India hotels.
             </p>
             <Button
               size="lg"

@@ -55,6 +55,12 @@ Firestore-only `goaHotels` (+ your own booking collections via server).
   images: string[];           // same as imageUrls for convenience
   priceFrom: number;          // cheapest per-night (or last known)
   currency: string;           // "INR"
+  propertyType?: string;
+  contact?: string;
+  geolocation?: { lat?: number; lng?: number };
+  checkIn?: string;           // snapshot stay dates used for room totals
+  checkOut?: string;
+  nights?: number;
   rooms: Array<{
     id: string;
     name: string;
@@ -159,6 +165,6 @@ Implement this end-to-end in the Bookscubagoa codebase now, matching existing de
 ## Safar Sathi owner checklist (this project)
 
 1. Deploy updated `firestore.rules` (`firebase deploy --only firestore:rules`).
-2. Admin → **TripJack Hotels Ops** → click **Export Goa hotels → goaHotels** (after hotel sync; open some Goa hotels on the site first so room price cache fills).
+2. Admin → **TripJack Hotels Ops** → click **Export Goa hotels → goaHotels**. Export now refreshes TripJack content (address/description/facilities) and live-prices up to ~120 hotels per run for room snapshots. Re-run until `goaHotelsMeta/sync.withRooms` looks good.
 3. Share Firebase web config with Bookscubagoa (read-only usage of `goaHotels`).
 4. Paste the PROMPT above into Bookscubagoa Cursor.
