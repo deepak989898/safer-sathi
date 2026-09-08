@@ -184,8 +184,9 @@ export default function TripJackHotelsAdminClient() {
       }>("/api/admin/tripjack-hotels/export-goa", { method: "POST" }, "Export Goa hotels");
 
       if (!result.ok) {
-        setApiError({ context: "Export Goa hotels", message: result.error });
-        toast.error(result.error);
+        const message = result.error ?? "Goa export failed";
+        setApiError({ context: "Export Goa hotels", message });
+        toast.error(message);
         return;
       }
 
@@ -650,6 +651,32 @@ export default function TripJackHotelsAdminClient() {
             </CardContent>
           </Card>
         ) : null}
+
+        <Card className="border-2 border-sky-400 bg-sky-50 shadow-sm dark:border-sky-700 dark:bg-sky-950/40">
+          <CardContent className="space-y-3 pt-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Building2 className="h-5 w-5 text-sky-700" />
+              <h2 className="text-base font-bold text-sky-900 dark:text-sky-100">
+                Export Goa hotels → Bookscubagoa
+              </h2>
+              <Badge className="border-0 bg-sky-700 text-white hover:bg-sky-700">goaHotels</Badge>
+            </div>
+            <p className="text-sm text-sky-950/80 dark:text-sky-100/80">
+              Click below to copy <strong>Goa-only</strong> TripJack hotels (images, overview, room
+              prices when available) into Firestore collection <code>goaHotels</code>. Bookscubagoa
+              reads this collection. This does <strong>not</strong> export all India hotels.
+            </p>
+            <Button
+              size="lg"
+              className="bg-sky-700 text-white hover:bg-sky-800"
+              disabled={Boolean(syncing) || exportingGoa}
+              onClick={() => void exportGoaHotels()}
+            >
+              {exportingGoa ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Export Goa hotels → goaHotels
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="space-y-4 pt-6">
