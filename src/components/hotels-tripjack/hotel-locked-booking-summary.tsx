@@ -37,13 +37,25 @@ export function hotelGuestOccupancySummary(rooms: HotelRoomRequest[]): string {
   }`;
 }
 
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export interface HotelStayEditInput {
+  checkIn: string;
+  checkOut: string;
+  rooms: HotelRoomRequest[];
+}
+
 interface HotelLockedBookingSummaryProps {
   review: NormalizedHotelReviewResult;
   locale: Locale;
   showCancellation?: boolean;
   /** Tighter layout for guests page */
   compact?: boolean;
-  /** Allow editing rooms/adults (invalidates locked rate and reopens room selection) */
+  /** Allow editing dates/rooms (invalidates locked rate and reopens room selection) */
+  onEditStay?: (stay: HotelStayEditInput) => void | Promise<void>;
+  /** @deprecated Use onEditStay */
   onEditOccupancy?: (rooms: HotelRoomRequest[]) => void | Promise<void>;
   editLoading?: boolean;
 }
@@ -54,12 +66,16 @@ export function HotelLockedBookingSummary({
   locale,
   showCancellation = false,
   compact = false,
+  onEditStay,
   onEditOccupancy,
   editLoading = false,
 }: HotelLockedBookingSummaryProps) {
   const option = review.option;
+  const canEdit = Boolean(onEditStay || onEditOccupancy);
   const nights = countHotelNights(review.searchContext.checkIn, review.searchContext.checkOut);
   const [editing, setEditing] = useState(false);
+  const [checkIn, setCheckIn] = useState(review.searchContext.checkIn);
+  const [checkOut, setCheckOut] = useState(review.searchContext.checkOut);
   const [rooms, setRooms] = useState<HotelRoomRequest[]>(() =>
     review.searchContext.rooms.map((room) => ({
       adults: room.adults ?? 1,
@@ -69,13 +85,32 @@ export function HotelLockedBookingSummary({
   );
 
   const occupancyLabel = useMemo(() => hotelGuestOccupancySummary(rooms), [rooms]);
+  const editNights = useMemo(() => countHotelNights(checkIn, checkOut), [checkIn, checkOut]);
 
-  const applyOccupancy = async () => {
+  const applyStay = async () => {
+    const today = todayIsoDate();
+    if (!checkIn || !checkOut) {
+      toast.error("Select check-in and check-out dates");
+      return;
+    }
+    if (checkIn < today) {
+      toast.error("Check-in must be today or a future date");
+      return;
+    }
+    if (checkOut <= checkIn) {
+      toast.error("Check-out must be after check-in");
+      return;
+    }
     for (const room of rooms) {
       if ((room.adults ?? 0) < 1) {
         toast.error("Each room needs at least 1 adult");
         return;
       }
+    }
+
+    if (onEditStay) {
+      await onEditStay({ checkIn, checkOut, rooms });
+      return;
     }
     await onEditOccupancy?.(rooms);
   };
@@ -107,7 +142,7 @@ export function HotelLockedBookingSummary({
                 Ref: <span className="font-mono">{review.bookingId}</span>
               </p>
             </div>
-            {onEditOccupancy ? (
+            {canEdit ? (
               <button
                 type="button"
                 className="inline-flex shrink-0 items-center gap-1 rounded border px-2.5 py-1.5 text-xs font-semibold sm:hidden"
@@ -149,7 +184,7 @@ export function HotelLockedBookingSummary({
                 {option.mealBasisLabel} · {option.isRefundable ? "Refundable" : "Non-refundable"}
               </p>
             </div>
-            {onEditOccupancy ? (
+            {canEdit ? (
               <button
                 type="button"
                 className="mt-0 hidden shrink-0 items-center gap-1 rounded border px-2.5 py-1.5 text-xs font-semibold sm:mt-2 sm:inline-flex"
@@ -164,11 +199,51 @@ export function HotelLockedBookingSummary({
         </div>
       </div>
 
-      {editing && onEditOccupancy ? (
+      {editing && canEdit ? (
         <div className="mt-3 space-y-2 rounded border bg-[#FAFBFC] p-2.5" style={{ borderColor: HOTEL_UI.border }}>
-          <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold" style={{ color: HOTEL_UI.primary }}>
+            Edit dates, rooms &amp; adults
+          </p>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <HotelFieldLabel>Check-in</HotelFieldLabel>
+              <input
+                type="date"
+                min={todayIsoDate()}
+                className="mt-1 h-8 w-full rounded border px-2 text-sm"
+                style={{ borderColor: HOTEL_UI.border }}
+                value={checkIn}
+                onChange={(e) => {
+                  const nextIn = e.target.value;
+                  setCheckIn(nextIn);
+                  if (checkOut && checkOut <= nextIn) {
+                    const next = new Date(`${nextIn}T12:00:00`);
+                    next.setDate(next.getDate() + 1);
+                    setCheckOut(next.toISOString().slice(0, 10));
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <HotelFieldLabel>Check-out</HotelFieldLabel>
+              <input
+                type="date"
+                min={checkIn || todayIsoDate()}
+                className="mt-1 h-8 w-full rounded border px-2 text-sm"
+                style={{ borderColor: HOTEL_UI.border }}
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-[10px]" style={{ color: HOTEL_UI.textMuted }}>
+            {editNights} night{editNights === 1 ? "" : "s"} selected
+          </p>
+
+          <div className="flex items-center justify-between gap-2 pt-1">
             <p className="text-xs font-semibold" style={{ color: HOTEL_UI.primary }}>
-              Edit rooms &amp; adults
+              Rooms &amp; guests
             </p>
             <button
               type="button"
@@ -255,12 +330,12 @@ export function HotelLockedBookingSummary({
           ))}
 
           <p className="text-[10px]" style={{ color: HOTEL_UI.textMuted }}>
-            Changing guests updates live rates. You’ll select a room again.
+            Changing dates or guests updates live rates. You’ll select a room again.
           </p>
           <HotelPrimaryButton
             className="!h-9 text-xs"
             loading={editLoading}
-            onClick={() => void applyOccupancy()}
+            onClick={() => void applyStay()}
           >
             Update &amp; reselect room
           </HotelPrimaryButton>

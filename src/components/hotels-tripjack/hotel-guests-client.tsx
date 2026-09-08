@@ -371,15 +371,19 @@ export function HotelGuestsClient() {
     return !occupancyMatches(review.searchContext.rooms, roomsFromGuestRows(roomGuests));
   }, [review, roomGuests]);
 
-  const onEditOccupancy = async (rooms: HotelRoomRequest[]) => {
+  const onEditStay = async (stay: {
+    checkIn: string;
+    checkOut: string;
+    rooms: HotelRoomRequest[];
+  }) => {
     if (!review) return;
     setEditOccupancyLoading(true);
     try {
       const live = await startHotelLivePricing({
         hid: review.tjHotelId,
-        checkIn: review.searchContext.checkIn,
-        checkOut: review.searchContext.checkOut,
-        rooms,
+        checkIn: stay.checkIn,
+        checkOut: stay.checkOut,
+        rooms: stay.rooms,
         hotelName: review.hotelName,
         currency: review.searchContext.currency,
         nationality: review.searchContext.nationality,
@@ -390,7 +394,7 @@ export function HotelGuestsClient() {
       }
       sessionStorage.removeItem("tripjack_hotel_guest_details");
       sessionStorage.removeItem("tripjack_hotel_review_for_payment");
-      toast.success("Guest count updated. Select a room again.");
+      toast.success("Stay updated. Select a room again.");
       router.push(`/hotels/detail/${encodeURIComponent(String(review.tjHotelId))}`);
     } finally {
       setEditOccupancyLoading(false);
@@ -402,7 +406,11 @@ export function HotelGuestsClient() {
 
     if (occupancyChanged) {
       toast.message("Guest count changed — updating room rates…");
-      await onEditOccupancy(roomsFromGuestRows(roomGuests));
+      await onEditStay({
+        checkIn: review.searchContext.checkIn,
+        checkOut: review.searchContext.checkOut,
+        rooms: roomsFromGuestRows(roomGuests),
+      });
       return;
     }
 
@@ -518,7 +526,7 @@ export function HotelGuestsClient() {
             locale={locale}
             compact
             editLoading={editOccupancyLoading}
-            onEditOccupancy={onEditOccupancy}
+            onEditStay={onEditStay}
           />
 
           <HotelCard padding="sm" className="!p-2.5">
