@@ -48,6 +48,50 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Goa TripJack snapshot shared with Bookscubagoa (client read-only).
+    match /goaHotels/{hotelId} {
+      allow read: if resource.data.cityKey == 'goa'
+        && resource.data.isDeleted != true
+        && resource.data.websiteVisible != false;
+      allow write: if false;
+    }
+
+    match /goaHotelsMeta/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /tripjackHotelCatalog/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelPriceCache/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelDestinations/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelManualDestinations/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelCatalogMeta/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelOpsMeta/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelSyncLogs/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelApiLogs/{docId} {
+      allow read, write: if false;
+    }
+    match /tripjackHotelNationalities/{docId} {
+      allow read, write: if false;
+    }
+    match /hotelBookings/{bookingId} {
+      allow read, write: if false;
+    }
+
     match /rooms/{roomId} {
       allow read: if true;
       allow write: if isAdmin();

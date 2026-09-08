@@ -80,6 +80,7 @@ export default function TripJackHotelsAdminClient() {
   const [checklist, setChecklist] = useState<ProductionChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [exportingGoa, setExportingGoa] = useState(false);
   const [liveEnabled, setLiveEnabled] = useState(false);
   const [tripjackWebsiteEnabled, setTripjackWebsiteEnabled] = useState(true);
   const [hotelMarkupPercent, setHotelMarkupPercent] = useState(0);
@@ -170,6 +171,37 @@ export default function TripJackHotelsAdminClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const exportGoaHotels = async () => {
+    if (exportingGoa || syncing) return;
+    setExportingGoa(true);
+    setApiError(null);
+    try {
+      const result = await tripjackAdminApiCall<{
+        exported?: number;
+        withRooms?: number;
+        message?: string;
+      }>("/api/admin/tripjack-hotels/export-goa", { method: "POST" }, "Export Goa hotels");
+
+      if (!result.ok) {
+        setApiError({ context: "Export Goa hotels", message: result.error });
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success(
+        result.data?.message ??
+          `Exported ${result.data?.exported ?? 0} Goa hotels to goaHotels`
+      );
+      void load();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Goa export failed";
+      setApiError({ context: "Export Goa hotels", message });
+      toast.error(message);
+    } finally {
+      setExportingGoa(false);
+    }
+  };
 
   const runSync = async (mode: string) => {
     if (syncing) return;
@@ -714,14 +746,28 @@ export default function TripJackHotelsAdminClient() {
                   key={mode}
                   size="sm"
                   variant="outline"
-                  disabled={Boolean(syncing)}
+                  disabled={Boolean(syncing) || exportingGoa}
                   onClick={() => void runSync(mode)}
                 >
                   {syncing === mode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant="default"
+                disabled={Boolean(syncing) || exportingGoa}
+                onClick={() => void exportGoaHotels()}
+              >
+                {exportingGoa ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Export Goa hotels → goaHotels
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Export copies <strong>Goa-only</strong> TripJack hotels (images, overview, last room
+              prices) into public collection <code>goaHotels</code> for Bookscubagoa.com. Run after
+              sync / after customers open hotels (so price cache fills).
+            </p>
           </CardContent>
         </Card>
 
