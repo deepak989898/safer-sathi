@@ -20,7 +20,30 @@ import { isIndiaTripJackCatalogHotel } from "@/lib/tripjack-hotels/india-catalog
 
 export type { FeaturedTripJackHotelCard } from "@/lib/tripjack-hotels/featured-catalog-types";
 
+export interface FeaturedCityHotelsPageResult {
+  hotels: FeaturedTripJackHotelCard[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  cityKey: string;
+  cityName: string;
+}
+
 const PRIORITY_CITY_KEYS = FEATURED_POPULAR_CITIES.map((city) => city.toLowerCase());
+
+const FEATURED_CACHE_TTL_MS = 15 * 60 * 1000;
+let featuredHotelsCache: {
+  at: number;
+  limit: number;
+  cards: FeaturedTripJackHotelCard[];
+} | null = null;
+
+const CITY_PAGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const cityHotelsPageCache = new Map<
+  string,
+  { at: number; result: FeaturedCityHotelsPageResult }
+>();
 
 function isMappingOnlyStub(entry: TripJackHotelCatalogEntry): boolean {
   const name = entry.name.trim();
@@ -77,16 +100,6 @@ export function mapCatalogEntryToListCard(
   };
 }
 
-export interface FeaturedCityHotelsPageResult {
-  hotels: FeaturedTripJackHotelCard[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  cityKey: string;
-  cityName: string;
-}
-
 export async function getFeaturedCityHotelsPaged(input: {
   cityKey: string;
   page?: number;
@@ -95,6 +108,11 @@ export async function getFeaturedCityHotelsPaged(input: {
   const cityKey = resolvePopularCityKey(input.cityKey) ?? input.cityKey.toLowerCase().trim();
   const page = Math.max(1, input.page ?? 1);
   const pageSize = Math.min(50, Math.max(1, input.pageSize ?? 20));
+  const cacheKey = `${cityKey}:${page}:${pageSize}`;
+  const cached = cityHotelsPageCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CITY_PAGE_CACHE_TTL_MS) {
+    return cached.result;
+  }
 
   const browse = await listBrowsableIndiaHotelsPage({
     page,
@@ -116,7 +134,7 @@ export async function getFeaturedCityHotelsPaged(input: {
       (city) => (resolvePopularCityKey(city) ?? city.toLowerCase()) === cityKey
     ) ?? popularCityDisplayName(cityKey);
 
-  return {
+  const result: FeaturedCityHotelsPageResult = {
     hotels,
     page: browse.page,
     pageSize: browse.pageSize,
@@ -125,16 +143,26 @@ export async function getFeaturedCityHotelsPaged(input: {
     cityKey,
     cityName: cityLabel,
   };
+  cityHotelsPageCache.set(cacheKey, { at: Date.now(), result });
+  return result;
 }
 
 export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTripJackHotelCard[]> {
   const target = Math.min(30, Math.max(20, limit));
-  const pickLimit = Math.max(target * 8, 200);
+  if (
+    featuredHotelsCache &&
+    featuredHotelsCache.limit >= target &&
+    Date.now() - featuredHotelsCache.at < FEATURED_CACHE_TTL_MS
+  ) {
+    return featuredHotelsCache.cards.slice(0, target);
+  }
+
+  const pickLimit = Math.max(target * 3, 60);
 
   let entries = await listFeaturedTripJackHotelsFromFirestore(pickLimit);
 
   if (entries.length < target) {
-    const browsePage = await listBrowsableIndiaHotelsPage({ page: 1, pageSize: pickLimit });
+    const browsePage = await listBrowsableIndiaHotelsPage({ page: 1, pageSize: Math.min(80, pickLimit) });
     const seen = new Set(entries.map((entry) => entry.tjHotelId));
     for (const entry of browsePage.entries) {
       if (seen.has(entry.tjHotelId)) continue;
@@ -208,7 +236,10 @@ export async function getFeaturedTripJackHotels(limit = 24): Promise<FeaturedTri
     }
   }
 
-  return selected
+  const cards = selected
     .sort((a, b) => cardScore(b) - cardScore(a))
     .slice(0, target);
+
+  featuredHotelsCache = { at: Date.now(), limit: target, cards };
+  return cards;
 }

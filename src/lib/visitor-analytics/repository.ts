@@ -50,6 +50,9 @@ export interface TrackVisitorEventInput {
 }
 
 let memorySessions: VisitorSession[] = [];
+/** Skip Firestore get() for recent heartbeats (same serverless instance). */
+const recentHeartbeatAt = new Map<string, number>();
+const HEARTBEAT_SKIP_MS = 90_000;
 
 function sanitize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -143,15 +146,23 @@ export async function trackVisitorEvent(input: TrackVisitorEventInput): Promise<
     const last = session.events[session.events.length - 1];
     return (
       last?.type === "heartbeat" &&
-      Date.now() - new Date(last.at).getTime() < 25_000
+      Date.now() - new Date(last.at).getTime() < 90_000
     );
   };
+
+  if (input.event.type === "heartbeat") {
+    const lastAt = recentHeartbeatAt.get(input.sessionId) ?? 0;
+    if (Date.now() - lastAt < HEARTBEAT_SKIP_MS) return;
+  }
 
   if (!isAdminEnvConfigured()) {
     const existing = memorySessions.find((s) => s.id === input.sessionId);
     if (shouldSkipHeartbeat(existing)) return;
     const next = existing ? mergeEvent(existing, event) : createSession(input, event);
     upsertMemory(next);
+    if (input.event.type === "heartbeat") {
+      recentHeartbeatAt.set(input.sessionId, Date.now());
+    }
     return;
   }
 
@@ -161,7 +172,33 @@ export async function trackVisitorEvent(input: TrackVisitorEventInput): Promise<
     if (shouldSkipHeartbeat(existing)) return;
     const next = existing ? mergeEvent(existing, event) : createSession(input, event);
     upsertMemory(next);
+    if (input.event.type === "heartbeat") {
+      recentHeartbeatAt.set(input.sessionId, Date.now());
+    }
     return;
+  }
+
+  // Heartbeat-only soft update: avoid reading the full session doc when possible.
+  if (input.event.type === "heartbeat") {
+    const mem = memorySessions.find((s) => s.id === input.sessionId);
+    if (shouldSkipHeartbeat(mem)) {
+      recentHeartbeatAt.set(input.sessionId, Date.now());
+      return;
+    }
+    try {
+      const nowIso = event.at;
+      await db.collection(VISITOR_SESSIONS_COLLECTION).doc(input.sessionId).update({
+        lastSeenAt: nowIso,
+        endedAt: nowIso,
+      });
+      recentHeartbeatAt.set(input.sessionId, Date.now());
+      if (mem) {
+        upsertMemory({ ...mem, lastSeenAt: nowIso, endedAt: nowIso });
+      }
+      return;
+    } catch {
+      // Doc missing or update failed — fall through to full get/set create path.
+    }
   }
 
   const ref = db.collection(VISITOR_SESSIONS_COLLECTION).doc(input.sessionId);
@@ -171,16 +208,25 @@ export async function trackVisitorEvent(input: TrackVisitorEventInput): Promise<
     const session = createSession(input, event);
     await ref.set(sanitize(session));
     upsertMemory(session);
+    if (input.event.type === "heartbeat") {
+      recentHeartbeatAt.set(input.sessionId, Date.now());
+    }
     return;
   }
 
   const current = snap.data() as VisitorSession;
-  if (shouldSkipHeartbeat({ ...current, id: input.sessionId })) return;
+  if (shouldSkipHeartbeat({ ...current, id: input.sessionId })) {
+    recentHeartbeatAt.set(input.sessionId, Date.now());
+    return;
+  }
 
   const updated = mergeEvent({ ...current, id: input.sessionId }, event);
   const withUser = input.userId ? { ...updated, userId: input.userId } : updated;
   await ref.set(sanitize(withUser), { merge: true });
   upsertMemory(withUser);
+  if (input.event.type === "heartbeat") {
+    recentHeartbeatAt.set(input.sessionId, Date.now());
+  }
 }
 
 export async function listVisitorSessions(limit = 500): Promise<VisitorSession[]> {
@@ -327,8 +373,8 @@ export function buildVisitorAnalyticsPayload(
 
 export async function getVisitorAnalytics(): Promise<VisitorAnalyticsPayload> {
   const [sessions, enquiries] = await Promise.all([
-    listVisitorSessions(500),
-    listAiAssistantEnquiries(500),
+    listVisitorSessions(150),
+    listAiAssistantEnquiries(150),
   ]);
   const aiStatsMap = buildAiStatsByIdentity(enquiries);
   return buildVisitorAnalyticsPayload(sessions, aiStatsMap);

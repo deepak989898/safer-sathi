@@ -450,7 +450,7 @@ export default function VisitorAnalyticsClient() {
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(() => void load(), 60_000);
+    const interval = window.setInterval(() => void load(), 10 * 60_000);
     return () => window.clearInterval(interval);
   }, [load]);
 

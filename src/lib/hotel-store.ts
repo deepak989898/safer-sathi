@@ -18,6 +18,8 @@ const LEGACY_DEMO_HOTEL_IDS = ["h1", "h2", "h3"];
 
 let hotelsStore: Hotel[] = [];
 let hydratePromise: Promise<void> | null = null;
+let hydratedAt = 0;
+const STORE_TTL_MS = 10 * 60 * 1000;
 
 function withResolvedImages(hotel: Hotel): Hotel {
   return {
@@ -45,11 +47,13 @@ export async function hydrateHotelsStore(): Promise<void> {
 
     if (remote.length > 0) {
       hotelsStore = remote.map(withResolvedImages);
+      hydratedAt = Date.now();
       return;
     }
 
     if (!isAdminEnvConfigured()) {
       hotelsStore = seed.map(withResolvedImages);
+      hydratedAt = Date.now();
       return;
     }
 
@@ -59,9 +63,20 @@ export async function hydrateHotelsStore(): Promise<void> {
       console.warn("hydrateHotelsStore seed failed, using in-memory seed:", error);
       hotelsStore = seed.map(withResolvedImages);
     }
+    hydratedAt = Date.now();
   })();
 
   return hydratePromise;
+}
+
+/** Public pages: reuse in-memory catalog for STORE_TTL_MS instead of re-reading Firestore. */
+export async function ensureHotelsStore(): Promise<void> {
+  if (hotelsStore.length > 0 && Date.now() - hydratedAt < STORE_TTL_MS) return;
+  if (Date.now() - hydratedAt >= STORE_TTL_MS) {
+    hydratePromise = null;
+  }
+  await hydrateHotelsStore();
+  if (!hydratedAt) hydratedAt = Date.now();
 }
 
 export function getPublishedHotels(): Hotel[] {
@@ -170,11 +185,13 @@ export async function rejectHotelInStore(
 export function resetHotelsStore(): void {
   hotelsStore = [];
   hydratePromise = null;
+  hydratedAt = 0;
 }
 
 export async function reloadHotelsStore(): Promise<void> {
   resetHotelsStore();
   await hydrateHotelsStore();
+  hydratedAt = Date.now();
 }
 
 /** Upsert all 60 professional hotels into Firestore (admin seed action). */

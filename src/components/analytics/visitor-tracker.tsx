@@ -13,6 +13,10 @@ import type { VisitorEventType } from "@/types/visitor-analytics";
 
 const SESSION_ID_KEY = "ss_visit_session_id";
 const SESSION_AT_KEY = "ss_visit_session_at";
+const LAST_HEARTBEAT_KEY = "ss_visit_heartbeat_at";
+/** Heartbeats only — keep page_view / exit. Clicks were flooding Firestore writes/reads. */
+const HEARTBEAT_INTERVAL_MS = 120_000;
+const HEARTBEAT_MIN_GAP_MS = 100_000;
 
 function getSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -63,6 +67,13 @@ async function sendEvent(
   userId?: string
 ) {
   if (extra.path.startsWith("/admin")) return;
+
+  if (type === "heartbeat") {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    const last = Number(sessionStorage.getItem(LAST_HEARTBEAT_KEY) || 0);
+    if (Date.now() - last < HEARTBEAT_MIN_GAP_MS) return;
+    sessionStorage.setItem(LAST_HEARTBEAT_KEY, String(Date.now()));
+  }
 
   const payload = {
     sessionId: getSessionId(),
@@ -131,25 +142,6 @@ export function VisitorTracker() {
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin")) return;
 
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const el = target.closest("a, button, [role='button']") as HTMLElement | null;
-      if (!el) return;
-      const label =
-        el.getAttribute("aria-label") ||
-        el.textContent?.trim().slice(0, 120) ||
-        el.getAttribute("title") ||
-        "Click";
-      const href = el instanceof HTMLAnchorElement ? el.href : undefined;
-      void sendEvent("click", {
-        path: currentPath(),
-        title: document.title,
-        label,
-        target: href,
-      }, false, userId);
-    };
-
     const onSearchInput = (e: Event) => {
       const el = e.target as HTMLElement;
       if (!isSearchInput(el)) return;
@@ -161,35 +153,43 @@ export function VisitorTracker() {
         setTimeout(() => {
           const q = input.value.trim();
           if (q.length < 2) return;
-          void sendEvent("search", {
-            path: currentPath(),
-            title: document.title,
-            searchQuery: q,
-            label: q,
-          }, false, userId);
+          void sendEvent(
+            "search",
+            {
+              path: currentPath(),
+              title: document.title,
+              searchQuery: q,
+              label: q,
+            },
+            false,
+            userId
+          );
         }, 1200)
       );
     };
 
     const onExit = () => {
-      void sendEvent("exit", {
-        path: currentPath(),
-        title: document.title,
-        label: "Session ended",
-      }, false, userId);
+      void sendEvent(
+        "exit",
+        {
+          path: currentPath(),
+          title: document.title,
+          label: "Session ended",
+        },
+        false,
+        userId
+      );
     };
 
-    document.addEventListener("click", onClick, true);
     document.addEventListener("input", onSearchInput, true);
     window.addEventListener("pagehide", onExit);
     window.addEventListener("beforeunload", onExit);
 
     const heartbeat = window.setInterval(() => {
       void sendEvent("heartbeat", { path: currentPath(), title: document.title }, false, userId);
-    }, 30_000);
+    }, HEARTBEAT_INTERVAL_MS);
 
     return () => {
-      document.removeEventListener("click", onClick, true);
       document.removeEventListener("input", onSearchInput, true);
       window.removeEventListener("pagehide", onExit);
       window.removeEventListener("beforeunload", onExit);

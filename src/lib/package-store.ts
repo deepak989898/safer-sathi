@@ -17,6 +17,8 @@ const LEGACY_DEMO_PACKAGE_IDS = ["p1", "p2", "p3", "p4"];
 
 let packagesStore: TourPackage[] = [];
 let hydratePromise: Promise<void> | null = null;
+let hydratedAt = 0;
+const STORE_TTL_MS = 10 * 60 * 1000;
 
 function upsertInMemory(pkg: TourPackage): TourPackage {
   packagesStore = [pkg, ...packagesStore.filter((p) => p.id !== pkg.id)];
@@ -37,11 +39,13 @@ export async function hydratePackagesStore(): Promise<void> {
 
     if (remote.length > 0) {
       packagesStore = remote;
+      hydratedAt = Date.now();
       return;
     }
 
     if (!isAdminEnvConfigured()) {
       packagesStore = seed;
+      hydratedAt = Date.now();
       return;
     }
 
@@ -51,9 +55,19 @@ export async function hydratePackagesStore(): Promise<void> {
       console.warn("hydratePackagesStore seed failed, using in-memory seed:", error);
       packagesStore = seed;
     }
+    hydratedAt = Date.now();
   })();
 
   return hydratePromise;
+}
+
+export async function ensurePackagesStore(): Promise<void> {
+  if (packagesStore.length > 0 && Date.now() - hydratedAt < STORE_TTL_MS) return;
+  if (Date.now() - hydratedAt >= STORE_TTL_MS) {
+    hydratePromise = null;
+  }
+  await hydratePackagesStore();
+  if (!hydratedAt) hydratedAt = Date.now();
 }
 
 export function getPublishedPackages(): TourPackage[] {
@@ -154,6 +168,7 @@ export function slugExists(slug: string): boolean {
 export function resetPackagesStore(): void {
   packagesStore = [];
   hydratePromise = null;
+  hydratedAt = 0;
 }
 
 export async function publishPackageToWebsite(pkg: TourPackage): Promise<TourPackage> {
@@ -167,6 +182,7 @@ export async function publishPackageToWebsite(pkg: TourPackage): Promise<TourPac
 export async function reloadPackagesStore(): Promise<void> {
   resetPackagesStore();
   await hydratePackagesStore();
+  hydratedAt = Date.now();
 }
 
 /** Upsert all 20 professional tour packages into Firestore (admin seed action). */

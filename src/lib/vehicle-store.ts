@@ -18,6 +18,8 @@ const LEGACY_DEMO_VEHICLE_IDS = ["v1", "v2", "v3", "v4", "v5", "v6"];
 
 let vehiclesStore: Vehicle[] = [];
 let hydratePromise: Promise<void> | null = null;
+let hydratedAt = 0;
+const STORE_TTL_MS = 10 * 60 * 1000;
 
 function upsertInMemory(vehicle: Vehicle): Vehicle {
   vehiclesStore = [vehicle, ...vehiclesStore.filter((v) => v.id !== vehicle.id)];
@@ -64,11 +66,13 @@ export async function hydrateVehiclesStore(): Promise<void> {
 
     if (remote.length > 0) {
       vehiclesStore = dedupeVehiclesBySlug(remote).map(applyVehicleCatalogImages);
+      hydratedAt = Date.now();
       return;
     }
 
     if (!isAdminEnvConfigured()) {
       vehiclesStore = seed.map(applyVehicleCatalogImages);
+      hydratedAt = Date.now();
       return;
     }
 
@@ -80,9 +84,19 @@ export async function hydrateVehiclesStore(): Promise<void> {
       console.warn("hydrateVehiclesStore seed failed, using in-memory seed:", error);
       vehiclesStore = seed.map(applyVehicleCatalogImages);
     }
+    hydratedAt = Date.now();
   })();
 
   return hydratePromise;
+}
+
+export async function ensureVehiclesStore(): Promise<void> {
+  if (vehiclesStore.length > 0 && Date.now() - hydratedAt < STORE_TTL_MS) return;
+  if (Date.now() - hydratedAt >= STORE_TTL_MS) {
+    hydratePromise = null;
+  }
+  await hydrateVehiclesStore();
+  if (!hydratedAt) hydratedAt = Date.now();
 }
 
 export function getPublishedVehicles(): Vehicle[] {
@@ -189,11 +203,13 @@ export async function rejectVehicleInStore(
 export function resetVehiclesStore(): void {
   vehiclesStore = [];
   hydratePromise = null;
+  hydratedAt = 0;
 }
 
 export async function reloadVehiclesStore(): Promise<void> {
   resetVehiclesStore();
   await hydrateVehiclesStore();
+  hydratedAt = Date.now();
 }
 
 /** Upsert all 30 professional vehicles into Firestore (admin seed action). */

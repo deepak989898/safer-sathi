@@ -3,7 +3,7 @@ import {
   getHotelByIdAdmin,
   getHotelBySlugPublished,
   getPublishedHotels,
-  reloadHotelsStore,
+  ensureHotelsStore,
 } from "@/lib/hotel-store";
 import {
   getHotelWebsiteSettings,
@@ -15,13 +15,13 @@ import {
   getPublishedPackageById,
   getPublishedPackageBySlug,
   getPublishedPackages,
-  reloadPackagesStore,
+  ensurePackagesStore,
 } from "@/lib/package-store";
 import {
   getAllPublishedVehicleIds,
   getPublishedVehicles,
   getVehicleByIdPublished,
-  reloadVehiclesStore,
+  ensureVehiclesStore,
 } from "@/lib/vehicle-store";
 import {
   getAllPublishedBlogSlugs,
@@ -52,7 +52,7 @@ function normalizeHotelForCatalog(hotel: Hotel): Hotel {
 }
 
 export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
-  await reloadVehiclesStore();
+  await ensureVehiclesStore();
   let results = getPublishedVehicles();
   if (filters?.vehicleType) {
     results = results.filter((v) => v.type === filters.vehicleType);
@@ -76,12 +76,12 @@ export async function getVehicles(filters?: SearchFilters): Promise<Vehicle[]> {
 }
 
 export async function getVehicleById(id: string): Promise<Vehicle | null> {
-  await reloadVehiclesStore();
+  await ensureVehiclesStore();
   return getVehicleByIdPublished(id);
 }
 
 export async function getPackages(filters?: SearchFilters): Promise<TourPackage[]> {
-  await reloadPackagesStore();
+  await ensurePackagesStore();
   let results = getPublishedPackages();
   if (filters?.packageCategory) {
     results = results.filter((p) => p.category === filters.packageCategory);
@@ -104,7 +104,7 @@ export async function getPackages(filters?: SearchFilters): Promise<TourPackage[
 }
 
 export async function getPackageBySlug(slug: string): Promise<TourPackage | null> {
-  await reloadPackagesStore();
+  await ensurePackagesStore();
   const found = getPublishedPackageBySlug(slug);
   if (found) return found;
   return (
@@ -115,12 +115,12 @@ export async function getPackageBySlug(slug: string): Promise<TourPackage | null
 }
 
 export async function getPackageById(id: string): Promise<TourPackage | null> {
-  await reloadPackagesStore();
+  await ensurePackagesStore();
   return getPublishedPackageById(id);
 }
 
 export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
-  await reloadHotelsStore();
+  await ensureHotelsStore();
   const websiteSettings = await getHotelWebsiteSettings();
   if (!isManualHotelsWebsiteEnabled(websiteSettings)) {
     return [];
@@ -148,13 +148,13 @@ export async function getHotels(filters?: SearchFilters): Promise<Hotel[]> {
 }
 
 export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
-  await reloadHotelsStore();
+  await ensureHotelsStore();
   const hotel = getHotelBySlugPublished(slug);
   return hotel ? normalizeHotelForCatalog(hotel) : null;
 }
 
 export async function getHotelById(id: string): Promise<Hotel | null> {
-  await reloadHotelsStore();
+  await ensureHotelsStore();
   const hotel = getHotelByIdAdmin(id);
   if (!hotel?.available || !isCatalogPublished(hotel.publishStatus)) return null;
   return normalizeHotelForCatalog(hotel);
@@ -182,17 +182,17 @@ export async function getReviews() {
 }
 
 export async function getAllPackageSlugs() {
-  await reloadPackagesStore();
+  await ensurePackagesStore();
   return getAllPublishedPackageSlugs();
 }
 
 export async function getAllVehicleIds() {
-  await reloadVehiclesStore();
+  await ensureVehiclesStore();
   return getAllPublishedVehicleIds();
 }
 
 export async function getAllHotelSlugs() {
-  await reloadHotelsStore();
+  await ensureHotelsStore();
   return getAllPublishedHotelSlugs();
 }
 

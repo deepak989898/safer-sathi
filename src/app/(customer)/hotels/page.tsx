@@ -9,8 +9,8 @@ import { getFeaturedTripJackHotels } from "@/lib/tripjack-hotels/featured-catalo
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import HotelsClient from "./hotels-client";
 
-// Match packages: always load Firestore hotels at request time (no empty ISR shell).
-export const dynamic = "force-dynamic";
+// Cache hotels page briefly so TripJack featured catalog is not re-scanned every hit.
+export const revalidate = 300;
 
 export const metadata = buildPageMetadata({
   title: "Hotels in India | Book Stays | Safar Sathi",

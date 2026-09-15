@@ -331,7 +331,7 @@ export async function listFeaturedTripJackHotelsFromFirestore(
     }
   };
 
-  const perCityFetch = 16;
+  const perCityFetch = 8;
 
   // Path 1: cityNameLower prefix for popular Indian cities.
   const citySnaps = await Promise.all(
@@ -356,10 +356,10 @@ export async function listFeaturedTripJackHotelsFromFirestore(
   }
 
   // Path 2: searchBlob lookup (catches hotels where city is only in address/description).
-  if (merged.size < pickLimit) {
+  if (merged.size < Math.min(pickLimit, 24)) {
     const blobResults = await Promise.all(
       FEATURED_PRIORITY_CITIES.map((city) =>
-        findTripJackHotelsBySearchBlob(city, perCityFetch * 2).catch(() => [] as TripJackHotelCatalogEntry[])
+        findTripJackHotelsBySearchBlob(city, perCityFetch).catch(() => [] as TripJackHotelCatalogEntry[])
       )
     );
     for (const entries of blobResults) {
@@ -374,18 +374,18 @@ export async function listFeaturedTripJackHotelsFromFirestore(
       if (destinationHids.length >= pickLimit * 2) break;
       const dest = await getTripJackDestinationBySearchKey(city);
       if (!dest?.hids?.length) continue;
-      destinationHids.push(...dest.hids.slice(0, 8));
+      destinationHids.push(...dest.hids.slice(0, 6));
     }
     if (destinationHids.length) {
       addEntries(await getTripJackHotelCatalogEntriesByHids(destinationHids));
     }
   }
 
-  // Path 4: paginate content-synced hotels; falls back when composite index is missing.
-  if (merged.size < pickLimit) {
+  // Path 4: short browse only — never scan thousands of catalog docs per request.
+  if (merged.size < Math.min(pickLimit, 20)) {
     let lastNameLower: string | undefined;
     let scanMode: BrowseCatalogScanMode = "indexed";
-    for (let page = 0; page < 30 && merged.size < pickLimit * 2; page += 1) {
+    for (let page = 0; page < 3 && merged.size < pickLimit; page += 1) {
       try {
         const batch = await fetchBrowsableCatalogBatch(db, { mode: scanMode, lastNameLower });
         if (!batch.entries.length) break;
@@ -406,11 +406,11 @@ export async function listFeaturedTripJackHotelsFromFirestore(
     }
   }
 
-  // Path 5: relaxed scan — content-synced India hotels even when city fields are sparse.
-  if (merged.size < Math.min(pickLimit, 12)) {
+  // Path 5: one relaxed page max when still nearly empty.
+  if (merged.size < 8) {
     let lastNameLower: string | undefined;
     let scanMode: BrowseCatalogScanMode = "indexed";
-    for (let page = 0; page < 15 && merged.size < pickLimit; page += 1) {
+    for (let page = 0; page < 1 && merged.size < pickLimit; page += 1) {
       try {
         const batch = await fetchBrowsableCatalogBatch(db, { mode: scanMode, lastNameLower });
         if (!batch.entries.length) break;
@@ -1239,18 +1239,28 @@ export async function listBrowsableIndiaHotelsPage(input: {
   }
 
   if (city && query.length < 2) {
-    const fetchLimit = Math.min(10_000, Math.max(500, page * pageSize + 200));
-    const [byCity, byBlob] = await Promise.all([
-      searchTripJackHotelCatalogByCityPrefix(city, fetchLimit),
-      findTripJackHotelsBySearchBlob(city, fetchLimit),
-    ]);
+    // Cap hard — dual unlimited scans were burning 10k–20k reads per city click.
+    const fetchLimit = Math.min(120, Math.max(pageSize * 4, page * pageSize + pageSize));
+    const byCity = await searchTripJackHotelCatalogByCityPrefix(city, fetchLimit);
     const merged = new Map<number, TripJackHotelCatalogEntry>();
-    for (const entry of [...byCity, ...byBlob]) {
+    for (const entry of byCity) {
       if (!merged.has(entry.tjHotelId)) merged.set(entry.tjHotelId, entry);
     }
-    const filtered = [...merged.values()]
+
+    let filtered = [...merged.values()]
       .filter(matchesFilters)
       .sort((a, b) => a.nameLower.localeCompare(b.nameLower));
+
+    if (filtered.length < page * pageSize) {
+      const byBlob = await findTripJackHotelsBySearchBlob(city, Math.min(80, fetchLimit));
+      for (const entry of byBlob) {
+        if (!merged.has(entry.tjHotelId)) merged.set(entry.tjHotelId, entry);
+      }
+      filtered = [...merged.values()]
+        .filter(matchesFilters)
+        .sort((a, b) => a.nameLower.localeCompare(b.nameLower));
+    }
+
     const totalCount = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
     const start = (page - 1) * pageSize;
