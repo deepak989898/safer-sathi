@@ -170,10 +170,7 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
-  const post = await getPublishedBlogPostBySlug(slug);
-  if (post) return post;
-  await hydrateBlogStore();
-  return getPublishedBlogBySlug(slug);
+  return getPublishedBlogPostBySlug(slug);
 }
 
 export async function getReviews() {
@@ -207,6 +204,9 @@ export async function getBlogCategoriesList(): Promise<string[]> {
 }
 
 export async function getRelatedBlogPostsForSlug(slug: string, limit = 3) {
-  await hydrateBlogStore();
+  const { getPublishedBlogs } = await import("@/lib/ai-center/repository");
+  if (getPublishedBlogs().length === 0) {
+    await hydrateBlogStore();
+  }
   return getRelatedBlogPosts(slug, limit);
 }

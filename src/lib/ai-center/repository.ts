@@ -31,6 +31,12 @@ let seoMetaCache: SeoMetaRecord[] = [];
 let blogCache: AiBlogPost[] = [];
 let logCache: AiCenterLog[] = [];
 let settingsCache: AiCenterSettings = { ...DEFAULT_SETTINGS };
+let hydratePromise: Promise<void> | null = null;
+let hydratedAt = 0;
+const HYDRATE_TTL_MS = 10 * 60 * 1000;
+/** Avoid repeat Firestore work for deleted / never-published blog slugs. */
+const blogSlugMissCache = new Map<string, number>();
+const BLOG_MISS_TTL_MS = 30 * 60 * 1000;
 
 function sanitize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -133,19 +139,29 @@ async function loadSettings(): Promise<AiCenterSettings> {
 }
 
 export async function hydrateAiCenterStore(): Promise<void> {
-  const [keywords, meta, blogs, logs, settings] = await Promise.all([
-    loadAll<SeoKeyword>(COLLECTIONS.keywords, 5000),
-    loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta, 5000),
-    loadAll<AiBlogPost>(COLLECTIONS.blogs, 5000),
-    loadAll<AiCenterLog>(COLLECTIONS.logs, 500),
-    loadSettings(),
-  ]);
-  keywordCache = keywords;
-  seoMetaCache = meta;
-  if (blogs.length) blogCache = blogs;
-  if (logs.length) logCache = logs;
-  settingsCache = settings;
-  await hydrateImageGenerationLogs();
+  if (hydratePromise) return hydratePromise;
+  if (Date.now() - hydratedAt < HYDRATE_TTL_MS && blogCache.length > 0) return;
+
+  hydratePromise = (async () => {
+    const [keywords, meta, blogs, logs, settings] = await Promise.all([
+      loadAll<SeoKeyword>(COLLECTIONS.keywords, 5000),
+      loadAll<SeoMetaRecord>(COLLECTIONS.seoMeta, 5000),
+      loadAll<AiBlogPost>(COLLECTIONS.blogs, 5000),
+      loadAll<AiCenterLog>(COLLECTIONS.logs, 500),
+      loadSettings(),
+    ]);
+    keywordCache = keywords;
+    seoMetaCache = meta;
+    if (blogs.length) blogCache = blogs;
+    if (logs.length) logCache = logs;
+    settingsCache = settings;
+    await hydrateImageGenerationLogs();
+    hydratedAt = Date.now();
+  })().finally(() => {
+    hydratePromise = null;
+  });
+
+  return hydratePromise;
 }
 
 export async function addAiCenterLog(input: {
@@ -240,15 +256,19 @@ export async function fetchPublishedBlogBySlug(slug: string): Promise<AiBlogPost
   );
   if (cached) return cached;
 
+  const missAt = blogSlugMissCache.get(normalized);
+  if (missAt && Date.now() - missAt < BLOG_MISS_TTL_MS) {
+    return null;
+  }
+
   if (!isAdminEnvConfigured()) {
-    await hydrateAiCenterStore();
+    // Demo / local only — never full-scan on public misses.
     return getBlogBySlug(normalized);
   }
 
   try {
     const db = await getSafeAdminDb();
     if (!db) {
-      await hydrateAiCenterStore();
       return getBlogBySlug(normalized);
     }
 
@@ -263,15 +283,15 @@ export async function fetchPublishedBlogBySlug(slug: string): Promise<AiBlogPost
       .find((b) => b.status === "published");
 
     if (published) {
+      blogSlugMissCache.delete(normalized);
       blogCache = mergeCache(blogCache, published);
       return published;
     }
 
-    await hydrateAiCenterStore();
-    return getBlogBySlug(normalized);
+    blogSlugMissCache.set(normalized, Date.now());
+    return null;
   } catch (error) {
     console.warn("fetchPublishedBlogBySlug failed:", error);
-    await hydrateAiCenterStore();
     return getBlogBySlug(normalized);
   }
 }

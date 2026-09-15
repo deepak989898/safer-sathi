@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import {
   getBlogPostBySlug,
   getRelatedBlogPostsForSlug,
 } from "@/lib/data-service";
 import { localizedText } from "@/lib/i18n";
 import { buildPageMetadata, stripHtml } from "@/lib/seo/metadata";
+import { resolveBlogSlugRedirect } from "@/lib/seo/blog-slug-redirects";
 import { blogPostingSchema, breadcrumbSchema, faqSchema } from "@/lib/seo/schema";
 import { appUrl } from "@/lib/site-config";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -18,8 +19,7 @@ export async function generateStaticParams() {
 }
 
 export const dynamicParams = true;
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
@@ -28,7 +28,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const post = await getBlogPostBySlug(slug);
-  if (!post || !post.published) return { title: "Blog | Safar Sathi" };
+  if (!post || !post.published) {
+    const redirectTo = resolveBlogSlugRedirect(slug);
+    if (redirectTo) {
+      return { robots: { index: false, follow: true } };
+    }
+    return { title: "Blog | Safar Sathi" };
+  }
 
   const title = post.seoTitle
     ? localizedText(post.seoTitle, "en")
@@ -55,11 +61,15 @@ export default async function BlogDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [post, related] = await Promise.all([
-    getBlogPostBySlug(slug),
-    getRelatedBlogPostsForSlug(slug, 3),
-  ]);
-  if (!post || !post.published) notFound();
+  const post = await getBlogPostBySlug(slug);
+
+  if (!post || !post.published) {
+    const redirectTo = resolveBlogSlugRedirect(slug);
+    if (redirectTo) permanentRedirect(redirectTo);
+    notFound();
+  }
+
+  const related = await getRelatedBlogPostsForSlug(slug, 3);
 
   const title = post.seoTitle
     ? localizedText(post.seoTitle, "en")
