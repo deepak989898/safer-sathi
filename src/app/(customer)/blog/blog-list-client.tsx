@@ -1,16 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
-import { Calendar, Search, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Search, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/store/app-store";
 import { localizedText } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { BlogPost } from "@/types";
+
+const PAGE_SIZE = 20;
+
+/** Compact page list: 1 2 3 … next — never shows total page count text. */
+function buildPageItems(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const items: Array<number | "ellipsis"> = [];
+  const windowStart = Math.max(1, Math.min(current - 1, total - 2));
+  const windowEnd = Math.min(total, windowStart + 2);
+
+  if (windowStart > 1) {
+    items.push(1);
+    if (windowStart > 2) items.push("ellipsis");
+  }
+
+  for (let p = windowStart; p <= windowEnd; p += 1) {
+    items.push(p);
+  }
+
+  if (windowEnd < total) {
+    if (windowEnd < total - 1) items.push("ellipsis");
+    // Don't dump every last page number — just hint more exists via Next
+  }
+
+  return items;
+}
 
 export default function BlogListClient({
   posts,
@@ -22,6 +52,7 @@ export default function BlogListClient({
   const { locale } = useAppStore();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     return posts.filter((post) => {
@@ -30,15 +61,41 @@ export default function BlogListClient({
       const q = query.toLowerCase();
       const matchesQuery = !q || title.includes(q) || excerpt.includes(q);
       const matchesCategory =
-        !activeCategory || post.tags.some((t) => t.toLowerCase() === activeCategory.toLowerCase());
+        !activeCategory ||
+        post.tags.some((t) => t.toLowerCase() === activeCategory.toLowerCase());
       return matchesQuery && matchesCategory;
     });
   }, [posts, query, activeCategory, locale]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, activeCategory]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pageItems = useMemo(() => buildPageItems(page, totalPages), [page, totalPages]);
+
+  const paged = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
+
   const popular = useMemo(
-    () => [...posts].sort((a, b) => b.tags.length - a.tags.length).slice(0, 3),
+    () => [...posts].sort((a, b) => b.tags.length - a.tags.length).slice(0, 5),
     [posts]
   );
+
+  function goToPage(next: number) {
+    const clamped = Math.min(Math.max(1, next), totalPages);
+    setPage(clamped);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
@@ -72,7 +129,9 @@ export default function BlogListClient({
                 onClick={() => setActiveCategory(cat)}
                 className={cn(
                   "rounded-full border px-3 py-1 text-xs font-medium transition-colors capitalize",
-                  activeCategory === cat ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 )}
               >
                 {cat}
@@ -82,7 +141,7 @@ export default function BlogListClient({
         )}
 
         <div className="grid gap-8 md:grid-cols-2">
-          {filtered.map((post) => (
+          {paged.map((post) => (
             <Link key={post.id} href={`/blog/${post.slug}`}>
               <Card className="h-full overflow-hidden pt-0 transition-shadow hover:shadow-lg">
                 <div className="relative aspect-[4/3] overflow-hidden bg-muted/10 sm:aspect-[16/10]">
@@ -127,12 +186,67 @@ export default function BlogListClient({
         {filtered.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">No blogs match your search.</p>
         )}
+
+        {filtered.length > PAGE_SIZE && (
+          <nav
+            className="flex flex-wrap items-center justify-center gap-1.5 pt-2"
+            aria-label="Blog pagination"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => goToPage(page - 1)}
+              className="gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Prev
+            </Button>
+
+            {pageItems.map((item, idx) =>
+              item === "ellipsis" ? (
+                <span
+                  key={`e-${idx}`}
+                  className="px-2 text-sm text-muted-foreground"
+                  aria-hidden
+                >
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={item}
+                  type="button"
+                  variant={item === page ? "default" : "outline"}
+                  size="sm"
+                  className="min-w-9"
+                  onClick={() => goToPage(item)}
+                  aria-current={item === page ? "page" : undefined}
+                >
+                  {item}
+                </Button>
+              )
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => goToPage(page + 1)}
+              className="gap-1"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </nav>
+        )}
       </div>
 
       <aside className="space-y-4">
         <Card>
           <CardContent className="pt-6">
-            <h3 className="font-semibold mb-3">Popular Blogs</h3>
+            <h3 className="mb-3 font-semibold">Popular Blogs</h3>
             <div className="space-y-3">
               {popular.map((post) => (
                 <Link
