@@ -135,19 +135,6 @@ function EventRow({ event }: { event: VisitorEvent }) {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
-  if (value === undefined || value === null || value === "") return null;
-  return (
-    <div className="grid grid-cols-[7.5rem_1fr] gap-2 text-xs sm:grid-cols-[9rem_1fr]">
-      <span className="font-medium text-slate-500">{label}</span>
-      <span className="min-w-0 break-all font-semibold text-slate-800 dark:text-slate-100">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-/** Compact horizontal field — stacks label above value, fits in multi-column grids. */
 function DetailCell({ label, value }: { label: string; value: ReactNode }) {
   if (value === undefined || value === null || value === "") return null;
   return (
