@@ -2047,8 +2047,8 @@ export default function AiCenterClient() {
       </div>
 
       <Dialog open={!!editBlog} onOpenChange={(o) => !o && setEditBlog(null)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[92vh] w-[calc(100%-1.5rem)] max-w-6xl flex-col gap-4 overflow-hidden p-4 sm:max-w-6xl sm:p-6">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               Edit Blog
               {editBlog?.status === "published" && (
@@ -2062,7 +2062,7 @@ export default function AiCenterClient() {
             </DialogTitle>
           </DialogHeader>
           {editBlog && (
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               <div>
                 <Label>Title</Label>
                 <Input
@@ -2080,7 +2080,8 @@ export default function AiCenterClient() {
               <div>
                 <Label>Content (markdown)</Label>
                 <Textarea
-                  rows={12}
+                  rows={22}
+                  className="min-h-[320px] font-mono text-sm leading-relaxed"
                   value={editBlog.content}
                   onChange={(e) => setEditBlog({ ...editBlog, content: e.target.value })}
                 />
@@ -2117,7 +2118,7 @@ export default function AiCenterClient() {
                     })
                   }
                 />
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {editBlog.imagePrompts.map((img) => {
                     const isFeatured = editBlog.featuredImage === img.url;
                     return (
@@ -2159,7 +2160,7 @@ export default function AiCenterClient() {
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2">
             <Button variant="outline" onClick={() => setEditBlog(null)}>Cancel</Button>
             <Button
               disabled={busy || !editBlog}
