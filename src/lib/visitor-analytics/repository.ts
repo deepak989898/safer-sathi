@@ -6,6 +6,7 @@ import {
   VISITOR_SESSIONS_COLLECTION,
 } from "@/lib/visitor-analytics/constants";
 import { parseDevice, parseTrafficSource } from "@/lib/visitor-analytics/format";
+import { detectVisitorKindFromUa } from "@/lib/visitor-analytics/visitor-kind";
 import {
   buildAiStatsByIdentity,
   groupSessionsByVisitor,
@@ -85,6 +86,7 @@ function createSession(input: TrackVisitorEventInput, event: VisitorEvent): Visi
     input.sessionMeta?.utmSource,
     input.sessionMeta?.utmMedium
   );
+  const visitorKind = detectVisitorKindFromUa(ua);
 
   return {
     id: input.sessionId,
@@ -106,6 +108,8 @@ function createSession(input: TrackVisitorEventInput, event: VisitorEvent): Visi
     browser,
     deviceId: input.sessionMeta?.deviceId,
     deviceName: input.sessionMeta?.deviceName,
+    userAgent: ua || undefined,
+    visitorKind,
     language: input.sessionMeta?.language ?? "en",
     ip: input.ip,
     country: input.country,

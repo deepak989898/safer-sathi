@@ -53,6 +53,13 @@ export async function POST(request: Request) {
 
     await trackVisitorEvent({
       ...parsed.data,
+      sessionMeta: {
+        ...parsed.data.sessionMeta,
+        userAgent:
+          parsed.data.sessionMeta?.userAgent ||
+          request.headers.get("user-agent") ||
+          undefined,
+      },
       ip: clientIp(request),
       country: request.headers.get("x-vercel-ip-country") ?? undefined,
       city: request.headers.get("x-vercel-ip-city") ?? undefined,

@@ -33,14 +33,18 @@ import {
   formatEventTime,
 } from "@/lib/visitor-analytics/format";
 import { ONLINE_THRESHOLD_MS } from "@/lib/visitor-analytics/constants";
+import { resolveVisitorKind } from "@/lib/visitor-analytics/visitor-kind";
 import { cn } from "@/lib/utils";
 import type {
   VisitorAnalyticsPayload,
   VisitorEvent,
+  VisitorKind,
   VisitorSession,
   VisitorUserGroup,
 } from "@/types/visitor-analytics";
 import { toast } from "sonner";
+
+type VisitorKindFilter = "all" | VisitorKind;
 
 function isOnline(session: VisitorSession): boolean {
   return Date.now() - new Date(session.lastSeenAt).getTime() <= ONLINE_THRESHOLD_MS;
@@ -202,6 +206,12 @@ function SessionCard({
             {online && (
               <Badge className="h-5 bg-emerald-600 text-[10px] hover:bg-emerald-600">
                 Online now
+              </Badge>
+            )}
+            {resolveVisitorKind(session) === "bot" && (
+              <Badge className="h-5 bg-rose-600 text-[10px] hover:bg-rose-600">
+                <Bot className="mr-1 h-3 w-3" />
+                Bot
               </Badge>
             )}
             {ai && ai.aiChatSessions > 0 && (
@@ -431,6 +441,8 @@ export default function VisitorAnalyticsClient() {
   const { user } = useAuth();
   const [data, setData] = useState<VisitorAnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Default: human only so admins see real visitors first. */
+  const [kindFilter, setKindFilter] = useState<VisitorKindFilter>("human");
   /** dateKey → expanded. Today starts open; older days start collapsed. */
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
@@ -454,8 +466,68 @@ export default function VisitorAnalyticsClient() {
     return () => window.clearInterval(interval);
   }, [load]);
 
-  const stats = data?.stats;
   const clarityUrl = getClarityDashboardUrl();
+
+  const filteredSessions = useMemo(() => {
+    if (!data?.days.length) return [] as VisitorSession[];
+    const all = data.days.flatMap((day) => day.sessions);
+    if (kindFilter === "all") return all;
+    return all.filter((session) => resolveVisitorKind(session) === kindFilter);
+  }, [data, kindFilter]);
+
+  const filterCounts = useMemo(() => {
+    const all = data?.days.flatMap((day) => day.sessions) ?? [];
+    let human = 0;
+    let bot = 0;
+    for (const session of all) {
+      if (resolveVisitorKind(session) === "bot") bot += 1;
+      else human += 1;
+    }
+    return { all: all.length, human, bot };
+  }, [data]);
+
+  const filteredStats = useMemo(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayKey = yesterdayDate.toISOString().slice(0, 10);
+
+    const todaySessions = filteredSessions.filter(
+      (s) => dateKeyOf(sessionSortTime(s)) === todayKey
+    );
+    const yesterdaySessions = filteredSessions.filter(
+      (s) => dateKeyOf(sessionSortTime(s)) === yesterdayKey
+    );
+    const onlineNow = filteredSessions.filter((s) => isOnline(s)).length;
+    const pageViewsToday = todaySessions.reduce((sum, s) => sum + (s.pageViewCount || 0), 0);
+    const avgDurationTodaySec =
+      todaySessions.length > 0
+        ? Math.round(
+            todaySessions.reduce((sum, s) => sum + (s.durationSec || 0), 0) / todaySessions.length
+          )
+        : 0;
+
+    const sourceCounts = new Map<string, number>();
+    const exitCounts = new Map<string, number>();
+    for (const s of todaySessions) {
+      sourceCounts.set(s.source || "Direct", (sourceCounts.get(s.source || "Direct") || 0) + 1);
+      if (s.exitPath) exitCounts.set(s.exitPath, (exitCounts.get(s.exitPath) || 0) + 1);
+    }
+    const topSourceToday =
+      [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+    const topExitPageToday =
+      [...exitCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+
+    return {
+      visitorsToday: new Set(todaySessions.map((s) => s.visitorId)).size,
+      visitorsYesterday: new Set(yesterdaySessions.map((s) => s.visitorId)).size,
+      onlineNow,
+      pageViewsToday,
+      avgDurationTodaySec,
+      topSourceToday,
+      topExitPageToday,
+    };
+  }, [filteredSessions]);
 
   const dayGroups = useMemo((): DayGroup[] => {
     if (!data?.days.length) return [];
@@ -470,9 +542,9 @@ export default function VisitorAnalyticsClient() {
       }
     }
 
-    const allSessions = data.days
-      .flatMap((day) => day.sessions)
-      .sort((a, b) => sessionSortTime(b).localeCompare(sessionSortTime(a)));
+    const allSessions = [...filteredSessions].sort((a, b) =>
+      sessionSortTime(b).localeCompare(sessionSortTime(a))
+    );
 
     const groups: DayGroup[] = [];
     const indexByKey = new Map<string, number>();
@@ -498,7 +570,7 @@ export default function VisitorAnalyticsClient() {
     }
 
     return groups;
-  }, [data]);
+  }, [data, filteredSessions]);
 
   useEffect(() => {
     if (!dayGroups.length) return;
@@ -523,8 +595,18 @@ export default function VisitorAnalyticsClient() {
 
   const subtitle = useMemo(() => {
     if (!data) return "Recently active visitors first — stay time, location, and full details";
-    return `${data.totalSessions} sessions · grouped by day · refreshes every minute`;
-  }, [data]);
+    const filterLabel =
+      kindFilter === "human" ? "humans" : kindFilter === "bot" ? "bots" : "all";
+    return `${filteredSessions.length} ${filterLabel} · ${data.totalSessions} total · refreshes every 10 min`;
+  }, [data, filteredSessions.length, kindFilter]);
+
+  const stats = filteredStats;
+
+  const kindFilters: Array<{ id: VisitorKindFilter; label: string; count: number }> = [
+    { id: "human", label: "Human", count: filterCounts.human },
+    { id: "bot", label: "Bot", count: filterCounts.bot },
+    { id: "all", label: "All", count: filterCounts.all },
+  ];
 
   return (
     <>
@@ -538,9 +620,34 @@ export default function VisitorAnalyticsClient() {
           <div className="space-y-2">
             <p className="max-w-3xl text-sm font-medium text-slate-700 dark:text-slate-200">
               Visitors grouped by <span className="font-bold text-sky-700">date</span> (Today,
-              Yesterday, earlier). Expand a day to see all visitors — then open a row for full
+              Yesterday, earlier). Expand a day to see visitors — then open a row for full
               details.
             </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Show
+              </span>
+              {kindFilters.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setKindFilter(item.id)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-[11px] font-semibold transition-colors",
+                    kindFilter === item.id
+                      ? item.id === "bot"
+                        ? "bg-rose-600 text-white"
+                        : item.id === "human"
+                          ? "bg-emerald-600 text-white"
+                          : "bg-sky-700 text-white"
+                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-card dark:text-slate-200 dark:ring-border"
+                  )}
+                >
+                  {item.label}
+                  <span className="ml-1 opacity-80">({item.count})</span>
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900">Stay time</span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
@@ -666,8 +773,13 @@ export default function VisitorAnalyticsClient() {
             {dayGroups.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                  No visitor sessions yet. Browse the customer website (not /admin) to start
-                  recording visits.
+                  {filterCounts.all === 0
+                    ? "No visitor sessions yet. Browse the customer website (not /admin) to start recording visits."
+                    : kindFilter === "human"
+                      ? "No human visitors in this list. Switch to Bot or All to see other traffic."
+                      : kindFilter === "bot"
+                        ? "No bot sessions detected in this list. Switch to Human or All."
+                        : "No visitor sessions match this filter."}
                 </CardContent>
               </Card>
             ) : (

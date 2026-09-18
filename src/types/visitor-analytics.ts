@@ -5,6 +5,9 @@ export type VisitorEventType =
   | "exit"
   | "heartbeat";
 
+/** Human vs automated / crawler traffic. */
+export type VisitorKind = "human" | "bot";
+
 export interface VisitorEvent {
   id: string;
   type: VisitorEventType;
@@ -37,6 +40,10 @@ export interface VisitorSession {
   browser: string;
   deviceId?: string;
   deviceName?: string;
+  /** Raw UA when available — used for bot classification. */
+  userAgent?: string;
+  /** human | bot — set on new sessions; older docs inferred at read time. */
+  visitorKind?: VisitorKind;
   language: string;
   ip?: string;
   country?: string;
