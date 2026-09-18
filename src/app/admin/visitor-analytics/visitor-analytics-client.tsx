@@ -147,6 +147,40 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+/** Compact horizontal field — stacks label above value, fits in multi-column grids. */
+function DetailCell({ label, value }: { label: string; value: ReactNode }) {
+  if (value === undefined || value === null || value === "") return null;
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-100 bg-slate-50/90 px-2.5 py-1.5 dark:border-slate-800 dark:bg-background/60">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <div className="mt-0.5 min-w-0 break-all text-xs font-semibold leading-snug text-slate-900 dark:text-slate-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DetailSection({
+  title,
+  titleClassName,
+  children,
+}: {
+  title: string;
+  titleClassName: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-border dark:bg-card">
+      <p className={cn("mb-2 text-[11px] font-bold uppercase tracking-wide", titleClassName)}>
+        {title}
+      </p>
+      <div className="grid grid-cols-2 gap-2">{children}</div>
+    </section>
+  );
+}
+
 function Chip({
   children,
   className,
@@ -180,6 +214,7 @@ function SessionCard({
   const staySeconds = Math.max(0, Math.round(session.durationSec || 0));
   const location = locationLabel(session);
   const lastActive = session.lastSeenAt || session.endedAt || session.startedAt;
+  const stayLabel = formatDuration(staySeconds);
 
   return (
     <div
@@ -198,7 +233,6 @@ function SessionCard({
         className="flex w-full items-start justify-between gap-3 bg-gradient-to-r from-sky-50/90 via-white to-emerald-50/70 px-4 py-3 text-left transition-colors hover:from-sky-100 hover:to-emerald-100/80 dark:from-sky-950/30 dark:via-card dark:to-emerald-950/20"
       >
         <div className="min-w-0 flex-1 space-y-2">
-          {/* Primary: recent activity time — not device */}
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-bold text-sky-900 dark:text-sky-200">
               Last active {formatEventTime(lastActive)}
@@ -225,11 +259,21 @@ function SessionCard({
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            <Chip className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-              <Clock className="h-3 w-3" />
-              Stay {staySeconds}s · {formatDuration(staySeconds)}
-            </Chip>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-100 px-3 py-1.5 text-amber-950 shadow-sm dark:border-amber-600 dark:bg-amber-950/50 dark:text-amber-100">
+              <Clock className="h-5 w-5 shrink-0" />
+              <span className="flex flex-col leading-tight">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                  Stay time
+                </span>
+                <span className="text-xl font-black tracking-tight sm:text-2xl">
+                  {stayLabel}
+                </span>
+                <span className="text-[11px] font-semibold text-amber-800/80 dark:text-amber-200/80">
+                  {staySeconds.toLocaleString()} seconds
+                </span>
+              </span>
+            </span>
             <Chip className="border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
               <MapPin className="h-3 w-3" />
               {location}
@@ -294,132 +338,150 @@ function SessionCard({
       </button>
 
       {open && (
-        <div className="space-y-4 border-t border-sky-200 bg-slate-50/80 px-4 py-4 dark:border-sky-900 dark:bg-muted/20">
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
-              Visit timing
+        <div className="space-y-3 border-t border-sky-200 bg-slate-50/80 px-4 py-4 dark:border-sky-900 dark:bg-muted/20">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/40">
+            <div className="flex items-center gap-3">
+              <Clock className="h-8 w-8 shrink-0 text-amber-700 dark:text-amber-300" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                  Stay on site
+                </p>
+                <p className="text-3xl font-black tracking-tight text-amber-950 dark:text-amber-50 sm:text-4xl">
+                  {stayLabel}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-amber-900/80 dark:text-amber-100/80">
+              {staySeconds.toLocaleString()} seconds total ·{" "}
+              {online ? "Online now" : "Offline"}
             </p>
-            <div className="space-y-1.5 rounded-lg border border-sky-100 bg-white p-3 dark:border-sky-900 dark:bg-background/70">
-              <DetailRow label="Visited at" value={formatEventTime(session.startedAt)} />
-              <DetailRow
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <DetailSection title="Visit timing" titleClassName="text-sky-800 dark:text-sky-300">
+              <DetailCell label="Visited at" value={formatEventTime(session.startedAt)} />
+              <DetailCell
                 label="Left at"
                 value={formatEventTime(session.endedAt || session.lastSeenAt)}
               />
-              <DetailRow label="Last active" value={formatEventTime(lastActive)} />
-              <DetailRow
+              <DetailCell label="Last active" value={formatEventTime(lastActive)} />
+              <DetailCell
                 label="Stay on site"
-                value={`${staySeconds} seconds (${formatDuration(staySeconds)})`}
+                value={
+                  <span className="text-base font-black text-amber-800 dark:text-amber-200">
+                    {stayLabel}{" "}
+                    <span className="text-xs font-semibold text-amber-700/80">
+                      ({staySeconds.toLocaleString()}s)
+                    </span>
+                  </span>
+                }
               />
-              <DetailRow label="Status" value={online ? "Online now" : "Offline"} />
-            </div>
-          </div>
+              <DetailCell label="Status" value={online ? "Online now" : "Offline"} />
+            </DetailSection>
 
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
-              Location &amp; identity
-            </p>
-            <div className="space-y-1.5 rounded-lg border border-emerald-100 bg-white p-3 dark:border-emerald-900 dark:bg-background/70">
-              <DetailRow label="Location" value={location} />
-              <DetailRow
+            <DetailSection
+              title="Location & identity"
+              titleClassName="text-emerald-800 dark:text-emerald-300"
+            >
+              <DetailCell label="Location" value={location} />
+              <DetailCell
                 label="IP address"
                 value={session.ip ? <span className="font-mono">{session.ip}</span> : "—"}
               />
-              <DetailRow
+              <DetailCell
                 label="Visitor ID"
-                value={<span className="font-mono">{session.visitorId}</span>}
+                value={<span className="font-mono text-[10px]">{session.visitorId}</span>}
               />
               {session.userId && (
-                <DetailRow
+                <DetailCell
                   label="Logged-in user"
-                  value={<span className="font-mono">{session.userId}</span>}
+                  value={<span className="font-mono text-[10px]">{session.userId}</span>}
                 />
               )}
-              <DetailRow label="Language" value={session.language || "—"} />
-            </div>
-          </div>
+              <DetailCell label="Language" value={session.language || "—"} />
+            </DetailSection>
 
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-300">
-              Device
-            </p>
-            <div className="space-y-1.5 rounded-lg border border-indigo-100 bg-white p-3 dark:border-indigo-900 dark:bg-background/70">
-              <DetailRow
+            <DetailSection title="Device" titleClassName="text-indigo-800 dark:text-indigo-300">
+              <DetailCell
                 label="Device"
                 value={
                   <span className="inline-flex items-center gap-1">
-                    <Laptop className="h-3.5 w-3.5" />
+                    <Laptop className="h-3.5 w-3.5 shrink-0" />
                     {session.deviceName || `${session.browser} on ${session.device}`}
                   </span>
                 }
               />
-              <DetailRow label="Browser" value={session.browser} />
-              <DetailRow label="Device type" value={session.device} />
+              <DetailCell label="Browser" value={session.browser} />
+              <DetailCell label="Device type" value={session.device} />
               {session.deviceId && (
-                <DetailRow
+                <DetailCell
                   label="Device ID"
-                  value={<span className="font-mono">{session.deviceId}</span>}
+                  value={<span className="font-mono text-[10px]">{session.deviceId}</span>}
                 />
               )}
-            </div>
-          </div>
+            </DetailSection>
 
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-orange-800 dark:text-orange-300">
-              Traffic &amp; activity
-            </p>
-            <div className="space-y-1.5 rounded-lg border border-orange-100 bg-white p-3 dark:border-orange-900 dark:bg-background/70">
-              <DetailRow label="Source" value={session.source} />
-              <DetailRow label="Referrer" value={session.referrer || "Direct / none"} />
-              <DetailRow label="Entry page" value={session.entryPath} />
-              <DetailRow label="Exit page" value={session.exitPath} />
-              <DetailRow label="Page views" value={String(session.pageViewCount)} />
-              <DetailRow label="Clicks" value={String(session.clickCount)} />
-              <DetailRow label="Searches" value={String(session.searchCount)} />
-              {session.utmSource && <DetailRow label="UTM source" value={session.utmSource} />}
-              {session.utmMedium && <DetailRow label="UTM medium" value={session.utmMedium} />}
+            <DetailSection
+              title="Traffic & activity"
+              titleClassName="text-orange-800 dark:text-orange-300"
+            >
+              <DetailCell label="Source" value={session.source} />
+              <DetailCell label="Referrer" value={session.referrer || "Direct / none"} />
+              <DetailCell label="Entry page" value={session.entryPath} />
+              <DetailCell label="Exit page" value={session.exitPath} />
+              <DetailCell label="Page views" value={String(session.pageViewCount)} />
+              <DetailCell label="Clicks" value={String(session.clickCount)} />
+              <DetailCell label="Searches" value={String(session.searchCount)} />
+              {session.utmSource && <DetailCell label="UTM source" value={session.utmSource} />}
+              {session.utmMedium && <DetailCell label="UTM medium" value={session.utmMedium} />}
               {session.utmCampaign && (
-                <DetailRow label="UTM campaign" value={session.utmCampaign} />
+                <DetailCell label="UTM campaign" value={session.utmCampaign} />
               )}
-              {session.utmTerm && <DetailRow label="UTM term" value={session.utmTerm} />}
+              {session.utmTerm && <DetailCell label="UTM term" value={session.utmTerm} />}
               {ai && ai.aiChatSessions > 0 && (
-                <DetailRow
+                <DetailCell
                   label="AI assistant"
                   value={`${ai.aiChatSessions} chat${ai.aiChatSessions === 1 ? "" : "s"} · ${ai.aiMessages} messages`}
                 />
               )}
-            </div>
+            </DetailSection>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-fuchsia-800 dark:text-fuchsia-300">
-              Pages visited ({pages.length})
-            </p>
-            {pages.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No page paths recorded.</p>
-            ) : (
-              <ul className="space-y-1 rounded-lg border border-fuchsia-100 bg-white p-3 text-xs dark:border-fuchsia-900 dark:bg-background/70">
-                {pages.map((path) => (
-                  <li key={path} className="break-all font-mono text-fuchsia-900 dark:text-fuchsia-200">
-                    {path}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <section className="min-w-0 rounded-xl border border-fuchsia-200 bg-white p-3 shadow-sm dark:border-fuchsia-900 dark:bg-card">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-fuchsia-800 dark:text-fuchsia-300">
+                Pages visited ({pages.length})
+              </p>
+              {pages.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No page paths recorded.</p>
+              ) : (
+                <ul className="flex flex-wrap gap-1.5">
+                  {pages.map((path) => (
+                    <li
+                      key={path}
+                      className="max-w-full break-all rounded-md border border-fuchsia-100 bg-fuchsia-50 px-2 py-1 font-mono text-[11px] text-fuchsia-900 dark:border-fuchsia-900 dark:bg-fuchsia-950/40 dark:text-fuchsia-200"
+                    >
+                      {path}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-violet-800 dark:text-violet-300">
-              Event timeline ({visibleEvents.length})
-            </p>
-            {visibleEvents.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No detailed events recorded.</p>
-            ) : (
-              <div className="max-h-96 overflow-y-auto rounded-lg border border-violet-100 bg-white px-3 dark:border-violet-900 dark:bg-background/70">
-                {visibleEvents.map((event) => (
-                  <EventRow key={event.id} event={event} />
-                ))}
-              </div>
-            )}
+            <section className="min-w-0 rounded-xl border border-violet-200 bg-white p-3 shadow-sm dark:border-violet-900 dark:bg-card">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-violet-800 dark:text-violet-300">
+                Event timeline ({visibleEvents.length})
+              </p>
+              {visibleEvents.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No detailed events recorded.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-violet-100 px-2 dark:border-violet-900">
+                  {visibleEvents.map((event) => (
+                    <EventRow key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </div>
       )}
