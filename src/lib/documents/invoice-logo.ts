@@ -3,9 +3,9 @@ import path from "path";
 import { appUrl } from "@/lib/site-config";
 
 const REMOTE_LOGO_URLS = [
-  () => appUrl("/images/safarsathilogo.png"),
-  "https://www.thesafarsathi.com/images/safarsathilogo.png",
-  "https://thesafarsathi.com/images/safarsathilogo.png",
+  () => appUrl("/images/logo.svg"),
+  "https://www.thesafarsathi.com/images/logo.svg",
+  "https://thesafarsathi.com/images/logo.svg",
 ];
 
 export interface InvoiceLogoImage {
@@ -36,7 +36,7 @@ async function fetchLogo(url: string): Promise<InvoiceLogoImage | null> {
 }
 
 export async function loadInvoiceLogo(): Promise<InvoiceLogoImage | null> {
-  const localPath = path.join(process.cwd(), "public", "images", "safarsathilogo.png");
+  const localPath = path.join(process.cwd(), "public", "images", "logo.svg");
   try {
     if (fs.existsSync(localPath)) {
       return fromBuffer(fs.readFileSync(localPath));

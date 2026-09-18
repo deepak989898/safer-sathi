@@ -12,45 +12,29 @@ interface BrandLogoProps {
   showTagline?: boolean;
   priority?: boolean;
   centered?: boolean;
-  /** Always use dark-theme logo (e.g. admin sidebar) */
+  /** Kept for callers; logo.svg works on light and dark surfaces. */
   onDarkSurface?: boolean;
 }
 
-const LOGO_LIGHT_SRC = "/images/safarsathilogo.png";
-const LOGO_DARK_SRC = "/images/safarsathidarklogo.png";
+/** Site brand mark — `public/images/logo.svg` */
+export const LOGO_SRC = "/images/logo.svg";
+export const LOGO_LIGHT_SRC = LOGO_SRC;
+export const LOGO_DARK_SRC = LOGO_SRC;
 
-/** Extra scale for dark PNG — file has more padding than the light logo */
-const darkLogoBoost: Record<BrandLogoSize, string> = {
-  header: "scale-[1.42] origin-left",
-  drawer: "scale-[1.38] origin-left",
-  footer: "scale-[1.38] origin-left",
-  admin: "scale-[1.32] origin-left",
-  compact: "scale-[1.35] origin-left",
-};
-
-const darkLogoScale: Record<BrandLogoSize, string> = {
-  header: "dark:scale-[1.42] dark:origin-left",
-  drawer: "dark:scale-[1.38] dark:origin-left",
-  footer: "dark:scale-[1.38] dark:origin-left",
-  admin: "dark:scale-[1.32] dark:origin-left",
-  compact: "dark:scale-[1.35] dark:origin-left",
-};
-
-/** Tall logo — height drives size so all tagline text stays readable */
 const sizeClasses: Record<BrandLogoSize, string> = {
-  header: "h-[5.25rem] w-auto sm:h-[5.75rem] md:h-[6.25rem] lg:h-[6.75rem]",
-  drawer: "h-[5.5rem] w-auto sm:h-[6rem]",
-  footer: "h-[5rem] w-auto sm:h-[5.75rem]",
-  admin: "h-[4.5rem] w-auto sm:h-[5rem]",
-  compact: "h-14 w-auto",
+  header: "h-14 w-auto sm:h-16 md:h-[4.5rem] lg:h-20",
+  drawer: "h-16 w-auto sm:h-[4.5rem]",
+  footer: "h-14 w-auto sm:h-16",
+  admin: "h-12 w-auto sm:h-14",
+  compact: "h-11 w-auto",
 };
 
 const imageDimensions: Record<BrandLogoSize, { width: number; height: number }> = {
-  header: { width: 420, height: 520 },
-  drawer: { width: 380, height: 480 },
-  footer: { width: 380, height: 480 },
-  admin: { width: 320, height: 400 },
-  compact: { width: 240, height: 300 },
+  header: { width: 320, height: 320 },
+  drawer: { width: 280, height: 280 },
+  footer: { width: 260, height: 260 },
+  admin: { width: 220, height: 220 },
+  compact: { width: 180, height: 180 },
 };
 
 export function BrandLogo({
@@ -61,10 +45,13 @@ export function BrandLogo({
   showTagline = false,
   priority = false,
   centered = false,
-  onDarkSurface = false,
 }: BrandLogoProps) {
   const dims = imageDimensions[size];
-  const imgClass = cn("object-contain object-left", sizeClasses[size], imageClassName);
+  const imgClass = cn(
+    "object-contain object-left",
+    sizeClasses[size],
+    imageClassName
+  );
 
   const content = (
     <div
@@ -74,35 +61,15 @@ export function BrandLogo({
         className
       )}
     >
-      {onDarkSurface ? (
-        <Image
-          src={LOGO_DARK_SRC}
-          alt="Safar Sathi — Travel | Comfort | Trust"
-          width={dims.width}
-          height={dims.height}
-          priority={priority}
-          className={cn(imgClass, darkLogoBoost[size])}
-        />
-      ) : (
-        <>
-          <Image
-            src={LOGO_LIGHT_SRC}
-            alt="Safar Sathi — Travel | Comfort | Trust"
-            width={dims.width}
-            height={dims.height}
-            priority={priority}
-            className={cn(imgClass, "dark:hidden")}
-          />
-          <Image
-            src={LOGO_DARK_SRC}
-            alt="Safar Sathi — Travel | Comfort | Trust"
-            width={dims.width}
-            height={dims.height}
-            priority={priority}
-            className={cn(imgClass, "hidden dark:block", darkLogoScale[size])}
-          />
-        </>
-      )}
+      <Image
+        src={LOGO_SRC}
+        alt="Safar Sathi — Travel | Comfort | Trust"
+        width={dims.width}
+        height={dims.height}
+        priority={priority}
+        unoptimized
+        className={imgClass}
+      />
       {showTagline && (
         <div className="hidden sm:block">
           <p className="text-sm font-semibold text-primary">Safar Sathi</p>
@@ -126,8 +93,3 @@ export function BrandLogo({
     </Link>
   );
 }
-
-/** @deprecated Use LOGO_LIGHT_SRC */
-const LOGO_SRC = LOGO_LIGHT_SRC;
-
-export { LOGO_SRC, LOGO_LIGHT_SRC, LOGO_DARK_SRC };
