@@ -2469,6 +2469,31 @@ function KeywordTable({
   );
 }
 
+function blogMatchesSearch(blog: AiBlogPost, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+
+  const slug = blog.slug.toLowerCase();
+  const path = `/blog/${slug}`;
+  const haystack = [
+    blog.title,
+    blog.keyword,
+    blog.slug,
+    path,
+    `blog/${blog.slug}`,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  // Allow pasting full URLs like https://thesafarsathi.com/blog/my-slug
+  const urlSlugMatch = q.match(/\/blog\/([a-z0-9-]+)/i);
+  if (urlSlugMatch?.[1] && slug.includes(urlSlugMatch[1].toLowerCase())) {
+    return true;
+  }
+
+  return haystack.includes(q) || slug.includes(q.replace(/^\/?blog\/?/i, ""));
+}
+
 function BlogTable({
   title,
   subtitle,
@@ -2498,16 +2523,50 @@ function BlogTable({
   publishedOnly?: boolean;
   readOnly?: boolean;
 }) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(
+    () => blogs.filter((blog) => blogMatchesSearch(blog, search)),
+    [blogs, search]
+  );
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {subtitle ? (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <CardHeader className="space-y-3">
+        <div>
+          <CardTitle>{title}</CardTitle>
+          {subtitle ? (
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          ) : null}
+        </div>
+        <div className="relative max-w-xl">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title, slug, or URL…"
+            className="pl-9 pr-9"
+            aria-label={`Search ${title}`}
+          />
+          {search.trim() ? (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+        {search.trim() ? (
+          <p className="text-xs text-muted-foreground">
+            Showing {filtered.length} of {blogs.length} blog
+            {blogs.length === 1 ? "" : "s"}
+          </p>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
-        {blogs.map((blog) => (
+        {filtered.map((blog) => (
           <div key={blog.id} className="rounded-lg border p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
@@ -2565,7 +2624,14 @@ function BlogTable({
             </div>
           </div>
         ))}
-        {blogs.length === 0 && <p className="text-sm text-muted-foreground">No blogs in this section.</p>}
+        {blogs.length === 0 && (
+          <p className="text-sm text-muted-foreground">No blogs in this section.</p>
+        )}
+        {blogs.length > 0 && filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No blogs match “{search.trim()}”. Try another title or URL/slug.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
