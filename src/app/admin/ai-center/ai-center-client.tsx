@@ -11,6 +11,7 @@ import {
   Globe,
   Loader2,
   MapPin,
+  PenLine,
   RefreshCw,
   ScrollText,
   Search,
@@ -26,6 +27,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AiCenterPhase3Tab } from "./ai-center-phase3-tab";
 import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
+import { ManualTitlesTab } from "./manual-titles-tab";
 import { SeoPublishWorkflowProgress } from "./seo-publish-workflow-progress";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSingleImageUpload } from "@/components/admin/admin-image-url-field";
@@ -101,6 +103,7 @@ const AI_CENTER_NAV_SECTIONS: AiCenterNavSection[] = [
       { id: "seo", label: "SEO Agent", icon: Globe },
       { id: "keywords", label: "Keyword Research", icon: Search },
       { id: "blog-writer", label: "Blog Writer", icon: FileText },
+      { id: "manual-titles", label: "Manual Titles", icon: PenLine },
       { id: "drafts", label: "Blog Drafts", icon: FileText },
       { id: "scheduled", label: "Scheduled", icon: Check },
       { id: "published", label: "Published", icon: Check },
@@ -162,6 +165,7 @@ const AI_CENTER_TABS = new Set([
   "seo",
   "keywords",
   "blog-writer",
+  "manual-titles",
   "drafts",
   "scheduled",
   "published",
@@ -1392,6 +1396,13 @@ export default function AiCenterClient() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="manual-titles">
+            <ManualTitlesTab
+              openAiImagesEnabled={settings?.openAiImagesEnabled ?? false}
+              onPublished={() => void loadAll({ silent: true })}
+            />
           </TabsContent>
 
           <TabsContent value="drafts">

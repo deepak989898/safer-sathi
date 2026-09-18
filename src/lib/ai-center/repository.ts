@@ -5,7 +5,15 @@ import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image
 import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
 import { generateSeoMetaForKeyword } from "@/lib/ai-center/seo-meta-generator";
+import {
+  checkTitlesAgainstBlogs,
+  type TitleSimilarityResult,
+} from "@/lib/ai-center/blog-title-similarity";
 import { keywordHasBlog, blogsMatchingKeyword, buildCanonicalBlogMap, getAllDuplicateBlogs, getOrphanBlogs, getProposedKeywordSlug, findActiveBlogBySlug, pickCanonicalBlog, slugify } from "@/lib/ai-center/utils";
+import {
+  fetchFreeStockFeaturedImage,
+  type FreeStockProvider,
+} from "@/lib/media/free-stock-images";
 import type {
   AiBlogPost,
   AiCenterLog,
@@ -590,6 +598,180 @@ export async function generateBlogFromKeyword(
   }
 
   return { blog: finalBlog, imageGenerationMessage };
+}
+
+export type ManualBlogImageMode = FreeStockProvider | "ai";
+
+export async function checkManualTitleSimilarity(
+  titles: string[]
+): Promise<TitleSimilarityResult[]> {
+  await hydrateAiCenterStore();
+  const cleaned = titles
+    .map((t) => t.trim().replace(/\s+/g, " "))
+    .filter((t) => t.length >= 8);
+  return checkTitlesAgainstBlogs(cleaned, blogCache);
+}
+
+function uniqueManualSlug(baseSlug: string): string {
+  let slug = baseSlug || `manual-blog-${Date.now()}`;
+  if (!findActiveBlogBySlug(blogCache, slug)) return slug;
+  for (let i = 2; i < 50; i += 1) {
+    const candidate = `${baseSlug}-${i}`;
+    if (!findActiveBlogBySlug(blogCache, candidate)) return candidate;
+  }
+  return `${baseSlug}-${Date.now()}`;
+}
+
+/**
+ * Generate + auto-publish a blog from a manual admin title.
+ * Image: catalog / Unsplash / Pexels stock, or OpenAI when imageMode === "ai".
+ */
+export async function generateBlogFromManualTitle(
+  title: string,
+  actorId: string,
+  options: { imageMode: ManualBlogImageMode; forcePublish?: boolean }
+): Promise<{ blog: AiBlogPost; imageGenerationMessage?: string; similarity?: TitleSimilarityResult }> {
+  const start = Date.now();
+  await hydrateAiCenterStore();
+
+  const cleanTitle = title.trim().replace(/\s+/g, " ");
+  if (cleanTitle.length < 8) throw new Error("Title must be at least 8 characters");
+
+  const similarity = checkTitlesAgainstBlogs([cleanTitle], blogCache)[0];
+  const baseSlug = slugify(cleanTitle);
+  const slug = uniqueManualSlug(baseSlug);
+
+  const now = new Date().toISOString();
+  const syntheticKeyword: SeoKeyword = {
+    id: `manual_kw_${slug}_${Date.now()}`,
+    keyword: cleanTitle,
+    searchVolume: 500,
+    competition: "medium",
+    trendScore: 50,
+    category: "travel_guides",
+    destination: undefined,
+    seoScore: 70,
+    status: "approved",
+    source: "ai",
+    createdAt: now,
+    approvedAt: now,
+    approvedBy: actorId,
+  };
+
+  const settings = getAiCenterSettings();
+  const seoMeta: SeoMetaRecord = {
+    id: `meta_${syntheticKeyword.id}`,
+    keywordId: syntheticKeyword.id,
+    keyword: cleanTitle,
+    seoTitle: cleanTitle.slice(0, 60),
+    seoDescription: `Plan ${cleanTitle} with Safar Sathi — guides, packages, and booking tips.`,
+    focusKeyword: cleanTitle,
+    slug,
+    faq: [],
+    metaKeywords: cleanTitle.split(/\s+/).slice(0, 8),
+    openGraph: {
+      title: cleanTitle,
+      description: `Plan ${cleanTitle} with Safar Sathi.`,
+      url: `/blog/${slug}`,
+    },
+    schemaMarkup: {},
+    canonicalUrl: `/blog/${slug}`,
+    createdAt: now,
+  };
+
+  const blog = await generateBlogPost({
+    keyword: syntheticKeyword,
+    seoMeta,
+    settings,
+    titleOverride: cleanTitle,
+  });
+  blog.status = "pending_approval";
+  blog.slug = slug;
+
+  blogCache = mergeCache(blogCache, blog);
+  await persistDoc(COLLECTIONS.blogs, blog.id, blog);
+
+  await addAiCenterLog({
+    type: "blog_generated",
+    message: `Manual title blog: ${blog.title}`,
+    resourceId: blog.id,
+    resourceType: "blog",
+    durationMs: Date.now() - start,
+  });
+
+  let finalBlog = blog;
+  let imageGenerationMessage: string | undefined;
+  const imageMode = options.imageMode;
+
+  if (imageMode === "ai") {
+    if (!settings.openAiImagesEnabled) {
+      imageGenerationMessage =
+        "AI images are disabled in settings — using catalog stock image instead.";
+    } else {
+      const enrichment = await enrichBlogWithOpenAiFeaturedImage(
+        blog,
+        settings,
+        actorId
+      );
+      if (enrichment.success && enrichment.blog) {
+        finalBlog = enrichment.blog;
+        blogCache = mergeCache(blogCache, finalBlog);
+        await persistDoc(COLLECTIONS.blogs, finalBlog.id, finalBlog);
+        await addAiCenterLog({
+          type: "blog_image_generated",
+          message: `OpenAI featured image (manual title): ${finalBlog.title}`,
+          resourceId: finalBlog.id,
+          resourceType: "blog",
+        });
+      } else if (enrichment.message) {
+        imageGenerationMessage = enrichment.message;
+      }
+    }
+  } else if (imageMode === "unsplash" || imageMode === "pexels") {
+    const stock = await fetchFreeStockFeaturedImage({
+      provider: imageMode,
+      query: cleanTitle,
+    });
+    finalBlog = {
+      ...finalBlog,
+      featuredImage: stock.url,
+      imageSource: "manual",
+      imageGenerated: false,
+      updatedAt: new Date().toISOString(),
+      imagePrompts: finalBlog.imagePrompts.map((p, idx) =>
+        idx === 0
+          ? {
+              ...p,
+              url: stock.url,
+              alt: stock.alt ?? cleanTitle,
+              caption: stock.photographer
+                ? `Photo: ${stock.photographer} (${stock.provider})`
+                : p.caption,
+            }
+          : p
+      ),
+    };
+    blogCache = mergeCache(blogCache, finalBlog);
+    await persistDoc(COLLECTIONS.blogs, finalBlog.id, finalBlog);
+  }
+  // catalog: keep assignBlogImages result from generateBlogPost
+
+  const shouldPublish = options.forcePublish !== false;
+  if (shouldPublish) {
+    const approved: AiBlogPost = {
+      ...finalBlog,
+      status: "approved",
+      approvedAt: new Date().toISOString(),
+      approvedBy: actorId,
+      updatedAt: new Date().toISOString(),
+    };
+    blogCache = mergeCache(blogCache, approved);
+    await persistDoc(COLLECTIONS.blogs, approved.id, approved);
+    const published = await publishBlog(approved.id, actorId);
+    return { blog: published, imageGenerationMessage, similarity };
+  }
+
+  return { blog: finalBlog, imageGenerationMessage, similarity };
 }
 
 export async function updateBlog(
