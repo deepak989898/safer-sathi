@@ -997,6 +997,51 @@ export default function AiCenterClient() {
     }
   };
 
+  const restructureBlogsOutline = async () => {
+    if (
+      !confirm(
+        "Apply the new travel outline to existing blogs missing it?\n\nHow to Reach (Bus/Flight/Train/Taxi), Where to Stay, What to Do, Cost — ~1000–1500 words each.\n\nRuns in batches until all are updated."
+      )
+    ) {
+      return;
+    }
+
+    setBusy(true);
+    let totalUpdated = 0;
+    try {
+      for (let round = 0; round < 40; round += 1) {
+        const res = await adminApiFetch("/api/admin/ai-center/blogs/restructure-outline", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 25, onlyMissing: true }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const { updated, remaining } = json.data as {
+          updated: number;
+          remaining: number;
+        };
+        totalUpdated += updated;
+        toast.message(
+          `Updated ${totalUpdated} blog${totalUpdated === 1 ? "" : "s"}…${
+            remaining > 0 ? ` ${remaining} left` : ""
+          }`
+        );
+        if (updated === 0 || remaining === 0) break;
+      }
+      toast.success(
+        totalUpdated > 0
+          ? `Restructured ${totalUpdated} blog${totalUpdated === 1 ? "" : "s"} to the new outline`
+          : "All blogs already use the new travel outline"
+      );
+      await loadAll({ silent: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to restructure blogs");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveImageSettings = async (updates: {
     openAiImagesEnabled?: boolean;
     openAiImagesDefaultToggle?: boolean;
@@ -1501,6 +1546,32 @@ export default function AiCenterClient() {
           </TabsContent>
 
           <TabsContent value="published">
+            <div className="mb-4 rounded-lg border bg-card p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Travel outline for existing blogs</p>
+                  <p className="text-xs text-muted-foreground">
+                    Apply How to Reach → Bus/Flight/Train/Taxi, Where to Stay, What to Do, and Cost
+                    (1000–1500 words) to blogs that still use the old layout.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={busy}
+                  onClick={() => void restructureBlogsOutline()}
+                >
+                  {busy ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Update existing blogs
+                </Button>
+              </div>
+            </div>
             <BlogTable
               title="Published Blogs"
               subtitle="Sorted by page views — see which blogs perform best"

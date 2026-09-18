@@ -10,12 +10,15 @@ import type {
   SeoMetaRecord,
 } from "@/lib/ai-center/types";
 import {
-  buildDistanceSection,
   buildSafarSathiBookingCta,
   getDestinationBlogReference,
   resolveDestinationName,
 } from "@/lib/ai-center/blog-reference-data";
 import { stripSourcesSection } from "@/lib/ai-center/blog-content";
+import {
+  buildStructuredTravelGuide,
+  travelOutlinePromptStructure,
+} from "@/lib/ai-center/blog-travel-outline";
 import { estimateWordCount, slugify } from "@/lib/ai-center/utils";
 import { appUrl } from "@/lib/site-config";
 
@@ -24,14 +27,15 @@ Write helpful, factual SEO blog posts in clean Markdown.
 
 STRICT RULES:
 - Use each H2 heading (##) ONLY ONCE — never repeat a section title
+- ALWAYS include nested ### subsections under How to Reach, Where to Stay, What to Do, and Cost exactly as listed in the structure
 - NEVER create filler sections like "More About [place]" or duplicate conclusions
 - Mention "Safar Sathi" at most twice (introduction + one soft CTA in conclusion)
 - Write for travellers, not sales copy — specific names, distances, months, prices
-- Include practical details: how to reach, best time, real attractions, local food
+- Include practical details under Bus, Flight, Train, Taxi, hotel types, places/activities/attractions, and cost breakdown
 - End with "## Book on Safar Sathi" using only Safar Sathi booking URLs from the prompt
 - Do NOT add a Sources, References, or Further Reading section
 - Do NOT link to Wikipedia, tourism boards, or any external website
-- Target the requested word count naturally without padding or repetition
+- Target 1000–1500 words naturally without padding or repetition
 - Use bullet lists and short paragraphs for readability
 - For booking/tour/hotel/vehicle links, ONLY use Safar Sathi URLs provided in the prompt — NEVER link to MakeMyTrip, Goibibo, Booking.com, Yatra, Cleartrip, or other booking sites`;
 
@@ -86,33 +90,7 @@ function buildSections(
   destination: string | undefined,
   wordLimit: number
 ): string {
-  const ref = getDestinationBlogReference(keyword, destination);
-  const dest = resolveDestinationName(keyword, destination);
-  const distanceBlock = buildDistanceSection(keyword);
-
-  const sections: string[] = [
-    `# ${keyword}`,
-    `## Introduction\n\nPlanning **${keyword}**? ${dest} in ${ref.state} rewards travellers with distinct seasons, local cuisine, and well-known sights. This guide covers practical timing, routes, places to see, and budget — so you can plan confidently before you book.`,
-    distanceBlock ?? "",
-    `## Best Time To Visit\n\n${ref.bestTime}`,
-    `## How To Reach\n\n${ref.howToReach}`,
-    `## Top Attractions\n\n${ref.attractions.map((a) => `- ${a}`).join("\n")}`,
-    `## Things To Do\n\n${ref.activities.map((a) => `- ${a}`).join("\n")}`,
-    `## Local Food & Culture\n\n${ref.localFood}`,
-    `## Where To Stay\n\n${dest} has hostels, mid-range hotels, and boutique stays. Old-town or central areas save daily travel time; book early for Christmas–New Year, Diwali, and summer weekends. Compare star rating, breakfast inclusion, and parking before paying.`,
-    `## Budget & Trip Cost\n\nTypical spend: **${ref.avgBudgetPerDay}** (excluding flights). Couples and families can lower cost with off-season dates, weekday stays, and shared cabs for sightseeing.`,
-    `## Travel Tips\n\n${ref.travelTips.map((t) => `- ${t}`).join("\n")}`,
-    `## FAQ\n\n**How many days are enough for ${dest}?**\nMost first-time visitors plan 3–5 nights to cover main sights without rushing.\n\n**Is ${dest} safe for solo travellers?**\nStick to registered operators, share itinerary with family, and avoid isolated areas at night.\n\n**Can I book packages online?**\nYes — compare hotel, cab, and itinerary inclusions before payment.`,
-    `## Conclusion\n\n${dest} works well for families, couples, and adventure groups when you match season to activities. Use the tips above to plan dates and routes — Safar Sathi can help you compare live packages when you are ready to book.`,
-    buildSafarSathiBookingCta(dest),
-  ].filter(Boolean);
-
-  let content = dedupeMarkdownSections(sections.join("\n\n"));
-  const words = estimateWordCount(content);
-  if (words > wordLimit * 1.15) {
-    content = content.split(/\s+/).slice(0, wordLimit).join(" ");
-  }
-  return content;
+  return buildStructuredTravelGuide(keyword, destination, wordLimit);
 }
 
 function buildUserPrompt(
@@ -120,7 +98,8 @@ function buildUserPrompt(
   wordLimit: number,
   referenceContext: string
 ): string {
-  return `Write a ${wordLimit}-word Markdown blog for this SEO keyword.
+  const target = Math.min(1500, Math.max(1000, wordLimit));
+  return `Write a ${target}-word Markdown blog for this SEO keyword.
 
 KEYWORD: ${keyword.keyword}
 CATEGORY: ${keyword.category}
@@ -129,21 +108,7 @@ DESTINATION HINT: ${keyword.destination ?? "infer from keyword"}
 REFERENCE DATA (use facts; do not invent contradictory details):
 ${referenceContext}
 
-STRUCTURE (each ## heading once only):
-1. Introduction
-2. Best Time To Visit
-3. How To Reach
-4. Top Attractions (specific bullets)
-5. Things To Do
-6. Local Food & Culture
-7. Where To Stay
-8. Budget & Trip Cost
-9. Travel Tips
-10. FAQ (3 questions)
-11. Conclusion (one brief Safar Sathi mention max)
-12. Book on Safar Sathi (use only Safar Sathi booking URLs from reference data)
-
-Do NOT include Sources, References, or external links.
+${travelOutlinePromptStructure()}
 
 If the keyword mentions distance between two cities, add a "Distance & Route Overview" section with km, hours, and transport table near the top.`;
 }
@@ -186,9 +151,11 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
   const dest = resolveDestinationName(keyword.keyword, keyword.destination);
   const referenceContext = buildReferenceContext(keyword.keyword, keyword.destination);
 
+  const wordTarget = Math.min(1500, Math.max(1000, settings.blogWordLimit || 1500));
+
   let content =
     input.contentOverride ??
-    buildSections(keyword.keyword, keyword.destination, settings.blogWordLimit);
+    buildSections(keyword.keyword, keyword.destination, wordTarget);
 
   try {
     const { content: aiContent, provider } = await routeCompletion(
@@ -196,7 +163,7 @@ export async function generateBlogPost(input: GenerateBlogInput): Promise<AiBlog
       [
         {
           role: "user",
-          content: buildUserPrompt(keyword, settings.blogWordLimit, referenceContext),
+          content: buildUserPrompt(keyword, wordTarget, referenceContext),
         },
       ],
       async () => content,
@@ -299,6 +266,41 @@ export async function regenerateBlogContent(
     destination: fresh.destination,
     featuredImage: fresh.featuredImage,
     imagePrompts: fresh.imagePrompts,
+    faq: fresh.faq?.length ? fresh.faq : blog.faq,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Fast rule-based rebuild to the canonical travel outline (no AI).
+ * Use for bulk updates of existing blogs.
+ */
+export function restructureBlogToTravelOutline(
+  blog: AiBlogPost,
+  settings: AiCenterSettings
+): AiBlogPost {
+  const wordLimit = Math.min(1500, Math.max(1000, settings.blogWordLimit || 1500));
+  let content = buildStructuredTravelGuide(
+    blog.keyword || blog.title,
+    blog.destination,
+    wordLimit
+  );
+  content = stripSourcesSection(dedupeMarkdownSections(content));
+  const wordCount = estimateWordCount(content);
+  const plainExcerpt = content
+    .replace(/^#.+$/gm, "")
+    .replace(/^##.+$/gm, "")
+    .replace(/^###.+$/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    ...blog,
+    content,
+    wordCount,
+    excerpt: plainExcerpt.slice(0, 220).trim() + (plainExcerpt.length > 220 ? "…" : ""),
+    metaDescription: blog.metaDescription || plainExcerpt.slice(0, 155),
     updatedAt: new Date().toISOString(),
   };
 }

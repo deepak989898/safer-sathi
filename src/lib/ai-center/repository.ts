@@ -1,6 +1,6 @@
 import { getSafeAdminDb, isAdminEnvConfigured } from "@/lib/firebase/admin-safe";
 import { generateCityKeywordResearch } from "@/lib/ai-center/city-keyword-research";
-import { generateBlogPost } from "@/lib/ai-center/blog-writer-agent";
+import { generateBlogPost, restructureBlogToTravelOutline } from "@/lib/ai-center/blog-writer-agent";
 import { enrichBlogWithOpenAiFeaturedImage } from "@/lib/ai-center/ai-blog-image-generator";
 import { hydrateImageGenerationLogs } from "@/lib/ai-center/image-generation-logs";
 import { generateKeywordResearch } from "@/lib/ai-center/seo-keyword-agent";
@@ -1001,6 +1001,73 @@ export async function deleteDuplicateBlogs(actorId?: string): Promise<{
   }
 
   return { deleted: toDelete.length, kept: keepIds.size, deletedIds };
+}
+
+/**
+ * Apply canonical travel outline to existing blogs (rule-based, fast).
+ * Processes up to `limit` blogs that are missing the nested structure.
+ */
+export async function restructureBlogsToTravelOutline(options?: {
+  limit?: number;
+  onlyMissing?: boolean;
+  status?: BlogStatus;
+}): Promise<{
+  updated: number;
+  skipped: number;
+  remaining: number;
+  updatedIds: string[];
+}> {
+  const { hasStructuredTravelOutline } = await import(
+    "@/lib/ai-center/blog-travel-outline"
+  );
+  await hydrateAiCenterStore();
+  const settings = getAiCenterSettings();
+  const limit = Math.min(Math.max(options?.limit ?? 25, 1), 50);
+  const onlyMissing = options?.onlyMissing !== false;
+
+  let candidates = blogCache.filter((b) => b.status !== "rejected");
+  if (options?.status) {
+    candidates = candidates.filter((b) => b.status === options.status);
+  }
+  if (onlyMissing) {
+    candidates = candidates.filter((b) => !hasStructuredTravelOutline(b.content));
+  }
+
+  const batch = candidates.slice(0, limit);
+  const updatedIds: string[] = [];
+
+  for (const blog of batch) {
+    const next = restructureBlogToTravelOutline(blog, settings);
+    blogCache = mergeCache(blogCache, next);
+    await persistDoc(COLLECTIONS.blogs, next.id, next);
+    updatedIds.push(next.id);
+
+    if (next.status === "published") {
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/blog");
+        revalidatePath(`/blog/${next.slug}`);
+      } catch {
+        // no-op
+      }
+    }
+  }
+
+  if (updatedIds.length > 0) {
+    await addAiCenterLog({
+      type: "blog_generated",
+      message: `Restructured ${updatedIds.length} blog(s) to travel outline (How to Reach / Stay / Do / Cost)`,
+      resourceType: "blog",
+    });
+  }
+
+  const remaining = Math.max(0, candidates.length - batch.length);
+  return {
+    updated: updatedIds.length,
+    skipped: 0,
+    remaining,
+    updatedIds,
+  };
 }
 
 export async function getAiCenterStats() {

@@ -80,7 +80,7 @@ function parseFaqPair(block: string): { question: string; answer: string } | nul
   if (boldMatch) {
     return { question: boldMatch[1].trim(), answer: boldMatch[2].trim() };
   }
-  const inlineBold = trimmed.match(/^\*\*(.+?\?)\*\*\s+(.+)$/s);
+  const inlineBold = trimmed.match(/^\*\*(.+?\?)\*\*\s+([\s\S]+)$/);
   if (inlineBold) {
     return { question: inlineBold[1].trim(), answer: inlineBold[2].trim() };
   }
@@ -171,6 +171,22 @@ function renderMarkdownish(content: string) {
       continue;
     }
 
+    if (trimmed.startsWith("### ")) {
+      nodes.push(
+        <h3
+          key={i}
+          className="mt-5 flex items-start gap-2 text-base font-semibold text-foreground"
+        >
+          <span className="mt-0.5 shrink-0 text-primary" aria-hidden>
+            →
+          </span>
+          <span>{trimmed.replace(/^###\s+/, "")}</span>
+        </h3>
+      );
+      i += 1;
+      continue;
+    }
+
     if (trimmed.startsWith("## ")) {
       nodes.push(
         <h2 key={i} className="mt-8 text-xl font-semibold">
@@ -232,6 +248,12 @@ export function BlogDetailClient({
   const { locale } = useAppStore();
   const contentText = localizedText(post.content, locale);
   const contentHasFaqSection = /^##\s+faq\b/im.test(contentText);
+  const contentHasStructuredOutline =
+    /##\s+how to reach/i.test(contentText) &&
+    /###\s+bus/i.test(contentText) &&
+    /##\s+where to stay/i.test(contentText) &&
+    /##\s+what to do/i.test(contentText) &&
+    /##\s+cost/i.test(contentText);
 
   return (
     <article className="container mx-auto max-w-3xl px-4 py-10">
@@ -288,6 +310,33 @@ export function BlogDetailClient({
       </div>
 
       <div className="prose prose-slate mt-8 max-w-none dark:prose-invert">
+        {contentHasStructuredOutline && (
+          <aside className="not-prose mb-8 rounded-xl border bg-muted/30 p-4 sm:p-5">
+            <p className="text-sm font-semibold text-foreground">Travel guide sections</p>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">How to Reach</span>
+                <span className="mt-1 block pl-3">→ Bus · Flight · Train · Taxi</span>
+              </li>
+              <li>
+                <span className="font-medium text-foreground">Where to Stay</span>
+                <span className="mt-1 block pl-3">
+                  → Hotels · Budget hotels · Family hotels · Honeymoon hotels
+                </span>
+              </li>
+              <li>
+                <span className="font-medium text-foreground">What to Do</span>
+                <span className="mt-1 block pl-3">→ Places · Activities · Attractions</span>
+              </li>
+              <li>
+                <span className="font-medium text-foreground">Cost</span>
+                <span className="mt-1 block pl-3">
+                  → Travel cost · Hotel cost · Food cost · Local transport
+                </span>
+              </li>
+            </ul>
+          </aside>
+        )}
         {renderMarkdownish(contentText)}
       </div>
 
