@@ -152,14 +152,21 @@ function DetailCell({ label, value }: { label: string; value: ReactNode }) {
 function DetailSection({
   title,
   titleClassName,
+  className,
   children,
 }: {
   title: string;
   titleClassName: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-border dark:bg-card">
+    <section
+      className={cn(
+        "min-w-0 rounded-xl border p-3 shadow-sm",
+        className
+      )}
+    >
       <p className={cn("mb-2 text-[11px] font-bold uppercase tracking-wide", titleClassName)}>
         {title}
       </p>
@@ -247,17 +254,17 @@ function SessionCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-100 px-3 py-1.5 text-amber-950 shadow-sm dark:border-amber-600 dark:bg-amber-950/50 dark:text-amber-100">
-              <Clock className="h-5 w-5 shrink-0" />
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
+              <Clock className="h-4 w-4 shrink-0" />
               <span className="flex flex-col leading-tight">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                <span className="text-[9px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
                   Stay time
                 </span>
-                <span className="text-xl font-black tracking-tight sm:text-2xl">
+                <span className="text-sm font-bold tracking-tight sm:text-base">
                   {stayLabel}
                 </span>
-                <span className="text-[11px] font-semibold text-amber-800/80 dark:text-amber-200/80">
-                  {staySeconds.toLocaleString()} seconds
+                <span className="text-[10px] font-medium text-amber-800/80 dark:text-amber-200/80">
+                  {staySeconds.toLocaleString()}s
                 </span>
               </span>
             </span>
@@ -326,26 +333,30 @@ function SessionCard({
 
       {open && (
         <div className="space-y-3 border-t border-sky-200 bg-slate-50/80 px-4 py-4 dark:border-sky-900 dark:bg-muted/20">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/40">
-            <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 shrink-0 text-amber-700 dark:text-amber-300" />
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700 dark:bg-amber-950/40">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
                   Stay on site
                 </p>
-                <p className="text-3xl font-black tracking-tight text-amber-950 dark:text-amber-50 sm:text-4xl">
+                <p className="text-lg font-bold tracking-tight text-amber-950 dark:text-amber-50 sm:text-xl">
                   {stayLabel}
                 </p>
               </div>
             </div>
-            <p className="text-sm font-semibold text-amber-900/80 dark:text-amber-100/80">
-              {staySeconds.toLocaleString()} seconds total ·{" "}
+            <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-100/80">
+              {staySeconds.toLocaleString()} seconds ·{" "}
               {online ? "Online now" : "Offline"}
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <DetailSection title="Visit timing" titleClassName="text-sky-800 dark:text-sky-300">
+            <DetailSection
+              title="Visit timing"
+              titleClassName="text-sky-900 dark:text-sky-200"
+              className="border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/40"
+            >
               <DetailCell label="Visited at" value={formatEventTime(session.startedAt)} />
               <DetailCell
                 label="Left at"
@@ -355,9 +366,9 @@ function SessionCard({
               <DetailCell
                 label="Stay on site"
                 value={
-                  <span className="text-base font-black text-amber-800 dark:text-amber-200">
+                  <span className="text-sm font-bold text-amber-800 dark:text-amber-200">
                     {stayLabel}{" "}
-                    <span className="text-xs font-semibold text-amber-700/80">
+                    <span className="text-[11px] font-semibold text-amber-700/80">
                       ({staySeconds.toLocaleString()}s)
                     </span>
                   </span>
@@ -368,7 +379,8 @@ function SessionCard({
 
             <DetailSection
               title="Location & identity"
-              titleClassName="text-emerald-800 dark:text-emerald-300"
+              titleClassName="text-emerald-900 dark:text-emerald-200"
+              className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
             >
               <DetailCell label="Location" value={location} />
               <DetailCell
@@ -388,7 +400,11 @@ function SessionCard({
               <DetailCell label="Language" value={session.language || "—"} />
             </DetailSection>
 
-            <DetailSection title="Device" titleClassName="text-indigo-800 dark:text-indigo-300">
+            <DetailSection
+              title="Device"
+              titleClassName="text-indigo-900 dark:text-indigo-200"
+              className="border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/40"
+            >
               <DetailCell
                 label="Device"
                 value={
@@ -410,7 +426,8 @@ function SessionCard({
 
             <DetailSection
               title="Traffic & activity"
-              titleClassName="text-orange-800 dark:text-orange-300"
+              titleClassName="text-orange-900 dark:text-orange-200"
+              className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40"
             >
               <DetailCell label="Source" value={session.source} />
               <DetailCell label="Referrer" value={session.referrer || "Direct / none"} />
