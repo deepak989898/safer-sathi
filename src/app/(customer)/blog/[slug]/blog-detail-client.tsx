@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
-import { ArrowLeft, Calendar, User } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronDown, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,49 +74,152 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return parts;
 }
 
+function parseFaqPair(block: string): { question: string; answer: string } | null {
+  const trimmed = block.trim();
+  const boldMatch = trimmed.match(/^\*\*(.+?)\*\*\s*\n+([\s\S]+)$/);
+  if (boldMatch) {
+    return { question: boldMatch[1].trim(), answer: boldMatch[2].trim() };
+  }
+  const inlineBold = trimmed.match(/^\*\*(.+?\?)\*\*\s+(.+)$/s);
+  if (inlineBold) {
+    return { question: inlineBold[1].trim(), answer: inlineBold[2].trim() };
+  }
+  const lines = trimmed
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (
+    lines.length >= 2 &&
+    /\?$/.test(lines[0]) &&
+    !lines[0].startsWith("#") &&
+    !lines[0].startsWith("-")
+  ) {
+    return {
+      question: lines[0].replace(/^\*\*|\*\*$/g, ""),
+      answer: lines.slice(1).join(" "),
+    };
+  }
+  return null;
+}
+
+function BlogFaqAccordion({
+  items,
+  className,
+}: {
+  items: { question: string; answer: string }[];
+  className?: string;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className={className ?? "mt-3 space-y-2 not-prose"}>
+      {items.map((item, i) => (
+        <details
+          key={`${item.question}-${i}`}
+          className="group rounded-lg border bg-card [&_summary::-webkit-details-marker]:hidden"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-medium text-foreground">
+            <span>{item.question}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground">
+            {item.answer}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 function renderMarkdownish(content: string) {
-  return content.split("\n\n").map((block, i) => {
-    const trimmed = block.trim();
-    if (!trimmed) return null;
+  const blocks = content.split("\n\n");
+  const nodes: ReactNode[] = [];
+  let i = 0;
+
+  while (i < blocks.length) {
+    const trimmed = blocks[i].trim();
+    if (!trimmed) {
+      i += 1;
+      continue;
+    }
+
+    if (/^##\s+faq\b/i.test(trimmed)) {
+      const faqItems: { question: string; answer: string }[] = [];
+      let j = i + 1;
+      while (j < blocks.length) {
+        const next = blocks[j].trim();
+        if (!next) {
+          j += 1;
+          continue;
+        }
+        if (/^#{1,2}\s+/.test(next)) break;
+        const pair = parseFaqPair(next);
+        if (pair) {
+          faqItems.push(pair);
+          j += 1;
+          continue;
+        }
+        break;
+      }
+
+      nodes.push(
+        <div key={`faq-md-${i}`} className="mt-8">
+          <h2 className="text-xl font-semibold">{trimmed.replace(/^##\s+/, "")}</h2>
+          <BlogFaqAccordion items={faqItems} />
+        </div>
+      );
+      i = j;
+      continue;
+    }
 
     if (trimmed.startsWith("## ")) {
-      return (
+      nodes.push(
         <h2 key={i} className="mt-8 text-xl font-semibold">
           {trimmed.replace(/^##\s+/, "")}
         </h2>
       );
+      i += 1;
+      continue;
     }
     if (trimmed.startsWith("# ")) {
-      return (
+      nodes.push(
         <h1 key={i} className="mt-4 text-2xl font-bold">
           {trimmed.replace(/^#\s+/, "")}
         </h1>
       );
+      i += 1;
+      continue;
     }
     if (trimmed.startsWith("- ")) {
       const items = trimmed.split("\n").filter((line) => line.startsWith("- "));
-      return (
+      nodes.push(
         <ul key={i} className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">
           {items.map((item, j) => (
             <li key={j}>{renderInline(item.replace(/^-\s+/, ""), `li-${i}-${j}`)}</li>
           ))}
         </ul>
       );
+      i += 1;
+      continue;
     }
     if (trimmed.startsWith("|")) {
-      return (
+      nodes.push(
         <pre key={i} className="mt-3 overflow-x-auto rounded-lg bg-muted/50 p-3 text-sm">
           {trimmed}
         </pre>
       );
+      i += 1;
+      continue;
     }
 
-    return (
+    nodes.push(
       <p key={i} className="mt-3 leading-relaxed text-muted-foreground">
         {renderInline(trimmed, `p-${i}`)}
       </p>
     );
-  });
+    i += 1;
+  }
+
+  return nodes;
 }
 
 export function BlogDetailClient({
@@ -127,6 +230,8 @@ export function BlogDetailClient({
   related?: BlogPost[];
 }) {
   const { locale } = useAppStore();
+  const contentText = localizedText(post.content, locale);
+  const contentHasFaqSection = /^##\s+faq\b/im.test(contentText);
 
   return (
     <article className="container mx-auto max-w-3xl px-4 py-10">
@@ -183,7 +288,7 @@ export function BlogDetailClient({
       </div>
 
       <div className="prose prose-slate mt-8 max-w-none dark:prose-invert">
-        {renderMarkdownish(localizedText(post.content, locale))}
+        {renderMarkdownish(contentText)}
       </div>
 
       {post.gallery && post.gallery.length > 1 && (
@@ -241,17 +346,10 @@ export function BlogDetailClient({
         </CardContent>
       </Card>
 
-      {post.faq && post.faq.length > 0 && (
+      {post.faq && post.faq.length > 0 && !contentHasFaqSection && (
         <section className="mt-10 space-y-3">
           <h2 className="text-xl font-semibold">FAQ</h2>
-          {post.faq.map((item) => (
-            <Card key={item.question}>
-              <CardContent className="pt-4">
-                <p className="font-medium">{item.question}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
-              </CardContent>
-            </Card>
-          ))}
+          <BlogFaqAccordion items={post.faq} className="space-y-2" />
         </section>
       )}
 
