@@ -4,32 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Car,
-  Globe,
   Home,
   Hotel,
   LayoutDashboard,
-  Moon,
   Package,
-  Sun,
   User,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { RoleNavigationDrawer } from "@/components/layout/role-navigation-drawer";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAppStore } from "@/store/app-store";
 import { useAuth } from "@/contexts/auth-context";
 import { canShowAdminNav } from "@/lib/navigation/role-menus";
 import { getLoginRedirect } from "@/lib/auth/constants";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { useMounted } from "@/hooks/use-mounted";
 
 const navLinks = [
   { href: "/", label: "home", icon: Home },
@@ -45,33 +34,28 @@ function isNavActive(pathname: string, href: string) {
 
 export function Header() {
   const pathname = usePathname();
-  const { locale, setLocale } = useAppStore();
+  const { locale } = useAppStore();
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const mounted = useMounted();
   const isStaff = user ? canShowAdminNav(user.role) : false;
   const adminHome = user ? getLoginRedirect(user.role) : "/admin";
   const isHome = pathname === "/";
 
   const homeNavLinkClass = isHome
     ? "text-white/90 hover:bg-white/10 hover:text-white"
-    : "hover:bg-accent hover:text-accent-foreground";
+    : "text-foreground hover:bg-accent hover:text-accent-foreground";
 
   const homeNavActiveClass = isHome
     ? "bg-white/15 font-semibold text-white"
     : "bg-primary/10 text-primary";
 
-  const homeIconBtnClass = isHome
-    ? "text-white hover:bg-white/15 hover:text-white"
-    : undefined;
+  /** High-contrast bookings CTA — never white-on-white in light theme. */
+  const bookingsBtnClass = isHome
+    ? "rounded-full border border-white/50 bg-white px-4 font-semibold text-slate-900 shadow-md hover:bg-white/95 hover:text-slate-900"
+    : "rounded-full border border-primary/25 bg-primary px-4 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90";
 
-  const homeOutlineBtnClass = isHome
-    ? "rounded-full border-white/40 bg-white/15 px-4 text-white shadow-sm backdrop-blur-md hover:bg-white/25 hover:text-white"
-    : undefined;
-
-  const homeGhostBtnClass = isHome
-    ? "rounded-full text-white hover:bg-white/15 hover:text-white"
-    : "rounded-full font-medium hover:bg-primary/5";
+  const outlineBtnClass = isHome
+    ? "rounded-full border-white/50 bg-white/20 px-4 font-semibold text-white shadow-sm backdrop-blur-md hover:bg-white/30 hover:text-white"
+    : "rounded-full border-border bg-background px-4 font-semibold text-foreground shadow-sm hover:bg-accent";
 
   return (
     <header
@@ -120,45 +104,6 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-9 w-9", homeIconBtnClass)}
-                />
-              }
-            >
-              <Globe className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setLocale("en")}>
-                English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLocale("hi")}>
-                हिंदी
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("relative h-9 w-9", homeIconBtnClass)}
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label="Toggle theme"
-          >
-            {mounted ? (
-              <>
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              </>
-            ) : (
-              <Sun className="h-4 w-4" />
-            )}
-          </Button>
-
           {user ? (
             <>
               {isStaff && (
@@ -170,14 +115,14 @@ export function Header() {
                 </Link>
               )}
               <Link href="/my-bookings" className="hidden sm:block">
-                <Button variant="ghost" size="sm" className={homeGhostBtnClass}>
+                <Button variant="ghost" size="sm" className={bookingsBtnClass}>
                   {t(locale, "nav", "myBookings")}
                 </Button>
               </Link>
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("hidden sm:inline-flex", homeOutlineBtnClass)}
+                className={cn("hidden sm:inline-flex", outlineBtnClass)}
                 onClick={() => logout()}
               >
                 Sign Out
@@ -186,7 +131,7 @@ export function Header() {
           ) : (
             <>
               <Link href="/my-bookings" className="hidden sm:block">
-                <Button variant="ghost" size="sm" className={homeGhostBtnClass}>
+                <Button variant="ghost" size="sm" className={bookingsBtnClass}>
                   {t(locale, "nav", "myBookings")}
                 </Button>
               </Link>
@@ -194,12 +139,7 @@ export function Header() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={cn(
-                    "gap-1.5 font-semibold",
-                    isHome
-                      ? homeOutlineBtnClass
-                      : "rounded-full border-primary/30 px-4 shadow-sm hover:bg-primary/5"
-                  )}
+                  className={cn("gap-1.5", outlineBtnClass)}
                 >
                   <User className="h-4 w-4" />
                   {t(locale, "nav", "login")}
@@ -219,8 +159,8 @@ export function Header() {
               "hidden md:inline-flex",
               "h-11 min-w-[5.5rem] gap-2 rounded-full px-4",
               isHome
-                ? "border-white/40 bg-white/15 text-white shadow-md backdrop-blur-md hover:bg-white/25"
-                : "border-primary/30 shadow-sm hover:bg-primary/5"
+                ? "border-white/50 bg-white text-slate-900 shadow-md hover:bg-white/95"
+                : "border-primary/30 bg-background text-foreground shadow-sm hover:bg-primary/5"
             )}
           />
         </div>

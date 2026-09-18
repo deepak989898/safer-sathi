@@ -4,12 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  Globe,
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Shield,
+  Sun,
   UserPlus,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +35,7 @@ import {
 } from "@/lib/navigation/role-menus";
 import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/hooks/use-mounted";
 
 interface RoleNavigationDrawerProps {
   triggerClassName?: string;
@@ -45,11 +50,14 @@ export function RoleNavigationDrawer({
   transparentSurface = false,
 }: RoleNavigationDrawerProps) {
   const pathname = usePathname();
-  const { locale } = useAppStore();
+  const { locale, setLocale } = useAppStore();
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const adminItems = user ? getAdminNavItems(user.role) : [];
   const isStaff = user ? canShowAdminNav(user.role) : false;
+  const isDark = mounted && theme === "dark";
 
   const closeMenu = () => setOpen(false);
 
@@ -64,8 +72,8 @@ export function RoleNavigationDrawer({
               showLabel
                 ? "h-11 min-w-[5.5rem] gap-2.5 rounded-xl border-2 px-3.5 text-sm font-semibold shadow-sm"
                 : transparentSurface
-                  ? "h-10 w-10 rounded-full border-0 bg-white text-foreground shadow-md hover:bg-white/95"
-                  : "h-11 w-11 rounded-xl border-2 shadow-sm",
+                  ? "h-10 w-10 rounded-full border-0 bg-white text-slate-900 shadow-md hover:bg-white/95"
+                  : "h-11 w-11 rounded-xl border-2 border-border bg-background text-foreground shadow-sm",
               triggerClassName
             )}
             aria-label="Open navigation menu"
@@ -75,14 +83,14 @@ export function RoleNavigationDrawer({
           </Button>
         }
       />
-      <SheetContent side="left" className="flex w-80 flex-col p-0 sm:w-96">
+      <SheetContent side="right" className="flex w-80 flex-col p-0 sm:w-96">
         <SheetHeader className="border-b px-4 py-3 text-left">
           <SheetTitle className="sr-only">Safar Sathi Navigation</SheetTitle>
           <BrandLogo href="/" size="drawer" centered priority />
           <Separator className="my-2" />
           {user ? (
             <div className="space-y-1">
-              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-sm font-medium text-foreground">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
               <Badge variant="secondary" className="gap-1">
                 <Shield className="h-3 w-3" />
@@ -116,7 +124,7 @@ export function RoleNavigationDrawer({
                       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "hover:bg-accent"
+                        : "text-foreground hover:bg-accent"
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -145,7 +153,9 @@ export function RoleNavigationDrawer({
                   onClick={closeMenu}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive ? "bg-primary/10 text-primary" : "hover:bg-accent"
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-accent"
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
@@ -153,6 +163,69 @@ export function RoleNavigationDrawer({
                 </Link>
               );
             })}
+          </section>
+
+          {/* Language + theme stacked vertically to free header space */}
+          <section className="space-y-3">
+            <p className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Preferences
+            </p>
+
+            <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+                Language
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant={locale === "en" ? "default" : "outline"}
+                  className="w-full justify-start"
+                  onClick={() => setLocale("en")}
+                >
+                  English
+                </Button>
+                <Button
+                  type="button"
+                  variant={locale === "hi" ? "default" : "outline"}
+                  className="w-full justify-start"
+                  onClick={() => setLocale("hi")}
+                >
+                  हिंदी
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                {isDark ? (
+                  <Moon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <Sun className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                Theme
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant={!isDark ? "default" : "outline"}
+                  className="w-full justify-start"
+                  onClick={() => setTheme("light")}
+                >
+                  <Sun className="mr-2 h-4 w-4" />
+                  Light
+                </Button>
+                <Button
+                  type="button"
+                  variant={isDark ? "default" : "outline"}
+                  className="w-full justify-start"
+                  onClick={() => setTheme("dark")}
+                >
+                  <Moon className="mr-2 h-4 w-4" />
+                  Dark
+                </Button>
+              </div>
+            </div>
           </section>
 
           {!user && (
@@ -163,7 +236,7 @@ export function RoleNavigationDrawer({
               <Link
                 href="/login"
                 onClick={closeMenu}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 {t(locale, "nav", "login")}
@@ -171,7 +244,7 @@ export function RoleNavigationDrawer({
               <Link
                 href="/register"
                 onClick={closeMenu}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <UserPlus className="h-4 w-4" />
                 {t(locale, "nav", "register")}
@@ -179,7 +252,7 @@ export function RoleNavigationDrawer({
               <Link
                 href="/register/staff"
                 onClick={closeMenu}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-accent"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <Shield className="h-4 w-4" />
                 Staff Registration
@@ -192,7 +265,7 @@ export function RoleNavigationDrawer({
           {user ? (
             <Button
               variant="outline"
-              className="w-full justify-start"
+              className="w-full justify-start border-border text-foreground"
               onClick={() => {
                 closeMenu();
                 logout();
