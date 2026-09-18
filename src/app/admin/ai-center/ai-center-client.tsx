@@ -30,6 +30,7 @@ import { AiCenterAnalyticsTab } from "./ai-center-analytics-tab";
 import { ManualTitlesTab } from "./manual-titles-tab";
 import { SeoPublishWorkflowProgress } from "./seo-publish-workflow-progress";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminImageThumbnail } from "@/components/admin/admin-image-gallery";
 import { AdminSingleImageUpload } from "@/components/admin/admin-image-url-field";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -2640,15 +2641,14 @@ function BlogTable({
         {filtered.map((blog) => (
           <div key={blog.id} className="rounded-lg border p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
-                <SafeImage
-                  src={resolveBlogFeaturedImage(blog)}
-                  alt={blog.title}
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                />
-              </div>
+              <AdminImageThumbnail
+                images={[
+                  resolveBlogFeaturedImage(blog),
+                  ...(blog.imagePrompts?.map((p) => p.url).filter(Boolean) ?? []),
+                ]}
+                alt={blog.title}
+                className="h-16 w-24"
+              />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{blog.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">
