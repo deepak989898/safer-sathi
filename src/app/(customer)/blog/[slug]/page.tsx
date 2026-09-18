@@ -69,7 +69,7 @@ export default async function BlogDetailPage({
     notFound();
   }
 
-  const related = await getRelatedBlogPostsForSlug(slug, 3);
+  const related = await getRelatedBlogPostsForSlug(slug, 6);
 
   const title = post.seoTitle
     ? localizedText(post.seoTitle, "en")

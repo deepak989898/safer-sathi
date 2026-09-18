@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { SafeImage } from "@/components/ui/safe-image";
 import Link from "next/link";
-import { ArrowLeft, Calendar, ChevronDown, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, ChevronDown, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -404,16 +404,57 @@ export function BlogDetailClient({
 
       {related.length > 0 && (
         <section className="mt-12">
-          <h2 className="text-xl font-semibold mb-4">Related Blogs</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="mb-5 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Related Blogs</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Keep exploring — more guides travellers read next
+              </p>
+            </div>
+            <Link
+              href="/blog"
+              className="shrink-0 text-sm font-medium text-primary underline-offset-2 hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {related.map((r) => (
-              <Link key={r.id} href={`/blog/${r.slug}`}>
-                <Card className="h-full hover:border-primary transition-colors">
-                  <CardContent className="pt-4">
-                    <p className="font-medium line-clamp-2">{localizedText(r.title, locale)}</p>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+              <Link
+                key={r.id}
+                href={`/blog/${r.slug}`}
+                className="group block h-full"
+              >
+                <Card className="h-full overflow-hidden pt-0 transition-all hover:border-primary/40 hover:shadow-md">
+                  <div className="relative aspect-[16/10] overflow-hidden bg-muted/20">
+                    <SafeImage
+                      src={r.image}
+                      alt={localizedText(r.title, locale)}
+                      fill
+                      className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                  <CardContent className="space-y-2 p-4">
+                    {r.tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {r.tags.slice(0, 2).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-[10px] capitalize">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:text-primary">
+                      {localizedText(r.title, locale)}
+                    </h3>
+                    <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                       {localizedText(r.excerpt, locale)}
                     </p>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      Read more
+                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                    </span>
                   </CardContent>
                 </Card>
               </Link>
