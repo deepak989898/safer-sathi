@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { HeroSlider } from "@/components/customer/hero-slider";
-import { SearchWidget } from "@/components/customer/search-widget";
 import { Button } from "@/components/ui/button";
 import type { HomepageHeroSlide } from "@/lib/catalog/homepage-showcase";
 import { localizedText } from "@/lib/i18n";
@@ -60,12 +59,6 @@ export function DesktopHomeHero({
             </div>
           )}
         </HeroSlider>
-
-        <div className="desktop-search-bridge pointer-events-none absolute inset-x-0 bottom-0 z-30">
-          <div className="pointer-events-auto container mx-auto px-4">
-            <SearchWidget variant="desktop-bridge" />
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -12,7 +12,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { HeroSlider } from "@/components/customer/hero-slider";
-import { SearchWidget } from "@/components/customer/search-widget";
 import { MobileShowcaseCard } from "@/components/customer/mobile-showcase-card";
 import type { HomepageHeroSlide, MobileShowcaseItem } from "@/lib/catalog/homepage-showcase";
 import { HOME_HERO_SLIDES } from "@/lib/media/travel-images";
@@ -72,7 +71,6 @@ export function MobileHomeShowcase({
   mobileVehicles,
 }: MobileHomeShowcaseProps) {
   const { locale } = useAppStore();
-  const [searchExpanded, setSearchExpanded] = useState(false);
   const [mobileTab, setMobileTab] = useState<ShowcaseTab>("packages");
 
   const source: HomepageHeroSlide[] =
@@ -106,32 +104,14 @@ export function MobileHomeShowcase({
       <div className="relative">
         <HeroSlider
           slides={slides}
-          compact={!searchExpanded}
+          compact
           className="min-h-[400px] sm:min-h-[430px]"
           mobileReferenceLayout
         />
-
-        {!searchExpanded && (
-          <div className="mobile-search-bridge pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4">
-            <div className="pointer-events-auto mx-auto max-w-md">
-              <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
-            </div>
-          </div>
-        )}
       </div>
 
-      <section
-        className={`relative z-20 bg-background pb-6 ${
-          searchExpanded ? "pt-1" : "mobile-search-section-pad"
-        }`}
-      >
+      <section className="relative z-20 bg-background pb-6 pt-4">
         <div className="container mx-auto px-4">
-          {searchExpanded && (
-            <div className="mx-auto mb-3 max-w-md">
-              <SearchWidget onExpandChange={setSearchExpanded} variant="mobile-pill" />
-            </div>
-          )}
-
           <MobileShowcaseTabs activeTab={mobileTab} onChange={setMobileTab} />
 
           <div className="mt-4">

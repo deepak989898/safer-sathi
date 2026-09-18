@@ -50,7 +50,7 @@ export function DesktopHomeSections({
   const testimonials = buildHomeTestimonials(reviews, locale, 3);
 
   return (
-    <section className="desktop-search-section-pad hidden bg-background md:block">
+    <section className="hidden bg-background pt-10 md:block lg:pt-12">
       <div className="container mx-auto px-4 pb-16">
         <DesktopTrustBar />
 
